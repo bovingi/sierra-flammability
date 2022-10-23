@@ -1,0 +1,226 @@
+---
+title: "Mixed Effects Modeling - SEKI"
+author: "Indra Boving"
+date: "1/25/2022"
+output: html_document
+---
+
+```{r}
+#lots of extra here, but oh well... 
+library(ggplot2)
+library(gapminder)
+library(data.table)
+library(purrr) #for visualizing all variables in one big plot
+library(naniar) #for dealing with NAs nicely 
+library(tidyverse)
+library(devtools)
+library(ggfortify)
+library(ggpubr)
+library(jtools)
+library(lmerTest)
+library(ggeffects)  # install the package first if you haven't already, then load it
+library(GGally) #for corr plots
+require(kimisc) # has the nlist function to create a named list
+require(AICcmodavg) # has the aictab function
+library(psych)
+#devtools::install_github("strengejacke/strengejacke")
+library(strengejacke)
+library(sjPlot) # table functions
+library(sjmisc) # sample data
+library(lme4) # fitting models
+library(here)
+library(effects) #for plotting model effects
+library(sjstats) #use for r2 functions
+library(TMB)
+library(glmmTMB)
+library(lattice)
+library(equatiomatic)
+library("broom.mixed")
+library(ggbiplot)
+select = dplyr::select
+here = here::here
+library(MuMIn)
+library(modelsummary)
+library(flextable)
+```
+
+# Data wrangling
+
+```{r}
+mem.data <- read_csv(here("processed-data", "compiled-datasets", "SEKI", "pca_flam_data_seki.csv"), show_col_types = FALSE)
+                     
+mem.data.raw <- mem.data %>%
+  mutate(mpa = (-1*mpa)) %>% 
+  mutate(year = as.factor(year)) %>%
+  mutate(month = as.factor(month)) %>% 
+  mutate(mpa.unscaled = mpa) %>% 
+  mutate(lfm = lfm.NAs.imputed)
+
+scaled.mem.data.alldates <- mem.data.raw
+  #na.omit() %>%
+  #filter(year.month == "2020_September")
+
+#Parsing out the variables of interest for the mixed effects modelling
+
+scaled.mem.data.alldates.dependant <- scaled.mem.data.alldates[,c('PC1', 'PC2', 'PC3', 'PC4', 'tti', 'fh', 'gd', 'temp.max', 'flam.index', 'year', 'month', 'prop.ignite' #'prop.ignite.bins5'
+                                                                  )] 
+  
+scaled.mem.data.predictors <- scaled.mem.data.alldates %>%
+    dplyr::select('lfm.NAs.imputed', 'lfm.outliers.out', 'mpa', 'dw.flam.sample', 'sample.wt', 'ww.flam.sample', 'gww.gdw.saturated', 'gdw.gww.saturated') %>%
+  scale()
+
+mem.data.predictors <- scaled.mem.data.alldates %>%
+    dplyr::select('spp', 'year.month', 'individual', 'site', 'start.temp', 'precip.2mo','mpa.unscaled', 'lfm') 
+
+scaled.mem.data <- cbind(scaled.mem.data.predictors, 
+                         mem.data.predictors,
+                         scaled.mem.data.alldates.dependant) 
+  
+scaled.mem.data.alldates <- scaled.mem.data %>% 
+   mutate(Species = case_when(
+     spp == "PIJE" ~ "P. jefferii", 
+    spp == "QUKE" ~ "Q kelloggii", 
+    spp == "ARPA" ~ "A. patula", 
+    spp == "CADE" ~ "C. decurrens", 
+    spp == "CECO" ~ "C. cordulatus", 
+    spp == "ABCO" ~ "A. concolor")) %>% 
+  mutate(type = case_when(
+    spp == "PIJE" ~ "tree", 
+    spp == "QUKE" ~ "tree", 
+    spp == "CECO" ~ "shrub", 
+    spp == "ARPA" ~ "shrub", 
+    spp == "ABCO" ~ "tree", 
+    spp == "CADE" ~ "tree"
+  ))
+```
+
+```{r}
+scaled.mem.data.alldates %>%
+  select(mpa, lfm.NAs.imputed, sample.wt, start.temp, PC1, dw.flam.sample, ww.flam.sample) %>% 
+  psych::pairs.panels() 
+```
+## Data Visualization
+
+*Visualizing to see possible effects*
+
+### MPa vs. PC1
+```{r}
+#Visualize 
+plot.mpa.spp <- scaled.mem.data.alldates %>%
+  ggplot(aes(y = PC1, x = mpa, color = spp)) +
+   geom_point(size = .7, alpha = .5) +
+  geom_smooth(method = lm, size = .7, alpha = .5) +
+  ggpubr::stat_regline_equation() +
+  labs(title = "All dates", subtitle = "Separated by species with geom_smooth",
+       x = "Water Potential", y = "PC1 ") +
+  scale_color_discrete(name = "Species") +
+  theme_bw()
+plot.mpa.spp
+```
+
+```{r}
+plot.mpa.site <- scaled.mem.data.alldates %>%
+  ggplot(aes(y = PC1, x = mpa, color = as.factor(site))) +
+  geom_point(size = .7, alpha = .5) +
+  geom_smooth(method = lm, size = .7, alpha = .5) +
+  ggpubr::stat_regline_equation() +
+  labs(title = "All dates", 
+       subtitle = "Separated by site with geom_smooth",
+       x = "Water Potential", 
+       y = "PC1 ") +
+  scale_color_discrete(name = "Site")+
+  theme_bw()
+plot.mpa.site
+```
+
+
+### LFM vs. PC1
+```{r}
+#Visualize 
+plot.lfm.spp <- scaled.mem.data.alldates %>%
+  ggplot(aes(y = PC1, x = lfm.NAs.imputed, color = spp)) +
+  geom_point(size = .7, alpha = .5) +
+  geom_smooth(method = lm) +
+  stat_regline_equation() +
+  labs(title = "2020 samples only", 
+       subtitle = "Separated by Species",
+       x = "LFM (%)", 
+       y = "PC1 ") +
+  scale_color_discrete(name = "Species")  +
+  theme_bw()
+plot.lfm.spp
+```
+### LFM vs. flam.index
+```{r}
+#Visualize 
+scaled.mem.data.alldates %>%
+  ggplot(aes(y = flam.index, x = lfm.NAs.imputed, color = spp)) +
+  geom_point(size = .7, alpha = .5) +
+  geom_smooth(method = lm) +
+  stat_regline_equation() +
+  labs(title = "2020 samples only", 
+       subtitle = "Separated by Species",
+       x = "LFM (%)", 
+       y = "Flam. Index") +
+  scale_color_discrete(name = "Species")  +
+  theme_bw()
+```
+### LFM vs. TTI
+```{r}
+#Visualize 
+scaled.mem.data.alldates %>%
+  ggplot(aes(y = tti, x = lfm.NAs.imputed, color = spp)) +
+  geom_point(size = .7, alpha = .5) +
+  geom_smooth(method = lm) +
+  stat_regline_equation() +
+  labs(title = "2020 samples only", 
+       subtitle = "Separated by Species",
+       x = "LFM (%)", 
+       y = "TTI") +
+  scale_color_discrete(name = "Species")  +
+  theme_bw()
+```
+
+```{r}
+#Visualize 
+scaled.mem.data.alldates %>%
+  ggplot(aes(y = tti, x = lfm.NAs.imputed, color = type)) +
+  geom_point(size = .7, alpha = .5) +
+  geom_smooth(method = lm) +
+  stat_regline_equation() +
+  labs(title = "2020 samples only", 
+       subtitle = "Separated by Species",
+       x = "LFM (%)", 
+       y = "TTI") +
+  scale_color_discrete(name = "Species")  +
+  theme_bw()
+```
+
+## Model Selection
+
+### Use dredge() on maximal model: 
+
+** This does not include LFM**, because it too related to wet weight and dry weight ("rank deficiency" warning). 
+
+```{r, include = FALSE}
+options(na.action = "na.fail") # Required for dredge to run 
+
+dredge_model <- dredge(lmer(PC1 ~ mpa:spp * ww.flam.sample:spp * dw.flam.sample:spp * mpa * ww.flam.sample + dw.flam.sample + site + (1|individual), data = scaled.mem.data.alldates,  na.action = na.fail))
+
+options(na.action = "na.omit") # set back to default
+```
+
+```{r}
+head(dredge_model)
+```
+
+
+```{r}
+mod_lfm <- lmer(tti ~ lfm:spp + lfm + spp + site + (1|individual), data = scaled.mem.data.alldates,  na.action = na.fail)
+
+mod_lfm
+
+sjPlot::plot_model(mod_lfm, show.values = TRUE, show.p = TRUE, 
+                   title = "PC1", vline.color = "red")
+```
+

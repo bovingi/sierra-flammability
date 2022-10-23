@@ -1,0 +1,7 @@
+---
+title: "Segments_04.23.2021"
+author: "Indra Boving"
+date: "4/23/2021"
+output: html_document
+---
+

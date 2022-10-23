@@ -1,0 +1,355 @@
+```{r}
+library(ggplot2)
+library(dplyr)
+install.packages("infer")
+library(infer)
+install.packages("segmented")
+library(segmented)
+library(ggpubr)
+library(tidyverse)
+install.packages("cowplot")
+library(cowplot)
+```
+
+
+```{r}
+df <- read.csv(here("raw-data/field.summer.2020.csv")) ##read in data, cleaned up in Excel (checked for absurd numbers, removed excell errors due to missing values, etc.) 
+str(df)
+```
+
+Organize data:
+
+```{r}
+data.xpp <- df %>% 
+  select(spp, age, site, pod, lfm, date, predawn, midday, type, doy, location, LFMtlp, Mpatlp) %>% #filter out super high LFM (check that this is ok? Necessary?)
+  mutate(lfm.outliers.out = lfm) #add a column that we can use to take out outliers
+range(data.xpp$LFMtlp)
+
+data.xpp %>%
+  filter(spp != "CECO") %>%
+  summarise(mean(LFMtlp))
+
+data.xpp <- data.xpp %>%
+  filter(!is.na(predawn)) #remove rows where we are missing Xpp values 
+
+data.xpp <- data.xpp %>%
+ mutate_if(is.factor, as.character) 
+# str(data.xpp) #view data; 
+
+str(data.xpp)
+
+data.xpp$date <- factor(data.xpp$date, #Change ordering manually
+                         levels = c("4/24/21", "7/15/20", "7/27/20", "8/4/20", "8/26/20", "10/19/20"))
+str(data.xpp)
+
+#LFM outliers? Check:
+#source("http://goo.gl/UUyEzD")
+#outlierKD(data.xpp, lfm.outliers.out) #
+
+##create new dataset with all Xpp measurements together and column time = predawn or midday 
+split.lfm <- gather(data.xpp, key = "time", value = "xpp",
+       predawn, midday) 
+str(split.lfm)#view
+
+## order dates so they are in chronological order in the graph
+split.lfm$date <- factor(split.lfm$date, # Change ordering manually
+                         levels = c("4/24/21", "7/15/20", "7/27/20", "8/4/20", "8/26/20", "10/19/20"))
+```
+
+```{r}
+#Visualize: plot LFM and Water potential:
+ggplot(data = data.xpp, aes(x = predawn, y = lfm, color = date)) +
+  geom_point(size = 1) +
+  #stat_smooth(aes(x = LFM, y = predawn, colour = Date, linetype = "Linear Fit"), method = "lm") +
+  xlim(-5,0) + 
+  ylim(50,300)  + 
+  ylab("Live Fuel Moisture") +
+  xlab("Predawn (-Mpa)") +
+  ggtitle("All values") +
+  theme_bw()
+
+# #Visualize: plot LFM and Water potential (outliers out)
+# plot <- ggplot(data = data.xpp, aes(x = predawn, y = lfm, color = date)) +
+#   geom_point(size = 1) +
+#   #stat_smooth(aes(x = LFM, y = predawn, colour = Date, linetype = "Linear Fit"), method = "lm") +
+#   xlim(-5,0) + 
+#   ylab("Live Fuel Moisture") +
+#   xlab("Predawn (-Mpa)") +
+#   ylim(50,300) +
+#   #ggtitle("Outliers removed (outlierKD)") +
+#   theme_bw()
+# print(plot) #view plot
+```
+
+```{r}
+#Visualize: plot LFM and midday Water potential
+plot <- ggplot(data = data.xpp, aes(x = midday, y = lfm, color = date)) +
+  geom_point(size = 1) +
+  #stat_smooth(aes(x = LFM, y = predawn, colour = Date, linetype = "Linear Fit"), method = "lm") +
+  xlim(-5,0) + 
+  ylab("Live Fuel Moisture") +
+  xlab("Midday (-Mpa)") +
+  ylim(50,300) +
+  #ggtitle("Outliers removed (outlierKD)") +
+  theme_bw()
+print(plot) #view plot
+```
+
+Just one species (ABCO):
+
+```{r}
+predawn.xpp.spp.plot <- data.xpp %>%
+  filter(spp == "ABCO") %>%
+  #filter(age == "New") %>%
+  #filter(time == "midday") %>%
+  ggplot(aes(fill = lfm, y = lfm,  x = date, color = age)) + 
+  geom_boxplot(position="dodge") +
+  ylab("predawn xpp") + theme(axis.text.x = element_blank(),
+                              axis.ticks.x = element_blank(),
+                              axis.title.x = element_blank()) +
+  geom_hline(yintercept = 166, linetype = "dashed", color = "blue") +
+  theme_bw() +
+  ylab("Live Fuel Moisture") +
+  xlab("Date") +
+  ggtitle("Abies concolor") 
+predawn.xpp.spp.plot
+
+predawn.xpp.spp.plot <- data.xpp %>%
+  filter(spp == "ABCO") %>%
+  #filter(time == "midday") %>%
+  ggplot(aes(fill = lfm, y = midday,  x = date)) + 
+  geom_boxplot(position="dodge") +
+  ylab("predawn xpp") + theme(axis.text.x = element_blank(),
+                              axis.ticks.x = element_blank(),
+                              axis.title.x = element_blank()) +
+  geom_hline(yintercept = -2.1, linetype = "dashed", color = "blue") +
+  theme_bw() +
+  ylab("Midday (-Mpa)") +
+  xlab("Date") +
+  ggtitle("Abies concolor") 
+predawn.xpp.spp.plot
+```
+
+```{r}
+predawn.xpp.spp.plot <- data.xpp %>%
+  filter(spp == "PIJE") %>%
+  #filter(age == "New") %>%
+  #filter(time == "midday") %>%
+  ggplot(aes(fill = lfm, y = lfm,  x = date, color = age)) + 
+  geom_boxplot(position="dodge") +
+  ylab("predawn xpp") + theme(axis.text.x = element_blank(),
+                              axis.ticks.x = element_blank(),
+                              axis.title.x = element_blank()) +
+  geom_hline(yintercept = 153.68, linetype = "dashed", color = "blue") +
+  theme_bw() +
+  ylab("Live Fuel Moisture") +
+  xlab("Date") +
+  ggtitle("Pinus jefferi") 
+predawn.xpp.spp.plot
+
+predawn.xpp.spp.plot <- data.xpp %>%
+  filter(spp == "PIJE") %>%
+  #filter(time == "midday") %>%
+  ggplot(aes(fill = lfm, y = midday,  x = date)) + 
+  geom_boxplot(position="dodge") +
+  ylab("predawn xpp") + theme(axis.text.x = element_blank(),
+                              axis.ticks.x = element_blank(),
+                              axis.title.x = element_blank()) +
+  geom_hline(yintercept = -2.4, linetype = "dashed", color = "blue") +
+  theme_bw() +
+  ylab("Midday (-Mpa)") +
+  xlab("Date") +
+  ggtitle("Pinus jefferyi") 
+predawn.xpp.spp.plot
+```
+
+```{r}
+#Visualize: plot LFM and Water potential (outliers in), by age (so select only PIJE and ABCO, which are the ones with old and new)
+filter = dplyr::filter #apaprently there is a override in tidyverse that makes filter sometimes use package stats...so do this. 
+old.new <- data.xpp %>%
+  filter(spp == "PIJE"|spp == "ABCO") 
+  #filter(spp == "ABCO")
+
+plot <- ggplot(data = old.new, aes(x = midday, y = lfm, color = age, shape = spp)) +
+  geom_point() +
+  #stat_smooth(aes(x = LFM, y = predawn, colour = Date, linetype = "Linear Fit"), method = "lm") +
+  xlim(-5,0) + 
+  ylim(50,300) +
+  ggtitle("By age, PIJE and ABCO")
+print(plot) #view plot
+```
+
+Segmented regression: 
+
+1. Predawn: 
+```{r}
+###Looks better with outliers in....300 lfm realistic?
+
+#####build lm model and find inflection point using 'segmented' package...do this with each spp? 
+
+model_segmented <- segmented(lm(lfm ~ predawn, data=data.xpp), seg.Z = ~ predawn)
+model_segmented
+
+predict_segmented = data.frame(predawn = data.xpp$predawn, lfm = broken.line(model_segmented)$fit)
+
+my.lines <- model_segmented$psi[,2]
+
+ggplot(df, aes(x = predawn, y = lfm, color = spp)) +
+  geom_point() + geom_line(data = predict_segmented, color = 'blue') ##works! kinda weird looking though... 
+
+predict_segmented = data.frame(predawn = data.xpp$predawn, lfm = broken.line(model_segmented)$fit)
+ggplot(df, aes(x = predawn, y = lfm, color = date)) +
+  geom_point() + 
+  geom_line(data = predict_segmented, color = 'purple') +
+   geom_vline(xintercept = my.lines, linetype = "dashed") +
+   annotate(geom = "text",  x= my.lines ,y= 210, # Rectangle size around label
+    label.size = .25, label = "TLP: 135% LFM")
+
+model_segmented.lfm <- segmented(lm(predawn~lfm, data=data.xpp), seg.Z = ~ lfm)
+model_segmented.lfm #get lfm breakpoint value....I think? Might actually be embedded in results above. 
+```
+
+2. Midday 
+```{r}
+###Looks better with outliers in....300 lfm realistic?
+
+#####build lm model and find inflection point using 'segmented' package...do this with each spp? 
+
+model_segmented <- segmented(lm(lfm ~ midday, data=data.xpp), seg.Z = ~ midday)
+model_segmented
+
+predict_segmented = data.frame(midday = data.xpp$midday, lfm = broken.line(model_segmented.pd)$fit)
+
+my.lines <- model_segmented$psi[,2]
+
+ggplot(df, aes(x = midday, y = lfm, color = spp)) +
+  geom_point() + geom_line(data = predict_segmented, color = 'blue') ##works! kinda weird looking though... 
+
+predict_segmented = data.frame(midday = data.xpp$midday, lfm = broken.line(model_segmented)$fit)
+ggplot(df, aes(x = midday, y = lfm, color = date)) +
+  geom_point() + 
+  geom_line(data = predict_segmented, color = 'purple') +
+   geom_vline(xintercept = my.lines, linetype = "dashed") +
+   annotate(geom = "text",  x= my.lines ,y= 210, # Rectangle size around label
+    label.size = .25, label = "TLP: 164% LFM")
+
+model_segmented.lfm <- segmented(lm(midday~lfm, data=data.xpp), seg.Z = ~ lfm)
+model_segmented.lfm #get lfm breakpoint value....I think? Might actually be embedded in results above. 
+```
+
+```{r}
+###
+## Compare trees vs. shrubs xpps
+###
+
+shrubs.xpp <- split.lfm %>%
+  filter(type == "shrub") %>%
+  ggplot(aes(fill = time, y = xpp, x = date)) + 
+  geom_bar(position="dodge", stat="identity") +
+  ggtitle("shrubs") + theme(axis.text.x = element_blank(),
+                            axis.ticks.x = element_blank(),
+                            axis.title.x = element_blank())
+shrubs.xpp
+```
+
+
+```{r}
+shrubs.xpp <- split.lfm %>%
+  filter(type == "shrub") %>%
+  ggplot(aes(fill = time, y = xpp, x = date)) + 
+  geom_bar(position="dodge", stat="identity") +
+  ylab("Water Potential") +
+  ggtitle("Shrubs") + 
+  theme_bw()
+shrubs.xpp
+
+#shrubs.xpp
+trees.xpp <- split.lfm %>%
+  filter(type == "tree") %>%
+  ggplot(aes(fill = time, y = xpp, x = date)) + 
+  geom_bar(position="dodge", stat="identity") +
+  ylab("Water Potential") +
+  ggtitle("Trees") +
+  theme_bw() 
+trees.xpp
+```
+
+```{r}
+###
+##compare LFM and all XPPs, splitting trees vs. shrubs
+###
+
+lfm.type.plot <- ggplot(split.lfm, aes(fill = type, y = lfm, x = date)) + 
+  geom_boxplot(position="dodge")  + theme(axis.text.x = element_blank(),
+                                          axis.ticks.x = element_blank(),
+                                          axis.title.x = element_blank() )
+predawn.xpp.type.plot <- split.lfm %>%
+  filter(time == "predawn") %>%
+  ggplot(aes(fill = type, y = xpp, x = date)) + 
+  geom_boxplot(position="dodge") +
+  ylab("predawn xpp") + theme(axis.text.x = element_blank(),
+                               axis.ticks.x = element_blank(),
+                               axis.title.x = element_blank())
+#predawn.xpp.type.plot
+midday.xpp.type.plot <- split.lfm %>%
+  filter(time == "midday") %>%
+  ggplot(aes(fill = type, y = xpp, x = date)) + 
+  geom_boxplot(position="dodge") +
+  ylab("midday xpp")
+
+# Create multiple plots in one
+#   and then nest it inside of a second. Also, include a title at the top 
+#   for the whole figure. 
+# title <- ggdraw() + draw_label("Sierra Sites", fontface='bold')
+# plot_grid(title, lfm.type.plot,
+#           predawn.xpp.type.plot,
+#           midday.xpp.type.plot,
+#           nrow = 4, labels = c("", "", ""),
+#           rel_heights = c(0.2, 1, 1, 1))
+
+###
+##compare LFM and all XPPs, split by spp. 
+###
+
+lfm.spp.plot <- ggplot(split.lfm, aes(fill = spp, y = lfm, x = date)) + 
+  geom_boxplot(position="dodge")  + theme(axis.text.x = element_blank(),
+                                          axis.ticks.x = element_blank(),
+                                          axis.title.x = element_blank() )
+predawn.xpp.spp.plot <- split.lfm %>%
+  filter(spp == "ABCO") %>%
+  filter(time == "midday") %>%
+  ggplot(aes(fill = spp, y = xpp, x = date)) + 
+  geom_boxplot(position="dodge") +
+  ylab("predawn xpp") + theme(axis.text.x = element_blank(),
+                              axis.ticks.x = element_blank(),
+                              axis.title.x = element_blank()) +
+  theme_bw() +
+  ylab("Midday (-Mpa)")
+predawn.xpp.spp.plot
+#predawn.xpp.type.plot
+
+midday.xpp.spp.plot <- split.lfm %>%
+  filter(time == "midday") %>%
+  ggplot(aes(fill = spp, y = xpp, x = date)) + 
+  geom_boxplot(position="dodge") +
+  ylab("Midday (-Mpa)") +
+  xlab("Date")
+midday.xpp.spp.plot
+```
+#####
+#####
+#####
+
+```{r}
+##compare LFM and predawn XPPs, no split
+
+lfm.plot <- ggplot(split.lfm, aes(y = lfm, x = date)) + 
+  geom_boxplot(position="dodge")  + theme(axis.text.x = element_blank(),
+                                          axis.ticks.x = element_blank(),
+                                          axis.title.x = element_blank() )
+predawn.plot <- split.lfm %>%
+  filter(time == "predawn") %>%
+  ggplot(aes(y = xpp, x = date)) + 
+  geom_boxplot(position="dodge") +
+  ylab("predawn xpp")
+```

@@ -1,0 +1,111 @@
+---
+title: "SEKI models"
+author: "Indra Boving"
+date: "1/25/2022"
+output: html_document
+---
+
+```{r, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+```
+
+```{r}
+#lots of extra here, but oh well... 
+library(ggplot2)
+ #for dealing with NAs nicely 
+library(tidyverse)
+library(ggpubr)
+#devtools::install_github("strengejacke/strengejacke")
+library(strengejacke)
+library(sjPlot) # table functions
+library(here)
+library(sjstats) #use for r2 functions
+library(ggbiplot)
+select = dplyr::select
+here = here::here
+library(modelsummary)
+```
+
+# PCA - all dates 
+
+```{r warning=FALSE}
+### Note: This dataset includes only Epiradiator and Ignited samples
+hp.flamdata <- read_csv(here("processed-data", "compiled-datasets", "SEKI",  "seki_flam_data_all.csv"), show_col_types = FALSE) %>%
+  mutate(LFM = lfm.NAs.imputed) %>% 
+ # filter(year == 2020) %>% 
+  filter(model == "HP") %>% 
+  filter(ignition == 1) #only ignited samples (not manual ignition)
+
+hp.flamdata.flam <- (hp.flamdata[, c("fh", "ttfg", "tti", "fd", "gd", "gti", "pfg",
+         "temp.max")]) %>% 
+ transmute(
+    "Flame Height" = fh,
+     "Max. Temp" = temp.max,
+     "\n\nTime to Ignition" = tti, #space is added in front of TTI so that the labels dont overlap in the figure
+     "Flame Duration" = fd,
+    "\nTime to First Glow" = ttfg,
+   "Glow to Ignition" = gti,
+    "Glow Duration" = gd,
+    "Post-flame Glow" = pfg)
+
+cat.hp.flamdata <- (hp.flamdata[c("hydration", "spp", "year.month", "sample")])
+
+hp.flamdata.pca <- prcomp(na.omit(hp.flamdata.flam), center = TRUE, scale = TRUE, retx=TRUE)
+
+#hp.flamdata.pca
+
+#summary(hp.flamdata.pca)
+```
+
+**Use varimax rotation:**
+
+"Rotation is done so that the first axis contains as much variation as possible, the second axis contains as much of the remaining variation and so on. Change of coordinates used in principal component analysis (PCA) is known as Varimax rotation. It maximizes the sum of the variances of the squared loadings as all the coefficients will be either large or near zero, with few intermediate values.
+
+(from: https://discuss.analyticsvidhya.com/t/what-is-varimax-rotation-in-pca/3101/2)
+
+```{r warning=FALSE}
+# varimax <- varimax(hp.flamdata.pca$rotation[,1:3])
+# varimax
+# #summary(hp.flamdata.pca) #importance of components
+# #plot(hp.flamdata.pca)
+```
+
+```{r warning=FALSE}
+ggbiplot::ggbiplot(hp.flamdata.pca, groups = cat.hp.flamdata$spp,
+                        circle = TRUE,
+                        varname.size = 3,
+                        alpha = .7,
+                        labels.size = 3,
+                        varname.adjust = 2.5) +
+ggtitle("Flammability metrics only")
+```
+
+# Interpretation: 
+
+```{r}
+tab_pca(hp.flamdata.flam, rotation = c("varimax"))
+```
+
+PC1 loads on hegatively on flame height & flame duration (**sustainability and combustibility**), and loads positively on time to ignition and glow to ignition (**ignitability**). 
+
+Makes sense, as longer ignitability (more positive PC1) would mean lower flammability, and higher flame heights (more positiev PC2) would mean higher flammability. 
+
+PC2 is heavily negatively loaded on post-flame glow and glow duration (**consumability**). 
+
+PC1 is the better at explaining flammability overall, especially as far as actual flames are concerned. 
+
+
+```{r warning=FALSE}
+##Add scores to dataset: 
+x.flam <-predict(hp.flamdata.pca)  ### generate scores for each row in hp.flamdata
+
+pca.flam.data <- as.data.frame(x.flam) 
+
+all.data.hp <- cbind(hp.flamdata, pca.flam.data)
+
+#dataset with the above columns, PCA using imputed NAs (medians), and flam metrics with NAs still in there:
+mem.data <- all.data.hp 
+#%>% select(individual, site, year, month, year.month, lfm.outliers.out, lfm.NAs.imputed, mpa, dw.flam.sample, ww.flam.sample, sample.wt, spp, start.temp,  gww.gdw.saturated, gdw.gww.saturated, fd, fh, gd, gti, pfg, dry.norm.fd, dry.norm.fh, dry.norm.gd, dry.norm.gti, dry.norm.pfg, temp.max, ttfg, tti, temp.change, PC1, PC2, PC3, PC4, model, LFM, prop.ignite, bins10lfm, flam.index, precip.2mo, prop.ignite.bins5, data.10bins_nodate, data.5bins_nodate)
+  
+#write_csv(mem.data, here("processed-data", "compiled-datasets", "SEKI", "mem.data.local.hp.alldates.csv"))
+```

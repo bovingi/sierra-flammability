@@ -1,0 +1,435 @@
+---
+title: "Scaled local data, Mpa and weight models"
+date: "3/13/2021"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+#lots of extra here, but oh well... 
+library(ggplot2)
+library(gapminder)
+library(data.table)
+library(purrr) #for visualizing all variables in one big plot
+library(naniar) #for dealing with NAs nicely 
+library(dplyr)
+library(tidyverse)
+library(devtools)
+library(ggfortify)
+library(ggpubr)
+library(lme4)
+library(jtools)
+library(lmerTest) #for mixed effects models
+library(ggeffects)  # install the package first if you haven't already, then load it
+library(GGally) #for corr plots
+require(kimisc) # has the nlist function to create a named list
+require(AICcmodavg) # has the aictab function
+library(lme4)
+library(psych)
+library(simputation) #for imputation and visualizing missings
+library(here)
+here=here::here
+```
+
+
+```{r cars, message = FALSE}
+mem.data.raw <- read_csv(here("processed-data/seki.alldata.04.12.2021.csv"))
+
+colSums(is.na(mem.data.raw)) #flame height has most missing (13), and sample.wt (15), ww.flam.sample (21), start.temp (2)
+
+str(mem.data.raw)
+```
+
+# Sort and scale data:
+```{r}
+#Parsing out the variables of interest for the mixed effects modelling:
+clean.mem.data <- mem.data.raw[,c('PC1', 'PC2', 'PC3', 'PC4', 'spp', 'lfm.NAs.imputed', 'lfm.outliers.out', 'mpa', 'dw.flam.sample', 'individual','sample.wt', 'ww.flam.sample', 'gww.gdw.saturated', 'gdw.gww.saturated', 'start.temp', 'tti', 'fh', 'gd', 'temp.max', 'model')] 
+
+#To scale, separate predictors and dependants, and scale numererical predictors:
+clean.mem.data.noscale <- clean.mem.data[,c('PC1', 'PC2', 'PC3', 'PC4', 'tti', 'fh', 'gd', 'temp.max', 'individual', 'model', 'spp')] 
+  
+scaled.mem.data.predictors <- clean.mem.data %>%
+    select('lfm.NAs.imputed', 'lfm.outliers.out', 'mpa', 'dw.flam.sample','sample.wt', 'ww.flam.sample', 'gww.gdw.saturated', 'gdw.gww.saturated', 'start.temp') %>%
+  select(where(is.numeric)) %>%
+    scale(center = TRUE) 
+
+#scale and center by subtracting the column means, and then dividing by the standard deviation of those centered columns
+
+#Attach scaled predictors and dependants back into one dataset:
+scaled.mem.data <- cbind(scaled.mem.data.predictors, clean.mem.data.noscale) 
+```
+
+#Visualize: 
+
+```{r}
+plot <- ggplot(scaled.mem.data, aes(x = mpa, y = tti, color = spp)) + 
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) + 
+  facet_wrap(~model, scales = "free")
+plot
+```
+Since we don't have a lot of overlap (Epi broke), let's just use our hot plate trials: 
+
+```{r}
+scaled.mem.data <- scaled.mem.data %>%
+  filter(model == "HP")
+
+clean.mem.data <- clean.mem.data %>%
+  filter(model == "HP")
+```
+## START MODEL BUILDING: 
+
+NOTE: Mpa, when scaled, can be interpreted as follows:
+      Negative values = drier, positive values = wetter
+
+# When chosing random effects: 
+1. Should not be continuous
+2. Should be independant of response variable and normally distributed
+3. Should have >10 levels
+4. Should be random (this is procedural; we are good here)
+
+# Our random effects:
+indvidual 
+
+# Our fixed effects:
+lfm, mpa, weight metric, start temp, spp (OR do separate models for each spp)
+
+# How to interpret the scaled regressors: 
+ 
+ "Holding everything else constant, on average, a one standard deviation change in one of the regressors is associated with a change in the dependant variable corresponding to the coefficient of that regressor...". 
+
+https://stackoverflow.com/questions/14510277/scale-back-linear-regression-coefficients-in-r-from-scaled-and-centered-data 
+
+"To de-scale or back-transform regression coefficients from a regression done with scaled predictor variable(s) and non-scaled response variable the intercept and slope should be calculated as:
+
+A = As - Bs*Xmean/sdx
+B = Bs/sdx"
+ 
+See also: https://stackoverflow.com/questions/24268031/unscale-and-uncenter-glmer-parameters/24286763#24286763 
+
+ Example: 
+ - Every increase in Mpa (wetness) of 1 SD results in an increase in time to ignition of 4.34 seconds. 
+ (or: Every 1 Mpa increase (i.e. in wetness) results in an increase in tti of 1.40 seconds)?
+ - CECO ignite 7.37 seconds later than ARPA
+ - Samples collected from St. Mary's ignite 3.49 seconds earlier than Painted Cave samples. 
+ 
+ Intercept:
+ - When the plants are at their mean level of hydration (scaled+centered Mpa = 0), CECO's time to ignition is 40.835 seconds (ARPA's tti is 33.465 sec) 
+ 
+All data: 
+
+```{r}
+#check for collinearity: 
+collin.check <- scaled.mem.data %>%
+  select(mpa, lfm.outliers.out, dw.flam.sample, ww.flam.sample, tti, start.temp, fh, gd, gdw.gww.saturated)
+pairs.panels(collin.check) 
+```
+\newpage
+
+All spp
+ 
+```{r}
+me.weights.mpa.allspp <- lmer(tti ~ mpa + dw.flam.sample + ww.flam.sample + spp + start.temp + model +  (1|individual:site), data = scaled.mem.data)
+
+summary(me.weights.mpa.allspp)
+car::vif(me.weights.mpa.allspp)
+```
+# ERROR: 'site' not found in scaled.mem.data because only site is SEKI, take this out of model?
+
+# Backwards elimination to find final model:
+
+Use step() funtion: Backward elimination of random-effect terms followed by backward elimination of fixed-effect terms in linear mixed models.
+- random effects dropped based on ranova
+- fixed effects dropped based on drop1(). drop1() compares all possible models that can be constructed by dropping a single model term based on F-tests of marginal terms
+
+```{r}
+## backward elimination of non-significant effects:
+step_result.allspp <- step(me.weights.mpa.allspp)
+## Elimination tables for random- and fixed-effect terms:
+step_result.allspp
+# Extract the model that step found:
+final_model.allspp <- get_model(step_result.allspp)
+final_model.allspp
+```
+
+```{r}
+summary(final_model.allspp)
+```
+
+```{r}
+plot(final_model.allspp)
+```
+
+```{r}
+sjPlot::plot_model(final_model.allspp, show.values = TRUE, show.p = TRUE, 
+                   title = "Time to Ignition")
+
+sjPlot::tab_model(final_model.allspp, show.re.var = TRUE, 
+                  pred.labels = c("(Intercept)", "Water Potential (Mpa)"))
+```
+
+```{r}
+#standard deviation of Mpa()
+sd.mpa <- sd(scaled.mem.data.2020$mpa)
+
+#To "unscale" the coefficients: 
+
+#Find sd of original data:
+sd.mpa.notscaled <- sd(clean.mem.data.2020$mpa)
+sd.mpa.notscaled
+
+#Find mean
+mean.mpa.notscaled <- mean(clean.mem.data.2020$mpa)
+mean.mpa.notscaled
+
+non.scaled.interpretation <- (4.348/sd.mpa.notscaled)
+non.scaled.interpretation
+```
+\newpage
+
+ARPA only: 
+ 
+```{r}
+scaled.mem.data.arpa <- scaled.mem.data %>%
+  filter(spp == "ARPA")
+
+me.weights.mpa.arpa <- lmer(tti ~ mpa + dw.flam.sample + ww.flam.sample  + start.temp + model +    (1|individual), data = scaled.mem.data.arpa)
+summary(me.weights.mpa.arpa)
+car::vif(me.weights.mpa.arpa)
+```
+
+```{r}
+## backward elimination of non-significant effects:
+step_result.arpa <- step(me.weights.mpa.arpa)
+## Elimination tables for random- and fixed-effect terms:
+step_result.arpa
+# Extract the model that step found:
+final_model.arpa <- get_model(step_result.arpa)
+final_model.arpa
+```
+
+```{r}
+summary(final_model.arpa)
+```
+
+```{r}
+plot(final_model.arpa)
+```
+
+```{r}
+sjPlot::plot_model(final_model.arpa, show.values = TRUE, show.p = TRUE, 
+                   title = "Time to Ignition")
+
+sjPlot::tab_model(final_model.arpa, show.re.var = TRUE, 
+                  pred.labels = c("(Intercept)", "Water Potential (Mpa)"))
+
+str(scaled.mem.data.arpa)
+```
+\newpage
+
+CECO only: 
+ 
+```{r}
+scaled.mem.data.CECO <- scaled.mem.data %>%
+  filter(spp == "CECO")
+
+me.weights.mpa.CECO <- lmer(tti ~ mpa + dw.flam.sample + ww.flam.sample  + start.temp +      (1| individual), data = scaled.mem.data.CECO)
+
+AIC(me.weights.mpa.CECO)
+summary(me.weights.mpa.CECO)
+car::vif(me.weights.mpa.CECO)
+```
+
+```{r}
+## backward elimination of non-significant effects:
+step_result.CECO <- step(me.weights.mpa.CECO)
+## Elimination tables for random- and fixed-effect terms:
+step_result.CECO
+# Extract the model that step found:
+final_model.CECO <- get_model(step_result.CECO)
+final_model.CECO
+```
+
+```{r}
+summary(final_model.CECO)
+```
+
+```{r}
+plot(final_model.CECO)
+```
+
+```{r}
+sjPlot::plot_model(final_model.CECO, show.values = TRUE, show.p = TRUE, 
+                   title = "Time to Ignition")
+
+sjPlot::tab_model(final_model.CECO, show.re.var = TRUE, 
+                  pred.labels = c("(Intercept)", "Water Potential (Mpa)"))
+```
+
+
+\newpage
+
+CADE only: 
+ 
+```{r}
+scaled.mem.data.CADE <- scaled.mem.data %>%
+  filter(spp == "CADE")
+
+me.weights.mpa.CADE <- lmer(tti ~ mpa + dw.flam.sample + ww.flam.sample  + start.temp +      (1| individual), data = scaled.mem.data.CADE)
+
+AIC(me.weights.mpa.CADE)
+summary(me.weights.mpa.CADE)
+car::vif(me.weights.mpa.CADE)
+```
+
+```{r}
+## backward elimination of non-significant effects:
+step_result.CADE <- step(me.weights.mpa.CADE)
+## Elimination tables for random- and fixed-effect terms:
+step_result.CADE
+# Extract the model that step found:
+final_model.CADE <- get_model(step_result.CADE)
+final_model.CADE
+```
+
+```{r}
+summary(final_model.CADE)
+```
+
+```{r}
+plot(final_model.CADE)
+```
+
+```{r}
+sjPlot::plot_model(final_model.CADE, show.values = TRUE, show.p = TRUE, 
+                   title = "Time to Ignition")
+
+sjPlot::tab_model(final_model.CADE, show.re.var = TRUE, 
+                  pred.labels = c("(Intercept)", "Water Potential (Mpa)"))
+```
+
+\newpage
+
+PIJE only: 
+ 
+```{r}
+scaled.mem.data.PIJE <- scaled.mem.data %>%
+  filter(spp == "PIJE")
+
+me.weights.mpa.PIJE <- lmer(tti ~ mpa + dw.flam.sample + ww.flam.sample  + start.temp +      (1| individual), data = scaled.mem.data.PIJE)
+
+AIC(me.weights.mpa.PIJE)
+summary(me.weights.mpa.PIJE)
+car::vif(me.weights.mpa.PIJE)
+```
+
+```{r}
+## backward elimination of non-significant effects:
+step_result.PIJE <- step(me.weights.mpa.PIJE)
+## Elimination tables for random- and fixed-effect terms:
+step_result.PIJE
+# Extract the model that step found:
+final_model.PIJE <- get_model(step_result.PIJE)
+final_model.PIJE
+```
+
+```{r}
+summary(final_model.PIJE)
+```
+
+```{r}
+plot(final_model.PIJE)
+```
+
+```{r}
+sjPlot::plot_model(final_model.PIJE, show.values = TRUE, show.p = TRUE, 
+                   title = "Time to Ignition")
+
+sjPlot::tab_model(final_model.PIJE, show.re.var = TRUE, 
+                  pred.labels = c("(Intercept)", "Water Potential (Mpa)"))
+```
+
+\newpage
+
+QUKE only: 
+ 
+```{r}
+scaled.mem.data.QUKE <- scaled.mem.data %>%
+  filter(spp == "QUKE")
+
+me.weights.mpa.QUKE <- lmer(tti ~ mpa + dw.flam.sample + ww.flam.sample  + start.temp +      (1| individual), data = scaled.mem.data.QUKE)
+
+AIC(me.weights.mpa.QUKE)
+summary(me.weights.mpa.QUKE)
+car::vif(me.weights.mpa.QUKE)
+```
+
+```{r}
+## backward elimination of non-significant effects:
+step_result.QUKE <- step(me.weights.mpa.QUKE)
+## Elimination tables for random- and fixed-effect terms:
+step_result.QUKE
+# Extract the model that step found:
+final_model.QUKE <- get_model(step_result.QUKE)
+final_model.QUKE
+```
+
+```{r}
+summary(final_model.QUKE)
+```
+
+```{r}
+plot(final_model.QUKE)
+```
+
+```{r}
+sjPlot::plot_model(final_model.QUKE, show.values = TRUE, show.p = TRUE, 
+                   title = "Time to Ignition")
+
+sjPlot::tab_model(final_model.QUKE, show.re.var = TRUE, 
+                  pred.labels = c("(Intercept)", "Water Potential (Mpa)"))
+```
+
+\newpage
+
+ABCO only: 
+ 
+```{r}
+scaled.mem.data.ABCO <- scaled.mem.data %>%
+  filter(spp == "ABCO")
+
+me.weights.mpa.ABCO <- lmer(tti ~ mpa + dw.flam.sample + ww.flam.sample  + start.temp +      (1| individual), data = scaled.mem.data.ABCO)
+
+AIC(me.weights.mpa.ABCO)
+summary(me.weights.mpa.ABCO)
+car::vif(me.weights.mpa.ABCO)
+```
+
+```{r}
+## backward elimination of non-significant effects:
+step_result.ABCO <- step(me.weights.mpa.ABCO)
+## Elimination tables for random- and fixed-effect terms:
+step_result.ABCO
+# Extract the model that step found:
+final_model.ABCO <- get_model(step_result.ABCO)
+final_model.ABCO
+```
+
+```{r}
+summary(final_model.ABCO)
+```
+
+```{r}
+plot(final_model.ABCO)
+```
+
+```{r}
+sjPlot::plot_model(final_model.ABCO, show.values = TRUE, show.p = TRUE, 
+                   title = "Time to Ignition")
+
+sjPlot::tab_model(final_model.ABCO, show.re.var = TRUE, 
+                  pred.labels = c("(Intercept)", "Water Potential (Mpa)"))
+```
+

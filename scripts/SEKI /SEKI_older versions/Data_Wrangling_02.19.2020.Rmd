@@ -1,0 +1,691 @@
+---
+title: 'Data Wrangling: Local Flam. Curves (SB Area)'
+author: "Indra Boving"
+date: "2/15/2021"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r include=FALSE}
+library(ggplot2) #install and run packages, dont need to do this every time though....also, say "no" to restarting. 
+#install.packages("gapminder")
+library(gapminder)
+#install.packages("data.table")
+library(data.table)
+#install.packages("purrr")
+library(purrr) #for visualizing all variables in one big plot
+#install.packages("naniar")
+library(naniar) #deal with NAs
+library(dplyr)
+library(tidyverse)
+#install.packages("ggpubr")
+library(ggpubr)
+#tidyverse_update()
+library(here)
+filter = dplyr::filter #correct filter problem (gets confused with stats::filter)
+```
+
+```{r include=FALSE}
+
+data1 = read.csv(here("raw-data/flam.local.alldates.csv")) ##make sure there are no error cells, and remove any negative lfms (due to missing DW or FW in calc).
+str(data1) #view datasheet; check that all are good (we don't want error cells from excel, so remove those in excel if you see them show up...way to do this in R?)
+##for example, we want lfm to be numeric "num", not a factor; same with all flam metrics being num or integer. If they are not, there are non-numeric values in the sheet, so that needs to be addressed. 
+```
+
+```{r eval=FALSE, include=FALSE}
+precip <- read.csv(here("raw-data/Precip_SBBG.csv")) %>%
+  filter(year > 2014) %>%
+  unite(year.month, c("year", "month")) %>%
+  group_by(year.month) %>%
+  mutate(rainfall = sum(daily.rain))
+precip 
+
+Sept2020 <- precip %>%
+  filter(year.month == "2020_8" | year.month == "2020_7") %>%
+  group_by(water.year) %>%
+  mutate(rainfall.2mo = sum(daily.rain))
+Sept2020
+
+Jan2020 <- precip %>%
+  filter(year.month == "2020_01" | year.month == "2019_12") %>%
+  group_by(year.month) %>%
+  mutate(rainfall.2mo = sum(daily.rain))
+Jan2020
+
+Dec20191 <- precip %>%
+  filter(year.month == "2019_12") %>%
+  filter(day < 10) %>%
+  group_by(year.month) %>%
+  mutate(rainfall.2mo = sum(daily.rain)) %>%
+  ungroup()
+Dec20191
+
+Dec20192 <- precip %>%
+  filter(year.month == "2019_11") %>%
+  group_by(water.year) %>%
+  mutate(rainfall.2mo = sum(daily.rain)) %>%
+  ungroup()
+Dec20192
+
+Dec2019 <- rbind(Dec20191, Dec20192) %>%
+  mutate(rainfall.2mo = sum(daily.rain))
+Dec2019
+  
+
+Jan2018 <- precip %>%
+  filter(year.month == "2017_12" | year.month == "2017_11") %>%
+  group_by(water.year) %>%
+  mutate(rainfall.2mo = sum(daily.rain))
+Jan2018
+
+
+Dec2016 <- precip %>%
+  filter(year.month == "2015_12" | year.month == "2015_11") %>%
+  group_by(water.year) %>%
+  mutate(rainfall.2mo = sum(daily.rain))
+Dec2016
+
+precip.filtered <- rbind(Dec2016, Dec2019, Jan2018, Jan2020, Sept2020) %>% #ERROR 1: 'Jan2019' not found, no January 2019 in flam. dataset, so instead just used the dates above (replaced Jan2019 with Jan2020)
+  select(water.year, year.month, day, daily.rain, rainfall.2mo)
+precip.filtered
+
+write.csv(precip.filtered, "precip.clean.csv")
+
+```
+
+
+```{r}
+data <- data1 %>%
+  replace_with_na_at(.vars = c("lfm"),
+                     condition = ~.x < 1) %>%
+  replace_with_na_at(.vars = c("dw.flam.sample"),
+                     condition = ~.x < 0) %>%
+  group_by(bins10lfm= cut(lfm, breaks= seq(0, 350, by = 10))) %>% #create 10 LFM segments, indicate these in new column called "bins10lfm"
+  ungroup() %>% #ungroup - this will stop issues in the future (we can always regroup again)
+  group_by(bins20lfm = cut(lfm, breaks= seq(0, 360, by = 20))) %>% #create 20 LFM segments, indicate these in new column called "bins20lfm"
+  ungroup() %>% 
+  group_by(bins40lfm = cut(lfm, breaks= seq(0, 360, by = 40))) %>% #create 40 LFM segments, indicate these in new column called "bins40lfm"
+  ungroup() %>%
+  unite(year.month, c("year", "month"), remove = FALSE) %>% #group for month and year
+  mutate(precip.2month = year.month) %>%
+ mutate(precip.2mo = recode(precip.2month, "2020_September" = 0.01, "2018_January" = 0.09, "2019_December" = 3.69, "2020_January" = 5.82, "2016_December" = 0.61)) %>%
+  mutate(season = year.month) %>%
+  mutate(season = recode(season, "2020_September" = "Dry", "2018_January" = "Dry", "2019_December" = "Wet", "2020_January" = "Wet", "2016_December" = "Dry" )) %>%  
+  group_by(year, model, spp, bins10lfm) %>% #create groups based on trial, model, species, and lfm segment
+  add_tally %>% #column with n for each of these groups
+  ungroup() %>% #ungroup so r doesnt get confused
+  unite(model.spp.gr, c("year", "month", "model", "spp", "bins10lfm"), remove = FALSE) %>% #create column for each group as above, and add lfm segment count
+  unite(model.spp.gr.sample, c("year", "month", "model", "spp", "bins10lfm", "sample"), remove = FALSE) 
+
+setDT(data)[,total:=sum(ignition),by=model.spp.gr][] #add column called "total" with the total number of ignitions per group ("sum" works because we have 0s and 1s)
+setDT(data)[,max.gww.gdw:=max(gww.gdw),by=model.spp.gr.sample][]
+setDT(data)[,RWC:=(gww.gdw/max.gww.gdw)*100, by = model.spp.gr.sample][] #RWC calculated as ww per gram dw of fresh weight/ ww per gram dw of turgid wt)
+```
+
+#ERROR 2: no gww.gdw on dataset! Not sure how to fix.
+
+```{r}
+df.all <- data %>% #...still working on the proprortions:
+  group_by(model.spp.gr) %>% #group by year, model, spp, group column
+  mutate(prop.ignite = paste0(round(100 * total/n))) %>% #for each group, divide total ignitions ("total" column) by total number burn (n column) attempts as a percentage
+  ungroup() %>% #ungroup so r doesnt get confused
+  replace_with_na(replace = list(temp.max = c(0, 0.0))) %>% #for missing temp maxs, make NA
+  replace_with_na(replace = list(ignition.temp = c(0, 0.0))) %>% #for missing temp at ignition, make NA (all 2016 & 2018 trials)
+  replace_with_na(replace = list(start.temp = c(0, 0.0))) %>% #for missing starting temp, make na
+  replace_with_na(replace = list(sample.wt = c(0, 0.0))) %>% #for sample weight...could do mean here?
+  replace_with_na(replace = list(lfm = c(0.00000))) %>% #for missing lfm
+  replace_with_na(replace = list(dry.wt = c(0))) %>% #for missing dry weight
+  replace_with_na(replace = list(dw.flam.sample = c(0, " ", "  ", "", "   ", "    "))) %>% 
+  replace_with_na(replace = list(fh = c(0))) %>% #when FH is zero (i.e. no burns)
+  mutate(lfm.outliers.out = lfm) %>%
+  unite(individual, c("year.month", "sample", "spp"), remove = FALSE) %>% #individual = sample # during each testing %>% ##make column to take out outliers from lfm, while keeping column with original lfms too
+  #create Rate of Spread column (only relevant for HP metrics, but we'll do it for all and just ignore that column when we do EPI analysis):
+  mutate(ros = 10/fd) ##this returns Inf for those missing flame duration (i.e., no burn columns. Shouldnt be an issue when we filter out only those that burned?)
+
+str(df.all) ##View; any other calculations to do???
+#head(df.all)
+```
+
+```{r}
+### Make sure columns are in proper form (num or int for flam metrics):
+df.all$prop.ignite<-as.numeric(df.all$prop.ignite) #looks good!
+```
+
+
+```{r}
+#PV curve dataset; to be used in PV analysis later:
+pv.curve.local.all <- df.all %>% 
+  select(mpa, RWC, model.spp.gr.sample, sample, fresh.wt, dry.wt) %>%
+  mutate(sample = sample * 10)  %>% 
+  mutate(sample = as.integer(sample)) %>%
+  mutate(fresh.weight = fresh.wt) %>%
+  mutate(dry.weight = dry.wt) %>%
+  select(mpa, RWC, model.spp.gr.sample, sample, fresh.weight, dry.weight) %>%
+  arrange(model.spp.gr.sample, desc(mpa)) %>%
+  str()
+write.csv(pv.curve.local.all, "pv.curve.local.all.csv")
+```
+
+#ERROR 3: Should be fixed when error 2 fixed
+
+```{r}
+### Deal with NAs and wonky values due to no burns: 
+#         put NAs into where there are 0s we dont want in flam metrics: (0s or negatives because of missing times/non ignition)
+
+df.all[c("ttfg", "tti", "fd", "gd", "pfg", "fh", "mpa", "dw.flam.sample", "prop.new")][(df.all[c("ttfg", "tti", "fd", "gd", "pfg", "fh", "mpa", "dw.flam.sample", "prop.new")] == 0)] <- NA
+df.all[c("ttfg", "tti", "fd", "gd", "pfg", "gti", "dw.flam.sample")][(df.all[c("ttfg", "tti", "fd", "gd", "pfg", "gti", "dw.flam.sample")] < 0)] <- NA
+df.all[c("ttfg", "tti", "fd", "gd", "pfg", "gti")][(df.all[c("ttfg", "tti", "fd", "gd", "pfg", "gti")] > 1000)] <- NA
+
+#Did I miss any?? 
+str(df.all)
+#colSums(is.na(df.all)) #view number of NAs, if you want (remove #)
+```
+
+#ERROR 4: 'dw.flam.sample' not in dataset. Why is dataset suddenly missing some of these variables?
+
+```{r}
+#source("http://goo.gl/UUyEzD") #outlier KD (original function)
+
+#The following function is derived from outlierKD (from above)
+outlierKD2 <- function(dt, var) {
+  var_name <- eval(substitute(var),eval(dt))
+  tot <- sum(!is.na(var_name))
+  na1 <- sum(is.na(var_name))
+  m1 <- mean(var_name, na.rm = T)
+  par(mfrow=c(2, 2), oma=c(0,0,3,0))
+  boxplot(var_name, main="With outliers")
+  hist(var_name, main="With outliers", xlab=NA, ylab=NA)
+  outlier <- boxplot.stats(var_name)$out
+  mo <- mean(outlier)
+  var_name <- ifelse(var_name %in% outlier, NA, var_name)
+  boxplot(var_name, main="Without outliers")
+  hist(var_name, main="Without outliers", xlab=NA, ylab=NA)
+  title("Outlier Check", outer=TRUE)
+  na2 <- sum(is.na(var_name))
+  message("Outliers identified: ", na2 - na1, " from ", tot, " observations")
+  message("Proportion (%) of outliers: ", (na2 - na1) / tot*100)
+  message("Mean of the outliers: ", mo)
+  m2 <- mean(var_name, na.rm = T)
+  message("Mean without removing outliers: ", m1)
+  message("Mean if we remove outliers: ", m2)
+    dt[as.character(substitute(var))] <- invisible(var_name)
+    assign(as.character(as.list(match.call())$dt), dt, envir = .GlobalEnv)
+    message("Outliers successfully removed", "\n")
+    return(invisible(dt))
+}
+
+outlierKD2(df.all, lfm.outliers.out) #check for outliers and remove (happens in outliers.out column, lfm column still contains outliers)
+clean <- df.all %>%
+  select(individual, model.spp.gr.sample, sample, round, spp, model, mpa, lfm, lfm.outliers.out, prop.new, sample.wt,precip.2mo, season,
+         dw.flam.sample, ignition, fh, ttfg, tti, fd, gd, pfg, gti, start.temp, temp.max, glow, 
+         prop.ignite, ros, year.month, ignition, glow, bins10lfm, bins20lfm, bins40lfm)
+str(clean)
+
+```
+
+```{r}
+#Visualizing NA's further:
+#install.packages('simputation')
+library(simputation)
+library(visdat)
+
+clean.ignite.only <- clean %>%
+  filter(ignition == "1")
+
+vis_miss(clean.ignite.only)
+gg_miss_var(clean.ignite.only, facet = year.month)
+
+ggplot(clean.ignite.only, 
+       aes(x = lfm.outliers.out, 
+           y = fh)) + 
+  geom_miss_point() +
+  facet_wrap(~year.month)
+
+as_shadow(clean.ignite.only)
+aq_shadow <- bind_shadow(clean.ignite.only)
+aq_nab <- nabular(clean.ignite.only)
+all.equal(aq_shadow, aq_nab)
+glimpse(aq_nab)
+
+clean.ignite.only %>%
+  bind_shadow() %>%
+  group_by(lfm.outliers.out_NA) %>%
+  summarise_at(.vars = "fh",
+               .funs = c("mean", "sd", "var", "min", "max"),
+               na.rm = TRUE)
+
+clean.ignite.only %>%
+  bind_shadow() %>%
+  group_by(lfm.outliers.out_NA) %>%
+  summarise_at(.vars = "mpa",
+               .funs = c("mean", "sd", "var", "min", "max"),
+               na.rm = TRUE)
+
+ggplot(aq_shadow,
+       aes(x = mpa,
+           colour = lfm.outliers.out_NA)) + 
+  geom_density()
+
+  clean.ignite.only%>%
+    bind_shadow() %>%
+    ggplot(aes(x = mpa,
+               fill = lfm.outliers.out_NA)) +
+        geom_histogram()
+
+
+lfm <- clean.ignite.only %>%
+  filter(model == "EPI") %>%
+  ggplot( 
+       aes(x = lfm.outliers.out)) + 
+  geom_density() +
+  facet_wrap(~year.month)
+lfm
+
+#imputed missing lfm values 
+aq_shadow %>%
+  impute_lm(lfm.outliers.out ~ mpa) %>%
+  ggplot(aes(x = mpa,
+             y = lfm.outliers.out, 
+             colour = lfm.outliers.out_NA)) + 
+  geom_point()
+
+head(aq_shadow)
+
+#impute NAs from missing values: 
+clean.ignite.only <- clean.ignite.only %>%
+  mutate(lfm.NAs.imputed = lfm.outliers.out) %>%
+  impute_rlm(lfm.NAs.imputed ~ mpa)
+
+write.csv(clean.ignite.only, "local.ignite.only.csv") ##remove # if you want to see this as an excel file
+
+str(clean.ignite.only)
+```
+
+## New dataset with only ignited datapoints and flam characteristics normalized by mean sample weight:
+###   (Question: Is there a better way to normalize? By actual sample weight, not mean? (trying to deal with weight differences, especially in HP samples))
+
+```{r}
+ignite.only.all <- clean.ignite.only %>%
+  #filter(ignition == "1") %>%
+  #replace_with_na(replace = list(fh = c(0))) %>% 
+  group_by(model) %>%
+  mutate(mean.wt = mean(sample.wt, na.rm = TRUE)) %>% #take the mean of all sample weights for each model
+  ungroup() %>% #ya know why
+  mutate("norm.fh" = fh/mean.wt) %>% #create new columns, etc.
+  mutate("norm.gd" = gd/mean.wt) %>%
+  mutate("norm.fd" = fd/mean.wt) %>%
+  mutate("norm.pfg" = pfg/mean.wt) %>%
+  mutate("norm.gti" = gti/mean.wt) %>%
+  mutate("norm.ttfg" = ttfg/mean.wt) %>%
+  mutate("norm.tti" = tti/mean.wt) %>% 
+  mutate("temp.change" = temp.max - start.temp) %>% #column for temp change
+  filter(ignition == "1") %>%
+  mutate_if(is.integer, as.numeric)
+```
+
+```{r}
+#write.csv(ignite.only.all, "ignite.only.all.csv")
+##Just Epi: 
+ignite.only.all.epi <- ignite.only.all %>%
+  filter(model == "EPI")
+#see how things are looking...
+str(ignite.only.all.epi)
+summary(ignite.only.all.epi)
+```
+#### Dataset ordered like Max's PCA dataset ("Epi 123 Flammability")...used in Mac_PCA_2.Rmd
+#### --> Could add ros, dw.flam.sample?
+
+```{r}
+epi.ignite.only.Max <- ignite.only.all.epi %>%
+  filter(ignition == "1") %>%
+  filter(model == "EPI") %>%
+  mutate(mpa = mpa * -1) %>% 
+  mutate(as.numeric((gti = replace(gti, gti == "0", "0.5")))) %>% #replace when gti is zero to .5 seconds, so we can take the log later
+  select (individual, spp, sample, model, year.month, mpa, lfm.outliers.out, lfm.NAs.imputed,
+          sample.wt, ttfg, gd, gti, tti, fh, pfg, fd, temp.max, prop.ignite) %>%
+mutate(hydration = cut(lfm.NAs.imputed, breaks = c(0, 60, 150), labels = c("dry", "hydrated"))) 
+  ungroup() %>%
+  arrange(hydration, spp, sample, model, year.month, mpa, lfm.outliers.out, lfm.NAs.imputed, sample.wt, ttfg, gd, gti, tti, fh, pfg, fd, temp.max, prop.ignite) %>%
+  relocate("hydration", spp  = "spp")
+
+str(epi.ignite.only.Max) 
+write.csv(x = epi.ignite.only.Max, file = "epi.ignite.only.Max.csv", row.names = F)
+
+library(GGally)
+corrplot <- epi.ignite.only.Max %>%
+  select(mpa, lfm.outliers.out, sample.wt, ttfg, gd, gti, tti, fh, pfg, fd, temp.max, prop.ignite) %>%
+ggcorr(method = c("pairwise", "pearson")) 
+corrplot
+
+corrplot <- epi.ignite.only.Max %>%
+  filter(spp == "CEME") %>%
+  select(gd, gti, tti, fh, pfg, fd, temp.max, prop.ignite) %>%
+ggcorr(method = c("pairwise", "pearson"))  +
+  ggtitle("CEME")
+corrplot
+
+corrplot.adfa <- epi.ignite.only.Max %>%
+  filter(spp == "ADFA") %>%
+  select(gd, gti, tti, fh, pfg, fd, temp.max, prop.ignite) %>%
+ggcorr(method = c("pairwise", "pearson")) +
+  ggtitle("ADFA")
+corrplot.adfa
+require(gridExtra)
+grid.arrange(corrplot, corrplot.adfa , ncol=2)
+```
+
+
+#### Let's make some charts!
+
+##view all response variable in one big plot
+
+##    Epi only: 
+```{}
+plot1 <- ignite.only.all %>%
+  filter(model == "EPI") %>%
+  filter(lfm < 175) %>% #filtering out super high lfms, could try removing this though
+  select(lfm.outliers.out, mpa, year.month,
+         spp, norm.fh, norm.gd, norm.fd, norm.pfg, 
+         norm.ttfg, norm.gti, norm.tti, temp.change, mean.wt, dw.flam.sample) %>%
+  gather(-lfm.outliers.out, -mpa, -spp, -year.month, key = "var", value = "value") %>%
+  ggplot(aes(x = lfm.outliers.out, y = value, shape = spp,
+             color = year.month, add = "reg.line")) +
+  geom_point()  +
+  geom_smooth(method = "lm", se = FALSE)  +
+  #stat_cor(label.y = 300, label.x = 100) +
+  #stat_regline_equation(label.y = 350, label.x = 100)+
+  facet_wrap(~ var, scales = "free")
+plot1 +
+  ggtitle("Epiradiator, metrics normalized by mean weight") #Joe: The output for this graph has axis values that are screwed up for me
+
+```
+
+```{}
+plot2 <- ignite.only.all %>%
+  filter(model == "EPI") %>%
+  filter(lfm < 175) %>%
+  filter(start.temp > 260) %>%
+  filter(start.temp < 280) %>%
+  filter(sample.wt < .7) %>%
+  select(lfm.outliers.out, mpa, year.month,
+         spp, fh, ttfg, tti, fd, gd, gti, sample.wt, pfg,
+         temp.max, prop.ignite, start.temp, temp.change) %>%
+  gather(-lfm.outliers.out, -mpa, -spp, -year.month, key = "var", value = "value") %>%
+  ggplot(aes(x = lfm.outliers.out, y = value, shape = spp,
+             color = year.month, add = "reg.line")) +
+  geom_point()  +
+  geom_smooth(method = "lm", se = FALSE)  +
+  #stat_cor(label.y = 300, label.x = 100) +
+  stat_regline_equation(label.y = 350, label.x = 100)+
+  facet_wrap(~ var, scales = "free")
+plot2 +
+  ggtitle("Epiradiator only, metrics not normalized")
+```
+
+```{r}
+joe.df.flamonly <- subset(ignite.only.all, subset = model == "EPI") %>%
+  #filter(lfm < 175) %>%
+  filter(start.temp > 260) %>%
+  filter(start.temp < 280) %>%
+  filter(sample.wt < .7) %>%
+ select(lfm.outliers.out, mpa, year.month,
+         spp, fh, ttfg, tti, fd, gd, gti, pfg,
+         temp.max, prop.ignite, temp.change) %>%
+  gather(-lfm.outliers.out, -mpa, -spp, -year.month, key = "var", value = "value")
+
+var.labs <- c("Flame Duration", "Flame Height (cm)", "Glow Duration", "Glow to Ignition", "Post-Flame Glow", "% Ignited", "Temp. Change", "Max. Temp.", "Time to First Glow", "Time to Ignition")
+names(var.labs) <- c("fd","fh","gd","gti","pfg","prop.ignite","temp.change", "temp.max", "ttfg", "tti")
+
+dates.labs <- c("December 2016", "January 2018", "December 2019", "January 2020", "September 2020")
+names(dates.labs) <- c("2016_December", "2018_January", "2019_December", "2020_January", "2020_September")
+
+epi.joe.plot.flam <- ggplot(joe.df.flamonly, aes(x = lfm.outliers.out, y = value, shape = spp, color = year.month, add = "reg.line")) +
+  geom_point(size  = 0.5) +
+  geom_smooth(method = "lm", size = 0.5, se = FALSE) +
+  facet_wrap(~var, scales = "free", labeller = labeller(var = var.labs)) +
+  labs(x = "LFM (outliers out)", y = "Value Listed", title = "LFM vs. Flammability Metrics (Outliers Out)", fill = "Date") +
+  scale_color_discrete(name = "Date", labels = c("December 2016", "January 2018", "December 2019", "January 2020", "September 2020")) +
+  scale_shape_discrete(name = "Species")
+
+epi.joe.plot.flam
+  
+```
+```{r}
+joe.df.flamonly.adfa <- subset(ignite.only.all, subset = model == "EPI") %>%
+  filter(spp == "ADFA") %>%
+  #filter(start.temp > 260) %>%
+  #filter(start.temp < 280) %>%
+  filter(sample.wt < .7) %>%
+ select(lfm.outliers.out, mpa, year.month,
+         spp, fh, ttfg, tti, fd, gd, gti, pfg,
+         temp.max, prop.ignite, temp.change) %>%
+  gather(-lfm.outliers.out, -mpa, -spp, -year.month, key = "var", value = "value")
+
+var.labs <- c("Flame Duration", "Flame Height (cm)", "Glow Duration", "Glow to Ignition", "Post-Flame Glow", "% Ignited", "Temp. Change", "Max. Temp.", "Time to First Glow", "Time to Ignition")
+names(var.labs) <- c("fd","fh","gd","gti","pfg","prop.ignite","temp.change", "temp.max", "ttfg", "tti")
+
+dates.labs <- c("December 2016", "January 2018", "December 2019", "January 2020", "September 2020")
+names(dates.labs) <- c("2016_December", "2018_January", "2019_December", "2020_January", "2020_September")
+
+epi.joe.plot.flam <- ggplot(joe.df.flamonly.adfa, aes(x = lfm.outliers.out, y = value, color = year.month, add = "reg.line")) +
+  geom_point(size  = 0.5) +
+  geom_smooth(method = "lm", size = 0.5, se = FALSE) +
+  facet_wrap(~var, scales = "free", labeller = labeller(var = var.labs)) +
+  labs(x = "LFM (outliers out)", y = "Value Listed", title = "LFM vs. Flammability Metrics (Outliers Out)", fill = "Date") +
+  scale_color_discrete(name = "Date", labels = c("December 2016", "January 2018", "December 2019", "January 2020", "September 2020")) +
+  scale_shape_discrete(name = "Species")
+
+epi.joe.plot.flam
+  
+```
+```{r}
+joe.df.flamonly.ceme <- subset(ignite.only.all, subset = model == "EPI") %>%
+  filter(spp == "CEME") %>%
+  #filter(start.temp > 260) %>%
+  #filter(start.temp < 280) %>%
+  filter(sample.wt < .7) %>%
+ select(lfm.outliers.out, mpa, year.month,
+         spp, fh, ttfg, tti, fd, gd, gti, pfg,
+         temp.max, prop.ignite, temp.change) %>%
+  gather(-lfm.outliers.out, -mpa, -spp, -year.month, key = "var", value = "value")
+str(joe.df.flamonly.ceme)
+var.labs <- c("Flame Duration", "Flame Height (cm)", "Glow Duration", "Glow to Ignition", "Post-Flame Glow", "% Ignited", "Temp. Change", "Max. Temp.", "Time to First Glow", "Time to Ignition")
+names(var.labs) <- c("fd","fh","gd","gti","pfg","prop.ignite","temp.change", "temp.max", "ttfg", "tti")
+
+dates.labs <- c("December 2016", "January 2018", "December 2019", "January 2020", "September 2020")
+names(dates.labs) <- c("2016_December", "2018_January", "2019_December", "2020_January", "2020_September")
+
+epi.joe.plot.flam <- ggplot(joe.df.flamonly.ceme, aes(x = lfm.outliers.out, y = value, color = year.month, add = "reg.line")) +
+  geom_point(size  = 0.5) +
+  geom_smooth(method = "lm", size = 0.5, se = FALSE) +
+  facet_wrap(~var, scales = "free", labeller = labeller(var = var.labs)) +
+  labs(x = "LFM (outliers out)", y = "Value Listed", title = "LFM vs. Flammability Metrics (Outliers Out)", fill = "Date") +
+  scale_color_discrete(name = "Date", labels = c("December 2016", "January 2018", "December 2019", "January 2020", "September 2020")) +
+  scale_shape_discrete(name = "Species")
+
+epi.joe.plot.flam
+  
+```
+
+```{r}
+joe.df2 <- subset(ignite.only.all.epi) %>%
+  filter(lfm < 175) %>%
+  filter(start.temp > 260) %>%
+  filter(start.temp < 280) %>%
+  filter(sample.wt < .7) %>%
+ select(lfm.outliers.out, mpa, year.month,
+         spp,  sample.wt, start.temp, dw.flam.sample) %>%
+  gather(-lfm.outliers.out, -mpa, -spp, -year.month, key = "var", value = "value")
+
+var.labs <- c( "Weight (Wet + Dry) (g)", "Start Temp. (C)", "Dry Weight Only (g)")
+names(var.labs) <- c("sample.wt","start.temp","dw.flam.sample")
+
+dates.labs <- c("December 2016", "January 2018", "December 2019", "January 2020", "September 2020")
+names(dates.labs) <- c("2016_December", "2018_January", "2019_December", "2020_January", "2020_September")
+
+epi.joe.plot <- ggplot(joe.df2, aes(x = lfm.outliers.out, y = value, shape = spp, color = year.month, add = "reg.line")) +
+  geom_point(size  = 0.5) +
+  geom_smooth(method = "lm", size = 0.5, se = FALSE) +
+  facet_wrap(~var, scales = "free", labeller = labeller(var = var.labs)) +
+  labs(x = "LFM (outliers out)", y = "Value Listed", title = "LFM vs. Burn Environment", fill = "Date") +
+  scale_color_discrete(name = "Date", labels = c("December 2016", "January 2018", "December 2019", "January 2020", "September 2020")) +
+  scale_shape_discrete(name = "Species")
+
+epi.joe.plot
+  
+```
+```{r}
+joe.df3 <- subset(ignite.only.all.epi) %>%
+  filter(lfm < 175) %>%
+  filter(start.temp > 260) %>%
+  filter(start.temp < 280) %>%
+  filter(sample.wt < .7) %>%
+ select(fh, mpa, year.month,
+         spp,  sample.wt, start.temp, dw.flam.sample) %>%
+  gather(-fh, -mpa, -spp, -year.month, key = "var", value = "value")
+
+var.labs <- c( "Weight (Wet + Dry) (g)", "Start Temp. (C)", "Dry Weight Only (g)")
+names(var.labs) <- c("sample.wt","start.temp","dw.flam.sample")
+
+dates.labs <- c("December 2016", "January 2018", "December 2019", "January 2020", "September 2020")
+names(dates.labs) <- c("2016_December", "2018_January", "2019_December", "2020_January", "2020_September")
+
+epi.joe.plot <- ggplot(joe.df3, aes(x = fh, y = value, shape = spp, color = year.month, add = "reg.line")) +
+  geom_point(size  = 0.5) +
+  geom_smooth(method = "lm", size = 0.5, se = FALSE) +
+  facet_wrap(~var, scales = "free", labeller = labeller(var = var.labs)) +
+  labs(x = "Flame Height (cm)", y = "Value Listed", title = "Flame Height vs. Burn Environment", fill = "Date") +
+  scale_color_discrete(name = "Date", labels = c("December 2016", "January 2018", "December 2019", "January 2020", "September 2020")) +
+  scale_shape_discrete(name = "Species")
+
+epi.joe.plot
+  
+```
+
+```{}
+plot3 <- ignite.only.all %>%
+  filter(model == "EPI") %>%
+  filter(lfm < 175) %>%
+  filter(start.temp > 260) %>%
+  filter(start.temp < 280) %>%
+  filter(sample.wt < .7) %>%
+  select(lfm.outliers.out, mpa, year.month,
+         spp, fh, ttfg, tti, fd, gd, gti, pfg,
+         temp.max, prop.ignite, temp.change) %>%
+  gather(-lfm.outliers.out, -mpa, -spp, -year.month, key = "var", value = "value") %>%
+  ggplot(aes(x = lfm.outliers.out, y = value, shape = year.month,
+             color = spp, add = "reg.line")) +
+  geom_point()  +
+  geom_smooth(method = "lm", se = FALSE)  +
+  #stat_cor(label.y = 300, label.x = 100) +
+  stat_regline_equation(label.y = 350, label.x = 100)+
+  facet_wrap(~ var, scales = "free")
+plot3 +
+  ggtitle("Epiradiator only, metrics not normalized")
+```
+
+
+##check distributsions
+
+```{r}
+#ignite.only.epi <- ignite.only.all.epi %>%
+  #filter(model == "EPI") %>% 
+ # replace_with_na(replace = list(dw.flam.sample = c(0, " ", "  ", "", "   "))) 
+
+#summary(ignite.only.epi)
+
+plot3 <- ignite.only.all.epi %>%
+  select(lfm.outliers.out, mpa, year.month, lfm.NAs.imputed,
+         spp, fh, ttfg, tti, fd, gd, gti, sample.wt, dw.flam.sample, pfg,
+         temp.max, prop.ignite, start.temp, mpa, lfm) %>%
+  gather(-spp, -year.month, key = "var", value = "value") %>%
+  ggplot() +
+  theme_minimal() +
+  geom_density(aes(x = value, color = spp)) +
+  facet_wrap(~ var, scales = "free")
+plot3 +
+  ggtitle("Epiradiator")
+```
+
+##Log transform all columns 
+
+```{r}
+log.ignite.only.epi <- log(ignite.only.all.epi[, c("lfm.outliers.out",
+          "fh", "ttfg", "tti", "fd", "gd", "gti", "pfg",
+         "temp.max", "prop.ignite", "temp.change")]) 
+log.ignite.only.epi
+colnames(log.ignite.only.epi)
+
+plot5 <- log.ignite.only.epi %>%
+  select(lfm.outliers.out,
+         fh, ttfg, tti, fd, gd, gti, pfg,
+         temp.max, prop.ignite, temp.change) %>%
+  gather(key = "var", value = "value") %>%
+  ggplot() +
+  geom_density(aes(x = value)) +
+  facet_wrap(~ var, scales = "free")
+plot5 +
+  ggtitle("Epiradiator, log-transformed")
+
+```
+
+
+####HOT PLATE
+
+##view all response variable in one big plot
+```{r}
+plot2 <- ignite.only.all %>%
+  filter(model == "HP") %>%
+  filter(lfm < 175) %>%
+  select(lfm.outliers.out, mpa, year.month,
+         spp, fh, ttfg, tti, fd, gd, gti, pfg,
+        prop.ignite, temp.change, dw.flam.sample, ros) %>%
+  gather(-lfm.outliers.out, -mpa, -spp, -year.month, key = "var", value = "value") %>%
+  ggplot(aes(x = lfm.outliers.out, y = value, shape = year.month,
+             color = spp, add = "reg.line")) +
+  geom_point()  +
+  geom_smooth(method = "lm", se = FALSE)  +
+  #stat_cor(label.y = 300, label.x = 100) +
+  #stat_regline_equation(label.y = 350, label.x = 100)+
+  facet_wrap(~ var, scales = "free")
+plot2 +
+  ggtitle("Hot Plate, metrics not normalized") #Joe: Something went horribly wrong for this graph on my end -- not sure if you're getting the same problem, but the output has the axis values all screwed up
+
+plot5 <- ignite.only.all %>%
+  filter(model == "HP") %>%
+  filter(lfm < 175) %>%
+  select(lfm, mpa, spp, fh, ttfg, tti,
+         norm.fh, norm.gd, fd, gd, pfg, gti,
+         temp.change, prop.ignite, ros, year.month) %>%
+  gather(-lfm, -mpa, -spp, -year.month, key = "var", value = "value") %>%
+  ggplot(aes(x = lfm, y = value, color = spp, shape = year.month, add = "reg.line")) +
+  geom_point()  +
+  geom_smooth(method = "lm", se = FALSE)  +
+  #stat_cor(label.y = 300, label.x = 100) +
+  #stat_regline_equation(label.y = 350, label.x = 100)+
+  facet_wrap(~ var, scales = "free")
+plot5 +
+  ggtitle("Hot Plate")
+
+ignite.only.hp <- ignite.only.all %>%
+  filter(model == "HP")
+
+plot3 <- ignite.only.hp %>%
+  select(lfm.outliers.out, mpa, year.month,
+         spp, fh, ttfg, tti, fd, gd, gti, sample.wt, pfg,
+         temp.max, prop.ignite, start.temp, mpa, lfm.outliers.out, lfm, temp.change) %>%
+  gather(-spp, -year.month, key = "var", value = "value") %>%
+  ggplot() +
+  geom_density(aes(x = value, color = spp)) +
+  facet_wrap(~ var, scales = "free")
+plot3 +
+  ggtitle("Hot Plate")
+```
+
+
+

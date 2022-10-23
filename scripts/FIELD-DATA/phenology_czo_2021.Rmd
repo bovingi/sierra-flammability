@@ -1,0 +1,162 @@
+---
+title: "Untitled"
+author: "Indra Boving"
+date: "1/29/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+#install.packages("ggplot2")
+library(ggplot2)
+library(dplyr)
+library(ggpubr)
+library(tidyverse)
+#install.packages("cowplot")
+library(cowplot)
+library(here)
+library(lubridate)
+library(janitor)
+ library(tidytext)
+library(grid)
+library(gridExtra)
+library(ggbeeswarm)
+```
+
+```{r}
+#pal <- wes_palette(21, name = "Zissou1", type = "continuous")
+
+th <- theme(panel.background = element_rect(fill='white', colour='black'), # Make background white and border black
+          panel.grid.major = element_blank(),  # Hide major gridlines
+          panel.grid.minor = element_blank())
+```
+
+Phenology data: 
+```{r}
+pheno_df <- read.csv(here("raw-data", "phenology_czo_2021.csv")) %>% 
+  clean_names() %>% 
+  mutate(date = ymd(observation_date),
+         year = year(date), 
+         month = month(date)) %>% 
+  mutate(class = case_when(
+    common_name == "incense cedar" ~ "Gymnosperm", 
+    common_name == "white fir" ~ "Gymnosperm", 
+    common_name == "Jeffrey pine" ~ "Gymnosperm", 
+    common_name == "greenleaf manzanita" ~ "Angiosperm", 
+    common_name == "whitethorn ceanothus" ~ "Angiosperm", 
+    common_name == "California black oak" ~ "Angiosperm"
+  )) %>% 
+  mutate(code = case_when(
+    common_name == "incense cedar" ~ "CADE", 
+    common_name == "white fir" ~ "ABCO", 
+    common_name == "Jeffrey pine" ~ "PIJE", 
+    common_name == "greenleaf manzanita" ~ "ARPA", 
+    common_name == "whitethorn ceanothus" ~ "CECO", 
+    common_name == "California black oak" ~ "QUKE"
+  )) %>% 
+  group_by(phenophase_name, code) %>% 
+  mutate(start_phase = min(date), 
+         end_phase = max(date))
+head(pheno_df)
+
+pheno_df %>% 
+write_csv(here("processed-data", "compiled-datasets", "phenology_czo_2021.csv"))
+```
+
+```{r}
+pheno_df %>% 
+  filter(phenophase_status == "Yes", 
+         class == "Gymnosperm"
+         ) %>% 
+  ggplot(aes(
+    y = phenophase_name, 
+    x = date, 
+    color = phenophase_name
+    )) + 
+  facet_wrap(~scientific_name) +
+  geom_line() +
+  th+
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=1))
+```
+
+
+```{r}
+pheno_df %>% 
+  filter(phenophase_status == "Yes", 
+         class == "Angiosperm"
+         ) %>% 
+  ggplot(aes(
+    y = phenophase_name, 
+    x = date, 
+    color = phenophase_name
+    )) + 
+  facet_wrap(~scientific_name) +
+  geom_line() +
+  th+
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=1))
+```
+
+```{r}
+pheno_df %>% 
+  filter(phenophase_status == "Yes", 
+         class == "Gymnosperm") %>% 
+  ggplot(aes(
+    #y = abundance_category_value, 
+    x = date, 
+    fill = phenophase_name
+    )) + 
+  facet_wrap(~scientific_name) +
+  geom_bar(width = 10) +
+  th+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+```
+
+```{r}
+pheno_df %>% 
+  filter(phenophase_status == "Yes", 
+         class == "Angiosperm") %>% 
+  ggplot(aes(
+    #y = abundance_category_value, 
+    x = date, 
+    fill = phenophase_name
+    )) + 
+  facet_wrap(~scientific_name) +
+  geom_bar() +
+  th+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+```
+
+```{r}
+pheno_df %>% 
+  filter(phenophase_status == "Yes", 
+         class == "Angiosperm", 
+         code == "QUKE") %>% 
+  ggplot(aes(
+    #y = abundance_category_value, 
+    x = date, 
+    fill = phenophase_name
+    )) + 
+  facet_wrap(~site_name) +
+  geom_bar() +
+  th+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+```
+
+```{r}
+pheno_df %>% 
+  filter(phenophase_status == "Yes", 
+         #class == "Angiosperm", 
+         code == "ABCO") %>% 
+  ggplot(aes(
+    #y = abundance_category_value, 
+    x = date, 
+    fill = phenophase_name
+    )) + 
+  facet_wrap(~site_name) +
+  geom_bar() +
+  th+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+```

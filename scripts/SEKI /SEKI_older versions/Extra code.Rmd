@@ -1,0 +1,81 @@
+---
+title: "Extra Code"
+author: "Indra Boving"
+date: "4/15/2021"
+output: html_document
+---
+
+# Plot PCA scores against LFM:
+
+```{r echo=FALSE, warning=FALSE}
+### Plot PCA scores yourself (and thus access for plotting against LFM)
+
+x <-predict(flamdata2.pca)  ### generate scores for each row in flamdata2
+pca.flam.data <- as.data.frame(x) 
+
+all.data <- cbind(flamdata, pca.flam.data)
+
+plot(x[,1],x[,2])           ### PC1 PC2 biplot!
+
+plot(x[,1],log.flamdata[,1])  ## PC1 vs logged XPP  ?
+plot(x[,1],log.flamdata[,2])  ## PC1 vs logged LFM  ?
+
+##using ggplot:
+
+print(flamdata2.pca)
+lfm.pc1 <- all.data %>%
+  ggplot(aes(x = lfm.outliers.out, y = PC1))+
+  geom_jitter() +
+  geom_smooth(method = "lm", se = TRUE)  +
+  stat_cor(label.y = -2, label.x = 15) +
+  stat_regline_equation(label.y = -2.5, label.x = 15)+
+  ggtitle("PC1, lfm not transformed")
+lfm.pc1
+
+lfm.pc2 <- all.data %>%
+  ggplot(aes(x = lfm.outliers.out, y = PC1))+
+  geom_jitter()  +
+  geom_smooth(method = "lm", se = TRUE)  +
+  stat_cor(label.y = -2, label.x = 15) +
+  stat_regline_equation(label.y = -2.5, label.x = 15) +
+  ggtitle("PC2, lfm not transformed")
+lfm.pc2
+
+all.data <- cbind(log.flamdata, pca.flam.data) 
+
+lfm.pc1 <- all.data %>%
+  ggplot(aes(x = lfm.NAs.imputed, y = PC2))+
+  geom_jitter() +
+  geom_smooth(method = "lm", se = TRUE)  +
+  stat_cor(label.y = -2, label.x = 2.5) +
+  stat_regline_equation(label.y = -2.5, label.x = 2.5)+
+  ggtitle("PC1, log(lfm)")
+lfm.pc1
+
+lfm.pc2 <- all.data %>%
+  ggplot(aes(x = lfm.NAs.imputed, y = PC2))+
+  geom_jitter()  +
+  geom_smooth(method = "lm", se = TRUE)  +
+  stat_cor(label.y = -2, label.x = 2.5) +
+  stat_regline_equation(label.y = -2.5, label.x = 2.5) +
+  ggtitle("PC2, log(lfm)")
+lfm.pc2
+```
+
+#imputations
+```{r}
+#Visualize if we impute FH based on lfm: 
+ignite.only.all%>%
+  bind_shadow() %>%
+  ggplot(aes(x = lfm.NAs.imputed,fill = fh_NA)) +
+  geom_histogram()
+
+#imputed missing fh based on lfm values:
+aq_shadow %>%
+  impute_lm(fh ~ lfm.NAs.imputed + spp + model) %>%
+  ggplot(aes(x = lfm.NAs.imputed,
+             y = fh, 
+             colour = fh_NA, shape = model)) + 
+  geom_point()
+#head(aq_shadow)
+```

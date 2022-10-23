@@ -1,0 +1,52 @@
+---
+title: "Flam Data Sierra Project"
+author: "Indra Boving"
+date: "4/15/2021"
+output: html_document
+---
+
+```{r}
+knitr::opts_chunk$set(echo = TRUE)
+#lots of extra here, but oh well___ 
+library(ggplot2)
+library(gapminder)
+library(tidyverse)
+library(lme4)
+library(here)
+library(segmented)
+library(nlme)
+citation('nlme')
+library(lubridate)
+library(plotrix)
+filter = dplyr::filter 
+here = here::here
+library(janitor)
+#source(here("source-code", "source-segmented_lme_R"))
+```
+
+#Data Wrangling: 
+
+```{r}
+seki_raw <- read_csv(here("processed-data", "analysis 2.0", "seki_flam_data_all.csv")) %>% 
+  clean_names() %>% 
+  filter(model == "HP") %>% 
+  mutate(location = "seki")
+
+unique(seki_raw$year_month)
+
+czo_raw <- read_csv(here("processed-data", "analysis 2.0", "czo_flam_data_all.csv")) %>% 
+  clean_names() %>% 
+  filter(model == "HP") %>% 
+  mutate(location = "czo")
+
+unique(czo_raw$year_month)
+
+sierra_raw <- bind_rows(seki_raw, czo_raw) %>% 
+  select(-precip_2month, -precip_2mo, -x1, -video_notes_57, -video_notes_58, -gr, -lfm)
+
+sierra_df <- sierra_raw
+
+sierra_df %>% 
+  write_csv(here("processed-data", "analysis 2.0", "sierra_flam_data_all.csv"))
+```
+

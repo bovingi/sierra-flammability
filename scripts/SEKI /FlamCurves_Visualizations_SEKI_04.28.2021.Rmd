@@ -1,0 +1,601 @@
+---
+title: "PV_fromFlam"
+author: "Indra Boving"
+date: "4/28/2021"
+output: html_document
+---
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+library(ggplot2)
+#install.packages("gapminder")
+library(gapminder)
+#install.packages("data.table")
+library(data.table)
+#install.packages("purrr")
+library(purrr) #for visualizing all variables in one big plot
+#install.packages("naniar")
+library(naniar)
+library(dplyr)
+library(tidyverse)
+library(devtools)
+#install_github("vqv/ggbiplot", force = TRUE)
+library(ggbiplot)
+#install.packages("ggfortify")
+library(ggfortify)
+library(ggpubr)
+library(here)
+here=here::here
+library(segmented)
+library(janitor)
+```
+
+```{r echo=FALSE, warning=FALSE}
+all.data.hp <- read.csv(here("processed-data", "mem.data.seki.hp.csv"))
+  
+all.data.epi <- read.csv(here("processed-data", "mem.data.seki.epi.csv")) 
+
+all.data <- dplyr::bind_rows(all.data.hp, all.data.epi) %>% 
+  clean_names()
+
+write.csv(all.data, here("processed-data", "seki.alldata.04.12.2021.csv"))
+
+seki.pv <- read.csv(here("processed-data", "pv.curve.local.all.csv")) 
+```
+
+
+```{r}
+str(seki.pv)
+```
+
+```{r}
+all.data.hp %>% 
+  #filter(spp != "CECO") %>%
+  #filter(spp != "QUKE") %>% 
+  ggplot(aes(x = tti, y = LFM)) + 
+  geom_point(size = 1) +
+  geom_smooth(method = lm, se = F, size = 1) +
+ # stat_cor(label.x = -250, label.y = 65, size = 3) +
+ # stat_regline_equation(label.x = -250, label.y = 50, size = 3) +
+  scale_x_reverse() +
+  #geom_vline(xintercept = 166, linetype = "dashed", color = "blue") +
+  theme_bw() +
+  ylab("Time to Ignition (sec)") +
+  xlab("Live Fuel Moisture (%)") +
+  #facet_wrap(~spp) +
+  ggtitle("All Species")
+```
+
+```{r}
+all.data.hp.cade <- all.data.hp
+
+m2 <- lm(tti ~ 1 + LFM, data = all.data.hp.cade)
+
+model_segmented = segmented(m2, seg.Z = ~ LFM)
+predict_segmented = data.frame(LFM = all.data.hp.cade$LFM, fn = broken.line(model_segmented)$fit)
+print.segmented(model_segmented)
+
+#par(mfrow=c(2,1))
+plot(model_segmented, conf.level=0.95, shade=TRUE, link = TRUE) +
+points(model_segmented, link=TRUE, col=2)
+
+# get the fitted data
+my.fitted <- fitted(model_segmented)
+my.model <- data.frame(LFM = all.data.hp.cade$LFM, tti = my.fitted)
+
+# plot the fitted model
+ggplot(my.model, aes(x = LFM, y = tti)) + geom_line()
+
+my.lines <- model_segmented$psi[,2]
+
+plot.tti <- all.data.hp.cade %>% 
+  ggplot(aes(x = LFM, y = tti, color = spp)) + 
+  geom_point(size = 1) +
+  geom_line (data = my.model, aes(x = LFM, y = tti), colour = "black", size = .4) + 
+  geom_vline(xintercept = my.lines, linetype = "dashed", color = "blue") + # Show dots
+   geom_vline(xintercept = 139, linetype = "dashed") + 
+  scale_x_reverse() +
+   annotate(geom = "text",  x=145,y= 210, # Rectangle size around label
+    label.size = .25, label = "TLP: 139% LFM") +
+   annotate(geom = "text",  x=159 ,y= 190, # Rectangle size around label
+    label.size = .25, label = "Breakpoint: 163.3% LFM", color = "blue") +
+ #  geom_label(label="More ignitable",  x= -9,y=2,label.padding = unit(0.55, "lines"), # Rectangle size around label
+ #    label.size = 0.35,color = "black",fill="yellow") + 
+ # geom_label(label="More combustible", x= -9 ,y=-3,
+ #    label.padding = unit(0.55, "lines"), # Rectangle size around label
+ #    label.size = 0.35, color = "black", fill="orange") +
+   # geom_label(
+   #  label="-0.837 LFM",  x= -0.8 ,y=0.5, label.padding = unit(0.2, "lines"), # Rectangle size around label
+   #  label.size = 0.22, color = "black",fill="light blue") +
+    ylab("Time to Ignition (sec)") +
+  xlab("LFM") +
+  theme_bw()
+plot.tti
+
+
+p1 <- all.data.hp %>% 
+  #filter(spp == "ABCO") %>% 
+  ggplot(aes(x = LFM, y = tti)) +
+  geom_point(size = 1) +
+   geom_vline(xintercept = 174.27, linetype = "dashed") + 
+  scale_x_reverse() +
+   geom_smooth(method = "lm", se = FALSE, color = "black", size = .4) + 
+  ylab("Time to Ignition (sec)") +
+  theme_bw()
+p1
+```
+
+
+```{r}
+all.data.hp %>% 
+  filter(spp != "CECO") %>%
+  filter(spp != "QUKE") %>% 
+  ggplot(aes(x = tti, y = LFM)) + 
+  geom_point(size = 1) +
+  geom_smooth(method = lm, se = F, size = 1) +
+  stat_cor(label.x = -250, label.y = 65, size = 3) +
+  stat_regline_equation(label.x = -250, label.y = 50, size = 3) +
+  scale_x_reverse() +
+  #geom_vline(xintercept = 166, linetype = "dashed", color = "blue") +
+  theme_bw() +
+  ylab("Time to Ignition (sec)") +
+  xlab("Live Fuel Moisture (%)") +
+  facet_wrap(~spp) +
+  ggtitle("All Species")
+
+all.data.hp %>% 
+  filter(spp == "QUKE") %>% 
+  ggplot(aes(x = tti, y = LFM)) + 
+  geom_point(size = 1) +
+  geom_smooth(method = lm, se = F, size = 1)+
+  stat_cor(label.x = -30, label.y = 65, size = 3) +
+  stat_regline_equation(label.x = -30, label.y = 50, size = 3) +
+  scale_x_reverse() +
+  #geom_vline(xintercept = 166, linetype = "dashed", color = "blue") +
+  theme_bw() +
+  ylab("Time to Ignition (sec)") +
+  xlab("Live Fuel Moisture (%)") +
+  facet_wrap(~spp)
+```
+
+```{r}
+str(seki.pv)
+
+seki.pv %>% 
+  ggplot(aes(x = mpa, y = LFM, color = spp)) + 
+  geom_point()
+
+# RWC is NOT relative to saturated water content, but here we are...
+
+seki.pv %>% 
+  ggplot(aes(x = RWC, y = LFM, color = spp)) + 
+  geom_point()
+
+seki.pv %>% 
+  filter(spp == "ABCO") %>% 
+  ggplot(aes(x = LFM, y = -1/mpa, color = spp)) + 
+  geom_point() +
+  scale_x_reverse()
+
+seki.pv %>% 
+  filter(spp == "PIJE") %>% 
+  ggplot(aes(x = LFM, y = -1/mpa, color = spp)) + 
+  geom_point() +
+  scale_x_reverse()
+
+seki.pv %>% 
+  filter(spp == "CECO") %>% 
+  ggplot(aes(x = LFM, y = -1/mpa, color = spp)) + 
+  geom_point() +
+  scale_x_reverse()
+
+seki.pv %>% 
+  filter(spp == "CADE") %>% 
+  ggplot(aes(x = LFM, y = -1/mpa, color = spp)) + 
+  geom_point() +
+  scale_x_reverse()
+
+seki.pv %>% 
+  filter(spp == "ARPA") %>% 
+  ggplot(aes(x = LFM, y = -1/mpa, color = spp)) + 
+  geom_point() +
+  scale_x_reverse()
+
+seki.pv %>% 
+  filter(spp == "ABCO") %>% 
+  ggplot(aes(x = LFM, y = mpa)) + 
+  geom_point(size = 1) +
+  scale_x_reverse() +
+  geom_vline(xintercept = 166, linetype = "dashed", color = "blue") +
+  theme_bw() +
+  ylab("Water Potential (-Mpa") +
+  xlab("Live Fuel Moisture (%)") +
+  ggtitle("Abies concolor")
+
+seki.pv %>% 
+  filter(spp == "ABCO") %>% 
+  ggplot(aes(x = tti, y = LFM, color = spp)) + 
+  geom_point(size = 1) +
+  scale_x_reverse() +
+  geom_vline(xintercept = 166, linetype = "dashed", color = "blue") +
+  theme_bw() +
+  ylab("Time to Ignition (sec)") +
+  xlab("Live Fuel Moisture (%)") +
+  ggtitle("Abies concolor")
+```
+
+QUKE:
+
+```{r}
+p1 <- all.data.hp %>% 
+  filter(spp == "QUKE") %>% 
+  ggplot(aes(x = LFM, y = tti)) +
+  geom_point() +
+   geom_vline(xintercept = 113, linetype = "dashed") + 
+  scale_x_reverse() +
+  ylab("Time to Ignition (sec)")
+p1
+
+p2 <- seki.pv %>% 
+  filter(spp == "QUKE") %>% 
+  ggplot(aes(x = LFM, y = -1/mpa)) + 
+  geom_point() +
+  geom_vline(xintercept = 113, linetype = "dashed") + 
+  scale_x_reverse() +
+  ylab("-1/Mpa")
+p2
+
+require(gridExtra)
+grid.arrange(p1, p2, ncol = 1, heights = c(2, 1))
+```
+
+
+PIJE:
+
+```{r}
+p1 <- all.data.hp %>% 
+  filter(spp == "PIJE") %>% 
+  ggplot(aes(x = LFM, y = tti)) +
+  geom_point() +
+   geom_vline(xintercept = 155, linetype = "dashed") + 
+  scale_x_reverse() +
+  ylab("Time to Ignition (sec)")
+p1
+
+p2 <- seki.pv %>% 
+  filter(spp == "PIJE") %>% 
+  ggplot(aes(x = LFM, y = -1/mpa)) + 
+  geom_point() +
+  geom_vline(xintercept = 155, linetype = "dashed") + 
+  scale_x_reverse() +
+  ylab("-1/Mpa")
+p2
+
+require(gridExtra)
+grid.arrange(p1, p2, ncol = 1, heights = c(2, 1))
+```
+
+CADE
+```{r}
+p1 <- all.data.hp %>% 
+  filter(spp == "CADE") %>% 
+  ggplot(aes(x = LFM, y = tti)) +
+  geom_point() +
+   geom_vline(xintercept = 116, linetype = "dashed") + 
+  scale_x_reverse() +
+  ylab("Time to Ignition (sec)")
+p1
+
+p1 <- all.data.hp %>% 
+  filter(spp == "CADE") %>% 
+  ggplot(aes(x = LFM, y = gd)) +
+  geom_point() +
+   geom_vline(xintercept = 116, linetype = "dashed") + 
+  scale_x_reverse() +
+  stat_cor(label.x = 3, label.y = 34) +
+  stat_regline_equation(label.x = 3, label.y = 32)+
+  ylab("Glow Duration (sec)")
+p1
+
+p1 <- all.data.hp %>% 
+  filter(spp == "CADE") %>% 
+  ggplot(aes(x = LFM, y = gd)) +
+  geom_point() +
+   geom_vline(xintercept = 116, linetype = "dashed") + 
+  scale_x_reverse() +
+  ylab("Max Temp (C)")
+p1
+
+p1 <- all.data.hp %>% 
+  filter(spp == "CADE") %>% 
+  ggplot(aes(x = LFM, y = fh)) +
+  geom_point(size = 1) +
+   geom_vline(xintercept = 116, linetype = "dashed") + 
+  scale_x_reverse() +
+   geom_smooth(method = "loess", se = FALSE, color = "black", size = 1) + 
+  ylab("Flame Height (cm)") +
+  theme_bw()
+p1
+
+p2 <- seki.pv %>% 
+  filter(spp == "CADE") %>% 
+  ggplot(aes(x = LFM, y = -1/mpa)) + 
+  geom_point(size=1) +
+  geom_vline(xintercept = 116, linetype = "dashed") + 
+  scale_x_reverse() +
+  ylab("-1/Mpa") +
+  ggtitle("Calocedrus decurrens") +
+   annotate(geom = "text",  x=112 ,y=1.8, # Rectangle size around label
+    label.size = .25, label = "TLP: -2.66 Mpa") +
+  theme_bw()
+p2
+```
+
+
+```{r}
+#reduce range to include only realistic values: 
+subset.hp <- all.data.hp %>%
+  #mutatas.numeric(lfm)) %>%
+  dplyr::filter(LFM > 50) %>%
+  dplyr::filter(LFM < 200)
+
+subset.hp %>% 
+  filter(spp != "CECO") %>% 
+ggplot(aes(x = LFM, y = prop.ignite)) +
+  stat_summary_bin(fun.y = "mean", geom="bar", binwidth=5 ) +
+  facet_wrap(~spp)  +
+  scale_x_reverse() +
+  theme_bw() +
+  ylab("Time to Ignition (sec)") +
+  xlab("Live Fuel Moisture")
+
+ggplot(aes(x = LFM, y = gd), data = subset.hp) +
+  stat_summary_bin(fun.y = "mean", geom="bar", binwidth=5 ) +
+  scale_x_reverse() +
+  theme_bw() +
+  ylab("Time to Ignition (sec)") +
+  xlab("Live Fuel Moisture")
+```
+
+
+
+
+```{r}
+p1 <- all.data.epi %>% 
+  filter(spp == "ABCO") %>% 
+  ggplot(aes(x = LFM, y = tti)) +
+  geom_point(size = 1) +
+   geom_vline(xintercept = 166, linetype = "dashed") + 
+  scale_x_reverse() +
+   geom_smooth(method = "lm", se = FALSE, color = "black", size = .4) + 
+  ylab("Time to Ignition (sec)") +
+  theme_bw()
+p1
+
+p1 <- all.data.hp %>% 
+  filter(spp == "ABCO") %>% 
+  ggplot(aes(x = LFM, y = tti)) +
+  geom_point(size = 1) +
+   geom_vline(xintercept = 166, linetype = "dashed") + 
+  scale_x_reverse() +
+   geom_smooth(method = "lm", se = FALSE, color = "black", size = .4) + 
+  ylab("Time to Ignition (sec)") +
+  theme_bw()
+p1
+
+p2 <- seki.pv %>% 
+  filter(spp == "ABCO") %>% 
+  ggplot(aes(x = LFM, y = -1/mpa)) + 
+  geom_point(size=1) +
+  geom_vline(xintercept = 166, linetype = "dashed", size = .4) + 
+  scale_x_reverse() +
+  ylab("-1/Mpa") +
+  ggtitle("Abies concolor") +
+   annotate(geom = "text",  x=162 ,y=1.8, # Rectangle size around label
+    label.size = .25, label = "TLP: -2.1 Mpa") +
+  theme_bw()
+p2
+```
+
+
+```{r}
+require(gridExtra)
+grid.arrange(p1, p2, ncol = 1, heights = c(2, 1))
+
+abco.pv <- read.csv(here("raw-data/abco.pv.csv"))
+```
+
+Do with PC1 using flam metrics normalized by dry weight: 
+
+```{r}
+all.data.hp.cade <- all.data.hp %>% 
+  filter(spp == "ABCO")
+
+m2 <- lm(tti ~ 1 + LFM, data = all.data.hp.cade)
+
+model_segmented = segmented(m2, seg.Z = ~ LFM)
+predict_segmented = data.frame(LFM = all.data.hp.cade$LFM, fn = broken.line(model_segmented)$fit)
+print.segmented(model_segmented)
+
+#par(mfrow=c(2,1))
+plot(model_segmented, conf.level=0.95, shade=TRUE, link = TRUE) +
+points(model_segmented, link=TRUE, col=2)
+
+# get the fitted data
+my.fitted <- fitted(model_segmented)
+my.model <- data.frame(LFM = all.data.hp.cade$LFM, tti = my.fitted)
+
+# plot the fitted model
+ggplot(my.model, aes(x = LFM, y = tti)) + geom_line()
+
+my.lines <- model_segmented$psi[,2]
+
+plot.tti <- all.data.hp.cade %>% ggplot(aes(x = LFM, y = tti)) + 
+  geom_point(size = 1) +
+  geom_line (data = my.model, aes(x = LFM, y = tti), colour = "black", size = .4) + 
+  geom_vline(xintercept = my.lines, linetype = "dashed", color = "blue") + # Show dots
+   geom_vline(xintercept = 166, linetype = "dashed") + 
+  scale_x_reverse() +
+ #  geom_label(label="More ignitable",  x= -9,y=2,label.padding = unit(0.55, "lines"), # Rectangle size around label
+ #    label.size = 0.35,color = "black",fill="yellow") + 
+ # geom_label(label="More combustible", x= -9 ,y=-3,
+ #    label.padding = unit(0.55, "lines"), # Rectangle size around label
+ #    label.size = 0.35, color = "black", fill="orange") +
+   # geom_label(
+   #  label="-0.837 LFM",  x= -0.8 ,y=0.5, label.padding = unit(0.2, "lines"), # Rectangle size around label
+   #  label.size = 0.22, color = "black",fill="light blue") +
+    ylab("Time to Ignition (sec)") +
+  xlab("LFM") +
+  theme_bw()
+plot.tti
+
+
+p1 <- all.data.hp %>% 
+  filter(spp == "ABCO") %>% 
+  ggplot(aes(x = LFM, y = tti)) +
+  geom_point(size = 1) +
+   geom_vline(xintercept = 166, linetype = "dashed") + 
+  scale_x_reverse() +
+   geom_smooth(method = "lm", se = FALSE, color = "black", size = .4) + 
+  ylab("Time to Ignition (sec)") +
+  theme_bw()
+p1
+```
+
+```{r}
+all.data.hp.cade <- all.data.hp %>% 
+  filter(spp == "ABCO")
+
+m2 <- lm(tti ~ 1 + mpa, data = all.data.hp.cade)
+
+model_segmented = segmented(m2, seg.Z = ~ mpa)
+predict_segmented = data.frame(mpa = all.data.hp.cade$mpa, fn = broken.line(model_segmented)$fit)
+print.segmented(model_segmented)
+
+#par(mfrow=c(2,1))
+plot(model_segmented, conf.level=0.95, shade=TRUE, link = TRUE) +
+points(model_segmented, link=TRUE, col=2)
+
+# get the fitted data
+my.fitted <- fitted(model_segmented)
+my.model <- data.frame(mpa = all.data.hp.cade$mpa, tti = my.fitted)
+
+# plot the fitted model
+ggplot(my.model, aes(x = mpa, y = tti)) + geom_line()
+
+my.lines <- model_segmented$psi[,2]
+
+plot.tti <- all.data.hp.cade %>% ggplot(aes(x = mpa, y = tti)) + 
+  geom_point(size = 1) +
+  geom_line (data = my.model, aes(x = mpa, y = tti), colour = "black", size = .4) + 
+  geom_vline(xintercept = my.lines, linetype = "dashed", color = "blue") + # Show dots
+   geom_vline(xintercept = 2.1, linetype = "dashed") + 
+  scale_x_reverse() +
+ #  geom_label(label="More ignitable",  x= -9,y=2,label.padding = unit(0.55, "lines"), # Rectangle size around label
+ #    label.size = 0.35,color = "black",fill="yellow") + 
+ # geom_label(label="More combustible", x= -9 ,y=-3,
+ #    label.padding = unit(0.55, "lines"), # Rectangle size around label
+ #    label.size = 0.35, color = "black", fill="orange") +
+   # geom_label(
+   #  label="-0.837 mpa",  x= -0.8 ,y=0.5, label.padding = unit(0.2, "lines"), # Rectangle size around label
+   #  label.size = 0.22, color = "black",fill="light blue") +
+    ylab("Time to Ignition (sec)") +
+  xlab("mpa") +
+  theme_bw()
+plot.tti
+
+
+p1 <- all.data.hp %>% 
+  filter(spp == "ABCO") %>% 
+  ggplot(aes(x = -mpa, y = tti)) +
+  geom_point(size = 1) +
+   geom_vline(xintercept = -2.1, linetype = "dashed") + 
+  scale_x_reverse() +
+   geom_smooth(method = "lm", se = FALSE, color = "black", size = .4) + 
+  ylab("Time to Ignition (sec)") +
+  theme_bw()
+p1
+```
+
+ARPA
+```{r}
+p1 <- all.data.hp %>% 
+  filter(spp == "ARPA") %>% 
+  ggplot(aes(x = LFM, y = tti)) +
+  geom_point() +
+   geom_vline(xintercept = 108, linetype = "dashed") + 
+  scale_x_reverse() +
+  ylab("Time to Ignition (sec)") 
+p1
+
+p1 <- all.data.hp %>% 
+  filter(spp == "ARPA") %>% 
+  ggplot(aes(x = LFM, y = gd)) +
+  geom_point() +
+   geom_vline(xintercept = 108, linetype = "dashed") + 
+  scale_x_reverse() +
+  ylab("Glow Duration (sec)")
+p1
+
+p1 <- all.data.hp %>% 
+  filter(spp == "ARPA") %>% 
+  ggplot(aes(x = LFM, y = gd)) +
+  geom_point() +
+   geom_vline(xintercept = 108, linetype = "dashed") + 
+  scale_x_reverse() +
+  ylab("Max Temp (C)")
+p1
+
+p2 <- seki.pv %>% 
+  filter(spp == "ARPA") %>% 
+  ggplot(aes(x = LFM, y = -1/mpa)) + 
+  geom_point() +
+  scale_x_reverse() +
+  ylab("-1/Mpa")
+p2
+
+require(gridExtra)
+grid.arrange(p1, p2, ncol = 1, heights = c(2, 1))
+```
+
+ARPA
+
+```{r}
+p1 <- all.data.hp %>% 
+  filter(spp == "ARPA") %>% 
+  ggplot(aes(x = LFM, y = tti)) +
+  geom_point() +
+   geom_vline(xintercept = 166, linetype = "dashed") + 
+  scale_x_reverse() +
+  ylab("Time to Ignition (sec)")
+p1
+
+p1 <- all.data.hp %>% 
+  filter(spp == "ARPA") %>% 
+  ggplot(aes(x = LFM, y = gd)) +
+  geom_point() +
+   geom_vline(xintercept = 166, linetype = "dashed") + 
+  scale_x_reverse() +
+  ylab("Glow Duration (sec)")
+p1
+
+p1 <- all.data.hp %>% 
+  filter(spp == "ARPA") %>% 
+  ggplot(aes(x = LFM, y = gd)) +
+  geom_point() +
+   geom_vline(xintercept = 166, linetype = "dashed") + 
+  scale_x_reverse() +
+  ylab("Max Temp (C)")
+p1
+
+p2 <- seki.pv %>% 
+  filter(spp == "ARPA") %>% 
+  ggplot(aes(x = LFM, y = -1/mpa)) + 
+  geom_point() +
+  geom_vline(xintercept = 166, linetype = "dashed") + 
+  scale_x_reverse() +
+  ylab("-1/Mpa")
+p2
+
+require(gridExtra)
+grid.arrange(p1, p2, ncol = 1, heights = c(2, 1))
+```

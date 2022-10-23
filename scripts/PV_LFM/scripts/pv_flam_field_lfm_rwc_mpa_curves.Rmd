@@ -1,0 +1,441 @@
+---
+title: "RWC x LFM"
+author: "Indra Boving"
+date: "12/02/2021"
+output: html_document
+
+---
+#Setup: 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo=FALSE, message=FALSE, results='hide', warning= FALSE)
+options(knitr.duplicate.label = "allow")
+library(here)
+library(janitor)
+library(tidyverse)
+library(plotly)
+library(DT)
+library(broom)
+library(lubridate)
+library(udpipe)
+library(equatiomatic)
+library(MuMIn)
+library(cowplot)
+ library(tidytext)
+library(grid)
+library(gridExtra)
+# rmarkdown::render('lfm_rwc_ALL.Rmd', output_file = here("htmls", "lfm_rwc_ALL.html"))
+```
+
+```{r}
+library(wesanderson)
+myWAcolors <- wes_palette("BottleRocket1", n = 7)
+
+pal <- wes_palette(21, name = "Zissou1", type = "continuous")
+
+th <- theme(panel.background = element_rect(fill='white', colour='black'), # Make background white and border black
+          panel.grid.major = element_blank(),  # Hide major gridlines
+          panel.grid.minor = element_blank())
+```
+
+#Lit values: 
+
+
+```{r}
+p50s <- c(-2.65, -3.74, -7.98, -7.75, -8.08, NA, NA, NA, NA, -4.41)
+spp.p50 <- c("PIPO", "ABCO", "ADFA", "CADE", "CEME", "QUKE", "CECO", "PIJE", "ARPA", "ARGL")
+
+p50_reference <- c()
+
+tlp <- c(-2.91, NA, -3.4, -3.14, -2.24, -2.8, -2.6, NA, NA, NA)
+spp.tlp <- c("PIPO", "ABCO", "ADFA", "ADFA", "CEME", "CEME", "ABGR", NA, NA, NA)
+
+tlp_reference <-c("Jackson & Spomer, 1979", NA, "Pivavoroff, 2019", "Ramirez dissertation", "Ramirez dissertation", "Fletcher et al. 2018", "Jackson & Spomer, 1979", NA, NA, NA)
+
+lit_values <- data.frame(spp.p50, p50s, spp.tlp, tlp, tlp_reference)
+datatable(lit_values)
+```
+
+# Section 1: Pressure Volume Curves
+
+```{r}
+pv_data_all <- read_csv(here("processed-data", "allcurves_clean.csv"), show_col_types = FALSE)%>% 
+  mutate(sample = as.factor(sample)) %>% 
+  mutate(month = as.factor(month)) %>% 
+  mutate(date = date(date)) %>% 
+  mutate(dataset = "pv")
+
+dlookr::diagnose(pv_data_all)
+```
+
+
+```{r}
+#by timing
+pv_summary_df_timing_mpa <- pv_data_all %>% 
+  group_by(spp, timing) %>% 
+  dplyr::summarise(ci = list(mean_cl_normal(tlp) %>% 
+                        dplyr::rename(mean_tlp=y, lwr=ymin, upr=ymax))) %>% 
+  unnest
+
+pv_summary_df_timing_lfm <- pv_data_all %>% 
+  drop_na(lfm_at_tlp) %>% 
+  group_by(spp, timing) %>% 
+  dplyr::summarise(ci = list(mean_cl_normal(lfm_at_tlp) %>% 
+                        dplyr::rename(mean_lfm=y, lwr_lfm=ymin, upr_lfm=ymax))) %>% 
+  unnest
+
+pv_summary_df_timing <- merge(pv_summary_df_timing_mpa, pv_summary_df_timing_lfm, by = c("spp", "timing"), all = T)
+
+write_csv(pv_summary_df_timing, here("processed-data", "compiled-datasets", "pv_summary_df_timing.csv"))
+
+#by species
+pv_summary_df_spp_mpa <- pv_data_all %>% 
+  group_by(spp) %>% 
+  dplyr::summarise(ci = list(mean_cl_normal(tlp) %>% 
+                        dplyr::rename(mean_tlp=y, lwr=ymin, upr=ymax)), 
+            ci = list(mean_cl_normal(lfm_at_tlp))) %>% 
+  unnest
+
+pv_summary_df_spp_lfm <- pv_data_all %>% 
+  drop_na(lfm_at_tlp) %>% 
+  group_by(spp) %>% 
+  dplyr::summarise(ci = list(mean_cl_normal(lfm_at_tlp) %>% 
+                        dplyr::rename(mean_lfm=y, lwr_lfm=ymin, upr_lfm=ymax))) %>% 
+  unnest
+
+pv_summary_spp_timing <- merge(pv_summary_df_spp_mpa, pv_summary_df_spp_lfm, by = c("spp"), all = T)
+
+write_csv(pv_summary_df_spp, here("processed-data", "compiled-datasets", "pc_summary_df_spp.csv"))
+```
+
+
+```{r}
+data <-  pv_data_all  %>% 
+  filter(timing == "fall" ) %>% 
+  filter(month == 9) %>% 
+  filter(year == "2021") %>% 
+  filter(tlp < -1.5)
+
+ALL.above.tlp <- data %>% 
+  filter(water_potential > tlp) 
+# %>% 
+#   filter(lfm < 200, lfm > 90)
+
+ALL.below.tlp <- data %>% 
+  filter(water_potential < tlp)
+```
+
+
+```{r}
+complex_model_below <- lmer(formula = -1/water_potential ~ lfm + swc + 1|spp, data = data)
+complex_model_above <- lmer(formula = water_potential ~ lfm + swc + 1|spp, data = data)
+```
+
+###Nolan 2020 figures
+```{r}
+ggplot(data = ALL.above.tlp, aes(x = water_potential, y = lfm)) + 
+  geom_point(color = "lightblue", size = .5, alpha = .4) +
+  geom_smooth(method = "lm", data = ALL.above.tlp, color = "maroon", se = F, size = .5) +
+  geom_point(data = ALL.below.tlp, aes(x = water_potential, y = lfm), size = .5, alpha = .4, color = "goldenrod") +
+   geom_smooth(method = "lm", data = ALL.below.tlp, color = "olivedrab", se = F, size = .5) +
+  facet_wrap(~spp, nrow = 2, scales = "free") +
+  theme_bw()
+```
+
+```{r}
+mod_below = 
+ggplot(data = ALL.above.tlp, aes(x = water_potential, y = lfm)) + 
+  geom_point(color = "lightblue", size = .5, alpha = .4) +
+  geom_smooth(method = "lm", data = ALL.above.tlp, color = "maroon", se = F, size = .5) +
+  geom_point(data = ALL.below.tlp, aes(x = water_potential, y = lfm), size = .5, alpha = .4, color = "goldenrod") +
+   geom_smooth(method="lm", formula= (y ~ exp(x)), data = ALL.below.tlp, color = "olivedrab", se = F, size = .5) +
+  facet_wrap(~spp, nrow = 2, scales = "free") +
+  theme_bw()
+```
+
+# Section 2: Flammability Curves
+```{r}
+flam_phys_data_all <- read_csv(here("processed-data", "compiled-datasets", "flam_curve_phys_all.csv"))%>% 
+  mutate(dataset = "flam") %>% 
+  mutate(month = month(month))
+```
+
+####Local MPa x LFM: 
+
+```{r}
+flam_phys_data_local <- flam_curve_phys_all %>% 
+  mutate(dataset = "flam") %>% 
+ # mutate(month = month(month)) %>% 
+  filter(spp %in% c("ADFA", "CEME"))
+
+#head(flam_phys_data_local)
+```
+
+```{r}
+flam_phys_data_local %>% 
+ggplot(aes(y = lfm, x = mpa, color = year_month)) +
+  geom_point(size = 1, alpha = .5) +
+  geom_smooth(method = lm, se = FALSE)+
+  th +
+  facet_wrap(~spp) +
+  scale_color_brewer(palette = "Dark2") +
+  labs(y = "Live Fuel Moisture (%)", 
+       x = "Water Potential (-MPa)", 
+       color = "Species") +
+  theme(legend.position = "bottom")
+```
+
+```{r}
+flam_phys_data_adfa <- flam_phys_data_local %>% 
+  filter(spp == "ADFA")
+mod_local_mpalfm_adfa <- lmer(lfm ~ mpa + year_month  + (1|individual), data = flam_phys_data_adfa)
+summary(mod_local_mpalfm_adfa)
+```
+```{r}
+flam_phys_data_ceme <- flam_phys_data_local %>% 
+  filter(spp == "CEME")
+mod_local_mpalfm_ceme <- lmer(lfm ~ mpa + year_month  + (1|individual), data = flam_phys_data_ceme)
+summary(mod_local_mpalfm_ceme)
+```
+
+# Section 3: Field data
+
+```{r}
+field_data_all <- read_csv(here("processed-data", "compiled-datasets", "SEKI", "field_data_2020_2021.csv")) %>% 
+  mutate(dataset = "field")
+
+head(field_data_all)
+```
+#Section 4: All together
+
+#### -1/MPa x RWD
+
+```{r}
+pv_plot <- pv_data_all %>% 
+  filter(rwd > 0) %>% 
+  ggplot(aes(y = -1/water_potential, x = rwd, color = spp)) +
+  geom_point(alpha = .3) +
+  geom_smooth(methods = "loess", se = FALSE) +
+  labs(title = "PV Curves", 
+       subtitle = "RWC calculated via extrapolation", 
+       y = "",
+       x = "") +
+  th +
+  theme(legend.position = "none")
+pv_plot
+
+pv_data_all %>% 
+  filter(rwd > 0) %>% 
+  ggplot(aes(y = -1/water_potential, x = rwd, color = spp)) +
+  geom_point(alpha = .3) +
+  geom_smooth(methods = "loess", se = FALSE) +
+  facet_wrap(~spp) +
+  labs(title = "PV Curves", 
+       subtitle = "RWC calculated via extrapolation") +
+  th
+```
+
+Saturated water content calculated by extrapolating points above the TLP: 
+```{r}
+flam_plot <- flam_phys_data_all %>% 
+  filter(rwc_new < 100) %>% 
+ggplot(aes(y = -1/mpa, x = 100 - rwc_new, color = spp)) +
+  geom_point(alpha = .3) +
+  geom_smooth(method = "loess", se = FALSE)+
+  labs(title = "Flam data", 
+       subtitle = "RWC calculated via extrapolation", 
+       y = "",
+       x = "") +
+  th +
+  theme(legend.position = "none")
+flam_plot 
+
+flam_phys_data_all %>% 
+  filter(rwc_new < 100) %>% 
+ggplot(aes(y = -1/mpa, x = 100 - rwc_new, color = spp)) +
+  geom_point(alpha = .3) +
+  geom_smooth(method = loess, se = F, size = .5) +
+  facet_wrap(~spp) +
+  labs(title = "Flam data", 
+       subtitle = "RWC calculated via extrapolation") +
+  th
+```
+
+Saturated content here is the wettest LFM observed during the field season/100. 
+
+```{r}
+field_plot <- field_data_all %>% 
+ggplot(aes(y = -1/midday, x = 100 - rwc, color = spp)) +
+  geom_point(alpha = .3) +
+  geom_smooth(method = "loess", se = FALSE) +
+  th +
+  labs(title = "Field data", 
+       subtitle = "RWC calculated relative to max. observed hydration in a season", 
+       y = "", 
+       x = "") +
+  theme(legend.position = "none")
+field_plot
+
+field_data_all %>% 
+ggplot(aes(y = -1/midday, x = 100 - rwc, color = spp))  +
+  geom_point(alpha = .3) +
+  geom_smooth(method = loess, se = F, size = .5) +
+  facet_wrap(~spp) +
+  th+
+  labs(title = "Field data", 
+       subtitle = "RWC calculated relative to max. observed hydration in a season")
+```
+
+```{r}
+plot <- plot_grid(pv_plot, field_plot, flam_plot,
+          nrow = 3,
+  label_size = 12,
+  align = "hv"
+  
+  #labels = c("Isohydric", "Anisohydric")  
+)
+
+#create common x and y labels
+y.grob <- textGrob("-1/MPa", 
+                   gp=gpar(col="black", fontsize=15), rot=90)
+
+x.grob <- textGrob("Relative Water Deficit", 
+                   gp=gpar(col="black", fontsize=15))
+
+#add to plot
+grid.arrange(arrangeGrob(plot, 
+                         left = y.grob, 
+                         bottom = x.grob))
+```
+#### LFM x MPa
+
+```{r}
+pv_plot <- pv_data_all %>% 
+  filter(spp %in% c("ABCO", "CADE","PIJE","ARPA", "CECO", "QUKE")) %>% 
+  filter(rwd > 0) %>% 
+  ggplot(aes(y = lfm, x = water_potential, color = spp)) +
+  geom_point(alpha = .7) +
+  #geom_smooth(methods = "loess", se = FALSE) +
+  labs(title = "PV Curves", 
+       #subtitle = "RWC calculated via extrapolation", 
+        y = "LFM (%)", 
+       x = "Water Potential (-MPa)", 
+       color = "Species") +
+  theme(legend.position = "bottom") +
+  scale_color_manual(values=met.brewer("Morgenstern", 8)) +
+  th
+pv_plot
+```
+
+
+```{r}
+pv_data_all %>% 
+  filter(rwd > 0) %>% 
+  ggplot(aes(y = lfm, x = water_potential, color = spp)) +
+  geom_point(alpha = .3) +
+  #geom_smooth(methods = "loess", se = FALSE) +
+  facet_wrap(~spp) +
+  labs(title = "PV Curves", 
+       subtitle = "RWC calculated via extrapolation") +
+  th
+```
+
+Saturated water content calculated by extrapolating points above the TLP: 
+```{r}
+flam_plot <- flam_phys_data_all %>% 
+  #filter(rwc_new < 100) %>% 
+ggplot(aes(y = lfm, x = mpa, color = spp)) +
+  geom_point(alpha = .7) +
+  #geom_smooth(method = "loess", se = FALSE)+
+  labs(title = "Flam data", 
+        #subtitle = "RWC calculated relative to max. observed hydration in a season", 
+       y = "LFM (%)", 
+       x = "Midday (-MPa)", 
+       color = "Species") +
+  theme(legend.position = "bottom") +
+  scale_color_manual(values=met.brewer("Morgenstern", 8)) +
+  th
+flam_plot
+
+field_plot <- field_data_all %>% 
+ggplot(aes(y = lfm, x = midday, color = spp)) +
+  geom_point(alpha = .7) +
+  #geom_smooth(method = "loess", se = FALSE) +
+  th +
+  labs(title = "Field data", 
+       #subtitle = "RWC calculated relative to max. observed hydration in a season", 
+       y = "LFM (%)", 
+       x = "Midday (-MPa)", 
+       color = "Species") +
+  theme(legend.position = "bottom") +
+  scale_color_manual(values=met.brewer("Morgenstern")) 
+ # scale_color_gradientn(colors=met.brewer("Morgenstern"))
+field_plot
+```
+
+
+```{r}
+flam_phys_data_all %>% 
+  filter(rwc_new < 100) %>% 
+ggplot(aes(y = lfm, x = mpa, color = spp)) +
+  geom_point(alpha = .3) +
+  geom_smooth(method = loess, se = F, size = .5) +
+  facet_wrap(~spp) +
+  labs(title = "Flam data", 
+       #subtitle = "RWC calculated via extrapolation"
+       ) +
+  th
+```
+
+Saturated content here is the wettest LFM observed during the field season/100. 
+
+```{r}
+field_plot <- field_data_all %>% 
+ggplot(aes(y = lfm, x = midday, color = spp)) +
+  geom_point(alpha = .7) +
+  #geom_smooth(method = "loess", se = FALSE) +
+  th +
+  labs(title = "Field data", 
+       #subtitle = "RWC calculated relative to max. observed hydration in a season", 
+       y = "LFM (%)", 
+       x = "Midday (-MPa)", 
+       color = "Species") +
+  theme(legend.position = "bottom") +
+  scale_color_manual(values=met.brewer("Morgenstern")) 
+ # scale_color_gradientn(colors=met.brewer("Morgenstern"))
+field_plot
+```
+
+
+```{r}
+field_data_all %>% 
+ggplot(aes(y = lfm, x = midday, color = spp))  +
+  geom_point(alpha = .3) +
+  geom_smooth(method = loess, se = F, size = .5) +
+  facet_wrap(~spp) +
+  th+
+  labs(title = "Field data", 
+      # subtitle = "RWC calculated relative to max. observed hydration in a season"
+       )
+```
+
+```{r}
+plot <- plot_grid(pv_plot, field_plot, flam_plot,
+          nrow = 3,
+  label_size = 12,
+  align = "hv"
+  
+  #labels = c("Isohydric", "Anisohydric")  
+)
+
+#create common x and y labels
+y.grob <- textGrob("LFM (%)", 
+                   gp=gpar(col="black", fontsize=15), rot=90)
+
+x.grob <- textGrob("Water Potential (-MPa)", 
+                   gp=gpar(col="black", fontsize=15))
+
+#add to plot
+grid.arrange(arrangeGrob(plot, 
+                         left = y.grob, 
+                         bottom = x.grob))
+```

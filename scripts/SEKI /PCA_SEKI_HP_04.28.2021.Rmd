@@ -1,0 +1,556 @@
+---
+title: 'PCA, Max code, all data'
+author: "Indra Boving"
+date: "04/14/2020"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+library(ggplot2)
+#install.packages("gapminder")
+library(gapminder)
+#install.packages("data.table")
+library(data.table)
+#install.packages("purrr")
+library(purrr) #for visualizing all variables in one big plot
+#install.packages("naniar")
+library(naniar)
+library(dplyr)
+library(tidyverse)
+library(devtools)
+#install_github("vqv/ggbiplot", force = TRUE)
+library(ggbiplot)
+#install.packages("ggfortify")
+library(ggfortify)
+library(ggpubr)
+library(here)
+here=here::here
+library("factoextra")
+library("corrplot")
+```
+
+# Organize Data: 
+## 1. Missing values --> NA (data is MCAR, so pair-wise deletion of values makes sense;see:https://towardsdatascience.com/all-about-missing-data-handling-b94b8b5d2184, or https://cran.r-project.org/web/packages/naniar/vignettes/getting-started-w-naniar.html)
+## 2. Outliers removed from LFM column using oulierKD (outside 1.5 IQR => NA)
+## 3. Median inserted into missing values for missing weights and temps (median appropriate for slightly skewed data); imputed missing LFM using lm with mpa as predictor, median imputed for missing flam metrics.
+## 4. Normalized flam metrics using the burned sample dry weight (.norm added to names)
+
+###Note: This dataset inludes only Hotplate and Ignited samples
+
+```{r echo=FALSE, warning=FALSE}
+flamdata <- read.csv(here("processed-data/hp.ignite.only.seki.csv")) %>%
+  mutate(LFM = lfm.NAs.imputed)
+str(flamdata)
+```
+
+```{r message=FALSE, warning=FALSE}
+distributions <- flamdata %>%
+  select(spp, mpa, lfm.outliers.out, lfm.NAs.imputed, sample.wt, dw.flam.sample, ttfg, gd, gti, tti, fh, pfg, fd, temp.max, prop.ignite, dry.norm.fh, dry.norm.gd, dry.norm.fd, dry.norm.pfg, dry.norm.gti, dry.norm.ttfg, dry.norm.tti, ttms, temp.change) %>%
+  gather(-spp, key = "var", value = "value") %>%
+  ggplot() +
+  geom_density(aes(x = value, color = spp)) +
+  facet_wrap(~ var, scales = "free")
+
+distributions +
+  ggtitle("Hot Plate")
+```
+
+Taking the log of the flam metrics, to see if that looks better: 
+
+
+```{r, include=TRUE}
+#not transformed:
+flamdata.nolog <- (flamdata[c("fh", "ttfg", "tti", "fd", "gd", "gti", "sample.wt", "pfg",
+         "temp.max", "prop.ignite" )])
+multi.hist(flamdata.nolog[,sapply(flamdata.nolog, is.numeric)])
+
+## log transform normalized flam metrics:
+log.flamdata <- log(flamdata[c("fh", "ttfg", "tti", "fd", "gd", "gti", "sample.wt", "pfg",
+         "temp.max", "prop.ignite","mpa", "lfm.NAs.imputed")]) #flam metrics, lfm, and sample weight
+multi.hist(log.flamdata[,sapply(log.flamdata, is.numeric)])
+
+#Categorical variables: 
+cat.flamdata <- flamdata %>%
+                   select("hydration", "spp", "year.month", "sample")
+cat.flamdata
+```
+
+```{r, , include = FALSE}
+#Not transformed: 
+nolog.flamdata.norm <- (flamdata[c("dry.norm.fh", "dry.norm.gd", "dry.norm.fd", "dry.norm.pfg", "dry.norm.gti", "dry.norm.ttfg", "dry.norm.tti")]) #flam metrics, lfm, and sample weight
+multi.hist(nolog.flamdata.norm[,sapply(nolog.flamdata.norm, is.numeric)])
+
+## log transform normalized flam metrics:
+log.flamdata.norm <- log(flamdata[c("dry.norm.fh", "dry.norm.gd", "dry.norm.fd", "dry.norm.pfg", "dry.norm.gti", "dry.norm.ttfg", "dry.norm.tti", "mpa", "lfm.NAs.imputed")]) #flam metrics, lfm, and sample weight
+multi.hist(log.flamdata.norm[,sapply(log.flamdata.norm, is.numeric)])
+```
+
+# Not transformed, including LFM, Xpp, and Weight
+
+```{r warning=FALSE}
+colSums(is.na(flamdata))
+
+flamdata3 <- (flamdata[, c("LFM", "mpa","fh", "ttfg", "tti", "fd", "gd", "gti", "sample.wt", "pfg",
+         "temp.max", "prop.ignite", "dw.flam.sample")])
+str(flamdata3)
+
+flamdata3.pca <- prcomp(na.omit(flamdata3), center = TRUE, scale = TRUE)
+
+print(flamdata3.pca)
+plot(flamdata3.pca)
+#plot(flamdata3.pca, type = "l")
+summary(flamdata3.pca)
+#biplot(flamdata3.pca)
+
+
+
+eig.val <- get_eigenvalue(flamdata3.pca)
+eig.val
+
+var <- get_pca_var(flamdata3.pca)
+var
+
+corrplot(var$cos2, is.corr=FALSE)
+
+#Note that, A high cos2 indicates a good representation of the variable on the principal component. In this case the variable is positioned close to the circumference of the correlation circle. A low cos2 indicates that the variable is not perfectly represented by the PCs. In this case the variable is close to the center of the circle.
+
+# Total cos2 of variables on Dim.1 and Dim.2
+fviz_cos2(flamdata3.pca, choice = "var", axes = 1:2)
+```
+
+
+```{r}
+f <- ggbiplot::ggbiplot(flamdata3.pca, 
+                        groups = cat.flamdata[,2], 
+                        #ellipse = TRUE, 
+                        circle = TRUE, 
+                        varname.size = 2, 
+                        alpha = .4)
+print(f)
+
+f <- ggbiplot::ggbiplot(flamdata3.pca, groups = cat.flamdata[,1], ellipse = TRUE, circle = TRUE, 
+                        varname.size = 4, alpha = .4) +  #
+ggtitle("Not transformed, all valuess")  # by Hydration
+print(f)
+
+#f <- ggbiplot::ggbiplot(flamdata3.pca, groups = cat.flamdata[,5], ellipse = TRUE, circle = TRUE, 
+                       # varname.size = 4, alpha = .4)   # by trial (month and year)
+#print(f)
+
+```
+# Not transformed, only flam characteristics
+
+```{r warning=FALSE}
+flamdata4 <- (flamdata[, c("fh", "ttfg", "tti", "fd", "gd", "gti", "pfg",
+         "temp.max")])
+str(flamdata4)
+
+flamdata4.pca <- prcomp(na.omit(flamdata4), center = TRUE, scale = TRUE)
+
+print(flamdata4.pca)
+plot(flamdata4.pca)
+#plot(flamdata4.pca, type = "l")
+summary(flamdata4.pca)
+#biplot(flamdata4.pca)
+
+
+eig.val <- get_eigenvalue(flamdata4.pca)
+eig.val
+
+var <- get_pca_var(flamdata4.pca)
+var
+
+corrplot(var$cos2, is.corr=FALSE)
+
+#Note that, A high cos2 indicates a good representation of the variable on the principal component. In this case the variable is positioned close to the circumference of the correlation circle. A low cos2 indicates that the variable is not perfectly represented by the PCs. In this case the variable is close to the center of the circle.
+
+# Total cos2 of variables on Dim.1 and Dim.2
+fviz_cos2(flamdata4.pca, choice = "var", axes = 1:2)
+
+f <- ggbiplot::ggbiplot(flamdata4.pca, 
+                        groups = cat.flamdata[,2], 
+                        #ellipse = TRUE, 
+                        #circle = TRUE, 
+                        varname.size = 4, 
+                        alpha = .4)   # by spp +  # by spp
+ggtitle("Not transformed, flammability metrics only")
+print(f)
+
+f <- ggbiplot::ggbiplot(flamdata4.pca, groups = cat.flamdata[,1], ellipse = TRUE, circle = TRUE, 
+                        varname.size = 4, alpha = .4) +  # by spp
+ggtitle("Not transformed, flammability metrics only")  # by Hydration
+print(f)
+
+f <- ggbiplot::ggbiplot(flamdata4.pca, circle = TRUE, 
+                        varname.size = 4, alpha = .1) +  # by spp
+ggtitle("Not transformed, flammability metrics only")  # by Hydration
+print(f)
+
+f <- ggbiplot::ggbiplot(flamdata4.pca, 
+                        circle = TRUE, 
+                        varname.size = 3, 
+                        alpha = .1, 
+                        labels.size = 3,
+                        varname.adjust = 3) +  # by spp
+ggtitle("Flammability Metrics")  
+print(f)
+
+#f <- ggbiplot::ggbiplot(flamdata4.pca, groups = cat.flamdata[,5], ellipse = TRUE, circle = TRUE, 
+                       # varname.size = 4, alpha = .4)   # by trial (month and year)
+#print(f)
+```
+
+# Not transformed, only ignition characteristics
+
+```{r warning=FALSE}
+flamdata4.noglow <- (flamdata[, c("fh", "tti", "fd", "gd", "temp.max", "LFM", "prop.ignite")])
+str(flamdata4.noglow)
+
+flamdata4.noglow.pca <- prcomp(na.omit(flamdata4.noglow), center = TRUE, scale = TRUE)
+
+print(flamdata4.noglow.pca)
+plot(flamdata4.noglow.pca)
+#plot(flamdata4.noglow.pca, type = "l")
+summary(flamdata4.noglow.pca)
+#biplot(flamdata4.noglow.pca)
+
+eig.val <- get_eigenvalue(flamdata4.noglow.pca)
+eig.val
+
+var <- get_pca_var(flamdata4.noglow.pca)
+var
+
+corrplot(var$cos2, is.corr=FALSE)
+
+#Note that, A high cos2 indicates a good representation of the variable on the principal component. In this case the variable is positioned close to the circumference of the correlation circle. A low cos2 indicates that the variable is not perfectly represented by the PCs. In this case the variable is close to the center of the circle.
+
+# Total cos2 of variables on Dim.1 and Dim.2
+fviz_cos2(flamdata4.noglow.pca, choice = "var", axes = 1:2)
+
+f <- ggbiplot::ggbiplot(flamdata4.noglow.pca, 
+                        groups = cat.flamdata[,2], 
+                        #ellipse = TRUE, 
+                        #circle = TRUE, 
+                        varname.size = 3, 
+                        alpha = .5, 
+                        varname.adjust = 3)   # 
+ggtitle("Flammability between Species")
+print(f)
+
+f <- ggbiplot::ggbiplot(flamdata4.noglow.pca, groups = cat.flamdata[,1], ellipse = TRUE, circle = TRUE, 
+                        varname.size = 4, alpha = .4) +  # by spp
+ggtitle("Not transformed, flammability metrics only")  # by Hydration
+print(f)
+
+f <- ggbiplot::ggbiplot(flamdata4.noglow.pca, circle = TRUE, 
+                        varname.size = 4, alpha = .1) +  # by spp
+ggtitle("Not transformed, flammability metrics only")  # by Hydration
+print(f)
+
+f <- ggbiplot::ggbiplot(flamdata4.noglow.pca, 
+                        circle = TRUE, 
+                        varname.size = 3, 
+                        alpha = .1, 
+                        labels.size = 3,
+                        varname.adjust = 3) +  # by spp
+ggtitle("Flammability Metrics")  
+print(f)
+
+#f <- ggbiplot::ggbiplot(flamdata4.noglow.pca, groups = cat.flamdata[,5], ellipse = TRUE, circle = TRUE, 
+                       # varname.size = 4, alpha = .4)   # by trial (month and year)
+#print(f)
+```
+
+#Create new dataset for MEMs:
+
+```{r warning=FALSE}
+### Plot PCA scores yourself (and thus access for plotting against LFM)
+x4 <-predict(flamdata4.pca)  ### generate scores for each row in flamdata2
+pca.flam.data4 <- as.data.frame(x4) 
+#x6 <-predict(flamdata6.pca)  ### generate scores for each row in flamdata2
+#pca.flam.data6 <- as.data.frame(x6) 
+#pca.flam.data6[which.min(pca.flam.data6$PC1),]
+
+#all.data <- cbind.data.frame(ignite.only.hp, pca.flam.data6) %>%  #ignite.only.all.hp from Data_Wrangling_DATE.Rmd (so run that one first)
+ # mutate(PC1.norm = PC1, PC2.norm = PC2, PC3.norm = PC3, PC4.norm = PC4, PC5.norm = PC5, PC6.norm = PC6, PC7.norm = PC7, PC1 = NULL, PC2 = NULL, PC3 = NULL, PC4 = NULL, PC5 = NULL, PC6 = NULL, PC7 = NULL )
+all.data.hp <- cbind(flamdata, pca.flam.data4)
+#colSums(is.na(all.data))
+#str(all.data)
+#dataset with the above columns, PCA using imputed NAs (medians), and flam metrics with NAs still in there:
+mem.data.hp <- all.data.hp %>% select(individual, site, year, year.month, month, lfm.outliers.out, lfm.NAs.imputed, mpa, dw.flam.sample, ww.flam.sample, sample.wt, spp, start.temp,  gww.gdw.saturated, gdw.gww.saturated, fd, fh, gd, gti, pfg, dry.norm.fd, dry.norm.fh, dry.norm.gd, dry.norm.gti, dry.norm.pfg, temp.max, ttfg, tti, temp.change, PC1, PC2, PC3, PC4, ttms, model, LFM, prop.ignite, bins10lfm) %>% 
+  write_csv(here("processed-data/mem.data.seki.hp.csv"))
+#check out data: 
+str(mem.data.hp)
+```
+
+
+
+
+
+
+<!-- ###BELOW NOT RUN:  -->
+<!-- # Run PCA 4 times:  -->
+<!-- ##     1. With all variables; all log-transformed -->
+<!-- ##     2. With only flammability metrics; all log-transformed -->
+<!-- ##     3. With all variables; NOT log-transformed -->
+<!-- ##     4. With only flammability metrics; NOT log-transformed -->
+
+<!-- # 1.  -->
+<!-- ```{r echo=FALSE, warning=FALSE, include = FALSE, eval= FALSE} -->
+<!-- flamdata.pca <- princomp(na.omit(log.flamdata), scale=TRUE) -->
+<!-- print(flamdata.pca) -->
+<!-- plot(flamdata.pca) -->
+<!-- #plot(flamdata.pca, type = "l") -->
+<!-- summary(flamdata.pca) -->
+<!-- #biplot(flamdata.pca) -->
+<!-- #str(cat.flamdata) -->
+<!-- colSums(is.na(log.flamdata)) -->
+
+<!-- ### biplot by species:  -->
+<!-- f <- ggbiplot::ggbiplot(flamdata.pca, groups = cat.flamdata[,2], ellipse = TRUE, circle = TRUE,  -->
+<!--                         varname.size = 4, alpha = .4) + # by spp -->
+<!--                         ggtitle("Log-transformed, all valuess") -->
+<!-- print(f) -->
+
+<!-- ###biplot by hydration (split at 60% lfm) -->
+<!-- f <- ggbiplot::ggbiplot(flamdata.pca, groups = cat.flamdata[,1], ellipse = TRUE, circle = TRUE,  -->
+<!--                         varname.size = 4, alpha = .4) +   # by Hydration -->
+<!--                         ggtitle("Log-transformed, all valuess") -->
+<!-- print(f) -->
+<!-- ###biplot by month and year -->
+<!-- #f <- ggbiplot::ggbiplot(flamdata.pca, groups = cat.flamdata[,5], ellipse = TRUE, circle = TRUE,  -->
+<!--                         #varname.size = 4, alpha = .4)   # by trial (month and year) -->
+<!-- #print(f) -->
+
+<!-- ``` -->
+<!-- # 2. Log transformed, only flam metrics -->
+<!-- ```{r echo=FALSE, warning=FALSE, include = FALSE, eval= FALSE} -->
+<!-- ## remove some extraneous cols, like weights and LFM/XPP: -->
+<!-- log.flamdata2 <- log.flamdata %>% -->
+<!--   select("fh", "ttfg", "tti", "fd", "gd", "gti", "pfg", -->
+<!--          "temp.max", "prop.ignite") -->
+<!-- str(log.flamdata2) -->
+
+<!-- flamdata2.pca <- prcomp(log.flamdata2, center = TRUE, scale = TRUE) -->
+
+<!-- print(flamdata2.pca) -->
+<!-- #plot(flamdata2.pca) -->
+<!-- plot(flamdata2.pca, type = "l") -->
+<!-- summary(flamdata2.pca) -->
+<!-- #biplot(flamdata2.pca) -->
+
+<!-- f <- ggbiplot::ggbiplot(flamdata2.pca, groups = cat.flamdata[,2], ellipse = TRUE, circle = TRUE,  -->
+<!--                         varname.size = 4, alpha = .4) +   # by spp -->
+<!--   ggtitle("Log-transformed flam metrics only") -->
+<!-- print(f) -->
+
+<!-- f <- ggbiplot::ggbiplot(flamdata2.pca, groups = cat.flamdata[,1], ellipse = TRUE, circle = TRUE,  -->
+<!--                         varname.size = 4, alpha = .4) + # by Hydration -->
+<!-- ggtitle("Log-transformed flam metrics only") -->
+<!-- print(f) -->
+
+<!-- #f <- ggbiplot::ggbiplot(flamdata2.pca, groups = cat.flamdata[,5], ellipse = TRUE, circle = TRUE,  -->
+<!--                         #varname.size = 4, alpha = .4)   # by trial (month and year) -->
+<!-- #print(f) -->
+
+<!-- ``` -->
+
+<!-- # Plot PCA scores against LFM:  -->
+<!-- ```{r echo=FALSE, warning=FALSE, include = FALSE, eval= FALSE} -->
+<!-- ### Plot PCA scores yourself (and thus access for plotting against LFM) -->
+
+<!-- x <-predict(flamdata2.pca)  ### generate scores for each row in flamdata2 -->
+<!-- pca.flam.data <- as.data.frame(x)  -->
+
+<!-- all.data <- cbind(flamdata, pca.flam.data) -->
+
+<!-- plot(x[,1],x[,2])           ### PC1 PC2 biplot! -->
+
+<!-- plot(x[,1],log.flamdata[,1])  ## PC1 vs logged XPP  ? -->
+<!-- plot(x[,1],log.flamdata[,2])  ## PC1 vs logged LFM  ? -->
+
+<!-- ##using ggplot: -->
+
+<!-- print(flamdata2.pca) -->
+<!-- lfm.pc1 <- all.data %>% -->
+<!--   ggplot(aes(x = lfm.outliers.out, y = PC1))+ -->
+<!--   geom_jitter() + -->
+<!--   geom_smooth(method = "lm", se = TRUE)  + -->
+<!--   stat_cor(label.y = -2, label.x = 15) + -->
+<!--   stat_regline_equation(label.y = -2.5, label.x = 15)+ -->
+<!--   ggtitle("PC1, lfm not transformed") -->
+<!-- lfm.pc1 -->
+
+<!-- lfm.pc2 <- all.data %>% -->
+<!--   ggplot(aes(x = lfm.outliers.out, y = PC2))+ -->
+<!--   geom_jitter()  + -->
+<!--   geom_smooth(method = "lm", se = TRUE)  + -->
+<!--   stat_cor(label.y = -2, label.x = 15) + -->
+<!--   stat_regline_equation(label.y = -2.5, label.x = 15) + -->
+<!--   ggtitle("PC2, lfm not transformed") -->
+<!-- lfm.pc2 -->
+
+<!-- all.data <- cbind(log.flamdata, pca.flam.data)  -->
+
+<!-- lfm.pc1 <- all.data %>% -->
+<!--   ggplot(aes(x = lfm.NAs.imputed, y = PC1))+ -->
+<!--   geom_jitter() + -->
+<!--   geom_smooth(method = "lm", se = TRUE)  + -->
+<!--   stat_cor(label.y = -2, label.x = 2.5) + -->
+<!--   stat_regline_equation(label.y = -2.5, label.x = 2.5)+ -->
+<!--   ggtitle("PC1, log(lfm)") -->
+<!-- lfm.pc1 -->
+
+<!-- lfm.pc2 <- all.data %>% -->
+<!--   ggplot(aes(x = lfm.NAs.imputed, y = PC2))+ -->
+<!--   geom_jitter()  + -->
+<!--   geom_smooth(method = "lm", se = TRUE)  + -->
+<!--   stat_cor(label.y = -2, label.x = 2.5) + -->
+<!--   stat_regline_equation(label.y = -2.5, label.x = 2.5) + -->
+<!--   ggtitle("PC2, log(lfm)") -->
+<!-- lfm.pc2 -->
+
+
+<!-- ``` -->
+<!-- #Only flame-related metrics -->
+<!-- ```{r eval=FALSE, warning=FALSE, include=FALSE} -->
+<!-- flamdata4a <- (flamdata[, c("fh", "tti", "fd", "temp.max")]) -->
+<!-- str(flamdata4a) -->
+
+<!-- flamdata4a.pca <- prcomp(na.omit(flamdata4a), center = TRUE, scale = TRUE) -->
+
+<!-- print(flamdata4a.pca) -->
+<!-- plot(flamdata4a.pca) -->
+<!-- #plot(flamdata4.pca, type = "l") -->
+<!-- summary(flamdata4.pca) -->
+<!-- #biplot(flamdata4.pca) -->
+
+<!-- f <- ggbiplot::ggbiplot(flamdata4a.pca, groups = cat.flamdata[,2], ellipse = TRUE, circle = TRUE, varname.size = 4, alpha = .4)   # by spp +  # by spp -->
+<!-- ggtitle("Not transformed, flammability metrics only") -->
+<!-- print(f) -->
+
+<!-- f <- ggbiplot::ggbiplot(flamdata4a.pca, groups = cat.flamdata[,1], ellipse = TRUE, circle = TRUE,  -->
+<!--                         varname.size = 4, alpha = .4) +  # by spp -->
+<!-- ggtitle("Not transformed, flammability metrics only")  # by Hydration -->
+<!-- print(f) -->
+
+<!-- f <- ggbiplot::ggbiplot(flamdata4a.pca, circle = TRUE,  -->
+<!--                         varname.size = 4, alpha = .1) +  # by spp -->
+<!-- ggtitle("Not transformed, flammability metrics only")  # by Hydration -->
+<!-- print(f) -->
+
+<!-- #f <- ggbiplot::ggbiplot(flamdata4.pca, groups = cat.flamdata[,5], ellipse = TRUE, circle = TRUE,  -->
+<!--                        # varname.size = 4, alpha = .4)   # by trial (month and year) -->
+<!-- #print(f) -->
+
+<!-- ``` -->
+
+<!-- #PCA using values normalized by dry weight: -->
+<!-- ```{r eval=FALSE, warning=FALSE, include=FALSE} -->
+<!-- #colSums(is.na(flamdata)) -->
+<!-- flamdata5 <- (flamdata[, c( "dry.norm.fh", "dry.norm.gd", "dry.norm.fd", "dry.norm.pfg", "dry.norm.gti", "dry.norm.ttfg", "dry.norm.tti")])  -->
+
+<!-- str(flamdata5) -->
+<!-- range(flamdata5) -->
+<!-- flamdata[which.max(flamdata$dry.norm.pfg),] -->
+<!-- flamdata[which.min(flamdata$dry.norm.gti),] -->
+<!-- flamdata5[which.min(flamdata5$dry.norm.gti),] -->
+
+<!-- flamdata5.pca <- prcomp(na.omit(flamdata5), center = TRUE, scale = TRUE) -->
+
+<!-- print(flamdata5.pca) -->
+<!-- plot(flamdata5.pca) -->
+<!-- summary(flamdata5.pca) -->
+
+<!-- f <- ggbiplot::ggbiplot(flamdata5.pca, ellipse = TRUE, circle = TRUE, varname.size = 4, alpha = .4) +  # by spp -->
+<!-- ggtitle("Flam metrics only, normalized by dry weight of sample (not logged)") -->
+<!-- print(f) -->
+
+<!-- f <- ggbiplot::ggbiplot(flamdata5.pca, groups = cat.flamdata[,1], ellipse = TRUE, circle = TRUE,  -->
+<!--                         varname.size = 4, alpha = .4) +  # -->
+<!-- ggtitle("Flam metrics only, normalized by dry weight of sample (not logged)")  # by Hydration -->
+<!-- print(f) -->
+
+<!-- ``` -->
+<!-- ```{r eval=FALSE, warning=FALSE, include=FALSE} -->
+<!-- #colSums(is.na(flamdata)) -->
+<!-- flamdata5a <- (flamdata[, c( "dry.norm.fh", "dry.norm.fd", "dry.norm.tti", "temp.max")])  -->
+
+<!-- str(flamdata5a) -->
+<!-- range(flamdata5a) -->
+<!-- flamdata[which.max(flamdata$dry.norm.pfg),] -->
+<!-- flamdata[which.min(flamdata$dry.norm.gti),] -->
+<!-- flamdata5a[which.min(flamdata5a$dry.norm.gti),] -->
+
+<!-- flamdata5a.pca <- prcomp(na.omit(flamdata5a), center = TRUE, scale = TRUE) -->
+
+<!-- print(flamdata5a.pca) -->
+<!-- plot(flamdata5a.pca) -->
+<!-- summary(flamdata5a.pca) -->
+
+<!-- f <- ggbiplot::ggbiplot(flamdata5a.pca, ellipse = TRUE, circle = TRUE, varname.size = 4, alpha = .4) +  # by spp -->
+<!-- ggtitle("Flam metrics only, normalized by dry weight of sample (not logged)") -->
+<!-- print(f) -->
+
+<!-- f <- ggbiplot::ggbiplot(flamdata5a.pca, groups = cat.flamdata[,1], ellipse = TRUE, circle = TRUE,  -->
+<!--                         varname.size = 4, alpha = .4) +  # -->
+<!-- ggtitle("Flam metrics only, normalized by dry weight of sample (not logged)")  # by Hydration -->
+<!-- print(f) -->
+
+<!-- ``` -->
+<!-- ```{r eval=FALSE, warning=FALSE, include=FALSE} -->
+<!-- flamdata6 <- (log.flamdata.norm[, c( "dry.norm.fh", "dry.norm.gd", "dry.norm.fd", "dry.norm.pfg", "dry.norm.gti", "dry.norm.ttfg", "dry.norm.tti")]) -->
+
+<!-- str(flamdata6) -->
+<!-- range(flamdata6) -->
+<!-- flamdata6[which.min(flamdata6$dry.norm.fd),] -->
+<!-- flamdata6[which.min(flamdata6$dry.norm.fh),] -->
+<!-- flamdata6[which.min(flamdata6$dry.norm.gd),] -->
+<!-- flamdata6[which.min(flamdata6$dry.norm.pfg),] -->
+<!-- flamdata6[which.min(flamdata6$dry.norm.gti),] -->
+
+<!-- flamdata6.pca <- prcomp(na.omit(flamdata6), center = TRUE, scale = TRUE) -->
+
+<!-- print(flamdata6.pca) -->
+<!-- plot(flamdata6.pca) -->
+<!-- summary(flamdata6.pca) -->
+
+<!-- f <- ggbiplot::ggbiplot(flamdata6.pca, ellipse = TRUE, circle = TRUE, varname.size = 4, alpha = .4) +  # by spp -->
+<!-- ggtitle("Flam metrics only, normalized by dry weight of sample and logged") -->
+<!-- print(f) -->
+
+<!-- f <- ggbiplot::ggbiplot(flamdata6.pca, groups = cat.flamdata[,1], ellipse = TRUE, circle = TRUE,  -->
+<!--                         varname.size = 4, alpha = .4) +  # -->
+<!-- ggtitle("Flam metrics only, normalized by dry weight of sample and logged")  # by Hydration -->
+<!-- print(f) -->
+
+<!-- ``` -->
+<!-- ```{r eval=FALSE, warning=FALSE, include=FALSE} -->
+<!-- flamdata7 <- (log.flamdata.norm[, c( "dry.norm.fh", "dry.norm.gd", "dry.norm.fd", "dry.norm.pfg", "dry.norm.gti", "dry.norm.ttfg", "dry.norm.tti", "mpa", "lfm.NAs.imputed")]) -->
+
+<!-- str(flamdata7) -->
+<!-- range(flamdata7) -->
+
+<!-- flamdata7.pca <- prcomp(na.omit(flamdata7), center = TRUE, scale = TRUE) -->
+
+<!-- print(flamdata7.pca) -->
+<!-- plot(flamdata7.pca) -->
+<!-- summary(flamdata7.pca) -->
+
+<!-- f <- ggbiplot::ggbiplot(flamdata7.pca, ellipse = TRUE, circle = TRUE, varname.size = 4, alpha = .4) +  # by spp -->
+<!-- ggtitle("Flam metrics, normalized by dry weight of sample and logged") -->
+<!-- print(f) -->
+
+<!-- f <- ggbiplot::ggbiplot(flamdata7.pca, groups = cat.flamdata[,1], ellipse = TRUE, circle = TRUE,  -->
+<!--                         varname.size = 4, alpha = .4) +  # -->
+<!-- ggtitle("Flam metrics, normalized by dry weight of sample and logged")  # by Hydration -->
+<!-- print(f) -->
+<!-- ``` -->
+
+
+
+
+

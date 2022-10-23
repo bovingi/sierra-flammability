@@ -1,0 +1,1270 @@
+---
+title: "Untitled"
+author: "Indra Boving"
+date: "1/29/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+#install.packages("ggplot2")
+library(ggplot2)
+library(dplyr)
+library(ggpubr)
+library(tidyverse)
+#install.packages("cowplot")
+library(cowplot)
+library(here)
+library(lubridate)
+month = lubridate::month
+library(janitor)
+library(tidytext)
+library(grid)
+library(gridExtra)
+library(ggbeeswarm)
+library(wesanderson)
+library(MetBrewer)
+library(RColorBrewer)
+```
+#Setup
+This dataset has field-collected LFM and Mpa data, and LFM at TLP and MPa at TLP from PV Curves
+
+```{r, pretty colors, include = FALSE}
+Morgenstern = list(c("#7c668c", "#b08ba5", "#dfbbc8", "#ffc680", "#ffb178", "#db8872", "#a56457"), c("darkpurp", "medpurp", "lightpurp", "yellow", "golden", "orange", "darkorange"), colorblind=TRUE)
+
+my_colors_3 <- MetBrewer::met.brewer("Morgenstern", n = 3)
+
+morg_diverge <- list(c("#7c668c",  "#db8872", "#ffc680","#a56457"), colorblind=TRUE)
+
+th <- theme(panel.background = element_rect(fill='white', colour='black'), # Make background white and border black
+          panel.grid.major = element_blank(),  # Hide major gridlines
+          panel.grid.minor = element_blank())
+```
+#-----------------------------------------------
+#Data 
+
+###Field Data
+```{r}
+field_data_all <- readr::read_csv(here::here("processed-data", "compiled-datasets", "SEKI", "field_data_2020_2021.csv")) %>% 
+  clean_names() %>% 
+  filter(spp %in% c("ABCO", "CADE","PIJE","ARPA", "CECO", "QUKE")) 
+
+ field_data_all$date <- lubridate::ymd(field_data_all$date) #wont work as part of a pipe for some reason.. 
+
+ field_data_df<- field_data_all %>% 
+   mutate(month = month(date), 
+          year = year(date)) %>% 
+   mutate(age = case_when(
+     age == "New" ~ "new", 
+     age == "Old" ~ "old", 
+     age == "new" ~ "new", 
+     age == "old" ~ "old", 
+     age == "both" ~ "both",
+     TRUE ~ as.character(age)
+   )) %>% 
+   mutate(spp = fct_relevel(spp, "ABCO","PIJE","CADE","CECO", "ARPA","QUKE"))  %>% 
+  mutate(strategy = case_when( #based on slope of predawn~midday line
+    spp == "ABCO" ~ "Isohydric", 
+    spp == "PIJE" ~ "Isohydric", 
+     spp == "CADE" ~ "Isohydric", 
+    spp == "CECO" ~ "Anisohydric", 
+    spp == "ARPA" ~ "Anisohydric", 
+    spp == "QUKE" ~ "Anisohydric"
+  )) %>% 
+   mutate(strategy_binary = case_when( #based on slope of predawn~midday line
+    spp == "ABCO" ~ "1", 
+    spp == "ARPA" ~ "2", 
+    spp == "CADE" ~ "1", 
+    spp == "CECO" ~ "2", 
+    spp == "PIJE" ~ "1", 
+    spp == "QUKE" ~ "2"
+  )) %>% 
+   mutate(spp = fct_relevel(spp, "ABCO","PIJE","CADE","CECO", "ARPA","QUKE"))  %>% 
+   mutate(Species = case_when(
+     spp == "ABCO" ~ "A. concolor",
+    spp == "PIJE" ~ "P. jeffreyi", 
+    spp == "CADE" ~ "C. decurrens", 
+    spp == "CECO" ~ "C. cordulatus", 
+    spp == "ARPA" ~ "A. patula", 
+    spp == "QUKE" ~ "Q. kelloggii"
+    )) %>% 
+  mutate(type = case_when(
+    spp == "PIJE" ~ "tree", 
+    spp == "QUKE" ~ "tree", 
+    spp == "CECO" ~ "shrub", 
+    spp == "ARPA" ~ "shrub", 
+    spp == "ABCO" ~ "tree", 
+    spp == "CADE" ~ "tree"
+  ))
+```
+###Phenology Data
+
+```{r}
+pheno_df <- read_csv(here("processed-data", "compiled-datasets", "phenology_czo_2021.csv")) %>% 
+  select(-observation_id, -observation_time, -observation_date, -raw_abundance_value) %>% 
+   mutate(spp = fct_relevel(code, "ABCO","PIJE","CADE","ARPA", "CECO", "QUKE"))  
+head(pheno_df)
+```
+
+###TLP values
+
+```{r}
+# mean_tlp_allspp <- field_data_all %>% 
+#   select(mean_tlp) %>% 
+#   drop_na() %>% 
+#   summarise(mean(mean_tlp)) %>% 
+#   pull()
+```
+#-----------------------------------------------
+# Hydroscapes! 
+Based on Hartmann 2020
+
+```{r}
+p1 <- field_data_df %>% 
+ filter(age == "new", strategy == "Isohydric") %>% #filtering to 'old' so that we dont have duplicate MPa datapoints
+  #filter(site == 1) %>% 
+
+   mutate(Species = fct_relevel(spp,
+                "A. concolor",
+    "P. jeffreyi", 
+    "C. decurrens")) %>% 
+  ggplot(aes(y = midday, x = predawn,
+            # shape = as.factor(site)
+             )) +
+  geom_point(size = 1, 
+             alpha = .5
+             #aes(color = doy)
+             ) +
+  facet_wrap(~Species) +
+ #annotate("text", x= -1, y= -5, aes(label=strategy), size = 3) +
+  geom_abline(size = 1) +
+  geom_smooth(method = "lm", 
+              color = "#7c668c", 
+              size = 1, se = FALSE)+
+  ggpubr::stat_regline_equation(size = 4) +
+  geom_hline(aes(yintercept = mean_tlp), size = 1, 
+             color = "#db8872", 
+             linetype = "dotted")+
+  th +
+  labs(y= "", 
+      x = "", 
+      # color = "Day of Year",
+       title = "More Isohydric"
+      ) +
+  theme(legend.position = "none", plot.margin = unit(c(0,0,0,0), "cm"))  + 
+  scale_x_continuous(labels = NULL, breaks = NULL) +
+  coord_equal()
+p1
+
+p2 <- field_data_df %>% 
+ filter(age == "new", strategy == "Anisohydric") %>% #filtering to 'old' so that we dont have duplicate MPa datapoints
+  #filter(site == 1) %>% 
+   mutate(Species = fct_relevel(spp,
+         "C. cordulatus", 
+         "A. patula", 
+        "Q. kelloggii")) %>% 
+  ggplot(aes(y = midday, x = predawn,
+            # shape = as.factor(site)
+             )) +
+  geom_point(size = 1, 
+             alpha = .5
+             #aes(color = doy)
+             ) +
+  facet_wrap(~Species) +
+ #annotate("text", x= -1, y= -5, aes(label=strategy), size = 3) +
+  geom_abline(size = 1) +
+  geom_smooth(method = "lm", color = "#7c668c", size = 1, se = FALSE) +
+  ggpubr::stat_regline_equation(size = 4) +
+  geom_hline(aes(yintercept = mean_tlp), 
+             size = 1, 
+             color = "#db8872", 
+             linetype = "dotted")+
+  th +
+  labs(y= "", 
+       x = "", 
+      # color = "Day of Year", 
+       title = "More Anisohydric"
+      ) +
+  theme(legend.position = "none", 
+        plot.margin = unit(c(0,0,0,0), "cm"), 
+        plot.title = element_text(hjust = 1)) +
+  coord_equal()
+p2
+
+plot <- cowplot::plot_grid(p1, p2,
+          nrow = 2,
+  label_size = 12,
+  align = "hv"
+  
+  #labels = c("Isohydric", "Anisohydric")  
+)
+
+#create common x and y labels
+y.grob <- textGrob("Midday Water Potential (MPa)", 
+                   gp=gpar(col="black", fontsize=15), rot=90)
+
+x.grob <- textGrob("Predawn Water Potential (MPa)", 
+                   gp=gpar(col="black", fontsize=15))
+
+#add to plot
+grid.arrange(arrangeGrob(plot, 
+                         left = y.grob, 
+                         bottom = x.grob))
+
+```
+
+
+```{r}
+field_data_df %>% 
+ filter(age == "old") %>% #filtering to 'old' so that we dont have duplicate MPa datapoints
+  #filter(site == 1) %>% 
+  #filter(month < 10) %>% 
+  ggplot(aes(y = midday, x = lfm,
+            # shape = as.factor(site)
+             )) +
+  geom_point(size = .5, aes(color = as.factor(date))) +
+  facet_wrap(~spp) +
+ #annotate("text", x= -1, y= -5, aes(label=strategy), size = 3) +
+  geom_abline(size = .5) +
+  geom_smooth(method = "lm", color = "maroon", size = .5, se = FALSE) +
+  #geom_smooth(method = "lm", aes(color = site), size = .5, se = FALSE) +
+  ggpubr::stat_regline_equation(size = 3) +
+  geom_hline(aes(yintercept = mean_tlp), size = .5, color = "olivedrab", type = "dashed")+
+  th
+```
+
+```{r}
+field_data_df %>% 
+ filter(age == "old") %>% #filtering to 'old' so that we dont have duplicate MPa datapoints
+  #filter(site == 1) %>% 
+  #filter(month < 10) %>% 
+  ggplot(aes(y = predawn, x = lfm,
+            # shape = as.factor(site)
+             )) +
+  geom_point(size = .5, aes(color = as.factor(date))) +
+  facet_wrap(~spp) +
+ #annotate("text", x= -1, y= -5, aes(label=strategy), size = 3) +
+  geom_abline(size = .5) +
+  geom_smooth(method = "lm", color = "maroon", size = .5, se = FALSE) +
+  #geom_smooth(method = "lm", aes(color = site), size = .5, se = FALSE) +
+   ggpubr::stat_regline_equation(size = 3) +
+  geom_hline(aes(yintercept = mean_tlp), size = .5, color = "olivedrab", type = "dashed")+
+  th
+```
+
+#Hydroscapes, but remove up to June:
+
+```{r}
+spp.labs <- c(" Abies concolor","Pinus jeffreyi","Calocedrus decurrens","Ceanothus cordulatus","Arctostaphylos patula","Quercus kelloggii")
+names(spp.labs) <- c("ABCO","PIJE","CADE","CECO", "ARPA","QUKE")
+
+p1 <- field_data_df %>% 
+ filter(age == "new",
+        strategy == "Isohydric",
+        month > 7
+        ) %>% 
+  ggplot(aes(y = midday, x = predawn,
+            # shape = as.factor(site)
+             )) +
+  geom_point(size = 1, 
+             alpha = .5
+             #aes(color = doy)
+             ) +
+  facet_wrap(~spp, labeller = labeller(spp = spp.labs)) +
+ #annotate("text", x= -1, y= -5, aes(label=strategy), size = 3) +
+  geom_abline(size = 1) +
+  geom_smooth(method = "lm", 
+              color = "#7c668c", 
+              size = 1, se = FALSE)+
+  ggpubr::stat_regline_equation(size = 4) +
+  geom_hline(aes(yintercept = mean_tlp), size = 1, 
+             color = "#db8872", 
+             linetype = "dotted")+
+  th +
+  labs(y= "", 
+      x = "", 
+      # color = "Day of Year",
+      # title = "More Isohydric"
+      ) +
+  theme(legend.position = "none", plot.margin = unit(c(0,0,0,0), "cm"),
+        strip.text = element_text(face = "italic", size = 12))  + 
+  scale_x_continuous(labels = NULL, breaks = NULL) 
+p1
+
+p2 <- field_data_df %>% 
+ filter(age == "new", 
+        strategy == "Anisohydric", 
+         month > 7
+        ) %>% #filtering to 'old' so that we dont have duplicate MPa datapoints
+  #filter(site == 1) %>% 
+  ggplot(aes(y = midday, x = predawn,
+            # shape = as.factor(site)
+             )) +
+  geom_point(size = 1, 
+             alpha = .5
+             #aes(color = doy)
+             ) +
+  facet_wrap(~spp, labeller = labeller(spp = spp.labs)) +
+ #annotate("text", x= -1, y= -5, aes(label=strategy), size = 3) +
+  geom_abline(size = 1) +
+  geom_smooth(method = "lm", color = "#7c668c", size = 1, se = FALSE) +
+  ggpubr::stat_regline_equation(size = 4) +
+  geom_hline(aes(yintercept = mean_tlp), 
+             size = 1, 
+             color = "#db8872", 
+             linetype = "dotted")+
+  th +
+  labs(y= "", 
+       x = "", 
+      # color = "Day of Year", 
+       # title = "More Anisohydric"
+      ) +
+  theme(legend.position = "none", 
+        plot.margin = unit(c(0,0,0,0), "cm"), 
+        plot.title = element_text(hjust = 1),
+        strip.text = element_text(face = "italic", size = 12))
+p2
+
+?element_text
+
+plot <- cowplot::plot_grid(p1, p2,
+          nrow = 2,
+  label_size = 12,
+  align = "hv"
+  
+  #labels = c("Isohydric", "Anisohydric")  
+)
+
+#create common x and y labels
+y.grob <- textGrob("Midday Water Potential (MPa)", 
+                   gp=gpar(col="black", fontsize=15), rot=90)
+
+x.grob <- textGrob("Predawn Water Potential (MPa)", 
+                   gp=gpar(col="black", fontsize=15, face = "bold"))
+
+#add to plot
+grid.arrange(arrangeGrob(plot, 
+                         left = y.grob, 
+                         bottom = x.grob))
+
+```
+
+
+```{r}
+# mean_tlp <- field_data_all %>% 
+#   select(tlp) %>% 
+#   drop_na() %>% 
+#   summarise(mean(tlp)) %>% 
+#   pull()
+
+field_data_df %>%
+  ggplot(aes(x = midday, y = lfm, color = month, shape = spp)) +
+  geom_point(size = 1) +
+  geom_vline(aes(xintercept = mean_tlp), size = .5, color = "olivedrab", linetype = "dotted") +
+  #stat_smooth(aes(x = LFM, y = predawn, colour = Date, linetype = "Linear Fit"), method = "lm") 
+  xlim(-5,0) + 
+  labs( y = "Live Fuel Moisture", 
+        x = "Midday (-MPa)", 
+        color = "Month", 
+        shape = "Species") +
+  ylim(50,300) +
+  #facet_wrap(~age)+
+  #ggtitle("Outliers removed (outlierKD)") +
+  #scale_color_gradient(low = "darkblue", high = "goldenrod") +
+  scale_color_gradient(low = "maroon", high = "goldenrod") +
+ # scale_color_continuous(values = c(low = "goldenrod", high = "lightblue"))
+  th
+```
+
+
+```{r}
+discrete_palettes <- list(
+  c("maroon","goldenrod"))
+  
+field_data_all %>%
+  ggplot(aes(x = midday, y = lfm, color = age, shape = spp)) +
+  geom_point(size = 1) +
+  #stat_smooth(aes(x = LFM, y = predawn, colour = Date, linetype = "Linear Fit"), method = "lm") +
+  #geom_vline(aes(xintercept = mean_tlp_allspp, size = .5, color = "olivedrab"))+
+  xlim(-5,0) + 
+  labs( y = "Live Fuel Moisture", 
+        x = "Midday (-MPa)", 
+        color = "Tissue Age", 
+        shape = "Species") +
+  ylim(50,300) +
+  #facet_wrap(~age)+
+  #ggtitle("Outliers removed (outlierKD)") +
+   #scale_color_manual(values = c("olivedrab","darkblue")) +
+  th
+```
+#-----------------------------------------------
+#Nice FIgures
+
+#### LFM by MPa (species)
+```{r}
+field_data_df %>%
+  mutate(spp = fct_relevel(spp, "ABCO","PIJE","CADE","CECO", "ARPA","QUKE"))  %>% 
+  mutate(month = month(date, label = TRUE, abbr = TRUE)) %>% 
+  ggplot(aes(x = midday, y = lfm, color = as.factor(month))) +
+  geom_point(size = 0.8, alpha = .6) +
+  geom_vline(aes(xintercept = mean_tlp), size = 1, color = "black", linetype = "dotted") +
+  #stat_smooth(aes(x = LFM, y = predawn, colour = Date, linetype = "Linear Fit"), method = "lm") 
+  xlim(-5,0) + 
+  labs( y = "Live Fuel Moisture", 
+        x = "Midday Water Potential (MPa)", 
+        color = "Month", 
+        shape = "Species") +
+  ylim(50,300) +
+  facet_wrap(~spp, labeller = labeller(spp = spp.labs)) +
+  scale_color_brewer(palette="YlOrRd") +
+  theme(strip.text = element_text(face = "italic"), 
+        axis.title = element_text(face = "bold"),
+        legend.title = element_text(face = "bold"),
+        strip.background = element_rect(fill = "gray90")) +
+  th
+  #scale_color_gradientn(colors=met.brewer("Morgenstern"))
+```
+####LFM by MPa (date)
+```{r}
+field_data_df %>%
+   mutate(spp = fct_relevel(spp, "ABCO","PIJE","CADE","CECO", "ARPA","QUKE"))  %>% 
+   mutate(Species = fct_relevel(Species,
+                              "A. concolor",
+                              "P. jeffreyi",
+                              "C. decurrens",
+                              "C. cordulatus",
+                              "A. patula", 
+                              "Q. kelloggii"
+    )) %>% 
+  filter(age != "both") %>% 
+  mutate(month = month(date, label = TRUE, abbr = TRUE)) %>% 
+  ggplot(aes(x = midday, 
+             y = lfm, 
+             color = as.factor(month), 
+             shape = age)) +
+  geom_point(size = 1, alpha = .7) +
+  geom_vline(aes(xintercept = mean_tlp), size = .5, alpha = .6,
+             color = "black", linetype = "dotted") +
+  #stat_smooth(aes(x = LFM, y = predawn, colour = Date, linetype = "Linear Fit"), method = "lm") 
+  xlim(-5,0) + 
+  labs( y = "Live Fuel Moisture", 
+        x = "Midday (-MPa)", 
+        color = "Month", 
+        shape = "Age") +
+  ylim(50,300) +
+  facet_wrap(~strategy) +
+  scale_color_manual(values=met.brewer("Morgenstern")) +
+  #scale_color_gradientn(colors=met.brewer("Morgenstern")) +
+  th
+```
+####LFM by MPa (age)
+```{r}
+
+
+field_data_df %>%
+   mutate(spp = fct_relevel(spp, "ABCO","PIJE","CADE","CECO", "ARPA","QUKE"))  %>% 
+   mutate(Species = fct_relevel(Species,
+                              "A. concolor",
+                              "P. jeffreyi",
+                              "C. decurrens",
+                              "C. cordulatus",
+                              "A. patula", 
+                              "Q. kelloggii"
+    )) %>% 
+  filter(age != "both") %>% 
+  mutate(month = month(date, label = TRUE, abbr = TRUE)) %>% 
+  ggplot(aes(x = midday, 
+             y = lfm, 
+             #color = as.factor(month), 
+             color = age)) +
+  geom_point(size = 1, alpha = .7) +
+  geom_vline(aes(xintercept = mean(mean_tlp)), size = .5, alpha = .6,
+             color = "black", linetype = "dotted") +
+  #stat_smooth(aes(x = LFM, y = predawn, colour = Date, linetype = "Linear Fit"), method = "lm") 
+  xlim(-5,0) + 
+  labs( y = "Live Fuel Moisture", 
+        x = "Midday (-MPa)", 
+        color = "Age", 
+        shape = "") +
+  ylim(50,300) +
+  facet_wrap(~strategy) +
+  scale_color_manual(values = c("#7c668c","#db8872")) +
+  #scale_color_gradientn(colors=met.brewer("Morgenstern")) +
+  th
+```
+
+#-----------------------------------------------
+```{r}
+field_data_all %>%
+  ggplot(aes(x = midday, y = lfm, color = month, shape = spp)) +
+  geom_point(size = 1) +
+  geom_vline(aes(xintercept = mean_tlp), size = .5, 
+             color = "olivedrab", 
+             linetype = "dotted"
+             ) +
+  #stat_smooth(aes(x = LFM, y = predawn, colour = Date, linetype = "Linear Fit"), method = "lm") 
+  xlim(-5,0) + 
+  labs( y = "Live Fuel Moisture", 
+        x = "Midday (-MPa)", 
+        color = "Month", 
+        shape = "Species") +
+  ylim(50,300) +
+  facet_wrap(~type)+
+  #ggtitle("Outliers removed (outlierKD)") +
+  #scale_color_gradient(low = "darkblue", high = "goldenrod") +
+  scale_color_gradient(low = "maroon", high = "goldenrod") +
+ # scale_color_continuous(values = c(low = "goldenrod", high = "lightblue"))
+  th
+```
+
+```{r}
+field_data_all %>%
+  ggplot(aes(x = midday, y = lfm, color = month, shape = age)) +
+  geom_point(size = 1, alpha = .5) +
+  geom_vline(aes(xintercept = mean_tlp), size = .5, 
+             color = "olivedrab", 
+             linetype = "dotted"
+             ) +
+  #stat_smooth(aes(x = LFM, y = predawn, colour = Date, linetype = "Linear Fit"), method = "lm") 
+  xlim(-5,0) + 
+  labs( y = "Live Fuel Moisture", 
+        x = "Midday (-MPa)", 
+        color = "Month") +
+  ylim(50,300) +
+  facet_wrap(~spp)+
+  #ggtitle("Outliers removed (outlierKD)") +
+  #scale_color_gradient(low = "darkblue", high = "goldenrod") +
+  scale_color_gradient(low = "maroon", high = "goldenrod") +
+ # scale_color_continuous(values = c(low = "goldenrod", high = "lightblue"))
+  th
+```
+
+#LFM x PD
+
+```{r}
+field_data_all %>%
+ggplot(aes(x = predawn, y = lfm, color = date)) +
+  geom_point(size = 1) +
+  #stat_smooth(aes(x = LFM, y = predawn, colour = Date, linetype = "Linear Fit"), method = "lm") +
+  xlim(-5,0) + 
+  ylim(50,300)  + 
+  ylab("Live Fuel Moisture") +
+  xlab("Predawn (-Mpa)") +
+  ggtitle("All values") +
+  th
+```
+
+```{r}
+field_data_all %>%
+ggplot(aes(x = predawn, y = lfm, color = month, shape = age)) +
+  geom_point(size = 1) +
+  #stat_smooth(aes(x = LFM, y = predawn, colour = Date, linetype = "Linear Fit"), method = "lm") +
+  xlim(-5,0) + 
+  ylim(50,300)  + 
+  ylab("Live Fuel Moisture") +
+  xlab("Predawn (-Mpa)") +
+  ggtitle("All values") +
+  th
+```
+
+#-----------------------------------------------
+
+#Boxplots over time
+
+####Setup:
+```{r}
+field_data_2021 <- field_data_df %>%
+ # filter(spp == "ABCO") %>%
+  filter(year == 2021) %>% 
+  filter(age != "both") %>% 
+  select(date, lfm, spp, Species, age)%>% 
+  mutate(week = week(date))
+
+pheno_df_leaves <- pheno_df %>% 
+  filter(category %in% c("Leaves", "Needles"), 
+         phenophase_status == "Yes") %>% 
+  mutate(line_position = case_when(
+    phenophase_name == "Young leaves" ~ 60, 
+    phenophase_name == "Young needles" ~ 55, 
+    phenophase_name == "Breaking leaf buds" ~ 40,
+    phenophase_name == "Breaking needle buds" ~ 35,
+    phenophase_name == "Emerging needles" ~ 45, 
+    phenophase_name == "Increasing leaf size" ~ 50, 
+    phenophase_name == "Leaves" ~ 70, 
+    phenophase_name == "Colored leaves" ~ 80
+  )) %>% 
+  mutate(phenophase_name = fct_relevel(phenophase_name,
+                                      "Breaking needle buds",
+                                       "Emerging needles",
+                                       "Young needles",
+                                       "Breaking leaf buds",
+                                       "Increasing leaf size",
+                                       "Young leaves", 
+                                       "Leaves", 
+                                       "Colored leaves"
+  )) %>% 
+  mutate(week = week(date))
+```
+
+####Plot:
+```{r}
+phenoplot1 <- field_data_2021 %>% 
+  filter(age != "both") %>% 
+  #filter(year == 2021) %>% 
+  ggplot() + 
+  geom_boxplot(aes(y = lfm, 
+                   x = cut(date, breaks="week"),
+                   #x = week, 
+                 #color = age
+                 fill = age
+                 ),
+               data = field_data_2021) +
+  facet_wrap(~spp, labeller = labeller(spp = spp.labs)) +
+  th +
+  theme(axis.ticks.x = element_blank(),
+        #axis.title.x = element_blank(), 
+        axis.text.x = element_text(angle = 30, hjust = 1, size = 10), 
+        axis.title = element_text(face = "bold"),
+        legend.title = element_text(face = "bold"),
+        strip.text = element_text(face = "italic")
+        #legend.position = "none"
+        ) +
+  #geom_hline(yintercept = 166, linetype = "dotted", color = "olivedrab") +
+  labs( y ="Live Fuel Moisture", 
+        x = "Date", 
+        color = "Phenophase", 
+        shape = "Age", 
+        fill = "Age") +
+  ylim(40, 400) +
+   scale_fill_manual(values=met.brewer("Morgenstern", 3)) 
+   #scale_fill_manual(values=c("#7c668c","#db8872")) #+
+  #scale_x_date(date_labels = "%b")
+phenoplot1
+
+###These are in the wrong spot! Not sure why, but its annoying. Something with the dates not lining up...
+```
+
+
+```{r}
+phenoplot2 <- phenoplot1 +
+  geom_line(aes(y = line_position, 
+                x = month,
+                color = phenophase_name),
+            alpha = 1, 
+            data  = pheno_df_leaves, 
+            size = 4,
+            position=position_dodge(w=1)) +
+   scale_color_manual(values=met.brewer("Morgenstern", 3)) +
+  labs(color = "Phenophase") 
+phenoplot2
+```
+
+
+```{r}
+pheno_df %>% 
+  filter(phenophase_status == "Yes", 
+         #class == "Gymnosperm"
+         ) %>% 
+  ggplot(aes(
+    y = phenophase_name, 
+    x = date, 
+    color = phenophase_name
+    )) + 
+  facet_wrap(~scientific_name) +
+  geom_line() +
+  th+
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=1))
+```
+
+
+```{r}
+field_data_df %>%
+  filter(spp == "ABCO") %>%
+  #filter(time == "midday") %>%
+  ggplot(aes(fill = lfm, y = lfm,  x = as.factor(date), color = age)) + 
+  geom_boxplot(position="dodge") +
+  th +
+  theme(axis.ticks.x = element_blank(),
+                              axis.title.x = element_blank(), 
+                              axis.text.x = element_text(angle = 45, hjust = 1)) +
+  geom_hline(yintercept = 166, linetype = "dashed", color = "blue") +
+  geom_vline(xintercept = "2021-01-01")+
+  ylab("Live Fuel Moisture") +
+  xlab("Date") +
+  ggtitle("Abies concolor")
+```
+
+```{r}
+field_data_all %>%
+  filter(spp == "ABCO") %>%
+  #filter(time == "midday") %>%
+  ggplot(aes(fill = lfm, y = lfm,  x = as.factor(date), color = age)) + 
+  geom_boxplot(position="dodge") +
+  th +
+  theme(axis.ticks.x = element_blank(),
+                              axis.title.x = element_blank(), 
+                              axis.text.x = element_text(angle = 45, hjust = 1)) +
+  geom_hline(yintercept = 166, linetype = "dashed", color = "blue") +
+  ylab("Live Fuel Moisture") +
+  xlab("Date") +
+  ggtitle("Abies concolor")
+```
+
+```{r}
+field_data_all %>%
+  filter(spp == "ABCO") %>%
+  #filter(time == "midday") %>%
+  ggplot(aes(fill = lfm, y = midday,  x = as.factor(date))) + 
+  geom_boxplot(position="dodge") +
+  th + 
+  theme(axis.ticks.x = element_blank(),
+                              axis.title.x = element_blank(), 
+                              axis.text.x = element_text(angle = 45, hjust = 1)) +
+  geom_hline(yintercept = -2.1, linetype = "dashed", color = "blue") +
+  ylab("Midday (-Mpa)") +
+  xlab("Date") +
+  ggtitle("Abies concolor") 
+```
+
+```{r}
+field_data_all %>%
+  filter(spp == "ABCO") %>%
+  #filter(time == "midday") %>%
+  ggplot(aes(fill = lfm, y = predawn,  x = as.factor(date))) + 
+  geom_boxplot(position="dodge") +
+  th + 
+  theme(axis.ticks.x = element_blank(),
+                              axis.title.x = element_blank(), 
+                              axis.text.x = element_text(angle = 45, hjust = 1)) +
+  geom_hline(yintercept = -2.1, linetype = "dashed", color = "blue") +
+  ylab("Predawn (-Mpa)") +
+  xlab("Date") +
+  ggtitle("Abies concolor") 
+```
+```{r}
+field_data_all %>%
+  filter(spp == "ABCO") %>%
+  #filter(time == "midday") %>%
+  ggplot(aes(color = lfm, y = predawn,  x = as.factor(date))) + 
+  geom_col(position="dodge") +
+  th + 
+  theme(axis.ticks.x = element_blank(),
+                              axis.title.x = element_blank(), 
+                              axis.text.x = element_text(angle = 45, hjust = 1)) +
+  geom_hline(yintercept = -2.1, linetype = "dashed", color = "blue") +
+  ylab("Predawn (-Mpa)") +
+  xlab("Date") +
+  ggtitle("Abies concolor") 
+```
+
+#midday vs. predawn
+
+####Setup
+```{r}
+field_data_2021_wider <- field_data_2021_tlps %>% 
+  mutate(Species = case_when(
+     spp == "ABCO" ~ "A. concolor",
+    spp == "PIJE" ~ "P. jeffreyi", 
+    spp == "CADE" ~ "C. decurrens", 
+    spp == "CECO" ~ "C. cordulatus", 
+    spp == "ARPA" ~ "A. patula", 
+    spp == "QUKE" ~ "Q. kelloggii"
+    )) %>% 
+  filter(age != "both") %>% 
+  pivot_wider(
+    id_cols = c(unique_id, date, age, lfm),
+    #names_from = Species, 
+    values_from = c(predawn, midday))
+```
+
+```{r}
+field_data_2021_longer <- field_data_2021_tlps %>% 
+  mutate(Species = case_when(
+     spp == "ABCO" ~ "A. concolor",
+    spp == "PIJE" ~ "P. jeffreyi", 
+    spp == "CADE" ~ "C. decurrens", 
+    spp == "CECO" ~ "C. cordulatus", 
+    spp == "ARPA" ~ "A. patula", 
+    spp == "QUKE" ~ "Q. kelloggii"
+    )) %>% 
+  filter(age != "both") %>% 
+  pivot_longer(
+    cols = c("predawn", "midday"),
+    names_to = "timing_mpa", 
+    values_to = "field_mpa")
+```
+
+```{r}
+field_data_2021_longer %>% 
+ ggplot() + 
+  geom_boxplot(aes(y = field_mpa, 
+                   x = cut(date, breaks="week"),
+                   #x = week, 
+                 color = timing_mpa,
+                 fill = "#dfbbc8"
+                 ),
+               data = field_data_2021) +
+  facet_wrap(~ Species) +
+  th +
+  theme(axis.ticks.x = element_blank(),
+        #axis.title.x = element_blank(), 
+        axis.text.x = element_text(angle = 30, hjust = 1, size = 10), 
+        #legend.position = "none"
+        ) +
+  #geom_hline(yintercept = mean_tlp_spp, linetype = "dotted", color = "olivedrab") +
+  labs( y ="Predawn (MPa)", 
+        x = "Date", 
+        #color = "Phenophase", 
+        #shape = "Age", 
+        #fill = "Age"
+        ) +
+  #ylim(40, 400) +
+   scale_fill_manual(values=met.brewer("Morgenstern", 3)) 
+   #scale_fill_manual(values=c("#7c668c","#db8872")) #+
+  #scale_x_date(date_labels = "%b")
+
+```
+
+
+#Predawn over time
+```{r}
+field_data_df %>% 
+  filter(age != "both") %>% 
+  filter(year == 2021) %>% 
+  ggplot() + 
+  geom_boxplot(aes(y = predawn, 
+                   x = cut(date, breaks="week"),
+                   #x = week, 
+                 #color = age
+                 fill = "#dfbbc8"
+                 )) +
+  facet_wrap(~spp, labeller = labeller(spp = spp.labs)) +
+  th +
+  theme(axis.ticks.x = element_blank(),
+        #axis.title.x = element_blank(), 
+        axis.text.x = element_text(angle = 30, hjust = 1, size = 10),
+        axis.title = element_text(face = "bold"),
+        strip.text = element_text(face = "italic"),
+        legend.position = "none"
+        ) +
+  #geom_hline(yintercept = field_data_df$mean_tlp, linetype = "dotted", color = "olivedrab") +
+  labs( y ="Predawn (MPa)", 
+        x = "Date", 
+        #color = "Phenophase", 
+        #shape = "Age", 
+        #fill = "Age"
+        ) +
+  #ylim(40, 400) +
+   scale_fill_manual(values=met.brewer("Morgenstern", 3)) 
+   #scale_fill_manual(values=c("#7c668c","#db8872")) #+
+  #scale_x_date(date_labels = "%b")
+
+
+```
+
+#Midday over time
+```{r}
+field_data_df %>% 
+  filter(age != "both") %>% 
+  filter(year == 2021) %>% 
+  ggplot() + 
+  geom_boxplot(aes(y = midday, 
+                   x = cut(date, breaks="week"),
+                   #x = week, 
+                 #color = age
+                 fill = "#dfbbc8"
+                 )) +
+  facet_wrap(~spp, labeller = labeller(spp = spp.labs)) +
+  th +
+  theme(axis.ticks.x = element_blank(),
+        #axis.title.x = element_blank(), 
+        axis.text.x = element_text(angle = 30, hjust = 1, size = 10),
+        axis.title = element_text(face = "bold"),
+        strip.text = element_text(face = "italic"),
+        legend.position = "none"
+        ) +
+  #geom_hline(yintercept = field_data_df$mean_tlp, linetype = "dotted", color = "olivedrab") +
+  labs( y ="Midday (MPa)", 
+        x = "Date", 
+        #color = "Phenophase", 
+        #shape = "Age", 
+        #fill = "Age"
+        ) +
+  #ylim(40, 400) +
+   scale_fill_manual(values=met.brewer("Morgenstern", 3)) 
+   #scale_fill_manual(values=c("#7c668c","#db8872")) #+
+  #scale_x_date(date_labels = "%b")
+
+```
+
+#Stems vs. Leaves
+
+```{r}
+stems_leaves_2021 <- read_csv(here("processed-data", "compiled-datasets", "SEKI", "stems_leaves_2021.csv")) %>% 
+  mutate(stem_leaves = case_when(
+    stem_leaves == "l" ~ "leaf", 
+    stem_leaves == "s" ~ "stem", 
+    stem_leaves == "both" ~ "both"
+  ))
+```
+
+```{r}
+stems_leaves_2021 %>% 
+  filter(lfm > 0, age == "old") %>% 
+  filter(spp %in% c("ABCO", "ARPA", "CECO")) %>% 
+  ggplot(aes(y = lfm, x = stem_leaves, color = stem_leaves)) +
+  #geom_beeswarm(aes(y = lfm, x = age, color = stem_leaves)) +
+  facet_wrap(~spp) +
+  geom_boxplot(fill = NA) +
+  scale_color_manual(values = c("darkblue","olivedrab","goldenrod")) +
+  th +
+  labs(y = "LFM", 
+       x = "Tissue Type", 
+       color = "") +
+  theme(legend.position = "none")
+```
+
+#-----------------------------------------------
+
+#**Ignore me**
+
+Organize data:
+```{r}
+data.xpp <- field_data_all %>% 
+  select(spp, age, site, pod, lfm, date, predawn, midday, type, doy, location, LFMtlp, Mpatlp) %>% #filter out super high LFM (check that this is ok? Necessary?)
+  mutate(lfm.outliers.out = lfm) #add a column that we can use to take out outliers
+
+range(data.xpp$LFMtlp)
+
+data.xpp %>%
+  filter(spp != "CECO") %>%
+  summarise(mean(LFMtlp))
+
+
+data.xpp <- data.xpp %>%
+  filter(!is.na(predawn)) #remove rows where we are missing Xpp values 
+
+data.xpp <- data.xpp %>%
+  mutate_if(is.factor, as.character) 
+str(data.xpp) #view data; 
+
+data.xpp$date <- factor(data.xpp$date,       # Change ordering manually
+                         levels = c("7/15/20", "7/27/20", "8/4/20", "8/26/20", "10/19/20", "4/24/21" ))
+
+#LFM outliers? Check:
+#source("http://goo.gl/UUyEzD")
+#outlierKD(data.xpp, lfm.outliers.out) #
+
+##create new dataset with all Xpp measurements together and column time = predawn or midday 
+split.lfm <- gather(data.xpp, key = "time", value = "xpp",
+       predawn, midday) 
+str(split.lfm)#view
+
+## order dates so they are in chronological order in the graph
+split.lfm$date <- factor(split.lfm$date,       # Change ordering manually
+                         levels = c("7/15/20", "7/27/20", "8/4/20", "8/26/20", "10/19/20", "4/24/21" ))
+```
+
+```{r, warning=FALSE}
+#Visualize: plot LFM and Water potential:
+ggplot(data = data.xpp, aes(x = predawn, y = lfm, color = date)) +
+  geom_point(size = 1) +
+  #stat_smooth(aes(x = LFM, y = predawn, colour = Date, linetype = "Linear Fit"), method = "lm") +
+  xlim(-5,0) + 
+  ylim(50,300)  + 
+  ylab("Live Fuel Moisture") +
+  xlab("Predawn (-Mpa)") +
+  ggtitle("All values") +
+  th
+
+# #Visualize: plot LFM and Water potential (outliers out)
+# plot <- ggplot(data = data.xpp, aes(x = predawn, y = lfm, color = date)) +
+#   geom_point(size = 1) +
+#   #stat_smooth(aes(x = LFM, y = predawn, colour = Date, linetype = "Linear Fit"), method = "lm") +
+#   xlim(-5,0) + 
+#   ylab("Live Fuel Moisture") +
+#   xlab("Predawn (-Mpa)") +
+#   ylim(50,300) +
+#   #ggtitle("Outliers removed (outlierKD)") +
+#   th
+# print(plot) #view plot
+```
+
+```{r}
+#Visualize: plot LFM and midday Water potential
+plot <- ggplot(data = data.xpp, aes(x = midday, y = lfm, color = date)) +
+  geom_point(size = 1) +
+  #stat_smooth(aes(x = LFM, y = predawn, colour = Date, linetype = "Linear Fit"), method = "lm") +
+  xlim(-5,0) + 
+  ylab("Live Fuel Moisture") +
+  xlab("Midday (-Mpa)") +
+  ylim(50,300) +
+  #ggtitle("Outliers removed (outlierKD)") +
+  th
+print(plot) #view plot
+```
+
+Just one species (ABCO):
+
+```{r}
+predawn.xpp.spp.plot <- data.xpp %>%
+  filter(spp == "ABCO") %>%
+  #filter(time == "midday") %>%
+  ggplot(aes(fill = lfm, y = lfm,  x = date)) + 
+  geom_boxplot(position="dodge") +
+  ylab("predawn xpp") + theme(axis.text.x = element_blank(),
+                              axis.ticks.x = element_blank(),
+                              axis.title.x = element_blank()) +
+  geom_hline(yintercept = 166, linetype = "dashed", color = "blue") +
+  th +
+  ylab("Live Fuel Moisture") +
+  xlab("Date") +
+  ggtitle("Abies concolor") 
+predawn.xpp.spp.plot
+
+predawn.xpp.spp.plot <- data.xpp %>%
+  filter(spp == "ABCO") %>%
+  #filter(time == "midday") %>%
+  ggplot(aes(fill = lfm, y = midday,  x = date)) + 
+  geom_boxplot(position="dodge") +
+  ylab("predawn xpp") + theme(axis.text.x = element_blank(),
+                              axis.ticks.x = element_blank(),
+                              axis.title.x = element_blank()) +
+  geom_hline(yintercept = -2.1, linetype = "dashed", color = "blue") +
+  th +
+  ylab("Midday (-Mpa)") +
+  xlab("Date") +
+  ggtitle("Abies concolor") 
+predawn.xpp.spp.plot
+```
+
+
+```{r}
+#Visualize: plot LFM and Water potential (outliers in), by age (so select only PIJE and ABCO, which are the ones with old and new)
+filter = dplyr::filter #apaprently there is a override in tidyverse that makes filter sometimes use package stats...so do this. 
+old.new <- data.xpp %>%
+  filter(spp == "PIJE"|spp == "ABCO") 
+  #filter(spp == "ABCO")
+
+plot <- ggplot(data = old.new, aes(x = midday, y = lfm, color = age, shape = spp)) +
+  geom_point() +
+  #stat_smooth(aes(x = LFM, y = predawn, colour = Date, linetype = "Linear Fit"), method = "lm") +
+  xlim(-5,0) + 
+  ylim(50,300) +
+  ggtitle("By age, PIJE and ABCO")
+print(plot) #view plot
+```
+
+Segmented regression: 
+
+1. Predawn: 
+```{r}
+###Looks better with outliers in....300 lfm realistic?
+
+#####build lm model and find inflection point using 'segmented' package...do this with each spp? 
+
+model_segmented.pd <- segmented(lm(lfm ~ predawn, data=data.xpp), seg.Z = ~ predawn)
+model_segmented.pd
+
+predict_segmented = data.frame(predawn = data.xpp$predawn, lfm = broken.line(model_segmented.pd)$fit)
+
+my.lines <- model_segmented.pd$psi[,2]
+
+ggplot(df, aes(x = predawn, y = lfm, color = spp)) +
+  geom_point() + geom_line(data = predict_segmented, color = 'blue') ##works! kinda weird looking though... 
+
+predict_segmented = data.frame(predawn = data.xpp$predawn, lfm = broken.line(model_segmented)$fit)
+ggplot(df, aes(x = predawn, y = lfm, color = date)) +
+  geom_point() + 
+  geom_line(data = predict_segmented, color = 'purple') +
+   geom_vline(xintercept = my.lines, linetype = "dashed") +
+   annotate(geom = "text",  x= my.lines ,y= 210, # Rectangle size around label
+    label.size = .25, label = "TLP: 135% LFM")
+
+model_segmented.lfm <- segmented(lm(predawn~lfm, data=data.xpp), seg.Z = ~ lfm)
+model_segmented.lfm #get lfm breakpoint value....I think? Might actually be embedded in results above. 
+```
+
+2. Midday 
+```{r}
+###Looks better with outliers in....300 lfm realistic?
+
+#####build lm model and find inflection point using 'segmented' package...do this with each spp? 
+
+model_segmented.md <- segmented(lm(lfm ~ midday, data=data.xpp), seg.Z = ~ midday)
+model_segmented.md
+
+predict_segmented = data.frame(midday = data.xpp$midday, lfm = broken.line(model_segmented.md)$fit)
+
+my.lines <- model_segmented.md$psi[,2]
+
+ggplot(df, aes(x = midday, y = lfm, color = spp)) +
+  geom_point() + geom_line(data = predict_segmented, color = 'blue') ##works! kinda weird looking though... 
+
+predict_segmented = data.frame(midday = data.xpp$midday, lfm = broken.line(model_segmented)$fit)
+ggplot(df, aes(x = midday, y = lfm, color = date)) +
+  geom_point() + 
+  geom_line(data = predict_segmented, color = 'purple') +
+   geom_vline(xintercept = my.lines, linetype = "dashed") +
+   annotate(geom = "text",  x= my.lines ,y= 210, # Rectangle size around label
+    label.size = .25, label = "TLP: 164% LFM")
+
+model_segmented.lfm <- segmented(lm(midday~lfm, data=data.xpp), seg.Z = ~ lfm)
+model_segmented.lfm #get lfm breakpoint value....I think? Might actually be embedded in results above. 
+```
+
+```{r}
+###
+## Compare trees vs. shrubs xpps
+###
+
+shrubs.xpp <- split.lfm %>%
+  filter(type == "shrub") %>%
+  ggplot(aes(fill = time, y = xpp, x = date)) + 
+  geom_bar(position="dodge", stat="identity") +
+  ggtitle("shrubs") + theme(axis.text.x = element_blank(),
+                            axis.ticks.x = element_blank(),
+                            axis.title.x = element_blank())
+shrubs.xpp
+```
+
+
+```{r}
+shrubs.xpp <- split.lfm %>%
+  filter(type == "shrub") %>%
+  ggplot(aes(fill = time, y = xpp, x = date)) + 
+  geom_bar(position="dodge", stat="identity") +
+  ylab("Water Potential") +
+  ggtitle("Shrubs") + 
+  th
+shrubs.xpp
+
+#shrubs.xpp
+trees.xpp <- split.lfm %>%
+  filter(type == "tree") %>%
+  ggplot(aes(fill = time, y = xpp, x = date)) + 
+  geom_bar(position="dodge", stat="identity") +
+  ylab("Water Potential") +
+  ggtitle("Trees") +
+  th 
+trees.xpp
+```
+
+```{r}
+###
+##compare LFM and all XPPs, splitting trees vs. shrubs
+###
+
+lfm.type.plot <- ggplot(split.lfm, aes(fill = type, y = lfm, x = date)) + 
+  geom_boxplot(position="dodge")  + theme(axis.text.x = element_blank(),
+                                          axis.ticks.x = element_blank(),
+                                          axis.title.x = element_blank() )
+predawn.xpp.type.plot <- split.lfm %>%
+  filter(time == "predawn") %>%
+  ggplot(aes(fill = type, y = xpp, x = date)) + 
+  geom_boxplot(position="dodge") +
+  ylab("predawn xpp") + theme(axis.text.x = element_blank(),
+                               axis.ticks.x = element_blank(),
+                               axis.title.x = element_blank())
+#predawn.xpp.type.plot
+midday.xpp.type.plot <- split.lfm %>%
+  filter(time == "midday") %>%
+  ggplot(aes(fill = type, y = xpp, x = date)) + 
+  geom_boxplot(position="dodge") +
+  ylab("midday xpp")
+
+# Create multiple plots in one
+#   and then nest it inside of a second. Also, include a title at the top 
+#   for the whole figure. 
+# title <- ggdraw() + draw_label("Sierra Sites", fontface='bold')
+# plot_grid(title, lfm.type.plot,
+#           predawn.xpp.type.plot,
+#           midday.xpp.type.plot,
+#           nrow = 4, labels = c("", "", ""),
+#           rel_heights = c(0.2, 1, 1, 1))
+
+###
+##compare LFM and all XPPs, split by spp. 
+###
+
+lfm.spp.plot <- ggplot(split.lfm, aes(fill = spp, y = lfm, x = date)) + 
+  geom_boxplot(position="dodge")  + theme(axis.text.x = element_blank(),
+                                          axis.ticks.x = element_blank(),
+                                          axis.title.x = element_blank() )
+predawn.xpp.spp.plot <- split.lfm %>%
+  filter(spp == "ABCO") %>%
+  filter(time == "midday") %>%
+  ggplot(aes(fill = spp, y = xpp, x = date)) + 
+  geom_boxplot(position="dodge") +
+  ylab("predawn xpp") + theme(axis.text.x = element_blank(),
+                              axis.ticks.x = element_blank(),
+                              axis.title.x = element_blank()) +
+  th +
+  ylab("Midday (-Mpa)")
+predawn.xpp.spp.plot
+#predawn.xpp.type.plot
+
+midday.xpp.spp.plot <- split.lfm %>%
+  filter(time == "midday") %>%
+  ggplot(aes(fill = spp, y = xpp, x = date)) + 
+  geom_boxplot(position="dodge") +
+  ylab("Midday (-Mpa)") +
+  xlab("Date")
+midday.xpp.spp.plot
+```
+#####
+#####
+#####
+
+```{r}
+##compare LFM and predawn XPPs, no split
+
+lfm.plot <- ggplot(split.lfm, aes(y = lfm, x = date)) + 
+  geom_boxplot(position="dodge")  + theme(axis.text.x = element_blank(),
+                                          axis.ticks.x = element_blank(),
+                                          axis.title.x = element_blank() )
+lfm.plot
+
+predawn.plot <- split.lfm %>%
+  filter(time == "predawn") %>%
+  ggplot(aes(y = xpp, x = date)) + 
+  geom_boxplot(position="dodge") +
+  ylab("predawn xpp")
+predawn.plot
+```
+
+```{r, message = FALSE}
+field_data_2021%>% 
+  ggplot(aes(y = -1/midday, x = rwd, color = spp)) +
+  geom_point(alpha = 1, size = 1) +
+  labs(y = "Midday (-1/Mpa)", 
+       x = "Relative Water Deficit (%)")
+```
+
+```{r}
+field_data_2021%>% 
+  ggplot() +
+ # geom_point(color = "olivedrab", alpha = .5, size = .5) +
+  geom_jitter(aes(x= date, y = midday), color = "goldenrod", alpha = .5, size = .5) +
+  geom_jitter(aes(x= date, y = predawn), color = "lightblue", alpha = .5, size = .5) +
+  #geom_boxplot(aes(x = date, y = midday), color = "goldenrod", fill = NA) +
+  #geom_boxplot(aes(x = date, y = predawn), color = "lightblue", fill = NA) +
+  th
+```
+
+```{r}
+field_data_2021%>% 
+  ggplot() +
+  geom_jitter(aes(x= date, y = lfm), color = "goldenrod", alpha = .5, size = 1)
+  th
+```
+
+```{r}
+field_data_2021%>% 
+  ggplot() +
+  geom_jitter(aes(x= date, y = lfm, color = spp), alpha = .5, size = 1)
+  th
+```

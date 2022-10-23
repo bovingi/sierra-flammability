@@ -1,0 +1,506 @@
+---
+title: "RWC x LFM"
+author: "Indra Boving"
+date: "10/24/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(here)
+library(janitor)
+library(plotly)
+library(DT)
+library(broom)
+library(lubridate)
+library(udpipe)
+library(dlookr)
+library(tidyverse)
+```
+#### Setup
+```{r}
+#source("http://goo.gl/UUyEzD") #outlier KD (original function)
+
+    #The following function is derived from outlierKD (from above)
+outlierKD2 <- function(dt, var) {
+  var_name <- eval(substitute(var),eval(dt))
+  tot <- sum(!is.na(var_name))
+  na1 <- sum(is.na(var_name))
+  m1 <- mean(var_name, na.rm = T)
+  par(mfrow=c(2, 2), oma=c(0,0,3,0))
+  boxplot(var_name, main="With outliers")
+  hist(var_name, main="With outliers", xlab=NA, ylab=NA)
+  outlier <- boxplot.stats(var_name)$out
+  mo <- mean(outlier)
+  var_name <- ifelse(var_name %in% outlier, NA, var_name)
+  boxplot(var_name, main="Without outliers")
+  hist(var_name, main="Without outliers", xlab=NA, ylab=NA)
+  title("Outlier Check", outer=TRUE)
+  na2 <- sum(is.na(var_name))
+  message("Outliers identified: ", na2 - na1, " from ", tot, " observations")
+  message("Proportion (%) of outliers: ", (na2 - na1) / tot*100)
+  message("Mean of the outliers: ", mo)
+  m2 <- mean(var_name, na.rm = T)
+  message("Mean without removing outliers: ", m1)
+  message("Mean if we remove outliers: ", m2)
+    dt[as.character(substitute(var))] <- invisible(var_name)
+    assign(as.character(as.list(match.call())$dt), dt, envir = .GlobalEnv)
+    message("Outliers successfully removed", "\n")
+    return(invisible(dt))
+}
+
+```
+ 
+# Overview: 
+
+This script organizes the compiled PV Curve data and does some basic visualizations. Additionally, it compiles water-relations data from the flammability testing and organizes to compare with PV Curves (saturated water content and lfm). Lastly, it approximates saturated water content and RWC from the field-collected data. 
+#--------------------------
+### Species data from literature:
+
+```{r}
+p50s <- c(-2.65, -3.74, -7.98, -7.75, -8.08, NA, NA, NA, NA, -4.41)
+spp.p50 <- c("PIPO", "CECO", "ADFA", "CADE", "CEME", "QUKE", "CECO", "PIJE", "CECO", "ARGL")
+
+p50_reference <- c()
+
+tlp <- c(-2.91, NA, -3.4, -3.14, -2.24, -2.8, -2.6, NA, NA, NA)
+spp.tlp <- c("PIPO", "CECO", "ADFA", "ADFA", "CEME", "CEME", "ABGR", NA, NA, NA)
+
+tlp_reference <-c("Jackson & Spomer, 1979", NA, "Pivavoroff, 2019", "Ramirez dissertation", "Ramirez dissertation", "Fletcher et al. 2018", "Jackson & Spomer, 1979", NA, NA, NA)
+
+lit_values <- data.frame(spp.p50, p50s, spp.tlp, tlp, tlp_reference)
+datatable(lit_values)
+```
+#--------------------------
+### Section 1: Pressure Volume Curves:
+
+Read in data and clean names, remove any odd curves
+
+```{r}
+Sys.setenv("VROOM_CONNECTION_SIZE" = 500073)
+#pv_allcurves_data <- readr::read_csv(here("raw-data", "allcurves.csv"), show_col_types = FALSE)
+
+#pv_allcurves_data_txt <- readr::read_delim(here("raw-data", "allcurves_copy_txt.txt"), show_col_types = FALSE)
+
+pv_allcurves_data <- read.csv(here("raw-data", "allcurves.csv")) %>% 
+  clean_names() %>% 
+  mutate(lfm = (((fresh_weight - dry_weight)/dry_weight)* 100)) %>%
+  mutate(neg_mpa = -1/water_potential) %>% 
+  mutate(sample = as.character(sample)) %>% 
+  mutate(date = as.Date(date, format = '%m.%d.%Y')) %>% 
+  mutate(year = year(date)) %>% 
+  mutate(month = month(date))
+  
+data.not.adfa <- pv_allcurves_data %>% #deal wirh some weird outliners in ADFA
+   filter(spp != "ADFA")
+
+data.adfa <- pv_allcurves_data %>% 
+  filter(lfm < 300, spp == "ADFA") #remove outlier ADFAs (not sure why this is how it is?)
+
+pv_allcurves_data_clean  <- rbind(data.adfa, data.not.adfa)
+
+pv_allcurves_data_clean  %>% 
+write_csv(here("processed-data", "allcurves_clean.csv"))
+```
+
+Visualize to make sure everything makes sense:
+
+```{r, warning = F}
+pv_allcurves_data_clean%>% 
+ggplot(aes(y = neg_mpa, x = rwd, color = spp)) + 
+  geom_jitter(alpha = .5, size = 1) +
+  labs(title = "Pressure Volume Curves",
+         y = "-1/Mpa", 
+       x = "Relative Water Deficit (%)") +
+  theme_bw()
+```
+
+Visualize LFM and Mpa ("Pressure Moisture Curves"):
+
+```{r, warning = F}
+pv_allcurves_data_clean%>% 
+ggplot(aes(y = neg_mpa, x = lfm, color = spp)) + 
+  geom_jitter(alpha = .5, size = 1) +
+  labs(title = "Pressure Moisture Curves", 
+       y = "-1/Mpa", 
+       x = "Live Fuel Moisture (%)") +
+  theme_bw() +
+  facet_wrap(~spp)
+```
+
+Non-transformed Mpa:
+
+```{r}
+all <- pv_allcurves_data_clean %>% 
+ggplot(aes(y = water_potential, x = lfm, color = spp)) + 
+  geom_jitter(alpha = .5, size = 1) +
+  labs(title = "Pressure Volume Curves", 
+       y = "Mpa", 
+       x = "Live Fuel Moisture (%)") +
+  theme_bw()
+all
+ggplotly(all, tooltip = c("spp"))
+```
+
+Working with all species again, what is the relationship between RWC and TLP?
+
+```{r}
+ggplot(data= pv_allcurves_data_clean, aes(y = tlp, x = rwc_at_tlp, color = spp, shape = timing)) +
+  geom_point(alpha = .8, size = 1) +
+  labs(title = "TLP and RWC at TLP",
+       y = "TLP (-Mpa)", 
+       x = "SWC (grams water/gram dry ")  +
+  geom_smooth(method='lm') +
+  theme_bw()
+```
+
+```{r}
+ggplot(data = pv_allcurves_data_clean, aes(y = tlp, x = lfm_at_tlp, color = spp)) +
+  geom_point(alpha = .8, size = 1) +
+  labs(title = "TLP and LFM at TLP",
+       y = "TLP (-Mpa)", 
+       x = "LFM (%)") +
+  geom_smooth(method='lm') +
+  theme_bw()
+```
+
+```{r}
+ggplot(data = pv_allcurves_data_clean, aes(y = tlp, x = lfm_at_tlp)) +
+  geom_point(alpha = .8, size = 1) +
+  labs(title = "TLP and LFM at TLP, all spp together",
+       y = "TLP (-Mpa)", 
+       x = "LFM (%)") +
+  geom_smooth(method='lm') +
+  theme_bw()
+```
+
+Remove CECO, since that spp is strange...(result of using branchlet? Impossible to do leaves??)
+
+```{r}
+pv_allcurves_data_clean %>% 
+  filter(spp != "CECO") %>% 
+ggplot(aes(y = tlp, x = lfm_at_tlp, color = spp)) +
+  geom_point(alpha = .8, size = 1) +
+  labs(title = "TLP and LFM at TLP, all spp together",
+       y = "TLP (-Mpa)", 
+       x = "LFM at TLP (%)") +
+  geom_smooth(method='lm') +
+  theme_bw()
+```
+
+##### PV summaries 
+Get TLPs into dataframe so we can look at them more closely:
+
+```{r}
+tlp_summary_spp_date <- pv_allcurves_data_clean %>% 
+  group_by(spp, date) %>% 
+  summarise(mean_tlp_date = mean(tlp), sd_date = sd(tlp))
+tlp_summary_spp_date
+
+tlp_summary_spp <- pv_allcurves_data_clean %>% 
+  group_by(spp) %>% 
+  summarise(mean_tlp_spp = mean(tlp), sd_spp = sd(tlp))
+tlp_summary_spp
+
+tlp_summary_month <-pv_allcurves_data_clean %>%
+  mutate(month_char = rlang::as_character(month)) %>% 
+  group_by(month_char, spp) %>% 
+  summarise(n=n(), mean_tlp_month =mean(tlp),sd_month=sd(tlp))
+
+tlp_summary_timing <- pv_allcurves_data_clean %>%
+  group_by(timing, spp) %>% 
+  summarise(n=n(), mean_tlp_timing=mean(tlp),sd_timing=sd(tlp))
+
+pv_summary_spp <- pv_allcurves_data_clean %>%
+  filter(timing == "fall") %>% 
+  group_by(spp) %>% 
+  summarise(n=n(), mean_tlp_fall_spp=mean(tlp),sd_fall_spp=sd(tlp))
+```
+
+LFM based on the above: 
+
+```{r}
+tlp_summary_timing_lfm <- pv_allcurves_data_clean %>%
+  group_by(timing, spp) %>% 
+  summarise(n=n(), mean_lfm_timing=mean(lfm),sd_lfm_timing=sd(lfm))
+
+tlp_summary_spp_lfm <- pv_allcurves_data_clean %>%
+  filter(timing == "fall") %>% 
+  group_by(spp) %>% 
+  summarise(n=n(), mean_lfm_fall_spp=mean(lfm),sd_lfm_fall_spp=sd(lfm))
+```
+
+
+```{r}
+ggplot(tlp_summary_timing, aes(y = mean_tlp_timing, x = spp, fill = timing)) +
+    geom_bar(stat = "identity", position ="dodge") +
+    geom_errorbar(aes(x = spp, ymin=mean_tlp_timing-sd_timing, ymax=mean_tlp_timing+sd_timing), 
+                  position=position_dodge(0.9), 
+                  width=.5, 
+                  color = "black",
+                  size = .5) +
+   labs(title = "TLP with sd", y = "TLP", x = "Species") +
+   theme_bw() +
+   scale_fill_manual(values = c("goldenrod", "olivedrab3", "blue"))
+```
+
+#--------------------------
+
+## Section 2: Saturated water and RWC content from flam curves
+
+- Read in data
+
+- Calculate SWC so we can get RWC
+
+These were constructed via simultaneous measurements on LFM and Mpa during flammability testing.
+
+```{r warning=FALSE, message=FALSE}
+flam_curve_phys_czo <- readr::read_csv(here("raw-data", "czo.flam.curve.physiological.data.csv")) %>% 
+  clean_names() %>% 
+  mutate(location = "czo")
+
+flam_curve_phys_seki <- readr::read_csv(here("raw-data", "seki.flam.curve.physiological.data.csv")) %>% 
+  clean_names() %>% 
+  mutate(location = "seki")
+
+flam_curve_phys_local <- readr::read_csv(here("raw-data", "local.flam.curve.physiological.data.csv")) %>%
+  clean_names() %>% 
+  mutate(location = "local")
+
+flam_curve_phys_all <- rbind(flam_curve_phys_czo, flam_curve_phys_local, flam_curve_phys_seki) %>% 
+  mutate(lfm = lfm_n_as_imputed, water_potential = mpa) %>% 
+  mutate(pos_mpa = -1*water_potential) %>% 
+  mutate(month = case_when(
+    year_month == "2020_September" ~ 9, 
+    year_month == "2020_January" ~ 1, 
+    year_month == "2020_October" ~ 10, 
+    year_month == "2016_December" ~ 12,
+    year_month == "2019_December" ~ 9, 
+    year_month == "2028_January" ~ 1)) %>% 
+  mutate(timing = case_when(
+     year_month == "2020_September" ~ "fall", 
+    year_month == "2020_January" ~ "spring", 
+    year_month == "2020_October" ~ "fall", 
+    year_month == "2016_December" ~ "fall",
+    year_month == "2019_December" ~ "fall", 
+    year_month == "2028_January" ~ "spring")) %>% 
+  select(individual, year_month, month, timing, dry_wt, spp, model, rwc, lfm, max_mpa_sample, mpa, gww_gdw, gww_gdw_saturated, fresh_wt, site, sample, location, pos_mpa, water_potential)
+
+str(flam_curve_phys_all)
+```
+
+```{r}
+write_csv(flam_curve_phys_all, here("processed-data", "compiled-datasets", "flam_curve_phys_all.csv"))
+
+diagnostics <- dlookr::diagnose(flam_curve_phys_all)
+
+diagnostics
+```
+
+```{r warning=FALSE, message=FALSE}
+#merge the tlps from the PV curve summary into the flam curve dataset: 
+
+##note: TLPs are species means, NOT from specific sampling times (should only matter for ABCO)
+flam_curve_phys_all <- merge(flam_curve_phys_all, pv_summary_spp, by = "spp", all = T) %>% 
+  mutate(tlp = mean) %>% 
+  select(-mean)
+```
+
+This is effectively what we're trying to do to get the saturated water content except we'll do it for each individual, not for each species. 
+
+```{r}
+ggplot(flam_curve_phys_all, aes(x = pos_mpa, y = gww_gdw, color = spp)) +
+  geom_point(alpha = .3) +
+  geom_smooth(method = "lm", se = FALSE, size = .5) +
+  labs(title = "Intercept = saturated water content", 
+       y = "water:dry matter", 
+       x = "water potential (+Mpa)")
+```
+
+We need the extrapolated saturated water content so that we can determine the relative water content. We do that here by: 
+1. Finding a lm for each indvidual that relates **water content:dry matter** with **water potential**.
+2. Extracting the y-intercept. This is the extrapolated saturated water content. 
+3. Add that value back into the dataset so it is useful. 
+
+```{r, warning= FALSE}
+#get the extrapolated saturated water content:
+swc_all <- flam_curve_phys_all %>% 
+  filter(mpa > tlp) %>% #for points above the tlp (estimated to be around ~2)
+  group_by(individual) %>% 
+  summarise(swc_sat = lm(formula = gww_gdw ~ pos_mpa)$coefficients[["(Intercept)"]]) 
+
+# try.broom <- flam_curve_phys_all %>%
+#   filter(mpa > -2) %>%
+#   group_by(individual) %>%
+#   do(broom::tidy(lm(gww_gdw ~ pos_mpa, .))) %>%
+#   filter(term == "(Intercept)") %>%
+#   select(individual, estimate)
+# 
+# merged <- merge(try.broom, swc_all, by = "individual", all = T)
+# 
+# merged %>% 
+#   ggplot(aes(y = estimate, x = swc_sat)) +
+#   geom_point()
+
+#add that back to the master dataset:
+flam_curve_phys_all <- merge(flam_curve_phys_all, swc_all, by="individual", all = T) %>%
+  mutate(rwc_new = 100 * (gww_gdw/swc_sat))
+```
+
+
+```{r, warning= FALSE}
+subset <- flam_curve_phys_all %>% 
+  select(individual, dry_wt, lfm, mpa,pos_mpa, gww_gdw, tlp, swc_sat, rwc_new, spp) %>% 
+  filter(rwc_new > 100)
+
+unique(subset$individual)
+
+ggplot(subset, aes(x = pos_mpa, y = gww_gdw)) +
+  geom_point(alpha = .3) +
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(title = "Intercept = saturated water content", 
+       y = "water:dry matter", 
+       x = "water potential (+Mpa)") +
+  facet_wrap(~spp)
+
+subset %>% 
+  ggplot(aes(y = mpa, x = rwc_new, color = spp)) +
+  geom_point()
+
+#Visualize: 
+flam_curve_phys_all %>% 
+ggplot(aes(y = swc_sat, x = individual, color = spp, color = individual)) +
+  geom_col() +
+  theme()
+
+# ggplot(flam_curves_phys_all_swc, aes(y = gww_gdw, x = swc_sat, color = spp)) +
+#   geom_point() +
+#   labs(title = "saturated wet weight calculated two different ways", 
+#        y = "based on greatest gww/gdw per individual", 
+#        x = "based on linear regression extrapolation") +
+#   theme_bw()
+```
+
+```{r}
+flam_curve_phys_all %>%
+  filter(individual == "2020_September_CEME_1.3") %>%
+  ggplot(aes(x = pos_mpa, y = gww_gdw, color = individual)) +
+  geom_point(alpha = .3) +
+  geom_smooth(method = "lm")
+
+# 
+# flam_curve_phys_all %>% 
+#   filter(spp == "ADFA") %>% 
+#   ggplot(aes(x = pos_mpa, y = gww_gdw, color = individual)) +
+#   geom_point(alpha = .3) +
+#   geom_smooth(method = "lm")
+# 
+# flam_curve_phys_all %>% 
+#   filter(spp == "ARPA") %>% 
+#   ggplot(aes(x = pos_mpa, y = gww_gdw, color = individual)) +
+#   geom_point(alpha = .3) +
+#   geom_smooth(method = "lm", alpha = .1)
+flam_curve_phys_all %>% 
+  filter(rwc_new < 100) %>% 
+ggplot(aes(y = -1/mpa, x = 100 - rwc_new, color = spp)) +
+  geom_point(alpha = .3)
+
+flam_curve_phys_all %>% 
+  filter(rwc_new < 100) %>% 
+ggplot(aes(y = -1/mpa, x = 100 - rwc_new, color = spp)) +
+  geom_point(alpha = .3) +
+  geom_smooth(method = loess, se = F, size = .5) +
+  facet_wrap(~spp) 
+
+flam_curve_phys_all %>% 
+  write_csv(here("processed-data", "flam_curve_phys_all.csv"))
+```
+#--------------------------
+##Section 3: Field-collected data: 
+
+###2021
+
+Saturated content here is the wettest LFM observed during the field season/100. 
+
+```{r, message = FALSE}
+field_data_2021 <- read.csv(here("raw-data", "Summer2021.LFM.mpa.data.analysis.csv")) %>%
+  clean_names() %>% 
+  select(bottle_number:location) %>% 
+  mutate(date = mdy(date), month = month(date)) %>%
+  mutate(timing = case_when(
+    month <= 7 ~ "spring", 
+    month > 7 ~ "fall" ))  %>% 
+  unite(unique_id, c("spp", "age", "site", "pod"), remove = FALSE) %>% 
+  group_by(unique_id) %>% 
+  dplyr::mutate(wettest_lfm = max((lfm))) %>%
+  mutate(rwc = 100 * (lfm/wettest_lfm)) %>% 
+  mutate(rwd = 100 - rwc) %>% 
+  mutate(water_potential = midday) %>% 
+  mutate(swc = wettest_lfm/100)
+
+field_data_2021_tlps <- merge(merge(tlp.summary.spp, tlp.summary.spp.lfm, by = "spp", all = T), field_data_2021, by = "spp", all = T)
+
+field_data_2021_pv <- merge(merge(tlp.summary.timing, tlp.summary.timing.lfm, by = c("spp", "timing"), all = T), field_data_2021_tlps, by = c("spp", "timing"), all =T) #add in mean TLP for each species
+
+field_data_2021_pv <- merge(tlp.summary.spp.lfm, field_data_2021_tlps, by = "spp", all = T) #add in mean LFM at TLP for each spp
+
+#field_data_2021_pv %>% 
+#write_csv(here("processed-data", "field_data_2021.csv"))
+outlierKD2(field_data_2021_pv, lfm)
+```
+
+###2020
+
+Saturated content here is the wettest LFM observed during the field season/100. 
+
+```{r, message = FALSE}
+field_data_2020 <- read_csv(here("raw-data", "field.summer.2020.csv"), show_col_types = FALSE) %>% clean_names() %>% 
+  select(bottle_number:location) %>% 
+  mutate(date = mdy(date), month = month(date)) %>%
+  mutate(timing = case_when(
+    month <= 7 ~ "spring", 
+    month > 7 ~ "fall" ))  %>% 
+  unite(unique_id, c("spp", "age", "site", "pod"), remove = FALSE) %>% 
+  group_by(unique_id) %>% 
+  dplyr::mutate(wettest_lfm = max((lfm))) %>%
+  mutate(rwc = 100 * (lfm/wettest_lfm)) %>% 
+  mutate(rwd = 100 - rwc) %>% 
+  mutate(water_potential = midday) %>% 
+  mutate(swc = wettest_lfm/100)
+
+field_data_2020_tlps <- merge(merge(tlp.summary.spp, tlp.summary.spp.lfm, by = "spp", all = T), field_data_2020, by = "spp", all = T)
+
+field_data_2020_pv <- merge(merge(tlp.summary.timing, tlp.summary.timing.lfm, by = c("spp", "timing"), all = T), field_data_2020_tlps, by = c("spp", "timing"), all =T) #add in mean TLP for each species
+
+field_data_2020_pv <- merge(tlp.summary.spp.lfm, field_data_2020_tlps, by = "spp", all = T)
+
+#field_data_2020_pv %>% 
+#write_csv(here("processed-data", "field_data_2020.csv"))
+
+outlierKD2(field_data_2020_pv, lfm)
+```
+
+###All dates
+```{r}
+field_data_all <- merge(field_data_2020_pv, field_data_2021_pv, all = T)
+
+field_data_all %>%
+write_csv(here("processed-data", "compiled-datasets", "SEKI", "field_data_2020_2021.csv"))
+```
+#--------------------------
+#Section 4: Stems v. leaves
+
+```{r}
+stems_leaves_2021 <- readr::read_csv(here("raw-data", "CZO_October_StemsLeaves_2.csv")) %>% 
+  clean_names() %>% 
+  mutate(date = mdy(date), 
+         month = month(date), 
+         year = year(date), 
+         age = new_old) %>% 
+  unite(unique_id, c("spp", "age", "site", "pod"), remove = FALSE) 
+  
+stems_leaves_2021 %>% 
+write_csv(here("processed-data", "compiled-datasets", "SEKI", "stems_leaves_2021.csv"))
+```
+
+

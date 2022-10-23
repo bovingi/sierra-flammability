@@ -1,0 +1,1159 @@
+---
+title: "Segmented Regressions - Mixed Effects Models"
+author: "Indra Boving & Joe Celebrezze"
+date: "4/15/2021"
+output: html_document
+---
+
+```{r}
+knitr::opts_chunk$set(echo = TRUE)
+#lots of extra here, but oh well___ 
+library(ggplot2)
+library(gapminder)
+library(tidyverse)
+library(lme4)
+library(here)
+library(segmented)
+library(nlme)
+citation('nlme')
+library(lubridate)
+library(plotrix)
+filter = dplyr::filter 
+here = here::here
+#source(here("source-code", "source-segmented_lme_R"))
+```
+
+# Reading in Dataframe
+```{r}
+seg_data_subset <- read_csv(here("processed-data", "analysis 2.0", "sierra_flam_data_all.csv")) %>% 
+  mutate(lfm = lfm_n_as_imputed)
+
+unique(seg_data_subset$year_month) #only sept and oct 2020 for some reason...?
+```
+
+# Color by Season
+
+```{r}
+seg_data_subset$color <- 'black'
+
+seg_data_subset$color[seg_data_subset$year_month=='2020_October']="#c1121f"
+seg_data_subset$color[seg_data_subset$year_month=='2020_September']="#64A400"
+```
+
+# Splitting by Species
+```{r} 
+seg_data_subset %>% group_split(spp) %>%
+   setNames(unique(seg_data_subset$spp))  %>%
+  list2env(envir = globalenv())
+```
+
+
+# Splitting by Sampling Date
+```{r}
+seg_abco_s20_subset <- ABCO %>% 
+  filter(year_month == "2020_September")
+
+seg_abco_o20_subset <- ABCO %>% 
+  filter(year_month == "2020_October")
+
+seg_arpa_s20_subset <- ARPA %>% 
+  filter(year_month == "2020_September")
+
+seg_arpa_o20_subset <- ARPA %>% 
+  filter(year_month == "2020_October")
+
+seg_cade_s20_subset <- CADE %>% 
+  filter(year_month == "2020_September")
+
+seg_cade_o20_subset <- CADE %>% 
+  filter(year_month == "2020_October")
+
+seg_ceco_s20_subset <- CECO %>% 
+  filter(year_month == "2020_September")
+
+seg_ceco_o20_subset <- CECO %>% 
+  filter(year_month == "2020_October")
+
+seg_pije_s20_subset <- PIJE %>% 
+  filter(year_month == "2020_September")
+
+seg_pije_o20_subset <- PIJE %>% 
+  filter(year_month == "2020_October")
+
+seg_quke_s20_subset <- QUKE %>% 
+  filter(year_month == "2020_September")
+
+seg_quke_o20_subset <- QUKE %>% 
+  filter(year_month == "2020_October")
+
+```
+
+
+# Maximums for LFM, MPa
+```{r}
+max_lfm <- max(seg_data_subset$lfm)
+max_mpa <- max(seg_data_subset$mpa)
+
+seg_data_subset %>% 
+  group_by(spp) %>% 
+  summarise(max_lfm = max(lfm), 
+            max_mpa = max(mpa)) %>% 
+  group_split(spp) %>% 
+  setNames(paste0('max_', unique(seg_data_subset$spp)))  %>%
+  list2env(envir = globalenv())
+
+#Need to pull() from all of these datasets, but we'll get there when we get there. 
+
+```
+
+# PV Curve Data
+
+```{r}
+pv_summary_df_timing <- read_csv(here("processed-data", "allcurves_clean.csv"), show_col_types = FALSE)
+
+pv_local <- pv_summary_df_timing %>% 
+  filter(spp %in% c("ADFA", "CEME"))
+
+#ADFA
+##LFM
+
+mean_lfm_adfa <- pv_local %>% 
+  filter(spp == "ADFA") %>% 
+  summarise(mean(mean_lfm)) %>% 
+  pull()
+
+upr_lfm_adfa <- pv_local %>% 
+  filter(spp == "ADFA") %>% 
+  summarise(mean(upr_lfm)) %>% 
+  pull()
+lwr_lfm_adfa <- pv_local %>% 
+  filter(spp == "ADFA") %>% 
+  summarise(mean(lwr_lfm)) %>% 
+  pull()
+##MPa
+mean_mpa_adfa <- pv_local %>% 
+  filter(spp == "ADFA") %>% 
+  summarise(mean(mean_tlp)) %>% 
+  pull()
+upr_mpa_adfa <- pv_local %>% 
+  filter(spp == "ADFA") %>% 
+  summarise(mean(upr)) %>% 
+  pull()
+lwr_mpa_adfa <- pv_local %>% 
+  filter(spp == "ADFA") %>% 
+  summarise(mean(lwr)) %>% 
+  pull()
+# CEME
+##LFM
+mean_lfm_ceme <- pv_local %>% 
+  filter(spp == "CEME") %>% 
+  summarise(mean(mean_lfm)) %>% 
+  pull()
+upr_lfm_ceme <- pv_local %>% 
+  filter(spp == "CEME") %>% 
+  summarise(mean(upr_lfm)) %>% 
+  pull()
+lwr_lfm_ceme <- pv_local %>% 
+  filter(spp == "CEME") %>% 
+  summarise(mean(lwr_lfm)) %>% 
+  pull()
+##MPa
+mean_mpa_ceme <- pv_local %>% 
+  filter(spp == "CEME") %>% 
+  summarise(mean(mean_tlp)) %>% 
+  pull()
+upr_mpa_ceme <- pv_local %>% 
+  filter(spp == "CEME") %>% 
+  summarise(mean(upr)) %>% 
+  pull()
+lwr_mpa_ceme <- pv_local %>% 
+  filter(spp == "CEME") %>% 
+  summarise(mean(lwr)) %>% 
+  pull()
+```
+
+# Function to plot mixed effects model segmented regressions
+
+This took a while to get running, but I think it works well now_ I had to use base plot to get it to work_ Note: x_variable and y_variable must be inputted as character strings_
+
+I split the function into two so that we could customize the plots for LFM and MPa separately and also make the lines of code shorter and neater by involving more default values for arguments in the function
+
+```{r}
+rsegplot_lfm <- function(model, dataframe, species, x_variable = 'lfm', y_variable, max_x = max_lfm, x_lab = 'Live Fuel Moisture (%)', y_lab = NULL, tlp = NULL, tlp_upper = NULL, tlp_lower = NULL, color = 'color') {
+  
+p <- summary_segmented(model)$psi[2]
+m <- slope(model, _coef = fixef(model))[[1]][[1]]
+b <- intercept(model, _coef = fixef(model))[[1]][[1]]
+m2 <- slope(model, _coef = fixef(model))[[1]][[2]]
+b2 <- intercept(model, _coef = fixef(model))[[1]][[2]]
+yvar <- dataframe[,y_variable]
+xvar <- dataframe[,x_variable]
+colr <- dataframe[,color]
+confint <- confint_segmented(model, x_variable, _coef=fixef(model))
+lower <- confint[2]
+upper <- confint[3]
+ymax <- max(yvar)
+ymin <- min(yvar)
+
+wacky <- plot(xvar, yvar, xlim = c(0, max_x), ylim = c(ymin-0_05*ymin, ymax+0_05*ymax), 
+              xlab = x_lab, ylab = y_lab,
+              pch = 16, col = alpha(colr, 0_8),
+              cex_lab = 1_3)
+polygon(x = c(lower, upper, upper, lower), y = c(ymax + 0_2*ymax, ymax +0_2*ymax, ymin - 30, ymin - 30), col = alpha('gray', 0_3), lty = 2)
+abline(v = tlp, col = alpha('#00C368', 0_7), cex = 3)
+polygon(x = c(tlp_lower, tlp_upper, tlp_upper, tlp_lower), y = c(ymax +0_2*ymax, ymax +0_2*ymax, ymin -30, ymin -30), col = alpha('#00C368', 0_3), border = alpha('#00C368', 0_6))
+legend('topleft', legend=if(species == 'ADFA'){
+  c("September 2020", "January 2018", "December 2016")
+}
+else if(species == 'CEME'){
+  c("September 2020", "January 2020", "December 2019")
+},
+       col=if(species == "ADFA") {
+         c("#c1121f","#FF7262","#A4A7DE")
+         }
+        else if(species == "CEME") {
+        c("#c1121f","#64A400","#669BBC")
+        }, pch = 16, cex=1)
+for(z in 1:length(xvar)){
+  if(z < p){
+    segments(x0 = 0, x1 = p, y0 = b, y1 = m*((b2 - b)/(m - m2))+b, lwd = 3, col = "#9D0208")
+  }else{
+    segments(x0 = p, x1 = max_x, y0 = m2*((b - b2)/(m2 - m))+b2 , y1 = m2*max_x + b2, lwd = 3, col = "#9D0208")}}
+return(wacky)
+}
+```
+
+```{r}
+rsegplot_mpa <- function(model, dataframe, species, x_variable = 'mpa', y_variable, max_x = max_mpa, x_lab = 'Water Potential (MPa)', y_lab = NULL, tlp = NULL, tlp_upper = NULL, tlp_lower = NULL, color = 'color') 
+  {
+p <- summary_segmented(model)$psi[2]
+m <- slope(model, _coef = fixef(model))[[1]][[1]]
+b <- intercept(model, _coef = fixef(model))[[1]][[1]]
+m2 <- slope(model, _coef = fixef(model))[[1]][[2]]
+b2 <- intercept(model, _coef = fixef(model))[[1]][[2]]
+yvar <- dataframe[,y_variable]
+xvar <- dataframe[,x_variable]
+colr <- dataframe[,color]
+confint <- confint_segmented(model, x_variable, _coef=fixef(model))
+lower <- confint[2]
+upper <- confint[3]
+ymax <- max(yvar)
+ymin <- min(yvar)
+
+wacky <- plot(xvar, yvar, xlim = c(-10, 0), ylim = c(ymin-1, ymax+1), 
+              xlab = x_lab, ylab = y_lab,
+              pch = 16, col = colr, cex_lab = 1_1)
+polygon(x = c(lower, upper, upper, lower), y = c(ymax +1_5, ymax +1_5, ymin -1_5, ymin -1_5), col = alpha('gray', 0_3), lty = 2)
+abline(v = tlp, col = alpha('#00C368', 0_8), cex = 3)
+polygon(x = c(tlp_lower, tlp_upper, tlp_upper, tlp_lower), y = c(ymax +1_5, ymax +1_5, ymin -1_5, ymin -1_5), col = alpha('#00C368', 0_3), border = alpha('#00C368', 0_7))
+abline(a = b, b = m, lwd = 3, col = "#9D0208")
+legend(-2, ymax+0_05*ymax, legend=if(species == 'ADFA'){
+  c("September 2020", "January 2018", "December 2016")
+}
+else if(species == 'CEME'){
+  c("September 2020", "January 2020", "December 2019")
+},
+       col=if(species == "ADFA") {
+         c("#c1121f","#FF7262","#A4A7DE")
+         }
+        else if(species == "CEME") {
+        c("#c1121f","#64A400","#669BBC")
+        }, pch = 16, cex=0_8)
+for(j in 1:length(xvar)){
+  if(j < p){
+    segments(x0 = -10, x1 = p, y0 = (-10*m) + b , y1 = m2*((b - b2)/(m2 - m))+b2, lwd = 3, col = "#9D0208")
+  }
+  else{
+    segments(x0 = p, x1 = max_x, y0 = m2*((b - b2)/(m2 - m))+b2, y1 = b2, lwd = 3, col = "#9D0208")
+  }
+    }
+return(wacky)
+}
+```
+
+For splitting by sampling date: no legend!
+```{r}
+rsegplot_lfm_nolegend <- function(model, dataframe, species, x_variable = 'lfm', y_variable, max_x = max_lfm, x_lab = 'Live Fuel Moisture (%)', y_lab = NULL, tlp = NULL, tlp_upper = NULL, tlp_lower = NULL, color = 'color') {
+  
+p <- summary_segmented(model)$psi[2]
+m <- slope(model, _coef = fixef(model))[[1]][[1]]
+b <- intercept(model, _coef = fixef(model))[[1]][[1]]
+m2 <- slope(model, _coef = fixef(model))[[1]][[2]]
+b2 <- intercept(model, _coef = fixef(model))[[1]][[2]]
+yvar <- dataframe[,y_variable]
+xvar <- dataframe[,x_variable]
+colr <- dataframe[,color]
+confint <- confint_segmented(model, x_variable, _coef=fixef(model))
+lower <- confint[2]
+upper <- confint[3]
+ymax <- max(yvar)
+ymin <- min(yvar)
+
+wacky <- plot(xvar, yvar, xlim = c(0, max_x), ylim = c(ymin-0_05*ymin, ymax+0_05*ymax), 
+              xlab = x_lab, ylab = y_lab,
+              pch = 16, col = alpha(colr, 0_8),
+              cex_lab = 1_3)
+polygon(x = c(lower, upper, upper, lower), y = c(ymax + 0_2*ymax, ymax +0_2*ymax, ymin - 30, ymin - 30), col = alpha('gray', 0_3), lty = 2)
+abline(v = tlp, col = alpha('#00C368', 0_7), cex = 3)
+polygon(x = c(tlp_lower, tlp_upper, tlp_upper, tlp_lower), y = c(ymax +0_2*ymax, ymax +0_2*ymax, ymin -30, ymin -30), col = alpha('#00C368', 0_3), border = alpha('#00C368', 0_6))
+for(z in 1:length(xvar)){
+  if(z < p){
+    segments(x0 = 0, x1 = p, y0 = b, y1 = m*((b2 - b)/(m - m2))+b, lwd = 3, col = "#9D0208")
+  }else{
+    segments(x0 = p, x1 = max_x, y0 = m2*((b - b2)/(m2 - m))+b2 , y1 = m2*max_x + b2, lwd = 3, col = "#9D0208")}}
+return(wacky)
+}
+```
+
+#---------------------------------
+# CEME
+## LFM
+Scaling LFM (to try it out)
+```{r}
+seg_ceme_subset <- seg_ceme_subset %>% 
+  mutate(lfm_scaled = scale(lfm))
+```
+
+### PC1 (Scaled LFM)
+```{r}
+o_mod<-lme(PC1~lfm_scaled + year_month + site, random=~1|id, data=seg_ceme_subset)
+os_mod<-segmented_default(o_mod, ~lfm_scaled, npsi=list(lfm_scaled=1))
+#summarizing results (note the '_coef' argument)
+summary_segmented(os_mod)
+
+rsegplot_lfm(os_mod, seg_ceme_subset, 'CEME', x_variable = "lfm_scaled", y_variable = 'PC1',y_lab = "PC1", tlp = mean_lfm_ceme, tlp_lower = lwr_lfm_ceme, tlp_upper = upr_lfm_ceme, max_x = 3)
+```
+
+### PC1
+```{r}
+o_mod_a<-lme(PC1~lfm + year_month + site, random=~1|id, data=seg_ceme_subset)
+os_mod_a<-segmented_default(o_mod_a, ~lfm, npsi=list(lfm=1))
+#summarizing results (note the '_coef' argument)
+summary_segmented(os_mod_a)
+
+rsegplot_lfm(os_mod_a, seg_ceme_subset, 'CEME', y_variable = 'PC1',y_lab = "PC1", tlp = mean_lfm_ceme, tlp_lower = lwr_lfm_ceme, tlp_upper = upr_lfm_ceme)
+```
+
+### PC2
+```{r}
+o_mod<-lme(PC2~lfm + year_month + site, random=~1|id, data=seg_ceme_subset)
+os_mod<-segmented_default(o_mod, ~lfm, npsi=list(lfm=1))
+#summarizing results (note the '_coef' argument)
+summary_segmented(os_mod)
+
+rsegplot_lfm(os_mod, seg_ceme_subset, 'CEME', y_variable = 'PC2',y_lab = "PC2", tlp = mean_lfm_ceme, tlp_lower = lwr_lfm_ceme, tlp_upper = upr_lfm_ceme)
+```
+ 
+Ignitability Metrics:
+### Time to Ignition
+```{r}
+o_mod<-lme(tti~lfm + year_month + site, random=~1|id, data=seg_ceme_subset)
+os_mod_b<-segmented_default(o_mod, ~lfm, npsi=list(lfm=1))
+#summarizing results (note the '_coef' argument)
+summary_segmented(os_mod_b)
+
+u_mod <- lm(tti~lfm + year_month + site, data = seg_ceme_subset)
+u_mod_b <- segmented(u_mod, ~lfm)
+davies_test(u_mod_b)
+summary_segmented(u_mod_b)
+
+rsegplot_lfm(os_mod_b, seg_ceme_subset, 'CEME', y_variable = 'tti',y_lab = "Time to Ignition (s)", tlp = mean_lfm_ceme, tlp_lower = lwr_lfm_ceme, tlp_upper = upr_lfm_ceme)
+```
+
+### Prop_ Ignite (5%)
+```{r}
+o_mod<-lme(prop_ignite_bins5_nodate~lfm + year_month + site, random=~1|id, data=seg_ceme_subset)
+os_mod<-segmented_default(o_mod, ~lfm, npsi=list(lfm=1))
+#summarizing results (note the '_coef' argument)
+summary_segmented(os_mod)
+
+rsegplot_lfm(os_mod, seg_ceme_subset, 'CEME', y_variable = 'prop_ignite_bins5_nodate',y_lab = "Proportion Ignted (5% Bins of LFM)", tlp = mean_lfm_ceme, tlp_lower = lwr_lfm_ceme, tlp_upper = upr_lfm_ceme)
+```
+
+### Glow to Ignition
+```{r}
+o_mod<-lme(gti~lfm + year_month + site, random=~1|id, data=seg_ceme_subset)
+os_mod<-segmented_default(o_mod, ~lfm, npsi=list(lfm=1))
+#summarizing results (note the '_coef' argument)
+summary_segmented(os_mod)
+
+rsegplot_lfm(os_mod, seg_ceme_subset, 'CEME', y_variable = 'gti',y_lab = "Glow to Ignition (s)", tlp = mean_lfm_ceme, tlp_lower = lwr_lfm_ceme, tlp_upper = upr_lfm_ceme)
+```
+
+Combustibility Metrics:
+### Flame Height
+```{r}
+o_mod<-lme(fh~lfm + year_month + site, random=~1|id, data=seg_ceme_subset)
+os_mod<-segmented_default(o_mod, ~lfm, npsi=list(lfm=1))
+#summarizing results (note the '_coef' argument)
+summary_segmented(os_mod)
+
+rsegplot_lfm(os_mod, seg_ceme_subset, 'CEME', y_variable = 'fh',y_lab = "Flame Height (cm)", tlp = mean_lfm_ceme, tlp_lower = lwr_lfm_ceme, tlp_upper = upr_lfm_ceme)
+```
+
+### Max_ Temp_
+```{r}
+o_mod<-lme(temp_max~lfm + year_month + site, random=~1|id, data=seg_ceme_subset)
+os_mod<-segmented_default(o_mod, ~lfm, npsi=list(lfm=1))
+#summarizing results (note the '_coef' argument)
+summary_segmented(os_mod)
+
+rsegplot_lfm(os_mod, seg_ceme_subset, 'CEME', y_variable = 'temp_max',y_lab = "Maximum Temperature (C)", tlp = mean_lfm_ceme, tlp_lower = lwr_lfm_ceme, tlp_upper = upr_lfm_ceme)
+```
+
+Sustainability Metrics:
+### Flame Duration
+```{r}
+o_mod<-lme(fd~lfm + year_month + site, random=~1|id, data=seg_ceme_subset)
+os_mod_f<-segmented_default(o_mod, ~lfm, npsi=list(lfm=1))
+#summarizing results (note the '_coef' argument)
+summary_segmented(os_mod_f)
+
+rsegplot_lfm(os_mod, seg_ceme_subset, 'CEME', y_variable = 'fd',y_lab = "Flame Duration (s)", tlp = mean_lfm_ceme, tlp_lower = lwr_lfm_ceme, tlp_upper = upr_lfm_ceme)
+```
+
+Consumability Metrics:
+### Glow Duration
+```{r}
+o_mod<-lme(gd~lfm + year_month + site, random=~1|id, data=seg_ceme_subset)
+os_mod_h<-segmented_default(o_mod, ~lfm, npsi=list(lfm=1))
+#summarizing results (note the '_coef' argument)
+summary_segmented(os_mod_h)
+
+rsegplot_lfm(os_mod, seg_ceme_subset, 'CEME', y_variable = 'gd',y_lab = "Glow Duration (s)", tlp = mean_lfm_ceme, tlp_lower = lwr_lfm_ceme, tlp_upper = upr_lfm_ceme)
+```
+
+### Post-Flame Glow
+```{r}
+o_mod<-lme(pfg~lfm + year_month + site, random=~1|id, data=seg_ceme_subset)
+os_mod<-segmented_default(o_mod, ~lfm, npsi=list(lfm=1))
+#summarizing results (note the '_coef' argument)
+summary_segmented(os_mod)
+
+rsegplot_lfm(os_mod, seg_ceme_subset, 'CEME', y_variable = 'pfg',y_lab = "Post-Flame Glow (s)", tlp = mean_lfm_ceme, tlp_lower = lwr_lfm_ceme, tlp_upper = upr_lfm_ceme)
+```
+
+### Time to First Glow
+```{r}
+o_mod<-lme(ttfg~lfm + year_month + site, random=~1|id, data=seg_ceme_subset)
+os_mod<-segmented_default(o_mod, ~lfm, npsi=list(lfm=1))
+#summarizing results (note the '_coef' argument)
+summary_segmented(os_mod)
+
+confint_segmented(os_mod, 'lfm', _coef=fixef(os_mod))
+
+rsegplot_lfm(os_mod, seg_ceme_subset, 'CEME', y_variable = 'ttfg',y_lab = "Time to First Glow (s)", tlp = mean_lfm_ceme, tlp_lower = lwr_lfm_ceme, tlp_upper = upr_lfm_ceme)
+```
+# -------
+## Water Potential
+```{r}
+seg_ceme_subset <- seg_ceme_subset %>% 
+  mutate(mpa_scaled = scale(mpa))
+```
+
+### PC1 (scaled)
+```{r}
+o_mod<-lme(PC1~mpa_scaled + year_month + site, random=~1|id, data=seg_ceme_subset)
+os_mod<-segmented_default(o_mod, ~mpa_scaled, npsi=list(mpa_scaled=1))
+#summarizing results (note the '_coef' argument)
+summary_segmented(os_mod)
+
+rsegplot_mpa(os_mod, seg_ceme_subset, 'CEME',x_variable = 'mpa_scaled', y_variable = 'PC1',y_lab = "PC1", tlp = mean_mpa_ceme, tlp_lower = lwr_mpa_ceme, tlp_upper = upr_mpa_ceme, max_x = 4)
+```
+
+### PC1
+```{r}
+o_mod<-lme(PC1~mpa + year_month + site, random=~1|id, data=seg_ceme_subset)
+os_mod_a1<-segmented_default(o_mod, ~mpa, npsi=list(mpa=1))
+#summarizing results (note the '_coef' argument)
+summary_segmented(os_mod_a1)
+
+rsegplot_mpa(os_mod_a1, seg_ceme_subset, 'CEME', y_variable = 'PC1',y_lab = "PC1", tlp = mean_mpa_ceme, tlp_lower = lwr_mpa_ceme, tlp_upper = upr_mpa_ceme)
+```
+
+### PC2
+```{r}
+o_mod<-lme(PC2~mpa + year_month + site, random=~1|id, data=seg_ceme_subset)
+os_mod<-segmented_default(o_mod, ~mpa, npsi=list(mpa=1))
+#summarizing results (note the '_coef' argument)
+summary_segmented(os_mod)
+
+rsegplot_mpa(os_mod, seg_ceme_subset, 'CEME', y_variable = 'PC2',y_lab = "PC2", tlp = mean_mpa_ceme, tlp_lower = lwr_mpa_ceme, tlp_upper = upr_mpa_ceme)
+```
+ 
+Ignitability Metrics:
+### Time to Ignition
+```{r}
+o_mod<-lme(tti~mpa + year_month + site, random=~1|id, data=seg_ceme_subset)
+os_mod_b1<-segmented_default(o_mod, ~mpa, npsi=list(mpa=1))
+#summarizing results (note the '_coef' argument)
+summary_segmented(os_mod_b1)
+
+rsegplot_mpa(os_mod, seg_ceme_subset, 'CEME', y_variable = 'tti',y_lab = "Time to Ignition (s)", tlp = mean_mpa_ceme, tlp_lower = lwr_mpa_ceme, tlp_upper = upr_mpa_ceme)
+```
+
+### Prop_ Ignite (5%)
+```{r}
+o_mod<-lme(prop_ignite_bins5_nodate~mpa + year_month + site, random=~1|id, data=seg_ceme_subset)
+os_mod<-segmented_default(o_mod, ~mpa, npsi=list(mpa=1))
+#summarizing results (note the '_coef' argument)
+summary_segmented(os_mod)
+
+rsegplot_mpa(os_mod, seg_ceme_subset, 'CEME', y_variable = 'prop_ignite_bins5_nodate',y_lab = "Proportion Ignted (5% Bins of LFM)", tlp = mean_mpa_ceme, tlp_lower = lwr_mpa_ceme, tlp_upper = upr_mpa_ceme)
+```
+
+### Glow to Ignition
+```{r}
+o_mod<-lme(gti~mpa + year_month + site, random=~1|id, data=seg_ceme_subset)
+os_mod<-segmented_default(o_mod, ~mpa, npsi=list(mpa=1))
+#summarizing results (note the '_coef' argument)
+summary_segmented(os_mod)
+
+rsegplot_mpa(os_mod, seg_ceme_subset, 'CEME', y_variable = 'gti',y_lab = "Glow to Ignition (s)", tlp = mean_mpa_ceme, tlp_lower = lwr_mpa_ceme, tlp_upper = upr_mpa_ceme)
+```
+
+Combustibility Metrics:
+### Flame Height
+```{r}
+o_mod<-lme(fh~mpa + year_month + site, random=~1|id, data=seg_ceme_subset)
+os_mod<-segmented_default(o_mod, ~mpa, npsi=list(mpa=1))
+#summarizing results (note the '_coef' argument)
+summary_segmented(os_mod)
+
+rsegplot_mpa(os_mod, seg_ceme_subset, 'CEME', y_variable = 'fh',y_lab = "Flame Height (cm)", tlp = mean_mpa_ceme, tlp_lower = lwr_mpa_ceme, tlp_upper = upr_mpa_ceme)
+```
+
+Split by Sampling Date
+
+
+o_mod<-lme(fh~mpa + site, random=~1|id, data=seg_ceme_s20_subset)
+os_mod<-segmented_default(o_mod, ~mpa, npsi=list(mpa=1))
+summarizing results (note the '_coef' argument) -- hash this out if need code
+summary_segmented(os_mod)
+
+rsegplot_mpa(os_mod, seg_ceme_s20_subset, 'CEME', y_variable = 'fh',y_lab = "Flame Height (cm)", tlp = mean_mpa_ceme, tlp_lower = lwr_mpa_ceme, tlp_upper = upr_mpa_ceme)
+
+
+
+o_mod<-lme(fh~mpa, random=~1|id, data=seg_ceme_d19_subset)
+os_mod<-segmented_default(o_mod, ~mpa, npsi=list(mpa=1))
+summarizing results (note the '_coef' argument) -- hash this out if you need code
+summary_segmented(os_mod)
+
+rsegplot_mpa(os_mod, seg_ceme_d19_subset, 'CEME', y_variable = 'fh',y_lab = "Flame Height (cm)", tlp = mean_mpa_ceme, tlp_lower = lwr_mpa_ceme, tlp_upper = upr_mpa_ceme)
+
+### Max_ Temp_
+```{r}
+o_mod<-lme(temp_max~mpa + year_month + site, random=~1|id, data=seg_ceme_subset)
+os_mod<-segmented_default(o_mod, ~mpa, npsi=list(mpa=1))
+#summarizing results (note the '_coef' argument)
+summary_segmented(os_mod)
+
+rsegplot_mpa(os_mod, seg_ceme_subset, 'CEME', y_variable = 'temp_max',y_lab = "Maximum Temperature (C)", tlp = mean_mpa_ceme, tlp_lower = lwr_mpa_ceme, tlp_upper = upr_mpa_ceme)
+```
+
+Sustainability Metrics:
+### Flame Duration
+```{r}
+o_mod<-lme(fd~mpa + year_month + site, random=~1|id, data=seg_ceme_subset)
+os_mod_f1<-segmented_default(o_mod, ~mpa, npsi=list(mpa=1))
+#summarizing results (note the '_coef' argument)
+summary_segmented(os_mod_f1)
+
+rsegplot_mpa(os_mod, seg_ceme_subset, 'CEME', y_variable = 'fd',y_lab = "Flame Duration (s)", tlp = mean_mpa_ceme, tlp_lower = lwr_mpa_ceme, tlp_upper = upr_mpa_ceme)
+```
+
+Consumability Metrics:
+### Glow Duration
+```{r}
+o_mod<-lme(gd~mpa + year_month + site, random=~1|id, data=seg_ceme_subset)
+os_mod_h1<-segmented_default(o_mod, ~mpa, npsi=list(mpa=1))
+#summarizing results (note the '_coef' argument)
+summary_segmented(os_mod_h1)
+
+rsegplot_mpa(os_mod, seg_ceme_subset, 'CEME', y_variable = 'gd',y_lab = "Glow Duration (s)", tlp = mean_mpa_ceme, tlp_lower = lwr_mpa_ceme, tlp_upper = upr_mpa_ceme)
+```
+
+### Post-Flame Glow
+```{r}
+o_mod<-lme(pfg~mpa + year_month + site, random=~1|id, data=seg_ceme_subset)
+os_mod<-segmented_default(o_mod, ~mpa, npsi=list(mpa=1))
+#summarizing results (note the '_coef' argument)
+summary_segmented(os_mod)
+
+rsegplot_mpa(os_mod, seg_ceme_subset, 'CEME', y_variable = 'pfg',y_lab = "Post-Flame Glow (s)", tlp = mean_mpa_ceme, tlp_lower = lwr_mpa_ceme, tlp_upper = upr_mpa_ceme)
+```
+
+### Time to First Glow
+```{r}
+o_mod<-lme(ttfg~mpa + year_month + site, random=~1|id, data=seg_ceme_subset)
+os_mod<-segmented_default(o_mod, ~mpa, npsi=list(mpa=1))
+#summarizing results (note the '_coef' argument)
+summary_segmented(os_mod)
+
+rsegplot_mpa(os_mod, seg_ceme_subset, 'CEME', y_variable = 'ttfg',y_lab = "Time to First Glow (s)", tlp = mean_mpa_ceme, tlp_lower = lwr_mpa_ceme, tlp_upper = upr_mpa_ceme)
+```
+
+#---------------------------------
+# ADFA
+## LFM
+### PC1
+```{r}
+o_mod<-lme(PC1~ lfm + year_month + site, random=~1|id, data=seg_adfa_subset)
+os_mod_c<-segmented_default(o_mod, ~lfm, npsi=list(lfm=1))
+#summarizing results (note the '_coef' argument)
+summary_segmented(os_mod_c)
+
+rsegplot_lfm(os_mod_c, seg_adfa_subset, 'ADFA', y_variable = 'PC1',y_lab = "PC1", tlp = mean_lfm_adfa, tlp_lower = lwr_lfm_adfa, tlp_upper = upr_lfm_adfa, max_x = max_lfm_a)
+```
+
+### PC2
+```{r}
+o_mod<-lme(PC2~lfm + year_month + site, random=~1|id, data=seg_adfa_subset)
+os_mod<-segmented_default(o_mod, ~lfm, npsi=list(lfm=1))
+#summarizing results (note the '_coef' argument)
+summary_segmented(os_mod)
+
+rsegplot_lfm(os_mod, seg_adfa_subset, 'ADFA', y_variable = 'PC2',y_lab = "PC2", tlp = mean_lfm_adfa, tlp_lower = lwr_lfm_adfa, tlp_upper = upr_lfm_adfa, max_x = max_lfm_a)
+```
+ 
+Ignitability Metrics:
+### Time to Ignition
+```{r}
+o_mod<-lme(tti~lfm + year_month + site, random=~1|id, data=seg_adfa_subset)
+os_mod_d<-segmented_default(o_mod, ~lfm, npsi=list(lfm=1))
+#summarizing results (note the '_coef' argument)
+summary_segmented(os_mod_d)
+
+rsegplot_lfm(os_mod_d, seg_adfa_subset, 'ADFA', y_variable = 'tti',y_lab = "Time to Ignition (s)", tlp = mean_lfm_adfa, tlp_lower = lwr_lfm_adfa, tlp_upper = upr_lfm_adfa, max_x = max_lfm_a)
+```
+
+### Prop_ Ignite (5%)
+```{r}
+o_mod<-lme(prop_ignite_bins5_nodate~lfm + year_month + site, random=~1|id, data=seg_adfa_subset)
+os_mod<-segmented_default(o_mod, ~lfm, npsi=list(lfm=1))
+#summarizing results (note the '_coef' argument)
+summary_segmented(os_mod)
+
+rsegplot_lfm(os_mod, seg_adfa_subset, 'ADFA', y_variable = 'prop_ignite_bins5_nodate',y_lab = "Proportion Ignted (5% Bins of LFM)", tlp = mean_lfm_adfa, tlp_lower = lwr_lfm_adfa, tlp_upper = upr_lfm_adfa, max_x = max_lfm_a)
+```
+
+### Glow to Ignition
+```{r}
+o_mod<-lme(gti~lfm + year_month + site, random=~1|id, data=seg_adfa_subset)
+os_mod<-segmented_default(o_mod, ~lfm, npsi=list(lfm=1))
+#summarizing results (note the '_coef' argument)
+summary_segmented(os_mod)
+
+rsegplot_lfm(os_mod, seg_adfa_subset, 'ADFA', y_variable = 'gti',y_lab = "Glow to Ignition (s)", tlp = mean_lfm_adfa, tlp_lower = lwr_lfm_adfa, tlp_upper = upr_lfm_adfa, max_x = max_lfm_a)
+```
+
+Combustibility Metrics:
+### Flame Height
+```{r}
+o_mod<-lme(fh~lfm + year_month + site, random=~1|id, data=seg_adfa_subset)
+os_mod<-segmented_default(o_mod, ~lfm, npsi=list(lfm=1))
+#summarizing results (note the '_coef' argument)
+summary_segmented(os_mod)
+
+rsegplot_lfm(os_mod, seg_adfa_subset, 'ADFA', y_variable = 'fh',y_lab = "Flame Height (cm)", tlp = mean_lfm_adfa, tlp_lower = lwr_lfm_adfa, tlp_upper = upr_lfm_adfa, max_x = max_lfm_a)
+```
+
+### Max_ Temp_
+```{r}
+o_mod<-lme(temp_max~lfm + year_month + site, random=~1|id, data=seg_adfa_subset)
+os_mod<-segmented_default(o_mod, ~lfm, npsi=list(lfm=1))
+#summarizing results (note the '_coef' argument)
+summary_segmented(os_mod)
+
+rsegplot_lfm(os_mod, seg_adfa_subset, 'ADFA', y_variable = 'temp_max',y_lab = "Maximum Temperature (C)", tlp = mean_lfm_adfa, tlp_lower = lwr_lfm_adfa, tlp_upper = upr_lfm_adfa)
+```
+
+Sustainability Metrics:
+### Flame Duration
+```{r}
+o_mod<-lme(fd~lfm + year_month + site, random=~1|id, data=seg_adfa_subset)
+os_mod_e<-segmented_default(o_mod, ~lfm, npsi=list(lfm=1))
+#summarizing results (note the '_coef' argument)
+summary_segmented(os_mod_e)
+
+rsegplot_lfm(os_mod, seg_adfa_subset, 'ADFA', y_variable = 'fd',y_lab = "Flame Duration (s)", tlp = mean_lfm_adfa, tlp_lower = lwr_lfm_adfa, tlp_upper = upr_lfm_adfa)
+```
+
+Consumability Metrics:
+### Glow Duration
+```{r}
+o_mod<-lme(gd~lfm + year_month + site, random=~1|id, data=seg_adfa_subset)
+os_mod_g<-segmented_default(o_mod, ~lfm, npsi=list(lfm=1))
+#summarizing results (note the '_coef' argument)
+summary_segmented(os_mod_g)
+
+rsegplot_lfm(os_mod, seg_adfa_subset, 'ADFA', y_variable = 'gd',y_lab = "Glow Duration (s)", tlp = mean_lfm_adfa, tlp_lower = lwr_lfm_adfa, tlp_upper = upr_lfm_adfa)
+```
+
+### Post-Flame Glow
+```{r}
+o_mod<-lme(pfg~lfm + year_month + site, random=~1|id, data=seg_adfa_subset)
+os_mod<-segmented_default(o_mod, ~lfm, npsi=list(lfm=1))
+#summarizing results (note the '_coef' argument)
+summary_segmented(os_mod)
+
+rsegplot_lfm(os_mod, seg_adfa_subset, 'ADFA', y_variable = 'pfg',y_lab = "Post-Flame Glow (s)", tlp = mean_lfm_adfa, tlp_lower = lwr_lfm_adfa, tlp_upper = upr_lfm_adfa)
+```
+
+### Time to First Glow
+```{r}
+o_mod<-lme(ttfg~lfm + year_month + site, random=~1|id, data=seg_adfa_subset)
+os_mod<-segmented_default(o_mod, ~lfm, npsi=list(lfm=1))
+#summarizing results (note the '_coef' argument)
+summary_segmented(os_mod)
+
+confint_segmented(os_mod, 'lfm', _coef=fixef(os_mod))
+
+rsegplot_lfm(os_mod, seg_adfa_subset, 'ADFA', y_variable = 'ttfg',y_lab = "Time to First Glow (s)", tlp = mean_lfm_adfa, tlp_lower = lwr_lfm_adfa, tlp_upper = upr_lfm_adfa)
+```
+
+# ------
+## Water Potential
+### PC1
+```{r}
+o_mod<-lme(PC1~mpa + year_month + site, random=~1|id, data=seg_adfa_subset)
+os_mod_c1<-segmented_default(o_mod, ~mpa, npsi=list(mpa=1))
+#summarizing results (note the '_coef' argument)
+summary_segmented(os_mod_c1)
+
+rsegplot_mpa(os_mod_c1, seg_adfa_subset, 'ADFA', y_variable = 'PC1',y_lab = "PC1", tlp = mean_mpa_adfa, tlp_lower = lwr_mpa_adfa, tlp_upper = upr_mpa_adfa)
+```
+
+Split by Sampling Date
+
+o_mod<-lme(PC1~mpa + site, random=~1|id, data=seg_adfa_s20_subset)
+os_mod<-segmented_default(o_mod, ~mpa, npsi=list(mpa=1))
+summarizing results (note the '_coef' argument) -- hash this out if you need code
+summary_segmented(os_mod)
+
+rsegplot_mpa(os_mod, seg_adfa_s20_subset, 'ADFA', y_variable = 'PC1',y_lab = "PC1", tlp = mean_mpa_adfa, tlp_lower = lwr_mpa_adfa, tlp_upper = upr_mpa_adfa)
+
+
+
+o_mod<-lme(PC1~mpa, random=~1|id, data=seg_adfa_d16_subset)
+os_mod<-segmented_default(o_mod, ~mpa, npsi=list(mpa=1))
+summarizing results (note the '_coef' argument) -- hash this out if you need code
+summary_segmented(os_mod)
+
+rsegplot_mpa(os_mod, seg_adfa_d16_subset, 'ADFA', y_variable = 'PC1',y_lab = "PC1", tlp = mean_mpa_adfa, tlp_lower = lwr_mpa_adfa, tlp_upper = upr_mpa_adfa)
+
+
+### PC2
+```{r}
+o_mod<-lme(PC2~mpa + year_month + site, random=~1|id, data=seg_adfa_subset)
+os_mod<-segmented_default(o_mod, ~mpa, npsi=list(mpa=1))
+#summarizing results (note the '_coef' argument)
+summary_segmented(os_mod)
+
+rsegplot_mpa(os_mod, seg_adfa_subset, 'ADFA', y_variable = 'PC2',y_lab = "PC2", tlp = mean_mpa_adfa, tlp_lower = lwr_mpa_adfa, tlp_upper = upr_mpa_adfa)
+```
+ 
+Ignitability Metrics:
+### Time to Ignition
+```{r}
+o_mod<-lme(tti~mpa + year_month + site, random=~1|id, data=seg_adfa_subset)
+os_mod_d1<-segmented_default(o_mod, ~mpa, npsi=list(mpa=1))
+#summarizing results (note the '_coef' argument)
+summary_segmented(os_mod_d1)
+
+rsegplot_mpa(os_mod, seg_adfa_subset, 'ADFA', y_variable = 'tti',y_lab = "Time to Ignition (s)", tlp = mean_mpa_adfa, tlp_lower = lwr_mpa_adfa, tlp_upper = upr_mpa_adfa)
+```
+
+### Prop_ Ignite (5%)
+```{r}
+o_mod<-lme(prop_ignite_bins5_nodate~mpa + year_month + site, random=~1|id, data=seg_adfa_subset)
+os_mod<-segmented_default(o_mod, ~mpa, npsi=list(mpa=1))
+#summarizing results (note the '_coef' argument)
+summary_segmented(os_mod)
+
+rsegplot_mpa(os_mod, seg_adfa_subset, 'ADFA', y_variable = 'prop_ignite_bins5_nodate',y_lab = "Proportion Ignted (5% Bins of LFM)", tlp = mean_mpa_adfa, tlp_lower = lwr_mpa_adfa, tlp_upper = upr_mpa_adfa)
+```
+
+### Glow to Ignition
+```{r}
+o_mod<-lme(gti~mpa + year_month + site, random=~1|id, data=seg_adfa_subset)
+os_mod<-segmented_default(o_mod, ~mpa, npsi=list(mpa=1))
+#summarizing results (note the '_coef' argument)
+summary_segmented(os_mod)
+
+plot_segmented(os_mod, "mpa", _coef=fixef(os_mod), conf_level=_95)
+
+rsegplot_mpa(os_mod, seg_adfa_subset, 'ADFA', y_variable = 'gti',y_lab = "Glow to Ignition (s)", tlp = mean_mpa_adfa, tlp_lower = lwr_mpa_adfa, tlp_upper = upr_mpa_adfa)
+```
+
+Combustibility Metrics:
+### Flame Height
+No threshold able to be identified (segmented_default returns error)
+
+### Max_ Temp_
+No threshold able to be identified (segmented_default returns error)
+
+Sustainability Metrics:
+### Flame Duration
+No threshold able to be identified (segmented_default returns error)
+
+Consumability Metrics:
+### Glow Duration
+```{r}
+o_mod<-lme(gd~mpa + year_month + site, random=~1|id, data=seg_adfa_subset)
+os_mod_g1<-segmented_default(o_mod, ~mpa, npsi=list(mpa=1))
+#summarizing results (note the '_coef' argument)
+summary_segmented(os_mod_g1)
+
+rsegplot_mpa(os_mod, seg_adfa_subset, 'ADFA', y_variable = 'gd',y_lab = "Glow Duration (s)", tlp = mean_mpa_adfa, tlp_lower = lwr_mpa_adfa, tlp_upper = upr_mpa_adfa)
+```
+
+### Post-Flame Glow
+```{r}
+o_mod<-lme(pfg~mpa + year_month + site, random=~1|id, data=seg_adfa_subset)
+os_mod<-segmented_default(o_mod, ~mpa, npsi=list(mpa=1))
+#summarizing results (note the '_coef' argument)
+summary_segmented(os_mod)
+
+rsegplot_mpa(os_mod, seg_adfa_subset, 'ADFA', y_variable = 'pfg',y_lab = "Post-Flame Glow (s)", tlp = mean_mpa_adfa, tlp_lower = lwr_mpa_adfa, tlp_upper = upr_mpa_adfa)
+```
+
+### Time to First Glow
+No threshold able to be identified (segmented_default returns error)
+
+# ---------------------------------
+# Main Figure: Arranging Plots
+
+```{r}
+jpeg(here('figures', 'main-figures', 'seg_reg_rand_plot_v2_jpg'), width = 1200, height = 900, res = 100)
+par(mfrow = c(2,2))
+par(mar = c(4,5,3,2))
+par(font_lab = 2)
+
+rsegplot_lfm(os_mod_a, seg_ceme_subset, 'CEME', y_variable = 'PC1',y_lab = "Ignitability-Combustibility Proxy", x_lab = " ", tlp = mean_lfm_ceme, tlp_lower = lwr_lfm_ceme, tlp_upper = upr_lfm_ceme)
+draw_circle(63_43661, -3_84, 2_4, col = 'black') # PC2 Threshold
+segments(x0 = 51_27564, x1 = 75_59758, y0 = -3_84, y1 = -3_84, col = 'black')
+text(x = 63_43661, y = -3_44, labels = c("Consumability"), cex = 1)
+arrows(x0 = 15, x1 = 15, y0 = -4, y1 = -2, length = 0_15, lwd = 2)
+text(x = 15, y = -1, labels = c("More \n Combustible \n & Ignitable"), cex = 1)
+mtext("a", font = 2, cex = 2, side = 3, line = 0_5, at = 0)
+text(labels = "C_ megacarpus", font = 4, cex = 1_75, x = 190, y = 4)
+
+#-----------------------------------------------------------------------
+confint <- confint_segmented(os_mod_b, 'lfm', _coef=fixef(os_mod_b))
+lower_b <- confint[2]
+upper_b <- confint[3]
+
+plot(seg_ceme_subset[,'lfm'], seg_ceme_subset[, 'tti'], xlim = c(0, max_lfm), ylim = c(-20, 86+0_05*86),
+              xlab = ' ', ylab = 'Time to Ignition',
+              pch = 16, col = alpha(seg_ceme_subset[,'color'], 0_8),
+              cex_lab = 1_3)
+polygon(x = c(lower_b, upper_b, upper_b, lower_b), y = c(86 + 0_2*86, 86 +0_2*86, -30, -30), col = alpha('gray', 0_3), lty = 2)
+abline(v = mean_lfm_ceme, col = alpha('#00C368', 0_7), cex = 3)
+polygon(x = c(lwr_lfm_ceme, upr_lfm_ceme, upr_lfm_ceme, lwr_lfm_ceme), y = c(86 +0_2*86, 86 +0_2*86, 0-22, -22), col = alpha('#00C368', 0_3), border = alpha('#00C368', 0_6))
+legend('topleft', legend = c("September 2020", "January 2020", "December 2019"),
+       col = c("#c1121f","#64A400","#669BBC"), pch = 16, cex=1)
+for(z in 1:length(seg_ceme_subset[,'lfm'])){
+  if(z < summary_segmented(os_mod_b)$psi[2]){
+    segments(x0 = 0, x1 = summary_segmented(os_mod_b)$psi[2], y0 = intercept(os_mod_b, _coef = fixef(os_mod_b))[[1]][[1]], y1 = slope(os_mod_b, _coef = fixef(os_mod_b))[[1]][[1]]*((intercept(os_mod_b, _coef = fixef(os_mod_b))[[1]][[2]] - intercept(os_mod_b, _coef = fixef(os_mod_b))[[1]][[1]])/(slope(os_mod_b, _coef = fixef(os_mod_b))[[1]][[1]] - slope(os_mod_b, _coef = fixef(os_mod_b))[[1]][[2]]))+intercept(os_mod_b, _coef = fixef(os_mod_b))[[1]][[1]], lwd = 3, col = "#9D0208")
+  }else{
+    segments(x0 = summary_segmented(os_mod_b)$psi[2], x1 = max_lfm, y0 = slope(os_mod_b, _coef = fixef(os_mod_b))[[1]][[2]]*((intercept(os_mod_b, _coef = fixef(os_mod_b))[[1]][[1]] - intercept(os_mod_b, _coef = fixef(os_mod_b))[[1]][[2]])/(slope(os_mod_b, _coef = fixef(os_mod_b))[[1]][[2]] - slope(os_mod_b, _coef = fixef(os_mod_b))[[1]][[1]]))+intercept(os_mod_b, _coef = fixef(os_mod_b))[[1]][[2]] , y1 = slope(os_mod_b, _coef = fixef(os_mod_b))[[1]][[2]]*max_lfm + intercept(os_mod_b, _coef = fixef(os_mod_b))[[1]][[2]], lwd = 3, col = "#9D0208")}}
+draw_circle(91_053, -7, 2_4, col = 'black') # Prop ignite threshold
+segments(x0 = 79_2544, x1 = 102_851, y0 = -7, y1 = -7, col = 'black')
+text(x = 93_053, y = -2, labels = c("Prop_ Ig_"), cex = 1)
+draw_circle(120_89, -20, 2_4, col = 'black') # Glow to ignition threshold
+segments(x0 = 81_5424, x1 = 160_237, y0 = -20, y1 = -20, col = 'black')
+text(x = 120_89, y = -15, labels = c("GTI"), cex = 1)
+draw_circle(57_0196, -12, 2_4, col = 'black') # Flame height threshold
+segments(x0 = 47_4926, x1 = 66_5465, y0 = -12, y1 = -12, col = 'black')
+text(x = 57_0196, y = -7, labels = c("FH"), cex = 1)
+draw_circle(68_003, -16, 2_4, col = 'black') # Post-flame glow threshold
+segments(x0 = 49_5801, x1 = 86_4253, y0 = -16, y1 = -16, col = 'black')
+text(x = 75_003, y = -11, labels = c("PFG"), cex = 1)
+draw_circle(48_83, -20, 2_4) # Flame duration threshold
+segments(x0 = 33_8529, x1 = 63_8074, y0 = -20, y1 = -20, col = 'black')
+text(x = 43_83, y = -15_25, labels = c("FD"), cex = 1)
+draw_circle(55_385, -2, 2_4) # Maximum temp_ threshold
+segments(x0 = 43_2009, x1 = 67_5694, y0 = -2, y1 = -2, col = 'black')
+text(x = 46_385, y = 2_5, labels = c("Max_ T_"), cex = 1)
+draw_circle(64_737, 5_75, 2_4) # Glow duration threshold
+segments(x0 = 45_3899, x1 = 82_0848, y0 = 5_75, y1 = 5_75, col = 'black')
+text(x = 53_485, y = 8_75, labels = c("GD"), cex = 1)
+draw_circle(59_153, 13_5, 2_4) # Time to first glow threshold
+segments(x0 = 43_6794, x1 = 74_626, y0 = 13_5, y1 = 13_5, col = 'black')
+text(x = 49_153, y = 17_5, labels = c("TTFG"), cex = 1)
+mtext("b", font = 2, cex = 2, side = 3, line = 0_5, at = 0)
+text(labels = "C_ megacarpus", font = 4, cex = 1_75, x = 190, y = 81)
+
+#-----------------------------------------------------------------------
+
+rsegplot_lfm(os_mod_c, seg_adfa_subset, 'ADFA', y_variable = 'PC1',y_lab = "Ignitability-Combustibility Proxy", x_lab = " ", tlp = mean_lfm_adfa, tlp_lower = lwr_lfm_adfa, tlp_upper = upr_lfm_adfa, max_x = max_lfm_a)
+draw_circle(63_16255, -4_6, 1_25, col = 'black') # PC2 Threshold
+segments(x0 = 52_79064, x1 = 73_53446, y0 = -4_6, y1 = -4_6, col = 'black')
+text(x = 63_16255, y = -4_2, labels = c("Consumability"), cex = 1)
+arrows(x0 = 7, x1 = 7, y0 = -4_8, y1 = -2_8, length = 0_15, lwd = 2)
+text(x = 7, y = -1_8, labels = c("More \n Combustible \n & Ignitable"), cex = 1)
+mtext("c", font = 2, cex = 2, side = 3, line = 0_5, at = 0)
+text(labels = "A_ fasciculatum", font = 4, cex = 1_75, x = 92, y = 3_8)
+
+#-----------------------------------------------------------------------
+
+confint <- confint_segmented(os_mod_d, 'lfm', _coef=fixef(os_mod_d))
+lower_d <- confint[2]
+upper_d <- confint[3]
+
+plot(seg_adfa_subset[,'lfm'], seg_adfa_subset[, 'tti'], xlim = c(0, max_lfm_a), ylim = c(-17, 75+0_05*75),
+              xlab = ' ', ylab = 'Time to Ignition',
+              pch = 16, col = alpha(seg_adfa_subset[,'color'], 0_8),
+              cex_lab = 1_3)
+polygon(x = c(lower_d, upper_d, upper_d, lower_d), y = c(75 + 0_2*75, 75 +0_2*75, -22, -22), col = alpha('gray', 0_3), lty = 2)
+abline(v = mean_lfm_adfa, col = alpha('#00C368', 0_7), cex = 3)
+polygon(x = c(lwr_lfm_adfa, upr_lfm_adfa, upr_lfm_adfa, lwr_lfm_adfa), y = c(75 +0_2*75, 75 +0_2*75, 0-22, -22), col = alpha('#00C368', 0_3), border = alpha('#00C368', 0_6))
+legend('topleft', legend = c("September 2020", "January 2018", "December 2016"),
+       col = c("#c1121f","#FF7262","#A4A7DE"), pch = 16, cex=1)
+for(z in 1:length(seg_adfa_subset[,'lfm'])){
+  if(z < summary_segmented(os_mod_d)$psi[2]){
+    segments(x0 = 0, x1 = summary_segmented(os_mod_d)$psi[2], y0 = intercept(os_mod_d, _coef = fixef(os_mod_d))[[1]][[1]], y1 = slope(os_mod_d, _coef = fixef(os_mod_d))[[1]][[1]]*((intercept(os_mod_d, _coef = fixef(os_mod_d))[[1]][[2]] - intercept(os_mod_d, _coef = fixef(os_mod_d))[[1]][[1]])/(slope(os_mod_d, _coef = fixef(os_mod_d))[[1]][[1]] - slope(os_mod_d, _coef = fixef(os_mod_d))[[1]][[2]]))+intercept(os_mod_d, _coef = fixef(os_mod_d))[[1]][[1]], lwd = 3, col = "#9D0208")
+  }else{
+    segments(x0 = summary_segmented(os_mod_d)$psi[2], x1 = max_lfm, y0 = slope(os_mod_d, _coef = fixef(os_mod_d))[[1]][[2]]*((intercept(os_mod_d, _coef = fixef(os_mod_d))[[1]][[1]] - intercept(os_mod_d, _coef = fixef(os_mod_d))[[1]][[2]])/(slope(os_mod_d, _coef = fixef(os_mod_d))[[1]][[2]] - slope(os_mod_d, _coef = fixef(os_mod_d))[[1]][[1]]))+intercept(os_mod_d, _coef = fixef(os_mod_d))[[1]][[2]] , y1 = slope(os_mod_d, _coef = fixef(os_mod_d))[[1]][[2]]*max_lfm + intercept(os_mod_d, _coef = fixef(os_mod_d))[[1]][[2]], lwd = 3, col = "#9D0208")}}
+draw_circle(43_1461, -17, 1_25, col = 'black') # Prop ignite threshold
+segments(x0 = 39_0287, x1 = 47_2636, y0 = -17, y1 = -17, col = 'black')
+text(x = 43_1461, y = -12_5, labels = c("Prop_ Ig_"), cex = 1)
+draw_circle(98_2788, -15, 1_25, col = 'black') # Glow to ignition threshold
+segments(x0 = 78_4386, x1 = 118_119, y0 = -15, y1 = -15, col = 'black')
+text(x = 98_2788, y = -10_5, labels = c("GTI"), cex = 1)
+draw_circle(78_9439, 2, 1_25, col = 'black') # Flame height threshold
+segments(x0 = 69_1201, x1 = 88_7678, y0 = 2, y1 = 2, col = 'black')
+text(x = 78_9439, y = 6_5, labels = c("FH"), cex = 1)
+draw_circle(65_5869, -18, 1_25, col = 'black') # Post-flame glow threshold
+segments(x0 = 51_3356, x1 = 79_8382, y0 = -18, y1 = -18, col = 'black')
+text(x = 62_9869, y = -13_5, labels = c("PFG"), cex = 1)
+draw_circle(46_453, -7_75, 1_25) # Flame duration threshold
+segments(x0 = 32_1032, x1 = 60_8027, y0 = -7_75, y1 = -7_75, col = 'black')
+text(x = 45_453, y = -3_25, labels = c("FD"), cex = 1)
+draw_circle(98_2788, -4, 1_25, col = 'black') # Maximum temp_ threshold
+segments(x0 = 80_4224, x1 = 116_135, y0 = -4, y1 = -4, col = 'black')
+text(x = 98_2788, y = 0_5, labels = c("Max_ T_"), cex = 1)
+draw_circle(65_8129, -2_5, 1_25) # Glow duration threshold
+segments(x0 = 48_3101, x1 = 83_3156, y0 = -2_5, y1 = -2_5, col = 'black')
+text(x = 64_4129, y = 2, labels = c("GD"), cex = 1)
+draw_circle(78_5259, -11, 1_25, col = 'black') # Time to first glow threshold
+segments(x0 = 65_3508, x1 = 91_701, y0 = -11, y1 = -11, col = 'black')
+text(x = 78_5259, y = -6_5, labels = c("TTFG"), cex = 1)
+mtext("d", font = 2, cex = 2, side = 3, line = 0_5, at = 0)
+text(labels = "A_ fasciculatum", font = 4, cex = 1_75, x = 92, y = 72)
+mtext("Live Fuel Moisture (%)", font = 2, side = 1, cex = 1_5, line = 2_7, at = -27)
+
+dev_off()
+```
+
+# ---------------------------------
+# Splitting by Sampling Date (LFM)
+## CEME
+### PC1
+For some odd reason, the plots split by sampling date for CEME weren't working perfectly, so I added the second portion of the segmented regression
+```{r}
+o_mod<-lme(PC1~lfm + site, random=~1|id, data=seg_ceme_s20_subset)
+os_mod_a1<-segmented_default(o_mod, ~lfm, npsi=list(lfm=1))
+#summarizing results (note the '_coef' argument)
+summary_segmented(os_mod_a1)
+
+m2_1 <- slope(os_mod_a1, _coef = fixef(os_mod_a1))[[1]][[2]]
+b2_1 <- intercept(os_mod_a1, _coef = fixef(os_mod_a1))[[1]][[2]]
+p_1 <- summary_segmented(os_mod_a1)$psi[2]
+m_1 <- slope(os_mod_a1, _coef = fixef(os_mod_a1))[[1]][[1]]
+b_1 <- intercept(os_mod_a1, _coef = fixef(os_mod_a1))[[1]][[1]]
+
+rsegplot_lfm(os_mod_a1, seg_ceme_s20_subset, 'CEME', y_variable = 'PC1',y_lab = "PC1", tlp = mean_lfm_ceme, tlp_lower = lwr_lfm_ceme, tlp_upper = upr_lfm_ceme)
+segments(x0 = p_1, x1 = max_lfm_c, y0 = m2_1*((b_1 - b2_1)/(m2_1 - m_1))+b2_1 , y1 = m2_1*max_lfm_c + b2_1, lwd = 4, col = "#9D0208")
+```
+
+```{r}
+o_mod<-lme(PC1~lfm, random=~1|id, data=seg_ceme_d19_subset)
+os_mod_a2<-segmented_default(o_mod, ~lfm, npsi=list(lfm=1))
+#summarizing results (note the '_coef' argument)
+summary_segmented(os_mod_a2)
+
+m2_2 <- slope(os_mod_a2, _coef = fixef(os_mod_a2))[[1]][[2]]
+b2_2 <- intercept(os_mod_a2, _coef = fixef(os_mod_a2))[[1]][[2]]
+p_2 <- summary_segmented(os_mod_a2)$psi[2]
+m_2 <- slope(os_mod_a2, _coef = fixef(os_mod_a2))[[1]][[1]]
+b_2 <- intercept(os_mod_a2, _coef = fixef(os_mod_a2))[[1]][[1]]
+
+rsegplot_lfm(os_mod_a2, seg_ceme_d19_subset, 'CEME', y_variable = 'PC1',y_lab = "PC1", tlp = mean_lfm_ceme, tlp_lower = lwr_lfm_ceme, tlp_upper = upr_lfm_ceme)
+segments(x0 = p_2, x1 = max_lfm_c, y0 = m2_2*((b_2 - b2_2)/(m2_2 - m_2))+b2_2 , y1 = m2_2*max_lfm_c + b2_2, lwd = 4, col = "#9D0208")
+```
+
+### Time to Ignition
+```{r}
+o_mod<-lme(tti~lfm + site, random=~1|id, data=seg_ceme_s20_subset)
+os_mod_b1<-segmented_default(o_mod, ~lfm, npsi=list(lfm=1))
+#summarizing results (note the '_coef' argument)
+summary_segmented(os_mod_b1)
+
+m2_3 <- slope(os_mod_b1, _coef = fixef(os_mod_b1))[[1]][[2]]
+b2_3 <- intercept(os_mod_b1, _coef = fixef(os_mod_b1))[[1]][[2]]
+p_3 <- summary_segmented(os_mod_b1)$psi[2]
+m_3 <- slope(os_mod_b1, _coef = fixef(os_mod_b1))[[1]][[1]]
+b_3 <- intercept(os_mod_b1, _coef = fixef(os_mod_b1))[[1]][[1]]
+
+rsegplot_lfm(os_mod_b1, seg_ceme_s20_subset, 'CEME', y_variable = 'tti',y_lab = "Time to Ignition (s)", tlp = mean_lfm_ceme, tlp_lower = lwr_lfm_ceme, tlp_upper = upr_lfm_ceme)
+segments(x0 = p_3, x1 = max_lfm_c, y0 = m2_3*((b_3 - b2_3)/(m2_3 - m_3))+b2_3 , y1 = m2_3*max_lfm_c + b2_3, lwd = 4, col = "#9D0208")
+```
+
+```{r}
+o_mod<-lme(tti~lfm, random=~1|id, data=seg_ceme_d19_subset)
+os_mod_b2<-segmented_default(o_mod, ~lfm, npsi=list(lfm=1))
+#summarizing results (note the '_coef' argument)
+summary_segmented(os_mod_b2)
+
+m2_4 <- slope(os_mod_b2, _coef = fixef(os_mod_b2))[[1]][[2]]
+b2_4 <- intercept(os_mod_b2, _coef = fixef(os_mod_b2))[[1]][[2]]
+p_4 <- summary_segmented(os_mod_b2)$psi[2]
+m_4 <- slope(os_mod_b2, _coef = fixef(os_mod_b2))[[1]][[1]]
+b_4 <- intercept(os_mod_b2, _coef = fixef(os_mod_b2))[[1]][[1]]
+
+rsegplot_lfm(os_mod_b2, seg_ceme_d19_subset, 'CEME', y_variable = 'tti',y_lab = "Time to Ignition (s)", tlp = mean_lfm_ceme, tlp_lower = lwr_lfm_ceme, tlp_upper = upr_lfm_ceme)
+segments(x0 = p_4, x1 = max_lfm_c, y0 = m2_4*((b_4 - b2_4)/(m2_4 - m_4))+b2_4 , y1 = m2_4*max_lfm_c + b2_4, lwd = 4, col = "#9D0208")
+```
+
+### Flame Height
+```{r}
+o_mod<-lme(fh~lfm + site, random=~1|id, data=seg_ceme_s20_subset)
+os_mod<-segmented_default(o_mod, ~lfm, npsi=list(lfm=1))
+#summarizing results (note the '_coef' argument)
+summary_segmented(os_mod)
+
+rsegplot_lfm(os_mod, seg_ceme_s20_subset, 'CEME', y_variable = 'fh',y_lab = "Flame Height (cm)", tlp = mean_lfm_ceme, tlp_lower = lwr_lfm_ceme, tlp_upper = upr_lfm_ceme)
+```
+
+```{r}
+o_mod<-lme(fh~lfm, random=~1|id, data=seg_ceme_d19_subset)
+os_mod<-segmented_default(o_mod, ~lfm, npsi=list(lfm=1))
+#summarizing results (note the '_coef' argument)
+summary_segmented(os_mod)
+
+rsegplot_lfm(os_mod, seg_ceme_d19_subset, 'CEME', y_variable = 'fh',y_lab = "Flame Height (cm)", tlp = mean_lfm_ceme, tlp_lower = lwr_lfm_ceme, tlp_upper = upr_lfm_ceme)
+```
+
+## ADFA
+### PC1
+```{r}
+o_mod<-lme(PC1~ lfm + site, random=~1|id, data=seg_adfa_s20_subset)
+os_mod_c1<-segmented_default(o_mod, ~lfm, npsi=list(lfm=1))
+#summarizing results (note the '_coef' argument)
+summary_segmented(os_mod_c1)
+
+rsegplot_lfm(os_mod_c1, seg_adfa_s20_subset, 'ADFA', y_variable = 'PC1',y_lab = "PC1", tlp = mean_lfm_adfa, tlp_lower = lwr_lfm_adfa, tlp_upper = upr_lfm_adfa, max_x = max_lfm_a)
+```
+
+```{r}
+o_mod<-lme(PC1~ lfm, random=~1|id, data=seg_adfa_d16_subset)
+os_mod_c2<-segmented_default(o_mod, ~lfm, npsi=list(lfm=1))
+#summarizing results (note the '_coef' argument)
+summary_segmented(os_mod_c2)
+
+rsegplot_lfm(os_mod_c1, seg_adfa_s20_subset, 'ADFA', y_variable = 'PC1',y_lab = "PC1", tlp = mean_lfm_adfa, tlp_lower = lwr_lfm_adfa, tlp_upper = upr_lfm_adfa, max_x = max_lfm_a)
+rsegplot_lfm(os_mod_c2, seg_adfa_d16_subset, 'ADFA', y_variable = 'PC1',y_lab = "PC1", tlp = mean_lfm_adfa, tlp_lower = lwr_lfm_adfa, tlp_upper = upr_lfm_adfa, max_x = max_lfm_a)
+```
+
+### Time to Ignition
+```{r}
+o_mod<-lme(tti~lfm + site, random=~1|id, data=seg_adfa_s20_subset)
+os_mod_d1<-segmented_default(o_mod, ~lfm, npsi=list(lfm=1))
+#summarizing results (note the '_coef' argument)
+summary_segmented(os_mod_d1)
+
+rsegplot_lfm(os_mod_d1, seg_adfa_s20_subset, 'ADFA', y_variable = 'tti',y_lab = "Time to Ignition (s)", tlp = mean_lfm_adfa, tlp_lower = lwr_lfm_adfa, tlp_upper = upr_lfm_adfa, max_x = max_lfm_a)
+```
+
+```{r}
+o_mod<-lme(tti~lfm, random=~1|id, data=seg_adfa_d16_subset)
+os_mod_d2<-segmented_default(o_mod, ~lfm, npsi=list(lfm=1))
+#summarizing results (note the '_coef' argument)
+summary_segmented(os_mod_d2)
+
+rsegplot_lfm(os_mod_d2, seg_adfa_d16_subset, 'ADFA', y_variable = 'tti',y_lab = "Time to Ignition (s)", tlp = mean_lfm_adfa, tlp_lower = lwr_lfm_adfa, tlp_upper = upr_lfm_adfa, max_x = max_lfm_a)
+```
+
+### Flame Height
+```{r}
+o_mod<-lme(fh~lfm + site, random=~1|id, data=seg_adfa_s20_subset)
+os_mod<-segmented_default(o_mod, ~lfm, npsi=list(lfm=1))
+#summarizing results (note the '_coef' argument)
+summary_segmented(os_mod)
+
+rsegplot_lfm(os_mod, seg_adfa_s20_subset, 'ADFA', y_variable = 'fh',y_lab = "Flame Height (cm)", tlp = mean_lfm_adfa, tlp_lower = lwr_lfm_adfa, tlp_upper = upr_lfm_adfa, max_x = max_lfm_a)
+```
+
+```{r}
+o_mod<-lme(fh~lfm, random=~1|id, data=seg_adfa_d16_subset)
+os_mod<-segmented_default(o_mod, ~lfm, npsi=list(lfm=1))
+#summarizing results (note the '_coef' argument)
+summary_segmented(os_mod)
+
+rsegplot_lfm(os_mod, seg_adfa_d16_subset, 'ADFA', y_variable = 'fh',y_lab = "Flame Height (cm)", tlp = mean_lfm_adfa, tlp_lower = lwr_lfm_adfa, tlp_upper = upr_lfm_adfa, max_x = max_lfm_a)
+```
+
+# Supp Figure
+```{r}
+jpeg(here('figures', 'supp-figures', 'seg_reg_rand_sDATES_jpg'), width = 1500, height = 1950, res = 150)
+par(mfrow = c(4,3))
+par(font_lab = 2)
+par(mar = c(5,4_75,3_5,1))
+#####################################################
+rsegplot_lfm(os_mod_a, seg_ceme_subset, 'CEME', y_variable = 'PC1',y_lab = "Ignitability-Combustibility Proxy", x_lab = " ", tlp = mean_lfm_ceme, tlp_lower = lwr_lfm_ceme, tlp_upper = upr_lfm_ceme)
+arrows(x0 = 20, x1 = 20, y0 = -4, y1 = -2_75, length = 0_1, lwd = 1_3)
+text(x = 20, y = -1_85, labels = c("More \n Combustible \n & Ignitable"), cex = 0_8)
+text(labels = c("a"), font = 2, cex = 3, x = 230, y = 4)
+mtext("C_ megacarpus", font = 4, cex = 1_8, side = 3, line = 1, at = 100)
+#####################################################
+rsegplot_lfm_nolegend(os_mod_a1, seg_ceme_s20_subset, 'CEME', y_variable = 'PC1',y_lab = "Ignitability-Combustibility Proxy", x_lab = " ", tlp = mean_lfm_ceme, tlp_lower = lwr_lfm_ceme, tlp_upper = upr_lfm_ceme)
+segments(x0 = p_1, x1 = max_lfm_c, y0 = m2_1*((b_1 - b2_1)/(m2_1 - m_1))+b2_1 , y1 = m2_1*max_lfm_c + b2_1, lwd = 4, col = "#9D0208")
+text(labels = c("b"), font = 2, cex = 3, x = 230, y = 4_05)
+mtext("September 2020", font = 1, cex = 1, side = 3, line = 0_8, at = 115)
+#####################################################
+rsegplot_lfm_nolegend(os_mod_a2, seg_ceme_d19_subset, 'CEME', y_variable = 'PC1',y_lab = "Ignitability-Combustibility Proxy", x_lab = " ", tlp = mean_lfm_ceme, tlp_lower = lwr_lfm_ceme, tlp_upper = upr_lfm_ceme)
+segments(x0 = p_2, x1 = max_lfm_c, y0 = m2_2*((b_2 - b2_2)/(m2_2 - m_2))+b2_2 , y1 = m2_2*max_lfm_c + b2_2, lwd = 4, col = "#9D0208")
+text(labels = c("c"), font = 2, cex = 3, x = 230, y = 1_9)
+mtext("December 2019", font = 1, cex = 1, side = 3, line = 0_8, at = 115)
+#####################################################
+rsegplot_lfm(os_mod_b, seg_ceme_subset, 'CEME', y_variable = 'tti',y_lab = "Time to Ignition (s)", x_lab = " ", tlp = mean_lfm_ceme, tlp_lower = lwr_lfm_ceme, tlp_upper = upr_lfm_ceme)
+text(labels = c("d"), font = 2, cex = 3, x = 230, y = 85)
+#####################################################
+rsegplot_lfm_nolegend(os_mod_b1, seg_ceme_s20_subset, 'CEME', y_variable = 'tti',y_lab = "Time to Ignition (s)", x_lab = " ", tlp = mean_lfm_ceme, tlp_lower = lwr_lfm_ceme, tlp_upper = upr_lfm_ceme)
+segments(x0 = p_3, x1 = max_lfm_c, y0 = m2_3*((b_3 - b2_3)/(m2_3 - m_3))+b2_3 , y1 = m2_3*max_lfm_c + b2_3, lwd = 4, col = "#9D0208")
+text(labels = c("e"), font = 2, cex = 3, x = 230, y = 85)
+#####################################################
+rsegplot_lfm_nolegend(os_mod_b2, seg_ceme_d19_subset, 'CEME', y_variable = 'tti',y_lab = "Time to Ignition (s)", x_lab = " ", tlp = mean_lfm_ceme, tlp_lower = lwr_lfm_ceme, tlp_upper = upr_lfm_ceme)
+segments(x0 = p_4, x1 = max_lfm_c, y0 = m2_4*((b_4 - b2_4)/(m2_4 - m_4))+b2_4 , y1 = m2_4*max_lfm_c + b2_4, lwd = 4, col = "#9D0208")
+text(labels = c("f"), font = 2, cex = 3, x = 230, y = 70)
+#####################################################
+rsegplot_lfm(os_mod_c, seg_adfa_subset, 'ADFA', y_variable = 'PC1',y_lab = "Ignitability-Combustibility Proxy", x_lab = " ", tlp = mean_lfm_adfa, tlp_lower = lwr_lfm_adfa, tlp_upper = upr_lfm_adfa, max_x = max_lfm_a)
+arrows(x0 = 10, x1 = 10, y0 = -4_8, y1 = -3_55, length = 0_1, lwd = 1_3)
+text(x = 10, y = -2_65, labels = c("More \n Combustible \n & Ignitable"), cex = 0_8)
+text(labels = c("g"), font = 2, cex = 3, x = 110, y = 4)
+mtext("A_ fasciculatum", font = 4, cex = 1_8, side = 3, line = 1, at = 50)
+#####################################################
+rsegplot_lfm_nolegend(os_mod_c1, seg_adfa_s20_subset, 'ADFA', y_variable = 'PC1',y_lab = "Ignitability-Combustibility Proxy", x_lab = " ", tlp = mean_lfm_adfa, tlp_lower = lwr_lfm_adfa, tlp_upper = upr_lfm_adfa, max_x = max_lfm_a)
+mtext("September 2020", font = 1, cex = 1, side = 3, line = 0_8, at = 55)
+text(labels = c("h"), font = 2, cex = 3, x = 110, y = 3_5)
+#####################################################
+rsegplot_lfm_nolegend(os_mod_c2, seg_adfa_d16_subset, 'ADFA', y_variable = 'PC1',y_lab = "Ignitability-Combustibility Proxy", x_lab = " ", tlp = mean_lfm_adfa, tlp_lower = lwr_lfm_adfa, tlp_upper = upr_lfm_adfa, max_x = max_lfm_a)
+mtext("December 2016", font = 1, cex = 1, side = 3, line = 0_8, at = 55)
+text(labels = c("i"), font = 2, cex = 3, x = 110, y = 4)
+#####################################################
+rsegplot_lfm(os_mod_d, seg_adfa_subset, 'ADFA', y_variable = 'tti',y_lab = "Time to Ignition (s)", x_lab = " ", tlp = mean_lfm_adfa, tlp_lower = lwr_lfm_adfa, tlp_upper = upr_lfm_adfa, max_x = max_lfm_a)
+text(labels = c("j"), font = 2, cex = 3, x = 110, y = 70)
+#####################################################
+rsegplot_lfm_nolegend(os_mod_d1, seg_adfa_s20_subset, 'ADFA', y_variable = 'tti',y_lab = "Time to Ignition (s)", x_lab = " ", tlp = mean_lfm_adfa, tlp_lower = lwr_lfm_adfa, tlp_upper = upr_lfm_adfa, max_x = max_lfm_a)
+text(labels = c("k"), font = 2, cex = 3, x = 110, y = 70)
+mtext("Live Fuel Moisture (%)", font = 2, cex = 1_8, side = 1, line = 3, at = 60)
+#####################################################
+rsegplot_lfm_nolegend(os_mod_d2, seg_adfa_d16_subset, 'ADFA', y_variable = 'tti',y_lab = "Time to Ignition (s)", x_lab = " ", tlp = mean_lfm_adfa, tlp_lower = lwr_lfm_adfa, tlp_upper = upr_lfm_adfa, max_x = max_lfm_a)
+text(labels = c("l"), font = 2, cex = 3, x = 110, y = 53_75)
+#####################################################
+dev_off()
+```
+

@@ -1,0 +1,253 @@
+---
+title: "4/29/2021 Figures"
+author: "Joe Celebrezze"
+date: "4/28/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Reading in dataset and loading necessary packages:
+
+```{r}
+library(here)
+library(ggplot2)
+
+seki.ignite <- read_csv(here('processed-data', 'analysis 2.0', 'hp.ignite.only.seki.csv'))
+seki.ignite.epi <- read_csv(here('processed-data', 'analysis 2.0', 'epi.ignite.only.seki.csv'))
+
+seki.ignite <- subset(seki.ignite, subset = spp !='CECO')
+```
+
+Proportion ignite vs. LFM (ignore all this)
+
+```{r}
+seki.ignite$bins10lfm <- factor(seki.ignite$bins10lfm, levels = c('(20,30]','(30,40]','(40,50]','(50,60]','(60,70]','(70,80]','(80,90]','(90,100]','(100,110]','(110,120]','(120,130]','(130,140]','(140,150]','(150,160]','(160,170]','(170,180]','(180,190]','(190,200]', '(200,210]'))
+
+seki.ignite.epi$bins10lfm <- factor(seki.ignite.epi$bins10lfm, levels = c('(20,30]','(30,40]','(40,50]','(50,60]','(60,70]','(70,80]','(80,90]','(90,100]','(100,110]','(110,120]','(120,130]','(130,140]','(140,150]','(150,160]','(160,170]','(170,180]','(180,190]','(190,200]', '(200,210]'))
+
+colSums(is.na(seki.ignite))
+
+seki.ignite.arpa <- subset(seki.ignite, subset = spp == 'QUKE')
+
+prop.ignite.vs.lfm <- ggplot(data = seki.ignite.epi, aes(x = bins10lfm, y = prop.ignite)) +
+  geom_point() +
+  theme(axis.text = element_text(size =6)) +
+  facet_wrap(~spp)
+  
+
+prop.ignite.vs.lfm
+```
+
+Subsetting by Species:
+```{r}
+seki.ignite.abco <- subset(seki.ignite, subset = spp == 'ABCO')
+seki.ignite.arpa <- subset(seki.ignite, subset = spp == 'ARPA')
+seki.ignite.cade <- subset(seki.ignite, subset = spp == 'CADE')
+seki.ignite.pije <- subset(seki.ignite, subset = spp == 'PIJE')
+seki.ignite.quke <- subset(seki.ignite, subset = spp == 'QUKE')
+```
+
+TTI vs. XPP:
+```{r}
+ggplot(data = seki.ignite.abco, aes(x = tti, y = mpa)) +
+  geom_point(size = 1) +
+  geom_smooth(method = lm, se = FALSE, color = 'black', size = 0.3) +
+  theme_bw() +
+  labs(title = 'Water Potential vs. Time to Ignition: Abies concolor', x = 'Time to Ignition (s)', y = ' Water Potential (-MPa)')
+
+ggplot(data = seki.ignite.arpa, aes(x = tti, y = mpa)) +
+  geom_point(size = 1) +
+  geom_smooth(method = lm, se = FALSE, color = 'black', size = 0.3) +
+  theme_bw() +
+  labs(title = 'Water Potential vs. Time to Ignition: Arctostaphylus patula', x = 'Time to Ignition (s)', y = ' Water Potential (-MPa)')
+
+ggplot(data = seki.ignite.quke, aes(x = tti, y = mpa)) +
+  geom_point(size = 1) +
+  geom_smooth(method = lm, se = FALSE, color = 'black', size = 0.3) +
+  theme_bw() +
+  labs(title = 'Water Potential vs. Time to Ignition: Quercus kelloggii', x = 'Time to Ignition (s)', y = ' Water Potential (-MPa)')
+
+ggplot(data = seki.ignite.pije, aes(x = tti, y = mpa)) +
+  geom_point(size = 1) +
+  geom_smooth(method = lm, se = FALSE, color = 'black', size = 0.3) +
+  theme_bw() +
+  labs(title = 'Water Potential vs. Time to Ignition: Pinus jeffreyi', x = 'Time to Ignition (s)', y = ' Water Potential (-MPa)')
+
+ggplot(data = seki.ignite.cade, aes(x = tti, y = mpa)) +
+  geom_point(size = 1) +
+  geom_smooth(method = lm, se = FALSE, color = 'black', size = 0.3) +
+  theme_bw() +
+  labs(title = 'Water Potential vs. Time to Ignition: Calocedrus decurrens', x = 'Time to Ignition (s)', y = ' Water Potential (-MPa)')
+```
+
+Max Temp. vs. XPP:
+```{r}
+ggplot(data = seki.ignite.abco, aes(x = temp.max, y = mpa)) +
+  geom_point(size = 1) +
+  geom_smooth(method = lm, se = FALSE, color = 'black', size = 0.3) +
+  theme_bw() +
+  labs(title = 'Water Potential vs. Maximum Temperature: Abies concolor', x = 'Maximum Temperature (°C)', y = 'Water Potential (-MPa)')
+
+ggplot(data = seki.ignite.arpa, aes(x = temp.max, y = mpa)) +
+  geom_point(size = 1) +
+  geom_smooth(method = lm, se = FALSE, color = 'black', size = 0.3) +
+  theme_bw() +
+  labs(title = 'Water Potential vs. Maximum Temperature: Arctostaphylus patula', x = 'Maximum Temperature (°C)', y = ' Water Potential (-MPa)')
+
+ggplot(data = seki.ignite.quke, aes(x = temp.max, y = mpa)) +
+  geom_point(size = 1) +
+  geom_smooth(method = lm, se = FALSE, color = 'black', size = 0.3) +
+  theme_bw() +
+  labs(title = 'Water Potential vs. Maximum Temperature: Quercus kelloggii', x = 'Maximum Temperature (°C)', y = ' Water Potential (-MPa)')
+
+ggplot(data = seki.ignite.pije, aes(x = temp.max, y = mpa)) +
+  geom_point(size = 1) +
+  geom_smooth(method = lm, se = FALSE, color = 'black', size = 0.3) +
+  theme_bw() +
+  labs(title = 'Water Potential vs. Maximum Temperature: Pinus jeffreyi', x = 'Maximum Temperature (°C)', y = ' Water Potential (-MPa)')
+
+ggplot(data = seki.ignite.cade, aes(x = temp.max, y = mpa)) +
+  geom_point(size = 1) +
+  geom_smooth(method = lm, se = FALSE, color = 'black', size = 0.3) +
+  theme_bw() +
+  labs(title = 'Water Potential vs. Maximum Temperature: Calocedrus decurrens', x = 'Maximum Temperature (°C)', y = ' Water Potential (-MPa)')
+```
+
+Glow Duration vs. XPP:
+```{r}
+ggplot(data = seki.ignite.abco, aes(x = gd, y = mpa)) +
+  geom_point(size = 1) +
+  geom_smooth(method = lm, se = FALSE, color = 'black', size = 0.3) +
+  theme_bw() +
+  labs(title = 'Water Potential vs. Glow Duration: Abies concolor', x = 'Glow Duration (s)', y = 'Water Potential (-MPa)')
+
+ggplot(data = seki.ignite.arpa, aes(x = gd, y = mpa)) +
+  geom_point(size = 1) +
+  geom_smooth(method = lm, se = FALSE, color = 'black', size = 0.3) +
+  theme_bw() +
+  labs(title = 'Water Potential vs. Glow Duration: Arctostaphylus patula', x = 'Glow Duration (s)', y = ' Water Potential (-MPa)')
+
+seki.ignite.quke2 <- subset(seki.ignite.quke, subset = gd != 262)
+
+ggplot(data = seki.ignite.quke2, aes(x = gd, y = mpa)) +
+  geom_point(size = 1) +
+  geom_smooth(method = lm, se = FALSE, color = 'black', size = 0.3) +
+  theme_bw() +
+  labs(title = 'Water Potential vs. Glow Duration: Quercus kelloggii', x = 'Glow Duration (s)', y = ' Water Potential (-MPa)')
+
+ggplot(data = seki.ignite.pije, aes(x = gd, y = mpa)) +
+  geom_point(size = 1) +
+  geom_smooth(method = lm, se = FALSE, color = 'black', size = 0.3) +
+  theme_bw() +
+  labs(title = 'Water Potential vs. Glow Duration: Pinus jeffreyi', x = 'Glow Duration (s)', y = ' Water Potential (-MPa)')
+
+ggplot(data = seki.ignite.cade, aes(x = gd, y = mpa)) +
+  geom_point(size = 1) +
+  geom_smooth(method = lm, se = FALSE, color = 'black', size = 0.3) +
+  theme_bw() +
+  labs(title = 'Water Potential vs. Glow Duration: Calocedrus decurrens', x = 'Glow Duration (s)', y = ' Water Potential (-MPa)')
+```
+
+TTI vs. LFM:
+```{r}
+ggplot(data = seki.ignite.abco, aes(x = tti, y = lfm)) +
+  geom_point(size = 1) +
+  geom_smooth(method = lm, se = FALSE, color = 'black', size = 0.3) +
+  theme_bw() +
+  labs(title = 'Live Fuel Moisture vs. Time to Ignition: Abies concolor', x = 'Time to Ignition (s)', y = 'Live Fuel Moisture')
+
+ggplot(data = seki.ignite.arpa, aes(x = tti, y = lfm)) +
+  geom_point(size = 1) +
+  geom_smooth(method = lm, se = FALSE, color = 'black', size = 0.3) +
+  theme_bw() +
+  labs(title = 'Live Fuel Moisture vs. Time to Ignition: Arctostaphylus patula', x = 'Time to Ignition (s)', y = 'Live Fuel Moisture')
+
+ggplot(data = seki.ignite.quke, aes(x = tti, y = lfm)) +
+  geom_point(size = 1) +
+  geom_smooth(method = lm, se = FALSE, color = 'black', size = 0.3) +
+  theme_bw() +
+  labs(title = 'Live Fuel Moisture vs. Time to Ignition: Quercus kelloggii', x = 'Time to Ignition (s)', y = 'Live Fuel Moisture')
+
+ggplot(data = seki.ignite.pije, aes(x = tti, y = lfm)) +
+  geom_point(size = 1) +
+  geom_smooth(method = lm, se = FALSE, color = 'black', size = 0.3) +
+  theme_bw() +
+  labs(title = 'Live Fuel Moisture vs. Time to Ignition: Pinus jeffreyi', x = 'Time to Ignition (s)', y = 'Live Fuel Moisture')
+
+ggplot(data = seki.ignite.cade, aes(x = tti, y = lfm)) +
+  geom_point(size = 1) +
+  geom_smooth(method = lm, se = FALSE, color = 'black', size = 0.3) +
+  theme_bw() +
+  labs(title = 'Live Fuel Moisture vs. Time to Ignition: Calocedrus decurrens', x = 'Time to Ignition (s)', y = 'Live Fuel Moisture')
+```
+
+Max Temp. vs. LFM:
+```{r}
+ggplot(data = seki.ignite.abco, aes(x = temp.max, y = lfm)) +
+  geom_point(size = 1) +
+  geom_smooth(method = lm, se = FALSE, color = 'black', size = 0.3) +
+  theme_bw() +
+  labs(title = 'Live Fuel Moisture vs. Maximum Temperature: Abies concolor', x = 'Maximum Temperature (°C)', y = 'Live Fuel Moisture')
+
+ggplot(data = seki.ignite.arpa, aes(x = temp.max, y = lfm)) +
+  geom_point(size = 1) +
+  geom_smooth(method = lm, se = FALSE, color = 'black', size = 0.3) +
+  theme_bw() +
+  labs(title = 'Live Fuel Moisture vs. Maximum Temperature: Arctostaphylus patula', x = 'Maximum Temperature (°C)', y = 'Live Fuel Moisture')
+
+ggplot(data = seki.ignite.quke, aes(x = temp.max, y = lfm)) +
+  geom_point(size = 1) +
+  geom_smooth(method = lm, se = FALSE, color = 'black', size = 0.3) +
+  theme_bw() +
+  labs(title = 'Live Fuel Moisture vs. Maximum Temperature: Quercus kelloggii', x = 'Maximum Temperature (°C)', y = ' Live Fuel Moisture')
+
+ggplot(data = seki.ignite.pije, aes(x = temp.max, y = lfm)) +
+  geom_point(size = 1) +
+  geom_smooth(method = lm, se = FALSE, color = 'black', size = 0.3) +
+  theme_bw() +
+  labs(title = 'Live Fuel Moisture vs. Maximum Temperature: Pinus jeffreyi', x = 'Maximum Temperature (°C)', y = 'Live Fuel Moisture')
+
+ggplot(data = seki.ignite.cade, aes(x = temp.max, y = lfm)) +
+  geom_point(size = 1) +
+  geom_smooth(method = lm, se = FALSE, color = 'black', size = 0.3) +
+  theme_bw() +
+  labs(title = 'Live Fuel Moisture vs. Maximum Temperature: Calocedrus decurrens', x = 'Maximum Temperature (°C)', y = 'Live Fuel Moisture')
+```
+
+Glow Duration vs. LFM:
+```{r}
+ggplot(data = seki.ignite.abco, aes(x = gd, y = lfm)) +
+  geom_point(size = 1) +
+  geom_smooth(method = lm, se = FALSE, color = 'black', size = 0.3) +
+  theme_bw() +
+  labs(title = 'Live Fuel Moisture vs. Glow Duration: Abies concolor', x = 'Glow Duration (s)', y = 'Live Fuel Moisture')
+
+ggplot(data = seki.ignite.arpa, aes(x = gd, y = lfm)) +
+  geom_point(size = 1) +
+  geom_smooth(method = lm, se = FALSE, color = 'black', size = 0.3) +
+  theme_bw() +
+  labs(title = 'Live Fuel Moisture vs. Glow Duration: Arctostaphylus patula', x = 'Glow Duration (s)', y = 'Live Fuel Moisture')
+
+seki.ignite.quke2 <- subset(seki.ignite.quke, subset = gd != 262)
+
+ggplot(data = seki.ignite.quke2, aes(x = gd, y = lfm)) +
+  geom_point(size = 1) +
+  geom_smooth(method = lm, se = FALSE, color = 'black', size = 0.3) +
+  theme_bw() +
+  labs(title = 'Live Fuel Moisture vs. Glow Duration: Quercus kelloggii', x = 'Glow Duration (s)', y = 'Live Fuel Moisture')
+
+ggplot(data = seki.ignite.pije, aes(x = gd, y = lfm)) +
+  geom_point(size = 1) +
+  geom_smooth(method = lm, se = FALSE, color = 'black', size = 0.3) +
+  theme_bw() +
+  labs(title = 'Live Fuel Moisture vs. Glow Duration: Pinus jeffreyi', x = 'Glow Duration (s)', y = 'Live Fuel Moisture')
+
+ggplot(data = seki.ignite.cade, aes(x = gd, y = lfm)) +
+  geom_point(size = 1) +
+  geom_smooth(method = lm, se = FALSE, color = 'black', size = 0.3) +
+  theme_bw() +
+  labs(title = 'Live Fuel Moisture vs. Glow Duration: Calocedrus decurrens', x = 'Glow Duration (s)', y = 'Live Fuel Moisture')
+```
