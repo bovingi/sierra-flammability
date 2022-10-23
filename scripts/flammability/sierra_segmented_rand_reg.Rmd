@@ -108,6 +108,9 @@ seg_data_subset %>%
 
 # PV Curve Data
 
+
+####HERE Oct 22, 2022
+
 ```{r}
 pv_summary_df_timing <- read_csv(here("processed-data", "allcurves_clean.csv"), show_col_types = FALSE)
 
