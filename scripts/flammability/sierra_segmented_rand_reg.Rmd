@@ -42,68 +42,88 @@ seg_data_subset$color[seg_data_subset$year_month=='2020_September']="#64A400"
 
 # Splitting by Species
 ```{r} 
-seg_data_subset %>% group_split(spp) %>%
-   setNames(unique(seg_data_subset$spp))  %>%
+seg_data_subset <- seg_data_subset %>% 
+  mutate_if(is.character, str_to_lower) %>% 
+  mutate(spp = str_trim(spp),
+    name = paste(spp,"_max", sep = "")) 
+
+seg_data_subset %>% 
+  group_split(spp) %>%
+  setNames(unique(seg_data_subset$name))  %>%
   list2env(envir = globalenv())
 ```
 
 
 # Splitting by Sampling Date
 ```{r}
-seg_abco_s20_subset <- ABCO %>% 
+seg_abco_s20_subset <- abco_max %>% 
   filter(year_month == "2020_September")
 
-seg_abco_o20_subset <- ABCO %>% 
+seg_abco_o20_subset <- abco_max %>% 
   filter(year_month == "2020_October")
 
-seg_arpa_s20_subset <- ARPA %>% 
+seg_arpa_s20_subset <- arpa_max %>% 
   filter(year_month == "2020_September")
 
-seg_arpa_o20_subset <- ARPA %>% 
+seg_arpa_o20_subset <- arpa_max %>% 
   filter(year_month == "2020_October")
 
-seg_cade_s20_subset <- CADE %>% 
+seg_cade_s20_subset <- cade_max %>% 
   filter(year_month == "2020_September")
 
-seg_cade_o20_subset <- CADE %>% 
+seg_cade_o20_subset <- cade_max %>% 
   filter(year_month == "2020_October")
 
-seg_ceco_s20_subset <- CECO %>% 
+seg_ceco_s20_subset <- ceco_max %>% 
   filter(year_month == "2020_September")
 
-seg_ceco_o20_subset <- CECO %>% 
+seg_ceco_o20_subset <- ceco_max %>% 
   filter(year_month == "2020_October")
 
-seg_pije_s20_subset <- PIJE %>% 
+seg_pije_s20_subset <- pije_max %>% 
   filter(year_month == "2020_September")
 
-seg_pije_o20_subset <- PIJE %>% 
+seg_pije_o20_subset <- pije_max %>% 
   filter(year_month == "2020_October")
 
-seg_quke_s20_subset <- QUKE %>% 
+seg_quke_s20_subset <- quke_max %>% 
   filter(year_month == "2020_September")
 
-seg_quke_o20_subset <- QUKE %>% 
+seg_quke_o20_subset <- quke_max %>% 
   filter(year_month == "2020_October")
 
 ```
 
 
 # Maximums for LFM, MPa
+
 ```{r}
 max_lfm <- max(seg_data_subset$lfm)
 max_mpa <- max(seg_data_subset$mpa)
 
-seg_data_subset %>% 
+list_max <- seg_data_subset %>% 
   group_by(spp) %>% 
   summarise(max_lfm = max(lfm), 
             max_mpa = max(mpa)) %>% 
   group_split(spp) %>% 
-  setNames(paste0('max_', unique(seg_data_subset$spp)))  %>%
+  setNames(unique(seg_data_subset$name)) 
+
+list_max %>%
   list2env(envir = globalenv())
 
-#Need to pull() from all of these datasets, but we'll get there when we get there. 
 
+#Need to pull() from all of these datasets, but we'll get there when we get there. 
+max_list <- c(abco_max, arpa_max, cade_max, 
+              ceco_max, pije_max, quke_max)
+
+for (i in max_list) {
+  tmp <- print(i[[1,2]]); break;
+  out <- pull(tmp)
+  }
+
+list_max %>%
+  pull(Age) %>%
+  sapply(function(age) paste("Person is", age, "years old"))
 ```
 
 # PV Curve Data
@@ -112,7 +132,15 @@ seg_data_subset %>%
 ####HERE Oct 22, 2022
 
 ```{r}
-pv_summary_df_timing <- read_csv(here("processed-data", "allcurves_clean.csv"), show_col_types = FALSE)
+pv_summary_df_timing <- read_csv(here("processed-data", "allcurves_clean.csv"), show_col_types = FALSE) %>% 
+  mutate_if(is.character, str_to_lower) %>% 
+  #mutate_at(spp, str_to_lower) %>% 
+  mutate(spp = str_trim(spp),
+    name = paste(spp,"_pv", sep = "")) 
+
+pv_summary_df_timing %>% group_split(spp) %>%
+   setNames(unique(pv_summary_df_timing$name))  %>%
+  list2env(envir = globalenv())
 
 pv_local <- pv_summary_df_timing %>% 
   filter(spp %in% c("ADFA", "CEME"))
