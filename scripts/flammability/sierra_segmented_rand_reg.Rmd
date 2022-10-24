@@ -40,167 +40,161 @@ seg_data_subset$color[seg_data_subset$year_month=='2020_October']="#c1121f"
 seg_data_subset$color[seg_data_subset$year_month=='2020_September']="#64A400"
 ```
 
-# Splitting by Species
+# Splitting by Species and by Sampling Date
+
 ```{r} 
 seg_data_subset <- seg_data_subset %>% 
   mutate_if(is.character, str_to_lower) %>% 
   mutate(spp = str_trim(spp),
-    name = paste(spp,"_max", sep = "")) 
+         lfm_scaled = scale(lfm),
+    name = paste(spp,"_max", sep = ""), 
+    name_subset = paste(spp, "_subset_seg", sep = ""), 
+   # name_yearmonth = intersect(spp, year_month), 
+    name_yearmonth = paste(spp, year_month, "subset_seg", sep = "_")) 
 
 seg_data_subset %>% 
   group_split(spp) %>%
-  setNames(unique(seg_data_subset$name))  %>%
+  setNames(unique(seg_data_subset$name_subset))  %>%
   list2env(envir = globalenv())
-```
 
-
-# Splitting by Sampling Date
-```{r}
-seg_abco_s20_subset <- abco_max %>% 
-  filter(year_month == "2020_September")
-
-seg_abco_o20_subset <- abco_max %>% 
-  filter(year_month == "2020_October")
-
-seg_arpa_s20_subset <- arpa_max %>% 
-  filter(year_month == "2020_September")
-
-seg_arpa_o20_subset <- arpa_max %>% 
-  filter(year_month == "2020_October")
-
-seg_cade_s20_subset <- cade_max %>% 
-  filter(year_month == "2020_September")
-
-seg_cade_o20_subset <- cade_max %>% 
-  filter(year_month == "2020_October")
-
-seg_ceco_s20_subset <- ceco_max %>% 
-  filter(year_month == "2020_September")
-
-seg_ceco_o20_subset <- ceco_max %>% 
-  filter(year_month == "2020_October")
-
-seg_pije_s20_subset <- pije_max %>% 
-  filter(year_month == "2020_September")
-
-seg_pije_o20_subset <- pije_max %>% 
-  filter(year_month == "2020_October")
-
-seg_quke_s20_subset <- quke_max %>% 
-  filter(year_month == "2020_September")
-
-seg_quke_o20_subset <- quke_max %>% 
-  filter(year_month == "2020_October")
-
+seg_dfs <- list(abco_subset_seg, 
+                arpa_subset_seg, 
+                cade_subset_seg, 
+                ceco_subset_seg,
+                pije_subset_seg, 
+                quke_subset_seg)
+ 
+seg_data_subset %>% 
+  group_split(name_yearmonth) %>%
+  setNames(unique(seg_data_subset$name_yearmonth))  %>%
+  list2env(envir = globalenv())
 ```
 
 
 # Maximums for LFM, MPa
 
 ```{r}
-max_lfm <- max(seg_data_subset$lfm)
-max_mpa <- max(seg_data_subset$mpa)
-
-list_max <- seg_data_subset %>% 
+max_seg_data <- seg_data_subset %>% 
+  type.convert(as.is = TRUE) %>% 
+  select(mpa, lfm, spp) %>% 
   group_by(spp) %>% 
-  summarise(max_lfm = max(lfm), 
-            max_mpa = max(mpa)) %>% 
-  group_split(spp) %>% 
-  setNames(unique(seg_data_subset$name)) 
-
-list_max %>%
-  list2env(envir = globalenv())
+  summarise(across(where(is.numeric), max, .names = "max_{.col}")) 
+```
 
 
-#Need to pull() from all of these datasets, but we'll get there when we get there. 
-max_list <- c(abco_max, arpa_max, cade_max, 
-              ceco_max, pije_max, quke_max)
-
-for (i in max_list) {
-  tmp <- print(i[[1,2]]); break;
-  out <- pull(tmp)
-  }
-
-list_max %>%
-  pull(Age) %>%
-  sapply(function(age) paste("Person is", age, "years old"))
+```{r}
+# max_lfm <- max(seg_data_subset$lfm)
+# max_mpa <- max(seg_data_subset$mpa)
+# 
+# list_max <- seg_data_subset %>% 
+#   group_by(spp) %>% 
+#   summarise(max_lfm = max(lfm), 
+#             max_mpa = max(mpa)) %>% 
+#   group_split(spp) %>% 
+#   setNames(unique(seg_data_subset$name)) 
+# 
+# list_max %>%
+#   list2env(envir = globalenv())
 ```
 
 # PV Curve Data
-
-
-####HERE Oct 22, 2022
 
 ```{r}
 pv_summary_df_timing <- read_csv(here("processed-data", "allcurves_clean.csv"), show_col_types = FALSE) %>% 
   mutate_if(is.character, str_to_lower) %>% 
   #mutate_at(spp, str_to_lower) %>% 
   mutate(spp = str_trim(spp),
-    name = paste(spp,"_pv", sep = "")) 
+    name = paste(spp,"_pv", sep = "")) %>% 
+  filter(!spp %in% c("ADFA", "CEME"))
 
-pv_summary_df_timing %>% group_split(spp) %>%
-   setNames(unique(pv_summary_df_timing$name))  %>%
+pv_summary_df_timing %>% 
+  group_split(spp) %>%
+   setNames(unique(pv_summary_df_timing$name)) %>%
   list2env(envir = globalenv())
 
-pv_local <- pv_summary_df_timing %>% 
-  filter(spp %in% c("ADFA", "CEME"))
+#Dataframe of PV summaries (NOTE: need upper and lower still?)
+pv_means <- pv_summary_df_timing %>% 
+  mutate(mpa = water_potential, 
+         tlp = tlp_excel) %>% 
+  type.convert(as.is = TRUE) %>% 
+  select(mpa, lfm, spp, tlp) %>% 
+  group_by(spp) %>% 
+  summarise(across(where(is.numeric), mean, .names = "mean_{.col}")) 
 
-#ADFA
-##LFM
+# fxn <- function(x) {
+#   assign(paste0(x$spp,"_mean_mpa"), x$mean_mpa, envir = .GlobalEnv)
+#   assign(paste0(x$spp,"_upper_mpa"), x$upper_mpa, envir = .GlobalEnv)
+#   assign(paste0(x$spp,"_lower_mpa"), x$lower_mpa, envir = .GlobalEnv)
+#   assign(paste0(x$spp,"_mean_lfm"), x$mean_lfm, envir = .GlobalEnv)
+#   assign(paste0(x$spp,"_upper_lfm"), x$upper_lfm, envir = .GlobalEnv)
+#   assign(paste0(x$spp,"_lower_lfm"), x$lower_lfm, envir = .GlobalEnv)
+# }
+# 
+# fxn(pv_means)
+```
 
-mean_lfm_adfa <- pv_local %>% 
-  filter(spp == "ADFA") %>% 
-  summarise(mean(mean_lfm)) %>% 
-  pull()
 
-upr_lfm_adfa <- pv_local %>% 
-  filter(spp == "ADFA") %>% 
-  summarise(mean(upr_lfm)) %>% 
-  pull()
-lwr_lfm_adfa <- pv_local %>% 
-  filter(spp == "ADFA") %>% 
-  summarise(mean(lwr_lfm)) %>% 
-  pull()
-##MPa
-mean_mpa_adfa <- pv_local %>% 
-  filter(spp == "ADFA") %>% 
-  summarise(mean(mean_tlp)) %>% 
-  pull()
-upr_mpa_adfa <- pv_local %>% 
-  filter(spp == "ADFA") %>% 
-  summarise(mean(upr)) %>% 
-  pull()
-lwr_mpa_adfa <- pv_local %>% 
-  filter(spp == "ADFA") %>% 
-  summarise(mean(lwr)) %>% 
-  pull()
-# CEME
-##LFM
-mean_lfm_ceme <- pv_local %>% 
-  filter(spp == "CEME") %>% 
-  summarise(mean(mean_lfm)) %>% 
-  pull()
-upr_lfm_ceme <- pv_local %>% 
-  filter(spp == "CEME") %>% 
-  summarise(mean(upr_lfm)) %>% 
-  pull()
-lwr_lfm_ceme <- pv_local %>% 
-  filter(spp == "CEME") %>% 
-  summarise(mean(lwr_lfm)) %>% 
-  pull()
-##MPa
-mean_mpa_ceme <- pv_local %>% 
-  filter(spp == "CEME") %>% 
-  summarise(mean(mean_tlp)) %>% 
-  pull()
-upr_mpa_ceme <- pv_local %>% 
-  filter(spp == "CEME") %>% 
-  summarise(mean(upr)) %>% 
-  pull()
-lwr_mpa_ceme <- pv_local %>% 
-  filter(spp == "CEME") %>% 
-  summarise(mean(lwr)) %>% 
-  pull()
+```{r}
+# pv_local <- pv_summary_df_timing %>% 
+#   filter(spp %in% c("ADFA", "CEME"))
+# 
+# #ADFA
+# ##LFM
+# 
+# mean_lfm_adfa <- pv_local %>% 
+#   filter(spp == "ADFA") %>% 
+#   summarise(mean(mean_lfm)) %>% 
+#   pull()
+# 
+# upr_lfm_adfa <- pv_local %>% 
+#   filter(spp == "ADFA") %>% 
+#   summarise(mean(upr_lfm)) %>% 
+#   pull()
+# 
+# lwr_lfm_adfa <- pv_local %>% 
+#   filter(spp == "ADFA") %>% 
+#   summarise(mean(lwr_lfm)) %>% 
+#   pull()
+# ##MPa
+# mean_mpa_adfa <- pv_local %>% 
+#   filter(spp == "ADFA") %>% 
+#   summarise(mean(mean_tlp)) %>% 
+#   pull()
+# upr_mpa_adfa <- pv_local %>% 
+#   filter(spp == "ADFA") %>% 
+#   summarise(mean(upr)) %>% 
+#   pull()
+# lwr_mpa_adfa <- pv_local %>% 
+#   filter(spp == "ADFA") %>% 
+#   summarise(mean(lwr)) %>% 
+#   pull()
+# # CEME
+# ##LFM
+# mean_lfm_ceme <- pv_local %>% 
+#   filter(spp == "CEME") %>% 
+#   summarise(mean(mean_lfm)) %>% 
+#   pull()
+# upr_lfm_ceme <- pv_local %>% 
+#   filter(spp == "CEME") %>% 
+#   summarise(mean(upr_lfm)) %>% 
+#   pull()
+# lwr_lfm_ceme <- pv_local %>% 
+#   filter(spp == "CEME") %>% 
+#   summarise(mean(lwr_lfm)) %>% 
+#   pull()
+# ##MPa
+# mean_mpa_ceme <- pv_local %>% 
+#   filter(spp == "CEME") %>% 
+#   summarise(mean(mean_tlp)) %>% 
+#   pull()
+# upr_mpa_ceme <- pv_local %>% 
+#   filter(spp == "CEME") %>% 
+#   summarise(mean(upr)) %>% 
+#   pull()
+# lwr_mpa_ceme <- pv_local %>% 
+#   filter(spp == "CEME") %>% 
+#   summarise(mean(lwr)) %>% 
+#   pull()
 ```
 
 # Function to plot mixed effects model segmented regressions
@@ -210,29 +204,29 @@ This took a while to get running, but I think it works well now_ I had to use ba
 I split the function into two so that we could customize the plots for LFM and MPa separately and also make the lines of code shorter and neater by involving more default values for arguments in the function
 
 ```{r}
-rsegplot_lfm <- function(model, dataframe, species, x_variable = 'lfm', y_variable, max_x = max_lfm, x_lab = 'Live Fuel Moisture (%)', y_lab = NULL, tlp = NULL, tlp_upper = NULL, tlp_lower = NULL, color = 'color') {
+rsegplot.lfm <- function(model, dataframe, species, x.variable = 'lfm', y.variable, max.x = max.lfm, x.lab = 'Live Fuel Moisture (%)', y.lab = NULL, tlp = NULL, tlp.upper = NULL, tlp.lower = NULL, color = 'color') {
   
-p <- summary_segmented(model)$psi[2]
-m <- slope(model, _coef = fixef(model))[[1]][[1]]
-b <- intercept(model, _coef = fixef(model))[[1]][[1]]
-m2 <- slope(model, _coef = fixef(model))[[1]][[2]]
-b2 <- intercept(model, _coef = fixef(model))[[1]][[2]]
-yvar <- dataframe[,y_variable]
-xvar <- dataframe[,x_variable]
+p <- summary.segmented(model)$psi[2]
+m <- slope(model, .coef = fixef(model))[[1]][[1]]
+b <- intercept(model, .coef = fixef(model))[[1]][[1]]
+m2 <- slope(model, .coef = fixef(model))[[1]][[2]]
+b2 <- intercept(model, .coef = fixef(model))[[1]][[2]]
+yvar <- dataframe[,y.variable]
+xvar <- dataframe[,x.variable]
 colr <- dataframe[,color]
-confint <- confint_segmented(model, x_variable, _coef=fixef(model))
+confint <- confint.segmented(model, x.variable, .coef=fixef(model))
 lower <- confint[2]
 upper <- confint[3]
 ymax <- max(yvar)
 ymin <- min(yvar)
 
-wacky <- plot(xvar, yvar, xlim = c(0, max_x), ylim = c(ymin-0_05*ymin, ymax+0_05*ymax), 
-              xlab = x_lab, ylab = y_lab,
-              pch = 16, col = alpha(colr, 0_8),
-              cex_lab = 1_3)
-polygon(x = c(lower, upper, upper, lower), y = c(ymax + 0_2*ymax, ymax +0_2*ymax, ymin - 30, ymin - 30), col = alpha('gray', 0_3), lty = 2)
-abline(v = tlp, col = alpha('#00C368', 0_7), cex = 3)
-polygon(x = c(tlp_lower, tlp_upper, tlp_upper, tlp_lower), y = c(ymax +0_2*ymax, ymax +0_2*ymax, ymin -30, ymin -30), col = alpha('#00C368', 0_3), border = alpha('#00C368', 0_6))
+wacky <- plot(xvar, yvar, xlim = c(0, max.x), ylim = c(ymin-0.05*ymin, ymax+0.05*ymax), 
+              xlab = x.lab, ylab = y.lab,
+              pch = 16, col = alpha(colr, 0.8),
+              cex.lab = 1.3)
+polygon(x = c(lower, upper, upper, lower), y = c(ymax + 0.2*ymax, ymax +0.2*ymax, ymin - 30, ymin - 30), col = alpha('gray', 0.3), lty = 2)
+abline(v = tlp, col = alpha('#00C368', 0.7), cex = 3)
+polygon(x = c(tlp.lower, tlp.upper, tlp.upper, tlp.lower), y = c(ymax +0.2*ymax, ymax +0.2*ymax, ymin -30, ymin -30), col = alpha('#00C368', 0.3), border = alpha('#00C368', 0.6))
 legend('topleft', legend=if(species == 'ADFA'){
   c("September 2020", "January 2018", "December 2016")
 }
@@ -249,36 +243,36 @@ for(z in 1:length(xvar)){
   if(z < p){
     segments(x0 = 0, x1 = p, y0 = b, y1 = m*((b2 - b)/(m - m2))+b, lwd = 3, col = "#9D0208")
   }else{
-    segments(x0 = p, x1 = max_x, y0 = m2*((b - b2)/(m2 - m))+b2 , y1 = m2*max_x + b2, lwd = 3, col = "#9D0208")}}
+    segments(x0 = p, x1 = max.x, y0 = m2*((b - b2)/(m2 - m))+b2 , y1 = m2*max.x + b2, lwd = 3, col = "#9D0208")}}
 return(wacky)
 }
 ```
 
 ```{r}
-rsegplot_mpa <- function(model, dataframe, species, x_variable = 'mpa', y_variable, max_x = max_mpa, x_lab = 'Water Potential (MPa)', y_lab = NULL, tlp = NULL, tlp_upper = NULL, tlp_lower = NULL, color = 'color') 
+rsegplot.mpa <- function(model, dataframe, species, x.variable = 'mpa', y.variable, max.x = max.mpa, x.lab = 'Water Potential (MPa)', y.lab = NULL, tlp = NULL, tlp.upper = NULL, tlp.lower = NULL, color = 'color') 
   {
-p <- summary_segmented(model)$psi[2]
-m <- slope(model, _coef = fixef(model))[[1]][[1]]
-b <- intercept(model, _coef = fixef(model))[[1]][[1]]
-m2 <- slope(model, _coef = fixef(model))[[1]][[2]]
-b2 <- intercept(model, _coef = fixef(model))[[1]][[2]]
-yvar <- dataframe[,y_variable]
-xvar <- dataframe[,x_variable]
+p <- summary.segmented(model)$psi[2]
+m <- slope(model, .coef = fixef(model))[[1]][[1]]
+b <- intercept(model, .coef = fixef(model))[[1]][[1]]
+m2 <- slope(model, .coef = fixef(model))[[1]][[2]]
+b2 <- intercept(model, .coef = fixef(model))[[1]][[2]]
+yvar <- dataframe[,y.variable]
+xvar <- dataframe[,x.variable]
 colr <- dataframe[,color]
-confint <- confint_segmented(model, x_variable, _coef=fixef(model))
+confint <- confint.segmented(model, x.variable, .coef=fixef(model))
 lower <- confint[2]
 upper <- confint[3]
 ymax <- max(yvar)
 ymin <- min(yvar)
 
 wacky <- plot(xvar, yvar, xlim = c(-10, 0), ylim = c(ymin-1, ymax+1), 
-              xlab = x_lab, ylab = y_lab,
-              pch = 16, col = colr, cex_lab = 1_1)
-polygon(x = c(lower, upper, upper, lower), y = c(ymax +1_5, ymax +1_5, ymin -1_5, ymin -1_5), col = alpha('gray', 0_3), lty = 2)
-abline(v = tlp, col = alpha('#00C368', 0_8), cex = 3)
-polygon(x = c(tlp_lower, tlp_upper, tlp_upper, tlp_lower), y = c(ymax +1_5, ymax +1_5, ymin -1_5, ymin -1_5), col = alpha('#00C368', 0_3), border = alpha('#00C368', 0_7))
+              xlab = x.lab, ylab = y.lab,
+              pch = 16, col = colr, cex.lab = 1.1)
+polygon(x = c(lower, upper, upper, lower), y = c(ymax +1.5, ymax +1.5, ymin -1.5, ymin -1.5), col = alpha('gray', 0.3), lty = 2)
+abline(v = tlp, col = alpha('#00C368', 0.8), cex = 3)
+polygon(x = c(tlp.lower, tlp.upper, tlp.upper, tlp.lower), y = c(ymax +1.5, ymax +1.5, ymin -1.5, ymin -1.5), col = alpha('#00C368', 0.3), border = alpha('#00C368', 0.7))
 abline(a = b, b = m, lwd = 3, col = "#9D0208")
-legend(-2, ymax+0_05*ymax, legend=if(species == 'ADFA'){
+legend(-2, ymax+0.05*ymax, legend=if(species == 'ADFA'){
   c("September 2020", "January 2018", "December 2016")
 }
 else if(species == 'CEME'){
@@ -289,13 +283,13 @@ else if(species == 'CEME'){
          }
         else if(species == "CEME") {
         c("#c1121f","#64A400","#669BBC")
-        }, pch = 16, cex=0_8)
+        }, pch = 16, cex=0.8)
 for(j in 1:length(xvar)){
   if(j < p){
     segments(x0 = -10, x1 = p, y0 = (-10*m) + b , y1 = m2*((b - b2)/(m2 - m))+b2, lwd = 3, col = "#9D0208")
   }
   else{
-    segments(x0 = p, x1 = max_x, y0 = m2*((b - b2)/(m2 - m))+b2, y1 = b2, lwd = 3, col = "#9D0208")
+    segments(x0 = p, x1 = max.x, y0 = m2*((b - b2)/(m2 - m))+b2, y1 = b2, lwd = 3, col = "#9D0208")
   }
     }
 return(wacky)
@@ -303,47 +297,56 @@ return(wacky)
 ```
 
 For splitting by sampling date: no legend!
+
 ```{r}
-rsegplot_lfm_nolegend <- function(model, dataframe, species, x_variable = 'lfm', y_variable, max_x = max_lfm, x_lab = 'Live Fuel Moisture (%)', y_lab = NULL, tlp = NULL, tlp_upper = NULL, tlp_lower = NULL, color = 'color') {
+rsegplot.lfm.nolegend <- function(model, dataframe, species, x.variable = 'lfm', y.variable, max.x = max.lfm, x.lab = 'Live Fuel Moisture (%)', y.lab = NULL, tlp = NULL, tlp.upper = NULL, tlp.lower = NULL, color = 'color') {
   
-p <- summary_segmented(model)$psi[2]
-m <- slope(model, _coef = fixef(model))[[1]][[1]]
-b <- intercept(model, _coef = fixef(model))[[1]][[1]]
-m2 <- slope(model, _coef = fixef(model))[[1]][[2]]
-b2 <- intercept(model, _coef = fixef(model))[[1]][[2]]
-yvar <- dataframe[,y_variable]
-xvar <- dataframe[,x_variable]
+p <- summary.segmented(model)$psi[2]
+m <- slope(model, .coef = fixef(model))[[1]][[1]]
+b <- intercept(model, .coef = fixef(model))[[1]][[1]]
+m2 <- slope(model, .coef = fixef(model))[[1]][[2]]
+b2 <- intercept(model, .coef = fixef(model))[[1]][[2]]
+yvar <- dataframe[,y.variable]
+xvar <- dataframe[,x.variable]
 colr <- dataframe[,color]
-confint <- confint_segmented(model, x_variable, _coef=fixef(model))
+confint <- confint.segmented(model, x.variable, .coef=fixef(model))
 lower <- confint[2]
 upper <- confint[3]
 ymax <- max(yvar)
 ymin <- min(yvar)
 
-wacky <- plot(xvar, yvar, xlim = c(0, max_x), ylim = c(ymin-0_05*ymin, ymax+0_05*ymax), 
-              xlab = x_lab, ylab = y_lab,
-              pch = 16, col = alpha(colr, 0_8),
-              cex_lab = 1_3)
-polygon(x = c(lower, upper, upper, lower), y = c(ymax + 0_2*ymax, ymax +0_2*ymax, ymin - 30, ymin - 30), col = alpha('gray', 0_3), lty = 2)
-abline(v = tlp, col = alpha('#00C368', 0_7), cex = 3)
-polygon(x = c(tlp_lower, tlp_upper, tlp_upper, tlp_lower), y = c(ymax +0_2*ymax, ymax +0_2*ymax, ymin -30, ymin -30), col = alpha('#00C368', 0_3), border = alpha('#00C368', 0_6))
+wacky <- plot(xvar, yvar, xlim = c(0, max.x), ylim = c(ymin-0.05*ymin, ymax+0.05*ymax), 
+              xlab = x.lab, ylab = y.lab,
+              pch = 16, col = alpha(colr, 0.8),
+              cex.lab = 1.3)
+polygon(x = c(lower, upper, upper, lower), y = c(ymax + 0.2*ymax, ymax +0.2*ymax, ymin - 30, ymin - 30), col = alpha('gray', 0.3), lty = 2)
+abline(v = tlp, col = alpha('#00C368', 0.7), cex = 3)
+polygon(x = c(tlp.lower, tlp.upper, tlp.upper, tlp.lower), y = c(ymax +0.2*ymax, ymax +0.2*ymax, ymin -30, ymin -30), col = alpha('#00C368', 0.3), border = alpha('#00C368', 0.6))
 for(z in 1:length(xvar)){
   if(z < p){
     segments(x0 = 0, x1 = p, y0 = b, y1 = m*((b2 - b)/(m - m2))+b, lwd = 3, col = "#9D0208")
   }else{
-    segments(x0 = p, x1 = max_x, y0 = m2*((b - b2)/(m2 - m))+b2 , y1 = m2*max_x + b2, lwd = 3, col = "#9D0208")}}
+    segments(x0 = p, x1 = max.x, y0 = m2*((b - b2)/(m2 - m))+b2 , y1 = m2*max.x + b2, lwd = 3, col = "#9D0208")}}
 return(wacky)
 }
 ```
 
-#---------------------------------
-# CEME
-## LFM
-Scaling LFM (to try it out)
+#----------------------------------------
+
+# ABCO
+
+
+####HERE Oct 22, 2022
+
+
 ```{r}
-seg_ceme_subset <- seg_ceme_subset %>% 
-  mutate(lfm_scaled = scale(lfm))
+
+
+
 ```
+
+
+## LFM
 
 ### PC1 (Scaled LFM)
 ```{r}
