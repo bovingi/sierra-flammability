@@ -28,76 +28,52 @@ library(readxl)
 library(janitor)
 filter = dplyr::filter #correct filter problem (gets confused with stats::filter)
 here = here::here
+
+source(here::here("scripts", "scripts_functions", "outlierKD2.R"))
 ```
 
-Read in data:
-
-```{r}
-raw_data_czo <- read_excel(here("raw-data", "r.flam.data.czo.2021.xlsx"), sheet = "all", skip = 0, na = "NA") %>% clean_names() %>% 
-  mutate(prop_new_flam)
-
-raw_data_czo %>% 
-  filter(lfm > 0) %>%  #remove rows with missing dry weight/neg_ lfm
-str(raw_data_czo)
-```
-#Deal with odd values:
+#Read in data and  with odd values:
 
 First, deal with values that don't make sense due to missingness (for example, if the temp probe turned off and temp_max is listed as 0, or if the weight is listed as 0, or if LFM is negative due to missing dry or wet weight)_ Do this to manipulated/control variables (weight, temp, mpa) as well as with flammability metrics_
 
 ```{r}
-raw_data_czo <- raw_data_czo %>%
-  mutate(water_wt = fresh_wt - dry_wt) %>%
-  mutate(ros = NA_real_,
+raw_data_czo <- read_excel(here("raw-data", "r.flam.data.czo.2021.xlsx"), sheet = "all", skip = 0, na = "NA") %>% 
+  clean_names() %>%
+  filter(lfm > 0) %>%
+  mutate(water_wt = fresh_wt - dry_wt,
+         ros = NA_real_,
          prop_new = NA_real_, 
-         start_temp = NA_real_
-         )
-str(raw_data_czo)
-
-data_with_na_czo <- raw_data_czo %>% 
-  replace_with_na(replace = list(taller_temp_max = c(0, 0.0))) %>% 
-  replace_with_na(replace = list(surface_temp_max = c(0, 0.0))) %>%#for missing temp maxs, make NA
-  replace_with_na(replace = list(temp_at_ignition_lower = c(0, 0.0))) %>% #for missing temp at ignition, make NA (all 2016 & 2018 trials)
-  replace_with_na(replace = list(temp_at_ignition_teller = c(0, 0.0))) %>% #for missing temp at ignition, make NA (all 2016 & 2018 trials)
-  replace_with_na(replace = list(taller_temp_start = c(0, 0.0))) %>% 
-  replace_with_na(replace = list(surface_temp_start = c(0, 0.0))) %>%
-  replace_with_na(replace = list(sample_wt = c(0, 0.0))) %>% #for sample weight___
-  replace_with_na(replace = list(lfm = c(0, 0.00000))) %>% 
-  replace_with_na(replace = list(ttfg = c(0, 0.00000))) %>% 
-  replace_with_na(replace = list(tti = c(0, 0.00000))) %>% 
-  replace_with_na(replace = list(fd = c(0, 0.00000))) %>% 
-  replace_with_na(replace = list(gd = c(0, 0.00000))) %>% 
-  replace_with_na(replace = list(pfg = c(0, 0.00000))) %>% 
-  replace_with_na(replace = list(fh = c(0, 0.00000))) %>% 
-  replace_with_na(replace = list(water_wt = c(0, 0.00000))) %>% 
-  replace_with_na(replace = list(fresh_wt = c(0, 0.00000))) %>% 
-  replace_with_na(replace = list(dry_wt = c(0, 0.00000))) %>% #######
-  #replace_with_na(replace = list(taller_temp_max < 0)) %>% 
-  #replace_with_na(replace = list(surface_temp_max < 0)) %>%#for missing temp maxs, make NA
-  #replace_with_na(replace = list(ignition_temp < 0)) %>% #for missing temp at ignition, make NA (all 2016 & 2018 trials)
-  replace_with_na(replace = list(taller_temp_start < 0))%>% 
-  replace_with_na(replace = list(surface_temp_start < 0)) %>%
-  replace_with_na(replace = list(sample_wt < 0)) %>% #for sample weight___
-  replace_with_na(replace = list(lfm < 0)) %>% 
-  replace_with_na(replace = list(ttfg < 0)) %>% 
-  replace_with_na(replace = list(tti < 0)) %>% 
-  replace_with_na(replace = list(fd < 0)) %>% 
-  replace_with_na(replace = list(gd < 0)) %>% 
-  replace_with_na(replace = list(pfg < 0)) %>% 
-  replace_with_na(replace = list(fh < 0)) %>% 
-  replace_with_na(replace = list(water_wt < 0)) %>% 
-  replace_with_na(replace = list(fresh_wt < 0)) %>% 
-  replace_with_na(replace = list(dry_wt < 0)) 
-  #for missing lfm (need weird extra 0 types here for some reason?)
-
-# #To make any odd values due to lack of ignition 'NA':
-# data_with_na_czo[c("ttfg", "tti", "fd", "gd", "pfg", "fh", "mpa", "prop_new","water_wt", "fresh_wt", "dry_wt")][(data_with_na_czo[c("ttfg", "tti", "fd", "gd", "pfg", "fh", "mpa", "prop_new","water_wt", "fresh_wt", "dry_wt")] == 0)] <- NA
-
-data_with_na_czo[c("ttfg", "tti", "fd", "gd", "pfg", "gti",  "dry_wt", "water_wt", "fresh_wt", "lfm", "ttms")][(data_with_na_czo[c("ttfg", "tti", "fd", "gd", "pfg", "gti",  "dry_wt", "water_wt", "fresh_wt", "lfm", "ttms")] < 0)] <- NA
-
-data_with_na_czo[c("ttfg", "tti", "fd", "gd", "pfg", "gti")][(data_with_na_czo[c("ttfg", "tti", "fd", "gd", "pfg", "gti")] > 1000)] <- NA
-
-data_with_na_czo[c("water_wt")][(data_with_na_czo[c("water_wt")] > 8 )] <- NA
+         start_temp = NA_real_, 
+         fh_old = fh) %>% 
+  mutate(fh = case_when(
+    fh %in% c("above 52", 
+              "above  52", 
+              "above 50", 
+              "above 46", 
+              "above 56") ~ 60, 
+    fh == "24 (but see notes)" ~ 38, 
+    TRUE ~ as.numeric(fh)
+  ))
 ```
+
+
+```{r}
+data_with_na_czo_1 <- raw_data_czo %>% 
+  select(-mpa, -ignition) %>% 
+ # #replace_with_na(replace = list(colnames_list = 0)) %>% 
+  replace_with_na_if(.predicate = is.numeric,
+                     condition = ~.x == 0) %>% 
+                    #  #.vars = c(colnames_list_tomakena)) %>% 
+  replace_with_na_if(.predicate = is.numeric,
+                      condition = ~.x < 0)
+
+raw_data_czo_1 <- raw_data_czo %>% 
+  select(sample, round, spp, model, mpa, ignition)
+
+data_with_na_czo <- merge(data_with_na_czo_1, raw_data_czo_1, all = T) %>%
+  mutate(lfm_outliers_out = lfm)##make column to take out outliers from lfm, while keeping column with original lfms too
+```
+
 
 Next, visualize the impact of outliers in LFM with outlierKD function 
 (NOTE: outlierKD slightly changed here to NOT require yes/no input when run_ Instead, it is performed on a new column to retain unremoved data) 
@@ -105,39 +81,6 @@ Next, visualize the impact of outliers in LFM with outlierKD function
 Details on OutlierKD: "To detect the outliers I use the command boxplot_stats()$out which use the Tukey’s method to identify the outliers ranged above and below the 1_5*IQR_" (https://www_r-bloggers_com/2016/04/identify-describe-plot-and-remove-the-outliers-from-the-dataset/)
 
 ```{r}
-##make column to take out outliers from lfm, while keeping column with original lfms too
-data_with_na_czo <- data_with_na_czo %>%
-  mutate(lfm_outliers_out = lfm) 
-
-#source("http://goo_gl/UUyEzD") #outlier KD (original function)
-
-    #The following function is derived from outlierKD (from above)
-outlierKD2 <- function(dt, var) {
-  var_name <- eval(substitute(var),eval(dt))
-  tot <- sum(!is_na(var_name))
-  na1 <- sum(is_na(var_name))
-  m1 <- mean(var_name, na_rm = T)
-  par(mfrow=c(2, 2), oma=c(0,0,3,0))
-  boxplot(var_name, main="With outliers")
-  hist(var_name, main="With outliers", xlab=NA, ylab=NA)
-  outlier <- boxplot_stats(var_name)$out
-  mo <- mean(outlier)
-  var_name <- ifelse(var_name %in% outlier, NA, var_name)
-  boxplot(var_name, main="Without outliers")
-  hist(var_name, main="Without outliers", xlab=NA, ylab=NA)
-  title("Outlier Check", outer=TRUE)
-  na2 <- sum(is_na(var_name))
-  message("Outliers identified: ", na2 - na1, " from ", tot, " observations")
-  message("Proportion (%) of outliers: ", (na2 - na1) / tot*100)
-  message("Mean of the outliers: ", mo)
-  m2 <- mean(var_name, na_rm = T)
-  message("Mean without removing outliers: ", m1)
-  message("Mean if we remove outliers: ", m2)
-    dt[as_character(substitute(var))] <- invisible(var_name)
-    assign(as_character(as_list(match_call())$dt), dt, envir = _GlobalEnv)
-    message("Outliers successfully removed", "\n")
-    return(invisible(dt))
-}
 outlierKD2(data_with_na_czo, lfm_outliers_out) #check for outliers and remove (happens in outliers_out column, lfm column still contains outliers)
 ```
 
@@ -251,7 +194,7 @@ data_with_na_czo <- data_with_na_czo %>%
 - Categorical "dry" vs_ "wet" vs_ "moderate" column for season, based on prior precip and date
 - Various categorical groups based on LFM, spp_, models, date, etc_ used in grouping later on or in creating the above columns_ 
 
-```{r}
+```{r, warning= F}
 data <- data_with_na_czo %>% 
   group_by(gr = cut(lfm_NAs_imputed, breaks= seq(0, 400, by = 10))) %>% #create 10 lfm_NAs_imputed segments, indicate these in new column called "gr"
   ungroup() %>% #ungroup - this will stop issues in the future (we can always regroup again)
@@ -260,31 +203,37 @@ data <- data_with_na_czo %>%
   ungroup() %>% #ungroup so r doesnt get confused
   unite(model_spp_gr, c("year", "month", "model", "spp", "gr"), remove = FALSE) %>% #create column for each group as above, which will be associated with the n of each group based on the above add_tally step_ 
   unite(model_spp_gr_sample, c("year", "month", "model", "spp", "gr", "sample"), remove = FALSE) %>% #create column with group for each indvidual sample (this is a unique ID)
-  mutate(individual = model_spp_gr_sample) %>% 
-  unite(year_month, c("year", "month"), remove = FALSE) %>% #group for month and year
- #  mutate(precip_2month = year_month) %>%
- # mutate(precip_2mo = recode(precip_2month, "2020_September" = 0.01, "2018_January" = 0.09, "2019_December" = 3_69, "2020_January" = 5_82, "2016_December" = 0_61)) %>%
- #  mutate(season = year_month) %>%
- #  mutate(season = recode(season, "2020_September" = "Dry", "2018_January" = "Dry", "2019_December" = "Wet", "2020_January" = "Wet", "2016_December" = "Dry" )) %>%  #group for month and year
+    unite(year_month, c("year", "month"), remove = FALSE) %>% #group for month and year
+  mutate(individual = model_spp_gr_sample,
+         ignition2 = ignition) %>% 
+  mutate(ignition_num = case_when(
+    ignition == "M" ~ 3, 
+    ignition == "1 and M" ~ 4, 
+    ignition == "1" ~ 1, 
+    ignition == "2" ~ 2, 
+    TRUE ~ as.numeric(ignition)
+  )) %>% 
+   mutate(ignition2 = case_when(
+    ignition == "M" ~ 0, 
+    ignition == "1 and M" ~ 1, 
+    ignition == "1" ~ 1, 
+    ignition == "2" ~ 1, 
+    TRUE ~ as.numeric(ignition)
+  )) %>% 
+  ungroup() %>% 
   group_by(model_spp_gr) %>% #group by year, model, spp, group column
-  mutate(ignition2 = ignition) %>% 
- # mutate("ignition2 = recode(ignition2, 2 == 1) %>% 
- # mutate(ignition2 = as_numeric(ignition2)) 
-  mutate(ignition2 = dplyr::recode(as_double(ignition2), `2` = 1, '3' = 1))
-
-setDT(data)[,total:=sum(ignition2),by=model_spp_gr][] #add column called "total" with the total number of ignitions per group ("sum" works because we have 0s and 1s)
-
-data <-  data %>%
-  mutate(prop_ignite = paste0(round(100 * total/n))) %>% #for each group, divide total ignitions ("total" column) by total number burn attempts ("n" column), as a percentage
+  mutate(total = sum(ignition2, na.rm = T), 
+         prop_ignite = paste0(round(100 * total/n)), 
+         prop_ignite = as.numeric(prop_ignite)) %>% #for each group, divide total ignitions ("total" column) by total number burn attempts ("n" column), as a percentage
   ungroup() %>% #ungroup so r doesnt get confused
   #create Rate of Spread column (only relevant for HP metrics, but we'll do it for all and just ignore that column when we do EPI analysis):
-  mutate(ros = 10/fd) %>% ##this returns Inf for those missing flame duration (i_e_, no burn columns_ Shouldnt be an issue when we filter out only those that burned); not relevant for Epiradiator samples, but we'll do it to those anyway and then ignore or filter out that column later_ 
-  select(-n, -total, -model_spp_gr_sample,-ignition2) #remove columns we aren't interested in anymore
-
-data$prop_ignite <- as_numeric(data$prop_ignite) #Since, otherwise, it would be a character vector
-data
+  mutate(ros = 10/fd) %>% 
+  #select(-n, -total, -model_spp_gr_sample,-ignition2) %>% 
+  mutate()
 
 hist(data$prop_ignite) #visualize to see if values make sense
+
+data_old <- data
 ```
 #Continue adding columns___
 
@@ -293,7 +242,7 @@ hist(data$prop_ignite) #visualize to see if values make sense
 
 ```{r}
 #impute lfm based on relationship with Mpa, grouping by species:
-data <- data %>%
+data <- data_old %>%
   group_by(spp) %>%
 #then create bins for LFM, in case we want to compare via bins
   mutate(hydration = cut(lfm_NAs_imputed, breaks = c(0, 60, 90, 400), labels = c("dry", "moderate", "hydrated"))) %>% 
@@ -304,8 +253,6 @@ data <- data %>%
   ungroup() %>% #ungroup - this will stop issues in the future (we can always regroup again)
   group_by(bins20lfm = cut(lfm_NAs_imputed, breaks= seq(0, 400, by = 20))) %>% #create 20 LFM segments, indicate these in new column called "bins20lfm"
   ungroup() 
-
-str(data)
 ```
 
 #Visualize missing weights and temps:
@@ -348,7 +295,13 @@ ggplot(data,
 
 ggplot(data, 
        aes(x = lfm_outliers_out, 
-           y = start_temp)) + 
+           y = surface_temp_start)) + 
+  geom_miss_point() +
+  facet_wrap(~year_month)
+
+ggplot(data, 
+       aes(x = lfm_outliers_out, 
+           y = taller_temp_start)) + 
   geom_miss_point() +
   facet_wrap(~year_month)
 
@@ -358,57 +311,43 @@ aq_nab <- nabular(data)
 all_equal(aq_shadow, aq_nab)
 #glimpse(aq_nab)
 ```
-We're not missing a ton of data, so imputing the median should not effect distribution___
+We're not missing a ton of data, so imputing the median should not affect distribution___
 
 ```{r include=TRUE}
 #view: 
 #multi_hist(data[,sapply(data, is_numeric)]) 
 
 #impute values for missing weights:
-data <- data %>%
+
+data_new <- data %>%
   unite(individual, c("year", "month", "spp", "sample"), remove = FALSE) %>% #create 'individual' column
   dplyr::group_by(model_spp_gr) %>%
-  impute_median_at(c("dry_wt", "fresh_wt", "water_wt", "sample_wt")) %>%
+  impute_median_at(.vars = c("dry_wt", "fresh_wt", "water_wt", "sample_wt")) %>%
   ungroup() %>%
-  impute_median_at("start_temp") %>%
-  mutate(temp_change = temp_max - start_temp)
-
-range(data$dry_wt)  
-range(data$sample_wt) 
-range(data$water_wt)
-range(data$fresh_wt)
-range(data$start_temp)
-#___No NAs, good!
-
-#colSums(is_na(data))
+  impute_median_at(.vars = c("surface_temp_start", "taller_temp_start")) %>%
+  mutate(temp_change = taller_temp_max - taller_temp_start)
 ```
 
-#Make dry weight columns, etc_ for PV comparison: 
+#Make dry weight columns, etc. for PV comparison: 
 
-(EDIT: PV Sat_weight stuff needs to happen in excel due to need for extrapolation__this is still interesting though)
+(EDIT: PV Sat_weight stuff needs to happen in excel due to need for extrapolation...this is still interesting though)
 
 ```{r}
 #calculate metrics for weight values (read _ as "per", i_e_ gdw_gfw is "gram dry weight per gram fresh weight"):
-data <- data %>%
+data <- data_new %>%
   dplyr::mutate(gdw_gfw = dry_wt/fresh_wt) %>%
   dplyr:::mutate(gww_gdw = lfm_NAs_imputed/100) %>%
   dplyr::mutate(gdw_gww = dry_wt/water_wt) %>%
   dplyr::mutate(dw_flam_sample = sample_wt * gdw_gfw) %>%
   dplyr::mutate(ww_flam_sample = sample_wt - dw_flam_sample) %>%
-  replace_with_na_at(_vars = c("ww_flam_sample"), condition = ~_x < 0) # oe was below 0 (due to missing lfm), so remove that one 
+  replace_with_na_at(.vars = c("ww_flam_sample"), 
+                     condition = ~.x < 0) # oe was below 0 (due to missing lfm), so remove that one 
 
-range(data$gdw_gfw)
-range(data$ww_flam_sample)
-
-str(data)
 #deal with weight values from the above (should actually not be needed)
 data <- data %>%
-  #replace_with_na(replace = list(dw_flam_sample = c(0, " ", "  ", "", "   ", "    "))) %>%
-  #replace_with_na(replace = list(dw_flam_sample = c(0))) %>% #when dw flam is zero (i_e_ missing sample weight or missing lfm)
-  #replace_with_na_at(_vars = c("dw_flam_sample"), condition = ~_x < 0) %>%
   dplyr::group_by(model_spp_gr) %>%
   #impute_lm(dw_flam_sample ~ lfm_NAs_imputed) %>%
-  impute_median_at("ww_flam_sample") %>%
+  impute_median_at(.vars = c("ww_flam_sample")) %>%
   dplyr::group_by(model_spp_gr) %>%
   dplyr::group_by(individual) %>% 
   dplyr::mutate(gww_gdw_saturated = max((gww_gdw), na_rm = TRUE)) %>%
@@ -416,17 +355,16 @@ data <- data %>%
   mutate(RWC = (gww_gdw/gww_gdw_saturated)*100) %>%
   mutate(RWD = 100 - RWC) %>%
   mutate(max_mpa_sample = max((mpa), na_rm = TRUE)) %>% 
-  select(order(colnames(_))) #make columns in alphabetical order
+  select(order(colnames(.))) #make columns in alphabetical order
 
-  str(data)
 rwc_data <- data %>% select(individual, year_month, dry_wt, spp, model, lfm_NAs_imputed, RWC, max_mpa_sample, mpa, gww_gdw, gww_gdw_saturated, fresh_wt, dry_wt, site, sample)
 
-str(rwc_data)
-
-write_csv(rwc_data, here("processed-data/czo_flam_curve_physiological_data_csv"))
+write_csv(rwc_data, here("processed-data", "analysis 2.0", "czo_2021_flam_curve_physiological_data.csv"))
 
 rwc_lfm_plot <- rwc_data %>%
-  ggplot(aes(x = lfm_NAs_imputed, y = RWC, color = spp)) +
+  ggplot(aes(x = lfm_NAs_imputed, 
+             y = RWC, 
+             color = spp)) +
   geom_point()
 rwc_lfm_plot
 ```
@@ -434,10 +372,9 @@ rwc_lfm_plot
 
 ```{r}
 ignite_only_hp <- data %>%
-  filter(model == "HP") %>% 
   filter(ignition == "1") %>% 
-  dplyr::mutate(gti = replace(gti, gti == "0", "0_5")) %>% #replace when gti is zero to _5 seconds, so we can take the log later
-  mutate(gti = as_numeric(gti))
+  dplyr::mutate(gti = replace(gti, gti == "0", "0.5")) %>% #replace when gti is zero to _5 seconds, so we can take the log later
+  mutate(gti = as.numeric(gti))
 ```
 
 ```{r}
@@ -504,42 +441,31 @@ aq_nab <- nabular(ignite_only_hp)
 all_equal(aq_shadow, aq_nab)
 #glimpse(aq_nab)
 ```
-Not many missing, which is good!
+Many missings, might have to dump them..?
+
 #Deal with NAs for hotplate:
 
 ```{r}
-#str(data)
-ignite_only_hp %>%
-  mutate(gti = as_numeric(gti)) 
+outlierKD2(ignite_only_hp, tti)
+outlierKD2(ignite_only_hp, ttfg)
 
-ignite_only_hp <- ignite_only_hp %>%
-  group_by(year_month) %>% 
-  group_by(spp) %>% #this makes us take the median of based on the species, the model, and the lfm bins (of 10 lfm) the missing value is in_ Preserves species differences, and lfm impact_ 
-  impute_median_at(c("ttfg", "gd", "gti", "fd", "pfg","temp_max", "start_temp", "ros", "ignition_temp", "temp_change", "prop_ignite", "ros", "tti")) %>% 
-  impute_lm(fh ~ spp + lfm_NAs_imputed)  #since fh may have gone out of top of frame for some larger flame height trials, use existing information to impute those values (BUT doesn't really matter since so few fh's are actually missing)
+ignite_only_hp_meds <- ignite_only_hp %>%
+  group_by(model_spp_gr) %>% #this makes us take the median of based on the species, the model, and the lfm bins (of 10 lfm) the missing value is in. Preserves species differences, and lfm impact. 
+  impute_median_at(c("ttfg", "gd", "gti", "fd", "pfg", "temp_change", "prop_ignite", "ros", "tti", "fh")) 
+# %>% 
+#   impute_lm(fh ~ lfm_NAs_imputed + spp)) #since fh may have gone out of top of frame for some larger flame height trials, use existing information to impute those values (BUT doesn't really matter since so few fh's are actually missing)
 
-colSums(is_na(ignite_only_hp)) #should not be any NAs except in LFM_outliers_out
+dist_hp <- ignite_only_hp_meds %>%
+  select(fd, fh, gd, gti, pfg, prop_ignite, ttfg, tti, temp_change)
 
-dist_hp <- ignite_only_hp %>%
-  select(fd, fh, gd, gti, pfg, prop_ignite, temp_max, ttfg, tti, temp_change)
-
-multi_hist(dist_hp[,sapply(dist_hp, is_numeric)])
+multi.hist(dist_hp[,sapply(dist_hp, is_numeric)])
 ```
 
 #Look at flam characteristics to see if they make sense:
 
 ```{r}
-range(ignite_only_hp$gti)
-range(ignite_only_hp$tti)
-range(ignite_only_hp$fh)
-range(ignite_only_hp$gd) #some high glow durations, but that is likely to be expected
-range(ignite_only_hp$pfg)
-range(ignite_only_hp$ttfg)
-range(ignite_only_hp$ros)
-range(ignite_only_hp$dw_flam_sample)
-
 ignite_only_hp <- ignite_only_hp %>%
-  mutate(flam_index = _45*((387+tti)/(12_5+tti))*exp(fh/(fh+55))) #using max tti and max fh, becomes a scale of least (1) to most (20) flammable
+  mutate(flam_index = .45*((488+tti)/(12.5+tti))*exp(fh/(fh+56))) #using max tti and max fh, becomes a scale of least (1) to most (20) flammable
 
 range(ignite_only_hp$flam_index)
 ```
@@ -554,32 +480,24 @@ Here we are normalizing by the dry weight of the flammability sample, which was 
 ignite_only_hp <- ignite_only_hp %>%  #Dealing with only EPI trials that ignited (can change later)
   dplyr::mutate(mean_wt = mean(sample_wt, na_rm = TRUE)) %>% #take the mean of all sample weights for each model
   ungroup() %>% 
-  mutate_if(is_integer, as_numeric) 
-
-ignite_only_hp$gti <- as_numeric(as_character(ignite_only_hp$gti)) #not sure why this became a character___
-#str(ignite_only_hp)
-
-#range(ignite_only_hp$dw_flam_sample) #range gets low for some samples (with very low lfm, maybe?)
+  mutate_if(is.integer, as.numeric) %>%
+  mutate(gti = replace(gti, gti == "0", "0.5")) %>% 
+  mutate(gti = as.numeric(gti)) 
 
 distributions_dw <- ignite_only_hp %>%
   ggplot() +
   geom_density(aes(x = dw_flam_sample, color = spp))
 distributions_dw 
 
-ignite_only_hp <- ignite_only_hp %>%
-  mutate(gti = replace(gti, gti == "0", "0_5")) %>% 
-  mutate(gti = as_numeric(gti)) %>%
+ignite_only_hp <- ignite_only_hp %>% 
   mutate("dry_norm_fh" = fh/dw_flam_sample) %>% #create new columns, etc_
   mutate("dry_norm_gd" = gd/dw_flam_sample) %>%
   mutate("dry_norm_fd" = fd/dw_flam_sample) %>%
   mutate("dry_norm_pfg" = pfg/dw_flam_sample) %>%
   mutate("dry_norm_ttfg" = ttfg/dw_flam_sample) %>%
   mutate("dry_norm_tti" = tti/dw_flam_sample) %>% 
-  mutate("dry_norm_gti" = gti/dw_flam_sample) %>%
-  mutate("temp_change" = temp_max - start_temp) 
+  mutate("dry_norm_gti" = gti/dw_flam_sample) 
 
-colSums(is_na(ignite_only_hp))
-#str(ignite_only_hp)
 ```
 
 ```{r}
@@ -589,8 +507,7 @@ distributions <- ignite_only_hp %>%
   ggplot() +
   geom_density(aes(x = value, color = spp)) +
   facet_wrap(~ var, scales = "free")
-distributions +
-  ggtitle("Epiradiator")
+distributions 
 ```
 
 #USE THIS FOR PCA:
@@ -601,17 +518,10 @@ Mirroring Max's PCA dataset (Mac_PCA_DATE_Rmd)
 str(ignite_only_hp)
 hp_ignite_only_pca <- ignite_only_hp %>%
   mutate(mpa = mpa * -1) %>%
-  # mutate(gti = replace(dry_norm_gti, dry_norm_gti == "0", "0_5")) %>% 
-  # select (hydration, spp, sample, model, year_month, mpa, lfm_outliers_out, lfm_NAs_imputed, dw_flam_sample, ww_flam_sample, sample_wt, ttfg, gd, gti, tti, fh, pfg, fd, temp_max, prop_ignite, dry_norm_fh, dry_norm_gd, dry_norm_fd, dry_norm_pfg, dry_norm_gti, dry_norm_ttfg, dry_norm_tti, ros, site, temp_change, flam_index, bins5lfm)  %>%
-  # arrange(hydration, spp, sample, model, year_month, mpa, lfm_outliers_out, lfm_NAs_imputed, sample_wt, dw_flam_sample, ww_flam_sample, ttfg, gd, gti, tti, fh, pfg, fd, temp_max, prop_ignite, dry_norm_fh, dry_norm_gd, dry_norm_fd, dry_norm_pfg, dry_norm_gti, dry_norm_ttfg, dry_norm_tti, ros, site, temp_change, flam_index, bins5lfm) %>%
   relocate("hydration")
-colSums(is_na(hp_ignite_only_pca))
 
-str(hp_ignite_only_pca) 
 
-#write_csv(x = hp_ignite_only_pca, (here("processed-data", "analysis 2_0", "hp_ignite_only_czo_csv")))
-
-write_csv(x = hp_ignite_only_pca, (here("processed-data", "analysis 2_0", "czo_flam_data_all_csv")))
+write_csv(x = hp_ignite_only_pca, (here("processed-data", "analysis 2.0", "czo_2021_flam_data_all_csv")))
 ```
 
 
