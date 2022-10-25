@@ -164,6 +164,23 @@ Ignitability Metrics:
 ### Time to Ignition
 
 ```{r}
+segmented.fxn <- function(y.var, x1, x2, x3, id, df){
+  o_mod <- lme(y.var ~ x1 + x2 + x3, random = ~1|id, data = df)
+  os_mod_b<-segmented.default(o_mod, ~x1, npsi=list(x1=1))
+  summary.segmented(os_mod_b)
+}
+
+seg_data_subset %>% 
+  group_by(spp) %>% 
+  segmented.fxn(y.var = tti, 
+                x1 = lfm, 
+                x2 = year_month, 
+                x3 = site, 
+                id = id)
+```
+
+
+```{r}
 o_mod<-lme(tti~lfm + year_month + site, random=~1|id, data=abco_subset_seg)
 os_mod_b<-segmented.default(o_mod, ~lfm, npsi=list(lfm=1))
 #summarizing results (note the '_coef' argument)
@@ -174,7 +191,7 @@ u_mod_b <- segmented(u_mod, ~lfm)
 davies.test(u_mod_b)
 summary.segmented(u_mod_b)
 
-rsegplot.lfm(os_mod_b, abco_subset_seg, 'abco', y.variable = 'tti',y.lab = "Time to Ignition (s)", tlp = mean_lfm_ceme, tlp.lower = lwr_lfm_ceme, tlp.upper = upr_lfm_ceme)
+rsegplot.lfm.nolegend(os_mod_b, abco_subset_seg, y.variable = 'tti',y.lab = "Time to Ignition (s)", tlp = mean_lfm_ceme, tlp.lower = lwr_lfm_ceme, tlp.upper = upr_lfm_ceme)
 ```
 
 ####HERE::: OCT 25, 2022

@@ -11,7 +11,17 @@
 
 #####LFM######
 
-rsegplot.lfm <- function(model, dataframe, species, x.variable = 'lfm', y.variable, max.x = max.lfm, x.lab = 'Live Fuel Moisture (%)', y.lab = NULL, tlp = NULL, tlp.upper = NULL, tlp.lower = NULL, color = 'color') {
+rsegplot.lfm <- function(model, 
+                         dataframe, 
+                         species,
+                         x.variable = 'lfm', 
+                         y.variable, 
+                         max.x = max.lfm, 
+                         x.lab = 'Live Fuel Moisture (%)', 
+                         y.lab = NULL, tlp = NULL, 
+                         tlp.upper = NULL, 
+                         tlp.lower = NULL, 
+                         color = 'color') {
   
   p <- summary.segmented(model)$psi[2]
   m <- slope(model, .coef = fixef(model))[[1]][[1]]
