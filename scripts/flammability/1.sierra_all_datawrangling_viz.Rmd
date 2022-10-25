@@ -15,7 +15,7 @@ library(lme4)
 library(here)
 library(segmented)
 library(nlme)
-citation('nlme')
+#citation('nlme')
 library(lubridate)
 library(plotrix)
 filter = dplyr::filter 
@@ -26,27 +26,59 @@ library(janitor)
 
 #Data Wrangling: 
 
+
+####Flammability: 
+
 ```{r}
-seki_raw <- read_csv(here("processed-data", "analysis 2.0", "seki_flam_data_all.csv")) %>% 
+flam_seki_raw <- read_csv(here("processed-data", "analysis 2.0", "seki_flam_data_all.csv")) %>% 
   clean_names() %>% 
   filter(model == "HP") %>% 
   mutate(location = "seki")
 
-unique(seki_raw$year_month)
-
-czo_raw <- read_csv(here("processed-data", "analysis 2.0", "czo_flam_data_all.csv")) %>% 
+flam_czo_2020_raw <- read_csv(here("processed-data", "analysis 2.0", "czo_2020_flam_data_all.csv")) %>% 
   clean_names() %>% 
   filter(model == "HP") %>% 
   mutate(location = "czo")
 
-unique(czo_raw$year_month)
+flam_czo_2021_raw <- read_csv(here("processed-data", "analysis 2.0", "czo_2021_flam_data_all.csv")) %>% 
+  clean_names() %>% 
+  filter(model == "HP") %>% 
+  mutate(location = "czo", 
+         lower_temp_max = surface_temp_max_within_5_secs_of_flame_end, 
+         sample_length = as.double(sample_length)) %>% 
+  select( -gr, -lfm, -fh_old, -surface_temp_max_within_5_secs_of_flame_end, -total)
 
-sierra_raw <- bind_rows(seki_raw, czo_raw) %>% 
-  select(-precip_2month, -precip_2mo, -x1, -video_notes_57, -video_notes_58, -gr, -lfm)
+flam_sierra_raw_no2021 <- bind_rows(flam_seki_raw, flam_czo_2020_raw) %>% 
+  mutate(taller_temp_start = temp_start_higher, 
+        taller_temp_max = temp_max_higher, 
+        lower_temp_max  = temp_max, 
+       # = temp_change, 
+       surface_temp_start = start_temp, 
+       temp_at_ignition_taller = ignition_temp_higher, 
+       temp_at_ignition_lower = ignition_temp, 
+       ignition_num = as.numeric(ignition), 
+       prop_new_lfm = NA_real_
+  ) %>% 
+  select(-precip_2month, -x1, -video_notes_57, -video_notes_58, -gr, -lfm,
+         -temp_max_higher, - temp_max, -start_temp, -ignition_temp_higher, - ignition_temp)
 
-sierra_df <- sierra_raw
+flam_sierra_df <- bind_rows(flam_sierra_raw_no2021, flam_czo_2021_raw) %>% 
+  mutate(lfm = lfm_n_as_imputed) %>% 
+  select(-lfm_n_as_imputed)
 
-sierra_df %>% 
+
+##Aaaaaaand viola! A very silly large dataframe of allllll of our samples. Woo! 
+
+flam_sierra_df %>% 
   write_csv(here("processed-data", "analysis 2.0", "sierra_flam_data_all.csv"))
+
+dlookr::diagnose(flam_sierra_df)
 ```
+
+####Physiological data: 
+
+```{r}
+
+```
+
 

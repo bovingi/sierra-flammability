@@ -26,38 +26,47 @@ rename = dplyr::rename
 Plot setup:
 ```{r warning=FALSE}
 ### Note: This dataset includes only Epiradiator and Ignited samples
-sierra_flamdata_all <- read_csv(here("processed-data", "analysis 2.0", "sierra_flam_data_all.csv"), show_col_types = FALSE) %>%
-  mutate(LFM = lfm_n_as_imputed) 
+sierra_flamdata_pca_all <- read_csv(here("processed-data", "analysis 2.0", "sierra_flam_data_all.csv"), show_col_types = FALSE) 
 
-sierra_flamdata <- sierra_flamdata_all %>% 
-  filter(ignition == 1)
+sierra_flamdata_pca <- sierra_flamdata_pca_all %>% 
+  filter(ignition == 1, 
+         ignition_num == 1) %>% 
+  na.omit(c("fh", "ttfg", "tti", "fd", "gd", "gti", "pfg","taller_temp_max", "hydration", "spp", "year_month", "sample"))
 
  # filter(year == 2020)
 
-figure_epi_pca_quant <- (sierra_flamdata[, c("fh", "ttfg", "tti", "fd", "gd", "gti", "pfg",
-         "temp_max")]) %>%  
+figure_epi_pca_quant <- (sierra_flamdata_pca[, c("fh", "ttfg", "tti", "fd", "gd", "gti", "pfg","taller_temp_max")]) %>%  
  transmute( "               Flame Duration" = fd, #using spaces to shift labels over instead of \t since \t is leading to little blank squares popping up on the plot.. spaces are just manual tabs anyways right?
            "                 Flame Height" = fh,
            "Post-flame Glow" = pfg,
           "Time to Ignition" = tti,
-          "Max. Temp" = temp_max,
+          "Max. Temp" = taller_temp_max,
             "Glow Duration" = gd,
           "\nGlow to Ignition" = gti,
           "\nTime to First Glow" = ttfg
-          )
+          ) %>% 
+  na.omit()
 
-figure_epi_pca_cat <- (sierra_flamdata[c("hydration", "spp", "year_month", "sample")]) %>% 
+figure_epi_pca_cat <-  (sierra_flamdata_pca[, c("fh", "ttfg", "tti", "fd", "gd", "gti", "pfg","taller_temp_max", "hydration", "spp", "year_month", "sample")]) %>% 
+  na.omit() %>% 
+  select(hydration, spp, year_month, sample) %>% 
   transmute("Hydration" = hydration, 
             spp = spp,
+            "Species" = spp,
             "Timing" = year_month, 
-            "Sample" = sample) %>% 
-  mutate(Species = case_when(
-    spp == "ADFA" ~ "A. fasciculatum", 
-    spp == "CEME" ~ "C. megacarpus"
-  ))
+            "Sample" = sample) 
+  
+  figure_prcomp <- prcomp(na.omit(figure_epi_pca_quant), 
+                          center = TRUE, 
+                          scale = TRUE, 
+                          retx=TRUE)
+  
+figure_epi_pca <- (sierra_flamdata_pca[, c("fh", "ttfg", "tti", "fd", "gd", "gti", "pfg","taller_temp_max", "hydration", "spp", "year_month", "sample")]) %>% 
+  na.omit() 
+```
 
-figure_prcomp <- prcomp(na.omit(figure_epi_pca_quant), center = TRUE, scale = TRUE, retx=TRUE)
 
+```{r warning=FALSE}
 #Setting up plotting data: 
 
 #decisions for plotting:
@@ -189,31 +198,32 @@ ggsave(here("figures", "pca.jpg"),
 ## Adding principal components into dataset
 
 ```{r warning=FALSE}
-x_flam <-predict(pcobj)  ### generate scores for each row in sierra_flamdata
+x_flam <-predict(pcobj)  ### generate scores for each row in sierra_flamdata_pca
 
 pca_flam_data <- as_data_frame(x_flam) 
 
-all_data_epi <- cbind(sierra_flamdata, pca_flam_data)
+sierra_flamdata_pca <- serra
+all_data_pca <- bind_cols(sierra_flamdata_pca, pca_flam_data)
 
 # #because we wants instances where they didn't ignite for the logistic regression: 
-sierra_flamdata_noignitions <- sierra_flamdata %>%
+sierra_flamdata_pca_noignitions <- sierra_flamdata_pca %>%
  # mutate(LFM = lfm_NAs_imputed) %>%
   #filter(year == 2020) %>%
  # filter(model == "EPI") %>%
   filter(ignition == 0)
 
-all_data_withnoignitions <- bind_rows(all_data_epi, sierra_flamdata_noignitions)
+all_data_withnoignitions <- bind_rows(all_data_pca, sierra_flamdata_pca_noignitions)
 
 #dataset with the above columns, PCA using imputed NAs (medians), and flam metrics with NAs still in there:
 mem_data <- all_data_withnoignitions
 
-write_csv(mem_data, here("processed-data", "analysis 2.0", "mem_data_sierra_alldates_csv"))
+write_csv(mem_data, here("processed-data", "analysis 2.0", "mem_data_sierra_alldates.csv"))
 ```
 
 # 1.2. PCA Table
 
 ```{r warning=FALSE}
-figure_epi_pca_cat <- (sierra_flamdata[c("hydration", "spp", "year_month", "sample")]) %>% 
+figure_epi_pca_cat <- (sierra_flamdata_pca[c("hydration", "spp", "year_month", "sample")]) %>% 
   transmute("Hydration" = hydration, 
             spp = spp,
             "Timing" = year_month, 
@@ -279,12 +289,12 @@ This figure shows two PCA's side-by-side, one for each species and will be inclu
 Plot setup:
 ```{r warning=FALSE}
 ### Note: This dataset includes only Epiradiator and Ignited samples
-sierra_flamdata.adfa <- sierra_flamdata %>% 
+sierra_flamdata_pca.adfa <- sierra_flamdata_pca %>% 
   filter(spp == "ADFA")
 
  # filter(year == 2020)
 
-figure_epi_pca_quant.adfa <- (sierra_flamdata.adfa[, c("fh", "ttfg", "tti", "fd", "gd", "gti", "pfg",
+figure_epi_pca_quant.adfa <- (sierra_flamdata_pca.adfa[, c("fh", "ttfg", "tti", "fd", "gd", "gti", "pfg",
          "temp_max")]) %>%  
  transmute("\n\nFlame Duration" = fd,
            " Flame Height" = fh,
@@ -296,7 +306,7 @@ figure_epi_pca_quant.adfa <- (sierra_flamdata.adfa[, c("fh", "ttfg", "tti", "fd"
            "Time to First Glow\n" = ttfg
           )
 
-figure_epi_pca_cat.adfa <- (sierra_flamdata.adfa[c("hydration", "spp", "year_month", "sample")]) %>% 
+figure_epi_pca_cat.adfa <- (sierra_flamdata_pca.adfa[c("hydration", "spp", "year_month", "sample")]) %>% 
   transmute("Hydration" = hydration, 
             spp = spp,
             "Timing" = year_month, 
@@ -436,12 +446,12 @@ adfa.pca.plot
 Plot setup:
 ```{r warning=FALSE}
 ### Note: This dataset includes only Epiradiator and Ignited samples
-sierra_flamdata.ceme <- sierra_flamdata %>% 
+sierra_flamdata_pca.ceme <- sierra_flamdata_pca %>% 
   filter(spp == "CEME")
 
  # filter(year == 2020)
 
-figure_epi_pca_quant.ceme <- (sierra_flamdata.ceme[, c("fh", "ttfg", "tti", "fd", "gd", "gti", "pfg",
+figure_epi_pca_quant.ceme <- (sierra_flamdata_pca.ceme[, c("fh", "ttfg", "tti", "fd", "gd", "gti", "pfg",
          "temp_max")]) %>%  
  transmute("  Flame Duration" = fd,
            "     Flame Height" = fh,
@@ -453,7 +463,7 @@ figure_epi_pca_quant.ceme <- (sierra_flamdata.ceme[, c("fh", "ttfg", "tti", "fd"
            "\nTime to First Glow" = ttfg
           )
 
-figure_epi_pca_cat.ceme <- (sierra_flamdata.ceme[c("hydration", "spp", "year_month", "sample")]) %>% 
+figure_epi_pca_cat.ceme <- (sierra_flamdata_pca.ceme[c("hydration", "spp", "year_month", "sample")]) %>% 
   transmute("Hydration" = hydration, 
             spp = spp,
             "Timing" = year_month, 

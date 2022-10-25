@@ -384,7 +384,7 @@ rwc.data <- data %>% select(individual, year.month, dry.wt, spp, model, lfm.NAs.
 
 str(rwc.data)
 
-write.csv(rwc.data, here("processed-data/czo.flam.curve.physiological.data.csv"))
+write.csv(rwc.data, here("processed-data", "analysis 2.0", "czo_2020_flam_curve_physiological_data.csv"))
 
 rwc.lfm.plot <- rwc.data %>%
   ggplot(aes(x = lfm.NAs.imputed, y = RWC, color = spp)) +
@@ -572,7 +572,7 @@ str(hp.ignite.only.pca)
 
 #write.csv(x = hp.ignite.only.pca, (here("processed-data", "analysis 2.0", "hp_ignite_only_czo.csv")))
 
-write.csv(x = hp.ignite.only.pca, (here("processed-data", "analysis 2.0", "czo_flam_data_all.csv")))
+write.csv(x = hp.ignite.only.pca, (here("processed-data", "analysis 2.0", "czo_2020_flam_data_all.csv")))
 ```
 
 
