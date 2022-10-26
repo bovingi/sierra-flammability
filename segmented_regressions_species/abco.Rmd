@@ -27,7 +27,7 @@ select = dplyr::select
 
 # Function to plot mixed effects model segmented regressions:
 
-source(here::here("scripts", "scripts_functions", "plot_segmented_MEM.R"))
+source(here::here("scripts", "scripts_functions", "plot_segmented_MEM_V2.R"))
 ```
 
 # Reading in Dataframe
@@ -167,7 +167,7 @@ u_mod_b <- segmented(u_mod, ~lfm)
 davies.test(u_mod_b)
 summary.segmented(u_mod_b)
 
-#rsegplot.lfm.nolegend(os_mod_b, abco_subset_seg, y.variable = 'tti',y.lab = "Time to Ignition (s)", tlp = mean_lfm_abco, tlp.lower = lwr_lfm_abco, tlp.upper = upr_lfm_abco)
+rsegplot.lfm(os_mod_b, abco_subset_seg, y.variable = 'tti', y.lab = "Time to Ignition (s)", tlp = mean_lfm_abco, tlp.lower = lwr_lfm_abco, tlp.upper = upr_lfm_abco)
 ```
 
 
@@ -178,7 +178,7 @@ os_mod<-segmented.default(o_mod, ~lfm, npsi=list(lfm=1))
 #summarizing results (note the '_coef' argument)
 summary.segmented(os_mod)
 
-# #rsegplot.lfm(os_mod, abco_subset_seg, 'abco', y_variable = 'prop_ignite_bins5_nodate',y_lab = "Proportion Ignted (5% Bins of LFM)", tlp = mean_lfm_abco, tlp_lower = lwr_lfm_abco, tlp_upper = upr_lfm_abco)
+rsegplot.lfm(os_mod, abco_subset_seg, y.variable = 'prop_ignite', y.lab = "Proportion Ignted (5% Bins of LFM)", tlp = mean_lfm_abco, tlp.lower = lwr_lfm_abco, tlp.upper = upr_lfm_abco)
 ```
 
 ### Glow to Ignition
@@ -191,7 +191,7 @@ os_mod<-segmented.default(o_mod, ~lfm, npsi=list(lfm=1))
 #summarizing results (note the '_coef' argument)
 summary.segmented(os_mod)
 
-#rsegplot_lfm(os_mod, abco_subset_seg, 'abco', y_variable = 'gti',y_lab = "Glow to Ignition (s)", tlp = mean_lfm_abco, tlp_lower = lwr_lfm_abco, tlp_upper = upr_lfm_abco)
+rsegplot.lfm(os_mod, abco_subset_seg_gti, y.variable = 'gti', y.lab = "Glow to Ignition (s)", tlp = mean_lfm_abco, tlp.lower = lwr_lfm_abco, tlp.upper = upr_lfm_abco)
 ```
 
 Combustibility Metrics:
@@ -203,7 +203,7 @@ os_mod<-segmented.default(o_mod, ~lfm, npsi=list(lfm=1))
 #summarizing results (note the '_coef' argument)
 summary.segmented(os_mod)
 
-##rsegplot_lfm(os_mod, abco_subset_seg, 'abco', y_variable = 'fh',y_lab = "Flame Height (cm)", tlp = mean_lfm_abco, tlp_lower = lwr_lfm_abco, tlp_upper = upr_lfm_abco)
+rsegplot.lfm(os_mod, abco_subset_seg, y.variable = 'fh', y.lab = "Flame Height (cm)", tlp = mean_lfm_abco, tlp.lower = lwr_lfm_abco, tlp.upper = upr_lfm_abco)
 ```
 
 ### Max_ Temp_
@@ -211,13 +211,12 @@ summary.segmented(os_mod)
 abco_subset_seg_lower_temp_max <- abco_subset_seg %>% 
   drop_na(lower_temp_max)
 
-
 o_mod<-lme(lower_temp_max~lfm + year_month + site, random=~1|id, data=abco_subset_seg_lower_temp_max)
 os_mod<-segmented.default(o_mod, ~lfm, npsi=list(lfm=1))
 #summarizing results (note the '_coef' argument)
 summary.segmented(os_mod)
 
-##rsegplot_lfm(os_mod, abco_subset_seg, 'abco', y_variable = 'temp_max',y_lab = "Maximum Temperature (C)", tlp = mean_lfm_abco, tlp_lower = lwr_lfm_abco, tlp_upper = upr_lfm_abco)
+rsegplot.lfm(os_mod, abco_subset_seg_lower_temp_max, y.variable = 'lower_temp_max', y.lab = "Maximum Temperature (C)", tlp = mean_lfm_abco, tlp.lower = lwr_lfm_abco, tlp.upper = upr_lfm_abco)
 ```
 
 Sustainability Metrics:
@@ -228,7 +227,7 @@ os_mod_f<-segmented.default(o_mod, ~lfm, npsi=list(lfm=1))
 #summarizing results (note the '_coef' argument)
 summary.segmented(os_mod_f)
 
-##rsegplot_lfm(os_mod, abco_subset_seg, 'abco', y_variable = 'fd',y_lab = "Flame Duration (s)", tlp = mean_lfm_abco, tlp_lower = lwr_lfm_abco, tlp_upper = upr_lfm_abco)
+rsegplot.lfm(os_mod_f, abco_subset_seg, y.variable = 'fd', y.lab = "Flame Duration (s)", tlp = mean_lfm_abco, tlp.lower = lwr_lfm_abco, tlp.upper = upr_lfm_abco)
 ```
 
 
@@ -252,27 +251,27 @@ os_mod_b1<-segmented.default(o_mod, ~mpa, npsi=list(mpa=1))
 #summarizing results (note the '_coef' argument)
 summary.segmented(os_mod_b1)
 
-#rsegplot_mpa(os_mod, abco_subset_seg, 'abco', y_variable = 'tti',y_lab = "Time to Ignition (s)", tlp = mean_mpa_abco, tlp_lower = lwr_mpa_abco, tlp_upper = upr_mpa_abco)
+rsegplot.mpa(os_mod_b1, abco_subset_seg, y.variable = 'tti', y.lab = "Time to Ignition (s)", tlp = mean_mpa_abco, tlp.lower = lwr_mpa_abco, tlp.upper = upr_mpa_abco)
 ```
 
 ### Prop_ Ignite (5%)
 ```{r}
-o_mod<-lme(prop_ignite_bins5_nodate~mpa + year_month + site, random=~1|id, data=abco_subset_seg)
+o_mod<-lme(prop_ignite~mpa + year_month + site, random=~1|id, data=abco_subset_seg)
 os_mod<-segmented.default(o_mod, ~mpa, npsi=list(mpa=1))
 #summarizing results (note the '_coef' argument)
 summary.segmented(os_mod)
 
-#rsegplot_mpa(os_mod, abco_subset_seg, 'abco', y_variable = 'prop_ignite_bins5_nodate',y_lab = "Proportion Ignted (5% Bins of LFM)", tlp = mean_mpa_abco, tlp_lower = lwr_mpa_abco, tlp_upper = upr_mpa_abco)
+rsegplot.mpa(os_mod, abco_subset_seg, y.variable = 'prop_ignite', y.lab = "Proportion Ignted (5% Bins of LFM)", tlp = mean_mpa_abco, tlp.lower = lwr_mpa_abco, tlp.upper = upr_mpa_abco)
 ```
 
 ### Glow to Ignition
 ```{r}
-o_mod<-lme(gti~mpa + year_month + site, random=~1|id, data=abco_subset_seg)
+o_mod<-lme(gti~mpa + year_month + site, random=~1|id, data=abco_subset_seg_gti)
 os_mod<-segmented.default(o_mod, ~mpa, npsi=list(mpa=1))
 #summarizing results (note the '_coef' argument)
 summary.segmented(os_mod)
 
-#rsegplot_mpa(os_mod, abco_subset_seg, 'abco', y_variable = 'gti',y_lab = "Glow to Ignition (s)", tlp = mean_mpa_abco, tlp_lower = lwr_mpa_abco, tlp_upper = upr_mpa_abco)
+rsegplot.mpa(os_mod, abco_subset_seg_gti, y.variable = 'gti', y.lab = "Glow to Ignition (s)", tlp = mean_mpa_abco, tlp.lower = lwr_mpa_abco, tlp.upper = upr_mpa_abco)
 ```
 
 Combustibility Metrics:
@@ -283,7 +282,7 @@ os_mod<-segmented.default(o_mod, ~mpa, npsi=list(mpa=1))
 #summarizing results (note the '_coef' argument)
 summary.segmented(os_mod)
 
-#rsegplot_mpa(os_mod, abco_subset_seg, 'abco', y_variable = 'fh',y_lab = "Flame Height (cm)", tlp = mean_mpa_abco, tlp_lower = lwr_mpa_abco, tlp_upper = upr_mpa_abco)
+rsegplot.mpa(os_mod, abco_subset_seg, y.variable = 'fh', y.lab = "Flame Height (cm)", tlp = mean_mpa_abco, tlp.lower = lwr_mpa_abco, tlp.upper = upr_mpa_abco)
 ```
 
 # -------
