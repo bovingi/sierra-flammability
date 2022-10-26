@@ -1,27 +1,5 @@
 
-####JOE'S COMMENTS:####
-
-#This took a while to get running, but I think it works well now
-#I had to use base plot to get it to work
-
-###Note: x.variable and y.variable must be inputted as character strings
-
-#I split the function into two so that we could customize the plots for LFM and MPa separately
-#and also make the lines of code shorter and neater by involving more default values for arguments in the function
-
-#####LFM######
-
-rsegplot.lfm <- function(model, 
-                         dataframe, 
-                         species,
-                         x.variable = 'lfm', 
-                         y.variable, 
-                         max.x = max.lfm, 
-                         x.lab = 'Live Fuel Moisture (%)', 
-                         y.lab = NULL, tlp = NULL, 
-                         tlp.upper = NULL, 
-                         tlp.lower = NULL, 
-                         color = 'color') {
+rsegplot.lfm <- function(model, dataframe, species, x.variable = 'lfm', y.variable, max.x = max.lfm, x.lab = 'Live Fuel Moisture (%)', y.lab = NULL, tlp = NULL, tlp.upper = NULL, tlp.lower = NULL, color = 'color') {
   
   p <- summary.segmented(model)$psi[2]
   m <- slope(model, .coef = fixef(model))[[1]][[1]]
@@ -65,7 +43,6 @@ rsegplot.lfm <- function(model,
 }
 
 
-####MPA####
 
 rsegplot.mpa <- function(model, dataframe, species, x.variable = 'mpa', y.variable, max.x = max.mpa, x.lab = 'Water Potential (MPa)', y.lab = NULL, tlp = NULL, tlp.upper = NULL, tlp.lower = NULL, color = 'color') 
 {
@@ -114,10 +91,7 @@ rsegplot.mpa <- function(model, dataframe, species, x.variable = 'mpa', y.variab
 }
 
 
-
-#####For splitting by sampling date: no legend!#####
-
-
+#For splitting by sampling date: no legend!
 
 rsegplot.lfm.nolegend <- function(model, dataframe, species, x.variable = 'lfm', y.variable, max.x = max.lfm, x.lab = 'Live Fuel Moisture (%)', y.lab = NULL, tlp = NULL, tlp.upper = NULL, tlp.lower = NULL, color = 'color') {
   

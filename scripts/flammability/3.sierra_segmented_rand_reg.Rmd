@@ -104,7 +104,8 @@ max_seg_data <- seg_data_subset %>%
 # PV Curve Data
 
 ```{r}
-pv_summary_df_timing <- read_csv(here("processed-data", "allcurves_clean.csv"), show_col_types = FALSE) %>% 
+pv_summary_df_timing <- read_csv(here("processed-data", "pv_summary_df_timing.csv"), show_col_types = FALSE) %>% 
+   filter(timing == "fall") %>% 
   mutate_if(is.character, str_to_lower) %>% 
   #mutate_at(spp, str_to_lower) %>% 
   mutate(spp = str_trim(spp),
@@ -118,10 +119,8 @@ pv_summary_df_timing %>%
 
 #Dataframe of PV summaries (NOTE: need upper and lower still?)
 pv_means <- pv_summary_df_timing %>% 
-  mutate(mpa = water_potential, 
-         tlp = tlp_excel) %>% 
   type.convert(as.is = TRUE) %>% 
-  select(mpa, lfm, spp, tlp) %>% 
+ # select(mpa, lfm, spp, tlp) %>% 
   group_by(spp) %>% 
   summarise(across(where(is.numeric), mean, .names = "mean_{.col}")) 
 ```
@@ -164,19 +163,19 @@ Ignitability Metrics:
 ### Time to Ignition
 
 ```{r}
-segmented.fxn <- function(y.var, x1, x2, x3, id, df){
-  o_mod <- lme(y.var ~ x1 + x2 + x3, random = ~1|id, data = df)
-  os_mod_b<-segmented.default(o_mod, ~x1, npsi=list(x1=1))
-  summary.segmented(os_mod_b)
-}
-
-seg_data_subset %>% 
-  group_by(spp) %>% 
-  segmented.fxn(y.var = tti, 
-                x1 = lfm, 
-                x2 = year_month, 
-                x3 = site, 
-                id = id)
+# segmented.fxn <- function(y.var, x1, x2, x3, id, df){
+#   o_mod <- lme(y.var ~ x1 + x2 + x3, random = ~1|id, data = df)
+#   os_mod_b<-segmented.default(o_mod, ~x1, npsi=list(x1=1))
+#   summary.segmented(os_mod_b)
+# }
+# 
+# seg_data_subset %>% 
+#   group_by(spp) %>% 
+#   segmented.fxn(y.var = tti, 
+#                 x1 = lfm, 
+#                 x2 = year_month, 
+#                 x3 = site, 
+#                 id = id)
 ```
 
 

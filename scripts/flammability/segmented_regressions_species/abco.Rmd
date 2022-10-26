@@ -1,0 +1,293 @@
+---
+title: "abco segmented regressions"
+author: "Indra Boving & Joe Celebrezze"
+date: "4/15/2021"
+output: html_document
+---
+
+#Setup:
+```{r}
+knitr::opts_chunk$set(echo = TRUE)
+#lots of extra here, but oh well___ 
+library(ggplot2)
+library(gapminder)
+library(tidyverse)
+library(lme4)
+library(here)
+library(segmented)
+library(nlme)
+citation('nlme')
+library(lubridate)
+#install.packages("plotrix")
+library(plotrix)
+filter = dplyr::filter
+here = here::here
+select = dplyr::select
+#source(here("source-code", "source-segmented_lme_R"))
+
+# Function to plot mixed effects model segmented regressions:
+
+source(here::here("scripts", "scripts_functions", "plot_segmented_MEM.R"))
+```
+
+# Reading in Dataframe
+```{r}
+seg_data_subset <- read_csv(here("processed-data", "analysis 2.0", "sierra_flam_data_all.csv")) %>% 
+  mutate(id = individual)
+```
+
+# Color by Season
+
+```{r}
+seg_data_subset$color <- 'black'
+seg_data_subset$color[seg_data_subset$year_month=='2020_October']="purple"
+seg_data_subset$color[seg_data_subset$year_month=='2020_September']="pink"
+```
+
+# Splitting by Species and by Sampling Date
+
+```{r} 
+seg_data_subset <- seg_data_subset %>% 
+  mutate_if(is.character, str_to_lower) %>% 
+  mutate(spp = str_trim(spp),
+         lfm_scaled = scale(lfm),
+    name = paste(spp,"_max", sep = ""), 
+    name_subset = paste(spp, "_subset_seg", sep = ""), 
+   # name_yearmonth = intersect(spp, year_month), 
+    name_yearmonth = paste(spp, year_month, "subset_seg", sep = "_")) 
+
+seg_data_subset %>% 
+  group_split(spp) %>%
+  setNames(unique(seg_data_subset$name_subset))  %>%
+  list2env(envir = globalenv())
+
+seg_dfs <- list(abco_subset_seg, 
+                arpa_subset_seg, 
+                cade_subset_seg, 
+                ceco_subset_seg,
+                pije_subset_seg, 
+                quke_subset_seg)
+ 
+seg_data_subset %>% 
+  group_split(name_yearmonth) %>%
+  setNames(unique(seg_data_subset$name_yearmonth))  %>%
+  list2env(envir = globalenv())
+```
+
+
+# Maximums for LFM, MPa
+
+```{r}
+max_seg_data <- seg_data_subset %>% 
+  type.convert(as.is = TRUE) %>% 
+  select(mpa, lfm, spp) %>% 
+  group_by(spp) %>% 
+  summarise(across(where(is.numeric), max, .names = "max_{.col}")) 
+
+abco_max_mpa <- max_seg_data %>% 
+  filter(spp == "abco") %>% 
+  select(max_mpa) %>% 
+  pull()
+
+abco_max_lfm <- max_seg_data %>% 
+  filter(spp == "abco") %>% 
+  select(max_lfm) %>% 
+  pull()
+```
+
+# PV Curve Data
+
+
+```{r}
+pv_summary_df_timing <- read_csv(here("processed-data", "pv_summary_df_timing.csv"), show_col_types = FALSE) %>% 
+   filter(timing == "fall") %>% 
+  mutate_if(is.character, str_to_lower) %>% 
+  #mutate_at(spp, str_to_lower) %>% 
+  mutate(spp = str_trim(spp),
+    name = paste(spp,"_pv", sep = "")) %>% 
+  filter(!spp %in% c("ADFA", "CEME"))
+
+pv_summary_df_timing %>% 
+  group_split(spp) %>%
+   setNames(unique(pv_summary_df_timing$name)) %>%
+  list2env(envir = globalenv())
+```
+
+
+```{r}
+mean_mpa_abco <- abco_pv %>% 
+  select(mean_tlp) %>% 
+  pull()
+
+lwr_mpa_abco <- abco_pv %>% 
+  select(lwr) %>% 
+  pull()
+
+upr_mpa_abco <- abco_pv %>% 
+  select(upr) %>% 
+  pull()
+
+mean_lfm_abco <- abco_pv %>% 
+  select(mean_lfm) %>% 
+  pull()
+
+lwr_lfm_abco <- abco_pv %>% 
+  select(lwr_lfm) %>% 
+  pull()
+
+upr_lfm_abco <- abco_pv %>% 
+  select(upr_lfm) %>% 
+  pull()
+```
+
+# -------
+
+#Segmented regressions: 
+
+We're just going to do a few metrics, to represent each of the axes: 
+
+TTI, FH, FD, GD
+
+Maybe: Max temp
+
+## LFM
+
+Ignitability Metrics:
+
+### Time to Ignition
+
+```{r}
+o_mod<-lme(tti~lfm + year_month + site, random=~1|id, data=abco_subset_seg)
+os_mod_b<-segmented.default(o_mod, ~lfm, npsi=list(lfm=1))
+#summarizing results (note the '_coef' argument)
+summary.segmented(os_mod_b)
+
+u_mod <- lm(tti~lfm + year_month + site, data = abco_subset_seg)
+u_mod_b <- segmented(u_mod, ~lfm)
+davies.test(u_mod_b)
+summary.segmented(u_mod_b)
+
+#rsegplot.lfm.nolegend(os_mod_b, abco_subset_seg, y.variable = 'tti',y.lab = "Time to Ignition (s)", tlp = mean_lfm_abco, tlp.lower = lwr_lfm_abco, tlp.upper = upr_lfm_abco)
+```
+
+
+### Prop. Ignite (5%)
+```{r}
+o_mod<-lme(prop_ignite~lfm + year_month + site, random=~1|id, data=abco_subset_seg)
+os_mod<-segmented.default(o_mod, ~lfm, npsi=list(lfm=1))
+#summarizing results (note the '_coef' argument)
+summary.segmented(os_mod)
+
+# #rsegplot.lfm(os_mod, abco_subset_seg, 'abco', y_variable = 'prop_ignite_bins5_nodate',y_lab = "Proportion Ignted (5% Bins of LFM)", tlp = mean_lfm_abco, tlp_lower = lwr_lfm_abco, tlp_upper = upr_lfm_abco)
+```
+
+### Glow to Ignition
+```{r}
+abco_subset_seg_gti <- abco_subset_seg %>% 
+  drop_na(gti)
+
+o_mod<-lme(gti~lfm + year_month + site, random=~1|id, data=abco_subset_seg_gti)
+os_mod<-segmented.default(o_mod, ~lfm, npsi=list(lfm=1))
+#summarizing results (note the '_coef' argument)
+summary.segmented(os_mod)
+
+#rsegplot_lfm(os_mod, abco_subset_seg, 'abco', y_variable = 'gti',y_lab = "Glow to Ignition (s)", tlp = mean_lfm_abco, tlp_lower = lwr_lfm_abco, tlp_upper = upr_lfm_abco)
+```
+
+Combustibility Metrics:
+
+### Flame Height
+```{r}
+o_mod<-lme(fh~lfm + year_month + site, random=~1|id, data=abco_subset_seg)
+os_mod<-segmented.default(o_mod, ~lfm, npsi=list(lfm=1))
+#summarizing results (note the '_coef' argument)
+summary.segmented(os_mod)
+
+##rsegplot_lfm(os_mod, abco_subset_seg, 'abco', y_variable = 'fh',y_lab = "Flame Height (cm)", tlp = mean_lfm_abco, tlp_lower = lwr_lfm_abco, tlp_upper = upr_lfm_abco)
+```
+
+### Max_ Temp_
+```{r}
+abco_subset_seg_lower_temp_max <- abco_subset_seg %>% 
+  drop_na(lower_temp_max)
+
+
+o_mod<-lme(lower_temp_max~lfm + year_month + site, random=~1|id, data=abco_subset_seg_lower_temp_max)
+os_mod<-segmented.default(o_mod, ~lfm, npsi=list(lfm=1))
+#summarizing results (note the '_coef' argument)
+summary.segmented(os_mod)
+
+##rsegplot_lfm(os_mod, abco_subset_seg, 'abco', y_variable = 'temp_max',y_lab = "Maximum Temperature (C)", tlp = mean_lfm_abco, tlp_lower = lwr_lfm_abco, tlp_upper = upr_lfm_abco)
+```
+
+Sustainability Metrics:
+### Flame Duration
+```{r}
+o_mod<-lme(fd~lfm + year_month + site, random=~1|id, data=abco_subset_seg)
+os_mod_f<-segmented.default(o_mod, ~lfm, npsi=list(lfm=1))
+#summarizing results (note the '_coef' argument)
+summary.segmented(os_mod_f)
+
+##rsegplot_lfm(os_mod, abco_subset_seg, 'abco', y_variable = 'fd',y_lab = "Flame Duration (s)", tlp = mean_lfm_abco, tlp_lower = lwr_lfm_abco, tlp_upper = upr_lfm_abco)
+```
+
+
+# -------
+
+
+## Water Potential
+```{r}
+abco_subset_seg <- abco_subset_seg %>% 
+  mutate(mpa_scaled = scale(mpa))
+```
+
+
+ 
+Ignitability Metrics:
+
+### Time to Ignition
+```{r}
+o_mod<-lme(tti~mpa + year_month + site, random=~1|id, data=abco_subset_seg)
+os_mod_b1<-segmented.default(o_mod, ~mpa, npsi=list(mpa=1))
+#summarizing results (note the '_coef' argument)
+summary.segmented(os_mod_b1)
+
+#rsegplot_mpa(os_mod, abco_subset_seg, 'abco', y_variable = 'tti',y_lab = "Time to Ignition (s)", tlp = mean_mpa_abco, tlp_lower = lwr_mpa_abco, tlp_upper = upr_mpa_abco)
+```
+
+### Prop_ Ignite (5%)
+```{r}
+o_mod<-lme(prop_ignite_bins5_nodate~mpa + year_month + site, random=~1|id, data=abco_subset_seg)
+os_mod<-segmented.default(o_mod, ~mpa, npsi=list(mpa=1))
+#summarizing results (note the '_coef' argument)
+summary.segmented(os_mod)
+
+#rsegplot_mpa(os_mod, abco_subset_seg, 'abco', y_variable = 'prop_ignite_bins5_nodate',y_lab = "Proportion Ignted (5% Bins of LFM)", tlp = mean_mpa_abco, tlp_lower = lwr_mpa_abco, tlp_upper = upr_mpa_abco)
+```
+
+### Glow to Ignition
+```{r}
+o_mod<-lme(gti~mpa + year_month + site, random=~1|id, data=abco_subset_seg)
+os_mod<-segmented.default(o_mod, ~mpa, npsi=list(mpa=1))
+#summarizing results (note the '_coef' argument)
+summary.segmented(os_mod)
+
+#rsegplot_mpa(os_mod, abco_subset_seg, 'abco', y_variable = 'gti',y_lab = "Glow to Ignition (s)", tlp = mean_mpa_abco, tlp_lower = lwr_mpa_abco, tlp_upper = upr_mpa_abco)
+```
+
+Combustibility Metrics:
+### Flame Height
+```{r}
+o_mod<-lme(fh~mpa + year_month + site, random=~1|id, data=abco_subset_seg)
+os_mod<-segmented.default(o_mod, ~mpa, npsi=list(mpa=1))
+#summarizing results (note the '_coef' argument)
+summary.segmented(os_mod)
+
+#rsegplot_mpa(os_mod, abco_subset_seg, 'abco', y_variable = 'fh',y_lab = "Flame Height (cm)", tlp = mean_mpa_abco, tlp_lower = lwr_mpa_abco, tlp_upper = upr_mpa_abco)
+```
+
+# -------
+
+#Split by Sampling Date
+
+
