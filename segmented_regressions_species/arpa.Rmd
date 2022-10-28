@@ -1,5 +1,5 @@
 ---
-title: "abco segmented regressions"
+title: "arpa segmented regressions"
 author: "Indra Boving & Joe Celebrezze"
 date: "4/15/2021"
 output: html_document
@@ -61,13 +61,6 @@ seg_data_subset %>%
   setNames(unique(seg_data_subset$name_subset))  %>%
   list2env(envir = globalenv())
 
-seg_dfs <- list(abco_subset_seg, 
-                arpa_subset_seg, 
-                cade_subset_seg, 
-                ceco_subset_seg,
-                pije_subset_seg, 
-                quke_subset_seg)
- 
 seg_data_subset %>% 
   group_split(name_yearmonth) %>%
   setNames(unique(seg_data_subset$name_yearmonth))  %>%
@@ -84,13 +77,13 @@ max_seg_data <- seg_data_subset %>%
   group_by(spp) %>% 
   summarise(across(where(is.numeric), max, .names = "max_{.col}")) 
 
-abco_max_mpa <- max_seg_data %>% 
-  filter(spp == "abco") %>% 
+arpa_max_mpa <- max_seg_data %>% 
+  filter(spp == "arpa") %>% 
   select(max_mpa) %>% 
   pull()
 
-abco_max_lfm <- max_seg_data %>% 
-  filter(spp == "abco") %>% 
+arpa_max_lfm <- max_seg_data %>% 
+  filter(spp == "arpa") %>% 
   select(max_lfm) %>% 
   pull()
 ```
@@ -115,27 +108,27 @@ pv_summary_df_timing %>%
 
 
 ```{r}
-mean_mpa_abco <- abco_pv %>% 
+mean_mpa_arpa <- arpa_pv %>% 
   select(mean_tlp) %>% 
   pull()
 
-lwr_mpa_abco <- abco_pv %>% 
+lwr_mpa_arpa <- arpa_pv %>% 
   select(lwr) %>% 
   pull()
 
-upr_mpa_abco <- abco_pv %>% 
+upr_mpa_arpa <- arpa_pv %>% 
   select(upr) %>% 
   pull()
 
-mean_lfm_abco <- abco_pv %>% 
+mean_lfm_arpa <- arpa_pv %>% 
   select(mean_lfm) %>% 
   pull()
 
-lwr_lfm_abco <- abco_pv %>% 
+lwr_lfm_arpa <- arpa_pv %>% 
   select(lwr_lfm) %>% 
   pull()
 
-upr_lfm_abco <- abco_pv %>% 
+upr_lfm_arpa <- arpa_pv %>% 
   select(upr_lfm) %>% 
   pull()
 ```
@@ -157,77 +150,77 @@ Ignitability Metrics:
 ### Time to Ignition
 
 ```{r}
-o_mod<-lme(tti~lfm + year_month + site, random=~1|id, data=abco_subset_seg)
+o_mod<-lme(tti~lfm + year_month + site, random=~1|id, data=arpa_subset_seg)
 os_mod_b<-segmented.default(o_mod, ~lfm, npsi=list(lfm=1))
 #summarizing results (note the '_coef' argument)
 summary.segmented(os_mod_b)
 
-u_mod <- lm(tti~lfm + year_month + site, data = abco_subset_seg)
+u_mod <- lm(tti~lfm + year_month + site, data = arpa_subset_seg)
 u_mod_b <- segmented(u_mod, ~lfm)
 davies.test(u_mod_b)
 summary.segmented(u_mod_b)
 
-rsegplot.lfm(os_mod_b, abco_subset_seg, y.variable = 'tti', y.lab = "Time to Ignition (s)", tlp = mean_lfm_abco, tlp.lower = lwr_lfm_abco, tlp.upper = upr_lfm_abco)
+rsegplot.lfm(os_mod_b, arpa_subset_seg, y.variable = 'tti', y.lab = "Time to Ignition (s)", tlp = mean_lfm_arpa, tlp.lower = lwr_lfm_arpa, tlp.upper = upr_lfm_arpa)
 ```
 
 
 ### Prop. Ignite (5%)
 ```{r}
-o_mod<-lme(prop_ignite~lfm + year_month + site, random=~1|id, data=abco_subset_seg)
+o_mod<-lme(prop_ignite~lfm + year_month + site, random=~1|id, data=arpa_subset_seg)
 os_mod<-segmented.default(o_mod, ~lfm, npsi=list(lfm=1))
 #summarizing results (note the '_coef' argument)
 summary.segmented(os_mod)
 
-rsegplot.lfm(os_mod, abco_subset_seg, y.variable = 'prop_ignite', y.lab = "Proportion Ignted (5% Bins of LFM)", tlp = mean_lfm_abco, tlp.lower = lwr_lfm_abco, tlp.upper = upr_lfm_abco)
+rsegplot.lfm(os_mod, arpa_subset_seg, y.variable = 'prop_ignite', y.lab = "Proportion Ignted (5% Bins of LFM)", tlp = mean_lfm_arpa, tlp.lower = lwr_lfm_arpa, tlp.upper = upr_lfm_arpa)
 ```
 
 ### Glow to Ignition
 ```{r}
-abco_subset_seg_gti <- abco_subset_seg %>% 
+arpa_subset_seg_gti <- arpa_subset_seg %>% 
   drop_na(gti)
 
-o_mod<-lme(gti~lfm + year_month + site, random=~1|id, data=abco_subset_seg_gti)
+o_mod<-lme(gti~lfm + year_month + site, random=~1|id, data=arpa_subset_seg_gti)
 os_mod<-segmented.default(o_mod, ~lfm, npsi=list(lfm=1))
 #summarizing results (note the '_coef' argument)
 summary.segmented(os_mod)
 
-rsegplot.lfm(os_mod, abco_subset_seg_gti, y.variable = 'gti', y.lab = "Glow to Ignition (s)", tlp = mean_lfm_abco, tlp.lower = lwr_lfm_abco, tlp.upper = upr_lfm_abco)
+rsegplot.lfm(os_mod, arpa_subset_seg_gti, y.variable = 'gti', y.lab = "Glow to Ignition (s)", tlp = mean_lfm_arpa, tlp.lower = lwr_lfm_arpa, tlp.upper = upr_lfm_arpa)
 ```
 
 Combustibility Metrics:
 
 ### Flame Height
 ```{r}
-o_mod<-lme(fh~lfm + year_month + site, random=~1|id, data=abco_subset_seg)
+o_mod<-lme(fh~lfm + year_month + site, random=~1|id, data=arpa_subset_seg)
 os_mod<-segmented.default(o_mod, ~lfm, npsi=list(lfm=1))
 #summarizing results (note the '_coef' argument)
 summary.segmented(os_mod)
 
-rsegplot.lfm(os_mod, abco_subset_seg, y.variable = 'fh', y.lab = "Flame Height (cm)", tlp = mean_lfm_abco, tlp.lower = lwr_lfm_abco, tlp.upper = upr_lfm_abco)
+rsegplot.lfm(os_mod, arpa_subset_seg, y.variable = 'fh', y.lab = "Flame Height (cm)", tlp = mean_lfm_arpa, tlp.lower = lwr_lfm_arpa, tlp.upper = upr_lfm_arpa)
 ```
 
 ### Max_ Temp_
 ```{r}
-abco_subset_seg_lower_temp_max <- abco_subset_seg %>% 
+arpa_subset_seg_lower_temp_max <- arpa_subset_seg %>% 
   drop_na(lower_temp_max)
 
-o_mod<-lme(lower_temp_max~lfm + year_month + site, random=~1|id, data=abco_subset_seg_lower_temp_max)
+o_mod<-lme(lower_temp_max~lfm + year_month + site, random=~1|id, data=arpa_subset_seg_lower_temp_max)
 os_mod<-segmented.default(o_mod, ~lfm, npsi=list(lfm=1))
 #summarizing results (note the '_coef' argument)
 summary.segmented(os_mod)
 
-rsegplot.lfm(os_mod, abco_subset_seg_lower_temp_max, y.variable = 'lower_temp_max', y.lab = "Maximum Temperature (C)", tlp = mean_lfm_abco, tlp.lower = lwr_lfm_abco, tlp.upper = upr_lfm_abco)
+rsegplot.lfm(os_mod, arpa_subset_seg_lower_temp_max, y.variable = 'lower_temp_max', y.lab = "Maximum Temperature (C)", tlp = mean_lfm_arpa, tlp.lower = lwr_lfm_arpa, tlp.upper = upr_lfm_arpa)
 ```
 
 Sustainability Metrics:
 ### Flame Duration
 ```{r}
-o_mod<-lme(fd~lfm + year_month + site, random=~1|id, data=abco_subset_seg)
+o_mod<-lme(fd~lfm + year_month + site, random=~1|id, data=arpa_subset_seg)
 os_mod_f<-segmented.default(o_mod, ~lfm, npsi=list(lfm=1))
 #summarizing results (note the '_coef' argument)
 summary.segmented(os_mod_f)
 
-rsegplot.lfm(os_mod_f, abco_subset_seg, y.variable = 'fd', y.lab = "Flame Duration (s)", tlp = mean_lfm_abco, tlp.lower = lwr_lfm_abco, tlp.upper = upr_lfm_abco)
+rsegplot.lfm(os_mod_f, arpa_subset_seg, y.variable = 'fd', y.lab = "Flame Duration (s)", tlp = mean_lfm_arpa, tlp.lower = lwr_lfm_arpa, tlp.upper = upr_lfm_arpa)
 ```
 
 
@@ -236,7 +229,7 @@ rsegplot.lfm(os_mod_f, abco_subset_seg, y.variable = 'fd', y.lab = "Flame Durati
 
 ## Water Potential
 ```{r}
-abco_subset_seg <- abco_subset_seg %>% 
+arpa_subset_seg <- arpa_subset_seg %>% 
   mutate(mpa_scaled = scale(mpa))
 ```
 
@@ -246,58 +239,58 @@ Ignitability Metrics:
 
 ### Time to Ignition
 ```{r}
-o_mod<-lme(tti~mpa + year_month + site, random=~1|id, data=abco_subset_seg)
+o_mod<-lme(tti~mpa + year_month + site, random=~1|id, data=arpa_subset_seg)
 os_mod_b1<-segmented.default(o_mod, ~mpa, npsi=list(mpa=1))
 #summarizing results (note the '_coef' argument)
 summary.segmented(os_mod_b1)
 
-rsegplot.mpa(os_mod_b1, abco_subset_seg, y.variable = 'tti', y.lab = "Time to Ignition (s)", tlp = mean_mpa_abco, tlp.lower = lwr_mpa_abco, tlp.upper = upr_mpa_abco)
+rsegplot.mpa(os_mod_b1, arpa_subset_seg, y.variable = 'tti', y.lab = "Time to Ignition (s)", tlp = mean_mpa_arpa, tlp.lower = lwr_mpa_arpa, tlp.upper = upr_mpa_arpa)
 ```
 
 ### Prop_ Ignite (5%)
 ```{r}
-o_mod<-lme(prop_ignite~mpa + year_month + site, random=~1|id, data=abco_subset_seg)
+o_mod<-lme(prop_ignite~mpa + year_month + site, random=~1|id, data=arpa_subset_seg)
 os_mod<-segmented.default(o_mod, ~mpa, npsi=list(mpa=1))
 #summarizing results (note the '_coef' argument)
 summary.segmented(os_mod)
 
-rsegplot.mpa(os_mod, abco_subset_seg, y.variable = 'prop_ignite', y.lab = "Proportion Ignted (5% Bins of LFM)", tlp = mean_mpa_abco, tlp.lower = lwr_mpa_abco, tlp.upper = upr_mpa_abco)
+rsegplot.mpa(os_mod, arpa_subset_seg, y.variable = 'prop_ignite', y.lab = "Proportion Ignted (5% Bins of LFM)", tlp = mean_mpa_arpa, tlp.lower = lwr_mpa_arpa, tlp.upper = upr_mpa_arpa)
 ```
 
 ### Glow to Ignition
 ```{r}
-abco_subset_seg_gti <- abco_subset_seg_gti %>% 
+arpa_subset_seg_gti <- arpa_subset_seg_gti %>% 
   filter(gti < 50, 
          gti > 0)
 
-o_mod<-lme(gti~mpa + year_month + site, random=~1|id, data=abco_subset_seg_gti)
+o_mod<-lme(gti~mpa + year_month + site, random=~1|id, data=arpa_subset_seg_gti)
 os_mod<-segmented.default(o_mod, ~mpa, npsi=list(mpa=1))
 #summarizing results (note the '_coef' argument)
 summary.segmented(os_mod)
 
-rsegplot.mpa(os_mod, abco_subset_seg_gti, y.variable = 'gti', y.lab = "Glow to Ignition (s)", tlp = mean_mpa_abco, tlp.lower = lwr_mpa_abco, tlp.upper = upr_mpa_abco)
+rsegplot.mpa(os_mod, arpa_subset_seg_gti, y.variable = 'gti', y.lab = "Glow to Ignition (s)", tlp = mean_mpa_arpa, tlp.lower = lwr_mpa_arpa, tlp.upper = upr_mpa_arpa)
 ```
 
 ### Temp Max
 ```{r}
 
-o_mod<-lme(lower_temp_max~mpa + year_month + site, random=~1|id, abco_subset_seg_lower_temp_max)
+o_mod<-lme(lower_temp_max~mpa + year_month + site, random=~1|id, arpa_subset_seg_lower_temp_max)
 os_mod<-segmented.default(o_mod, ~mpa, npsi=list(mpa=1))
 #summarizing results (note the '_coef' argument)
 summary.segmented(os_mod)
 
-rsegplot.mpa(os_mod, abco_subset_seg_lower_temp_max, y.variable = 'lower_temp_max', y.lab = "Lower Temp Max (C)", tlp = mean_mpa_abco, tlp.lower = lwr_mpa_abco, tlp.upper = upr_mpa_abco)
+rsegplot.mpa(os_mod, arpa_subset_seg_lower_temp_max, y.variable = 'lower_temp_max', y.lab = "Lower Temp Max (C)", tlp = mean_mpa_arpa, tlp.lower = lwr_mpa_arpa, tlp.upper = upr_mpa_arpa)
 ```
 
 Combustibility Metrics:
 ### Flame Height
 ```{r}
-o_mod<-lme(fh~mpa + year_month + site, random=~1|id, data=abco_subset_seg)
+o_mod<-lme(fh~mpa + year_month + site, random=~1|id, data=arpa_subset_seg)
 os_mod<-segmented.default(o_mod, ~mpa, npsi=list(mpa=1))
 #summarizing results (note the '_coef' argument)
 summary.segmented(os_mod)
 
-rsegplot.mpa(os_mod, abco_subset_seg, y.variable = 'fh', y.lab = "Flame Height (cm)", tlp = mean_mpa_abco, tlp.lower = lwr_mpa_abco, tlp.upper = upr_mpa_abco)
+rsegplot.mpa(os_mod, arpa_subset_seg, y.variable = 'fh', y.lab = "Flame Height (cm)", tlp = mean_mpa_arpa, tlp.lower = lwr_mpa_arpa, tlp.upper = upr_mpa_arpa)
 ```
 
 # -------
