@@ -64,7 +64,8 @@ flam_sierra_raw_no2021 <- bind_rows(flam_seki_raw, flam_czo_2020_raw) %>%
 
 flam_sierra_df <- bind_rows(flam_sierra_raw_no2021, flam_czo_2021_raw) %>% 
   mutate(lfm = lfm_n_as_imputed) %>% 
-  select(-lfm_n_as_imputed)
+  select(-lfm_n_as_imputed) %>% 
+    mutate_if(is.character, str_to_lower) 
 
 
 ##Aaaaaaand viola! A very silly large dataframe of allllll of our samples. Woo! 
@@ -75,10 +76,56 @@ flam_sierra_df %>%
 dlookr::diagnose(flam_sierra_df)
 ```
 
-####Physiological data: 
+View all: 
 
 ```{r}
+flam_sierra_df %>% 
+  filter(ignition == 1) %>% 
+  select(spp, year_month, tti, fh, fd, gd, lfm, mpa, temp_change, prop_ignite) %>%
+  gather(-spp, -year_month, key = "var", value = "value") %>%
+  ggplot() +
+  geom_density(aes(x = value, fill = spp), 
+               alpha = .4) +
+  facet_wrap(~ var, scales = "free") 
+```
+```{r}
+all_cor <- flam_sierra_df %>% 
+  filter(ignition == 1) %>% 
+  select(tti, fh, fd, gd, temp_change, prop_ignite, lfm, mpa) %>% 
+  drop_na() %>% 
+  cor()
 
+corrplot::corrplot(all_cor, method = 'number', order = 'FPC', type = 'lower', diag = FALSE)
 ```
 
+
+
+```{r}
+flam_sierra_df %>% 
+  filter(ignition == 1, 
+         year_month != "2021_august") %>% 
+  select(spp, year_month, tti, fh, fd, gd, lfm, mpa, temp_change, prop_ignite) %>%
+  gather(-spp, -year_month, -lfm,  key = "var", value = "value") %>%
+  ggplot() +
+  geom_point(aes(y = value, 
+                 x = lfm,
+                 color = spp, 
+                 shape = year_month), 
+               alpha = .4) +
+  facet_wrap(~ var, scales = "free") 
+```
+```{r}
+flam_sierra_df %>% 
+  filter(ignition == 1, 
+         year_month != "2021_august") %>% 
+  select(spp, year_month, tti, fh, fd, gd, lfm, mpa, temp_change, prop_ignite) %>%
+  gather(-spp, -year_month, -mpa,  key = "var", value = "value") %>%
+  ggplot() +
+  geom_point(aes(y = value, 
+                 x = mpa,
+                 fill = spp, 
+                 color = year_month), 
+               alpha = .4) +
+  facet_wrap(~ var, scales = "free") 
+```
 

@@ -1,0 +1,530 @@
+---
+title: "Segmented Regressions: Bootstrapping Prior to Analysis"
+author: "Indra Boving & Joe Celebrezze"
+date: "7/21/2022"
+output: html_document
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+#lots of extra here, but oh well___ 
+library(ggplot2)
+library(gapminder)
+library(tidyverse)
+library(lme4)
+library(here)
+library(segmented)
+library(nlme)
+library(lubridate)
+library(MetBrewer)
+library(lattice)
+library(gt)
+library(gtsummary)
+library(kableExtra)
+filter = dplyr::filter 
+rename = dplyr::rename
+here = here::here
+group_by = dplyr::group_by
+library(janitor)
+```
+
+# Reading in Dataframes
+
+Using all dates instead of just Sept_ 2020 data
+
+```{r}
+seg_data_subset <- read_csv(here("processed-data", "analysis 2.0", "sierra_flam_data_all.csv")) %>% 
+  mutate(id = individual) %>% 
+  clean_names()
+
+#seg_data_subset_alldates <- read_csv(here('processed-data', 'mem_data_subset_alldates'))
+```
+
+# Data Wrangling
+For the segmented regressions, we debated using seasonal lfm minimums and maximums to limit the dataset, but instead -- since we wanted to keep the datasets similar for each analysis -- we used the dataset that was used in the mixed effects model analysis
+
+## Species Split
+```{r}
+seg_pije_subset <- seg_data_subset %>% 
+  filter(spp == "pije") %>% 
+  group_by(lfm_bin = cut(lfm, breaks= seq(0, 190, by = 6))) %>%  #Fixing the bins, setting based on pije max
+  drop_na(lfm, year_month, site, id) %>% 
+  select(tti, fh, temp_change, gd, gti, pfg, ttfg, fd, prop_ignite, lfm, lfm_bin, lfm, year_month, site, id)
+```
+
+#---------------
+
+# PIJE
+
+# 1. Pick the median bin density
+```{r}
+pije_bin_n <- seg_pije_subset %>% 
+  group_by(lfm_bin) %>% 
+  count()
+
+median(pije_bin_n$n) # Median: 9
+```
+
+# 2. Resampling points from each bin
+```{r}
+pije_binned_df <- seg_pije_subset %>% 
+  group_by(lfm_bin) %>% 
+  sample_n(9, replace = T) #from above
+```
+
+# 3. Segmented Regression
+```{r}
+out_lm<-lm(tti ~ lfm + site + year_month, data = pije_binned_df)
+davies<- davies.test(out_lm, ~lfm, k = 50)
+davies
+
+segmented_mod <- segmented(out_lm, seg.Z = ~lfm) #1 breakpoint for x
+summary(segmented_mod)
+```
+
+# 4. Iterating Above Process 1000 Times
+
+Holding vectors
+```{r}
+#psi_PC1 <- c(rep(NaN, 100))
+#psi_PC2 <- c(rep(NaN, 100))
+psi_tti <- c(rep(NaN, 100))
+psi_fh <- c(rep(NaN, 100))
+psi_fd <- c(rep(NaN, 100))
+psi_gd <- c(rep(NaN, 100))
+psi_gti <- c(rep(NaN, 100))
+psi_pfg <- c(rep(NaN, 100))
+psi_ttfg <- c(rep(NaN, 100))
+psi_fd <- c(rep(NaN, 100))
+psi_prop_ignite <- c(rep(NaN, 100))
+psi_temp_change <- c(rep(NaN, 100))
+
+pije_thresholds <- data_frame(psi_tti, psi_fh, psi_fd, psi_gd, psi_gti, psi_pfg, psi_ttfg, psi_prop_ignite, psi_temp_change)
+```
+
+For loop
+It is a bit clunky, but seems to do the trick_ Could not figure out how to iterate dependent variables in the linear models_
+
+```{r}
+for(i in 1:10){
+   for(j in 1:nrow(pije_thresholds)){
+  pije_binned_df <- seg_pije_subset %>% 
+  group_by(lfm_bin) %>% 
+  sample_n(19, replace = T)
+  # if(i == 1){
+  #   out_lm<-lm(PC1 ~ lfm + site + year_month, data = pije_binned_df)
+  # segmented_mod <- segmented(out_lm, seg.Z = ~lfm)
+  # pije_thresholds[j,i] <- summary(segmented_mod)$psi[2]
+  # }
+  # else if(i == 2) {
+  # out_lm<-lm(PC2 ~ lfm + site + year_month, data = pije_binned_df)
+  # segmented_mod <- segmented(out_lm, seg.Z = ~lfm)
+  # pije_thresholds[j,i] <- summary(segmented_mod)$psi[2]
+  # }
+  if(i == 1) {
+    out_lm<-lm(tti ~ lfm + site + year_month, data = pije_binned_df)
+  segmented_mod <- segmented(out_lm, seg.Z = ~lfm)
+  pije_thresholds[j,i] <- summary(segmented_mod)$psi[2]
+  }
+  else if(i == 2) {
+    out_lm<-lm(fh ~ lfm + site + year_month, data = pije_binned_df)
+  segmented_mod <- segmented(out_lm, seg.Z = ~lfm)
+  pije_thresholds[j,i] <- summary(segmented_mod)$psi[2]
+  }
+  else if(i == 3) {
+    out_lm<-lm(fd ~ lfm + site + year_month, data = pije_binned_df)
+  segmented_mod <- segmented(out_lm, seg.Z = ~lfm)
+  pije_thresholds[j,i] <- summary(segmented_mod)$psi[2]
+  }
+  else if(i == 4) {
+    out_lm<-lm(gd ~ lfm + site + year_month, data = pije_binned_df)
+  segmented_mod <- segmented(out_lm, seg.Z = ~lfm)
+  pije_thresholds[j,i] <- summary(segmented_mod)$psi[2]
+  }
+  else if(i == 5) {
+    out_lm<-lm(gti ~ lfm + site + year_month, data = pije_binned_df)
+  segmented_mod <- segmented(out_lm, seg.Z = ~lfm)
+  pije_thresholds[j,i] <- summary(segmented_mod)$psi[2]
+  }
+  else if(i == 6) {
+    out_lm<-lm(pfg ~ lfm + site + year_month, data = pije_binned_df)
+  segmented_mod <- segmented(out_lm, seg.Z = ~lfm)
+  pije_thresholds[j,i] <- summary(segmented_mod)$psi[2]
+  }
+  else if(i == 7) {
+    out_lm<-lm(ttfg ~ lfm + site + year_month, data = pije_binned_df)
+  segmented_mod <- segmented(out_lm, seg.Z = ~lfm)
+  pije_thresholds[j,i] <- summary(segmented_mod)$psi[2]
+  }
+    else if(i == 8) {
+    out_lm<-lm(prop_ignite ~ lfm + site + year_month, data = pije_binned_df)
+  segmented_mod <- segmented(out_lm, seg.Z = ~lfm)
+  pije_thresholds[j,i] <- summary(segmented_mod)$psi[2]
+    }
+    else if(i == 9) {
+    out_lm<-lm(temp_change ~ lfm + site + year_month, data = pije_binned_df)
+  segmented_mod <- segmented(out_lm, seg.Z = ~lfm)
+  pije_thresholds[j,i] <- summary(segmented_mod)$psi[2]
+  }
+   }}
+```
+
+pije comments: 
+
+Yay, that worked too! 
+
+
+<!-- Glow Duration: -->
+<!-- ```{r} -->
+<!-- for(j in 1:8){ -->
+<!--   set.seed(seed = j, kind = 'default', normal.kind = 'default', sample.kind = 'default') -->
+
+<!--   pije_binned_df <- seg_pije_subset %>% -->
+<!--   group_by(lfm_bin) %>% -->
+<!--   sample_n(19, replace = T) -->
+
+<!--   out_lm<-lm(gd ~ lfm + site + year_month, data = pije_binned_df) -->
+<!--   segmented_mod <- segmented(out_lm, seg.Z = ~lfm) -->
+<!--   pije_thresholds$psi_gd[j] <- summary(segmented_mod)$psi[2]} -->
+
+<!-- for(j in 9:17){ -->
+<!--   set.seed(seed = j+3, kind = 'default', normal.kind = 'default', sample.kind = 'default') -->
+
+<!--   pije_binned_df <- seg_pije_subset %>% -->
+<!--   group_by(lfm_bin) %>% -->
+<!--   sample_n(19, replace = T) -->
+
+<!--   out_lm<-lm(gd ~ lfm + site + year_month, data = pije_binned_df) -->
+<!--   segmented_mod <- segmented(out_lm, seg.Z = ~lfm) -->
+<!--   pije_thresholds$psi_gd[j] <- summary(segmented_mod)$psi[2]} -->
+
+<!-- for(j in 18:24){ -->
+<!--   set.seed(seed = j+9, kind = 'default', normal.kind = 'default', sample.kind = 'default') -->
+
+<!--   pije_binned_df <- seg_pije_subset %>% -->
+<!--   group_by(lfm_bin) %>% -->
+<!--   sample_n(19, replace = T) -->
+
+<!--   out_lm<-lm(gd ~ lfm + site + year_month, data = pije_binned_df) -->
+<!--   segmented_mod <- segmented(out_lm, seg.Z = ~lfm) -->
+<!--   pije_thresholds$psi_gd[j] <- summary(segmented_mod)$psi[2]} -->
+
+<!-- for(j in 25:29){ -->
+<!--   set.seed(seed = j+11, kind = 'default', normal.kind = 'default', sample.kind = 'default') -->
+
+<!--   pije_binned_df <- seg_pije_subset %>% -->
+<!--   group_by(lfm_bin) %>% -->
+<!--   sample_n(19, replace = T) -->
+
+<!--   out_lm<-lm(gd ~ lfm + site + year_month, data = pije_binned_df) -->
+<!--   segmented_mod <- segmented(out_lm, seg.Z = ~lfm) -->
+<!--   pije_thresholds$psi_gd[j] <- summary(segmented_mod)$psi[2]} -->
+
+<!-- for(j in 30:33){ -->
+<!--   set.seed(seed = j+15, kind = 'default', normal.kind = 'default', sample.kind = 'default') -->
+
+<!--   pije_binned_df <- seg_pije_subset %>% -->
+<!--   group_by(lfm_bin) %>% -->
+<!--   sample_n(19, replace = T) -->
+
+<!--   out_lm<-lm(gd ~ lfm + site + year_month, data = pije_binned_df) -->
+<!--   segmented_mod <- segmented(out_lm, seg.Z = ~lfm) -->
+<!--   pije_thresholds$psi_gd[j] <- summary(segmented_mod)$psi[2]} -->
+
+<!-- for(j in 34:37){ -->
+<!--   set.seed(seed = j+16, kind = 'default', normal.kind = 'default', sample.kind = 'default') -->
+
+<!--   pije_binned_df <- seg_pije_subset %>% -->
+<!--   group_by(lfm_bin) %>% -->
+<!--   sample_n(19, replace = T) -->
+
+<!--   out_lm<-lm(gd ~ lfm + site + year_month, data = pije_binned_df) -->
+<!--   segmented_mod <- segmented(out_lm, seg.Z = ~lfm) -->
+<!--   pije_thresholds$psi_gd[j] <- summary(segmented_mod)$psi[2]} -->
+
+<!-- for(j in 38:42){ -->
+<!--   set.seed(seed = j+17, kind = 'default', normal.kind = 'default', sample.kind = 'default') -->
+
+<!--   pije_binned_df <- seg_pije_subset %>% -->
+<!--   group_by(lfm_bin) %>% -->
+<!--   sample_n(19, replace = T) -->
+
+<!--   out_lm<-lm(gd ~ lfm + site + year_month, data = pije_binned_df) -->
+<!--   segmented_mod <- segmented(out_lm, seg.Z = ~lfm) -->
+<!--   pije_thresholds$psi_gd[j] <- summary(segmented_mod)$psi[2]} -->
+
+<!-- for(j in 43:50){ -->
+<!--   set.seed(seed = j+46, kind = 'default', normal.kind = 'default', sample.kind = 'default') -->
+
+<!--   pije_binned_df <- seg_pije_subset %>% -->
+<!--   group_by(lfm_bin) %>% -->
+<!--   sample_n(19, replace = T) -->
+
+<!--   out_lm<-lm(gd ~ lfm + site + year_month, data = pije_binned_df) -->
+<!--   segmented_mod <- segmented(out_lm, seg.Z = ~lfm) -->
+<!--   pije_thresholds$psi_gd[j] <- summary(segmented_mod)$psi[2]} -->
+
+<!-- for(j in 51:60){ -->
+<!--   set.seed(seed = j+64, kind = 'default', normal.kind = 'default', sample.kind = 'default') -->
+
+<!--   pije_binned_df <- seg_pije_subset %>% -->
+<!--   group_by(lfm_bin) %>% -->
+<!--   sample_n(19, replace = T) -->
+
+<!--   out_lm<-lm(gd ~ lfm + site + year_month, data = pije_binned_df) -->
+<!--   segmented_mod <- segmented(out_lm, seg.Z = ~lfm) -->
+<!--   pije_thresholds$psi_gd[j] <- summary(segmented_mod)$psi[2]} -->
+
+<!-- for(j in 60:68){ -->
+<!--   set.seed(seed = j+68, kind = 'default', normal.kind = 'default', sample.kind = 'default') -->
+
+<!--   pije_binned_df <- seg_pije_subset %>% -->
+<!--   group_by(lfm_bin) %>% -->
+<!--   sample_n(19, replace = T) -->
+
+<!--   out_lm<-lm(gd ~ lfm + site + year_month, data = pije_binned_df) -->
+<!--   segmented_mod <- segmented(out_lm, seg.Z = ~lfm) -->
+<!--   pije_thresholds$psi_gd[j] <- summary(segmented_mod)$psi[2]} -->
+
+<!-- for(j in 69:81){ -->
+<!--   set.seed(seed = j+83, kind = 'default', normal.kind = 'default', sample.kind = 'default') -->
+
+<!--   pije_binned_df <- seg_pije_subset %>% -->
+<!--   group_by(lfm_bin) %>% -->
+<!--   sample_n(19, replace = T) -->
+
+<!--   out_lm<-lm(gd ~ lfm + site + year_month, data = pije_binned_df) -->
+<!--   segmented_mod <- segmented(out_lm, seg.Z = ~lfm) -->
+<!--   pije_thresholds$psi_gd[j] <- summary(segmented_mod)$psi[2]} -->
+
+<!-- for(j in 82:87){ -->
+<!--   set.seed(seed = j+89, kind = 'default', normal.kind = 'default', sample.kind = 'default') -->
+
+<!--   pije_binned_df <- seg_pije_subset %>% -->
+<!--   group_by(lfm_bin) %>% -->
+<!--   sample_n(19, replace = T) -->
+
+<!--   out_lm<-lm(gd ~ lfm + site + year_month, data = pije_binned_df) -->
+<!--   segmented_mod <- segmented(out_lm, seg.Z = ~lfm) -->
+<!--   pije_thresholds$psi_gd[j] <- summary(segmented_mod)$psi[2]} -->
+
+<!-- for(j in 88:95){ -->
+<!--   set.seed(seed = j+96, kind = 'default', normal.kind = 'default', sample.kind = 'default') -->
+
+<!--   pije_binned_df <- seg_pije_subset %>% -->
+<!--   group_by(lfm_bin) %>% -->
+<!--   sample_n(19, replace = T) -->
+
+<!--   out_lm<-lm(gd ~ lfm + site + year_month, data = pije_binned_df) -->
+<!--   segmented_mod <- segmented(out_lm, seg.Z = ~lfm) -->
+<!--   pije_thresholds$psi_gd[j] <- summary(segmented_mod)$psi[2]} -->
+
+<!-- for(j in 95:100){ -->
+<!--   set.seed(seed = j+98, kind = 'default', normal.kind = 'default', sample.kind = 'default') -->
+
+<!--   pije_binned_df <- seg_pije_subset %>% -->
+<!--   group_by(lfm_bin) %>% -->
+<!--   sample_n(19, replace = T) -->
+
+<!--   out_lm<-lm(gd ~ lfm + site + year_month, data = pije_binned_df) -->
+<!--   segmented_mod <- segmented(out_lm, seg.Z = ~lfm) -->
+<!--   pije_thresholds$psi_gd[j] <- summary(segmented_mod)$psi[2]} -->
+<!-- ``` -->
+<!-- Oh boy that took a while_ -->
+
+<!-- Glow to Ignition: -->
+
+<!-- No breakpoints estimated -->
+<!-- ```{r} -->
+<!-- for(j in 1:28){ -->
+<!--   set.seed(seed = j, kind = 'default', normal.kind = 'default', sample.kind = 'default') -->
+
+<!--   pije_binned_df <- seg_pije_subset %>% -->
+<!--   group_by(lfm_bin) %>% -->
+<!--   sample_n(19, replace = T) -->
+
+<!--   out_lm<-lm(gti ~ lfm + site + year_month, data = pije_binned_df) -->
+<!--   segmented_mod <- segmented(out_lm, seg.Z = ~lfm) -->
+<!--   pije_thresholds$psi_gti[j] <- summary(segmented_mod)$psi[2]} -->
+
+<!-- for(j in 29:77){ -->
+<!--   set.seed(seed = j+10, kind = 'default', normal.kind = 'default', sample.kind = 'default') -->
+
+<!--   pije_binned_df <- seg_pije_subset %>% -->
+<!--   group_by(lfm_bin) %>% -->
+<!--   sample_n(19, replace = T) -->
+
+<!--   out_lm<-lm(gti ~ lfm + site + year_month, data = pije_binned_df) -->
+<!--   segmented_mod <- segmented(out_lm, seg.Z = ~lfm) -->
+<!--   pije_thresholds$psi_gti[j] <- summary(segmented_mod)$psi[2]} -->
+
+<!-- for(j in 78:100){ -->
+<!--   set.seed(seed = j+50, kind = 'default', normal.kind = 'default', sample.kind = 'default') -->
+
+<!--   pije_binned_df <- seg_pije_subset %>% -->
+<!--   group_by(lfm_bin) %>% -->
+<!--   sample_n(19, replace = T) -->
+
+<!--   out_lm<-lm(gti ~ lfm + site + year_month, data = pije_binned_df) -->
+<!--   segmented_mod <- segmented(out_lm, seg.Z = ~lfm) -->
+<!--   pije_thresholds$psi_gti[j] <- summary(segmented_mod)$psi[2]} -->
+<!-- ``` -->
+
+<!-- Proportion Ignition: -->
+<!-- No breakpoints estimated! -->
+
+<!-- Maximum Temp.: -->
+<!-- ```{r} -->
+<!-- for(j in 1:6){ -->
+<!--   set.seed(seed = j, kind = 'default', normal.kind = 'default', sample.kind = 'default') -->
+
+<!--   pije_binned_df <- seg_pije_subset %>% -->
+<!--   group_by(lfm_bin) %>% -->
+<!--   sample_n(19, replace = T) -->
+
+<!--   out_lm<-lm(temp_change ~ lfm + site + year_month, data = pije_binned_df) -->
+<!--   segmented_mod <- segmented(out_lm, seg.Z = ~lfm) -->
+<!--   pije_thresholds$psi_temp_change[j] <- summary(segmented_mod)$psi[2]} -->
+
+<!-- for(j in 7:29){ -->
+<!--   set.seed(seed = j+9, kind = 'default', normal.kind = 'default', sample.kind = 'default') -->
+
+<!--   pije_binned_df <- seg_pije_subset %>% -->
+<!--   group_by(lfm_bin) %>% -->
+<!--   sample_n(19, replace = T) -->
+
+<!--   out_lm<-lm(temp_change ~ lfm + site + year_month, data = pije_binned_df) -->
+<!--   segmented_mod <- segmented(out_lm, seg.Z = ~lfm) -->
+<!--   pije_thresholds$psi_temp_change[j] <- summary(segmented_mod)$psi[2]} -->
+
+<!-- for(j in 30:38){ -->
+<!--   set.seed(seed = j+12, kind = 'default', normal.kind = 'default', sample.kind = 'default') -->
+
+<!--   pije_binned_df <- seg_pije_subset %>% -->
+<!--   group_by(lfm_bin) %>% -->
+<!--   sample_n(19, replace = T) -->
+
+<!--   out_lm<-lm(temp_change ~ lfm + site + year_month, data = pije_binned_df) -->
+<!--   segmented_mod <- segmented(out_lm, seg.Z = ~lfm) -->
+<!--   pije_thresholds$psi_temp_change[j] <- summary(segmented_mod)$psi[2]} -->
+
+<!-- for(j in 39:47){ -->
+<!--   set.seed(seed = j+19, kind = 'default', normal.kind = 'default', sample.kind = 'default') -->
+
+<!--   pije_binned_df <- seg_pije_subset %>% -->
+<!--   group_by(lfm_bin) %>% -->
+<!--   sample_n(19, replace = T) -->
+
+<!--   out_lm<-lm(temp_change ~ lfm + site + year_month, data = pije_binned_df) -->
+<!--   segmented_mod <- segmented(out_lm, seg.Z = ~lfm) -->
+<!--   pije_thresholds$psi_temp_change[j] <- summary(segmented_mod)$psi[2]} -->
+
+<!-- for(j in 48:64){ -->
+<!--   set.seed(seed = j+21, kind = 'default', normal.kind = 'default', sample.kind = 'default') -->
+
+<!--   pije_binned_df <- seg_pije_subset %>% -->
+<!--   group_by(lfm_bin) %>% -->
+<!--   sample_n(19, replace = T) -->
+
+<!--   out_lm<-lm(temp_change ~ lfm + site + year_month, data = pije_binned_df) -->
+<!--   segmented_mod <- segmented(out_lm, seg.Z = ~lfm) -->
+<!--   pije_thresholds$psi_temp_change[j] <- summary(segmented_mod)$psi[2]} -->
+
+<!-- for(j in 65:77){ -->
+<!--   set.seed(seed = j+29, kind = 'default', normal.kind = 'default', sample.kind = 'default') -->
+
+<!--   pije_binned_df <- seg_pije_subset %>% -->
+<!--   group_by(lfm_bin) %>% -->
+<!--   sample_n(19, replace = T) -->
+
+<!--   out_lm<-lm(temp_change ~ lfm + site + year_month, data = pije_binned_df) -->
+<!--   segmented_mod <- segmented(out_lm, seg.Z = ~lfm) -->
+<!--   pije_thresholds$psi_temp_change[j] <- summary(segmented_mod)$psi[2]} -->
+
+<!-- for(j in 78:91){ -->
+<!--   set.seed(seed = j+33, kind = 'default', normal.kind = 'default', sample.kind = 'default') -->
+
+<!--   pije_binned_df <- seg_pije_subset %>% -->
+<!--   group_by(lfm_bin) %>% -->
+<!--   sample_n(19, replace = T) -->
+
+<!--   out_lm<-lm(temp_change ~ lfm + site + year_month, data = pije_binned_df) -->
+<!--   segmented_mod <- segmented(out_lm, seg.Z = ~lfm) -->
+<!--   pije_thresholds$psi_temp_change[j] <- summary(segmented_mod)$psi[2]} -->
+
+<!-- for(j in 91:100){ -->
+<!--   set.seed(seed = j+78, kind = 'default', normal.kind = 'default', sample.kind = 'default') -->
+
+<!--   pije_binned_df <- seg_pije_subset %>% -->
+<!--   group_by(lfm_bin) %>% -->
+<!--   sample_n(19, replace = T) -->
+
+<!--   out_lm<-lm(temp_change ~ lfm + site + year_month, data = pije_binned_df) -->
+<!--   segmented_mod <- segmented(out_lm, seg.Z = ~lfm) -->
+<!--   pije_thresholds$psi_temp_change[j] <- summary(segmented_mod)$psi[2]} -->
+<!-- ``` -->
+
+# 5. Mean Threshold Values
+```{r}
+summary(pije_thresholds)
+```
+
+# -------------------------------
+# Summary Table: lfm
+
+```{r}
+pije_summary_df <- pije_thresholds %>% 
+  pivot_longer(everything(), 
+               names_to = "flam_metric", 
+              values_to = "value") %>% 
+  group_by(flam_metric) %>% 
+  summarise(mean_bootstrap = mean(value), 
+            sd_bootstrap = sd(value))
+pije_summary_df
+```
+
+
+Old code from Joe's tables: 
+
+```{r}
+# dep_var <- c('PC1','PC2','TTI','Prop Ignite (5%)','GTI','FH','Max Temp.','FD','GD','PFG','TTFG', 'Summary','PC1','PC2','TTI','Prop Ignite (5%)','GTI','FH','Max Temp.','FD','GD','PFG','TTFG', 'Summary')
+# spp <- c(rep('pije', 11), 'TLP = 74_33 +/- 7_37', rep('CEME', 11), 'TLP = 88_96 +/- 2_53')
+# sig_p <- c('Yes (p = 0_00731)','Yes (p < 0_0005)','Yes (p < 0_0005)','Yes (p = 0_001)','Yes (p = 0_044)','Yes (p < 0_0005)','Yes (p < 0_0005)','No','No','Yes (p = 0_0103)','Yes (p < 0_0005)', '9/11 Significant','Yes (p < 0_0005)','Yes (p = 0_008)','Yes (p < 0_0005)','Yes (p < 0_0005)','Yes (p = 0_0009)','Yes (p < 0_0005)','No','No','No','Yes (p = 0_0426)','No', '7/11 Significant')
+# thresholds <- c('98_274','63_142','78_541','43_254','98_274','78_872','98_274','46_394',
+#                 '65_864','65_509','78_622', 'Avg: 78_08 +/- 11_56',
+#                 '132_543','63_437','119_281','91_053','120_89',
+#                 '57_0196','55_385','48_83','64_737','68_003','59_153', 'Avg: 93_18 +/- 21_38')
+# bootstrap_thresholds <- c('97_36','81_17','87_15','NA','104_78','87_3','98_98',
+#                           '93_11','86_79','63_75','70_94','Avg: 87_13','118_07','108_73',
+#                           '110_85','93_51','126_48','75_36','63_23','137_93',
+#                           '153_45','137_56','79_17', 'Avg: 109_49')
+# seg_reg_table_df <- data_frame(dep_var, spp, sig_p, thresholds, bootstrap_thresholds)
+# 
+# seg_reg_table_df %>%
+#   mutate(dep_var = cell_spec(dep_var, 'html', color = 'black', bold = T), spp = cell_spec(spp, 'html', color = 'black'), sig_p = cell_spec(sig_p, 'html', color = 'black'), thresholds = cell_spec(thresholds, 'html', color = 'black'), bootstrap_thresholds = cell_spec(bootstrap_thresholds, 'html', color = 'black')) %>% 
+#   kable(format = 'html', escape = F, col_names = c('Dependent Variable', 'Species', 'Significant?','Threshold', 'Bootstrapped Threshold'), caption = 'Live Fuel Moisture') %>% 
+#   kable_styling(bootstrap_options = c('hover', 'bordered', 'condensed'), fixed_thead = T) %>% 
+#   row_spec(c(1:7, 10:11, 13:18, 22), bold = T) %>% 
+#   row_spec(c(8, 9, 19:21, 23), bold = F) %>% 
+#   row_spec(c(12, 24), background = "#D3D3D3", bold = T) %>%
+#   save_kable(here('figures', 'supp-figures', 'lfm_segreg_summary_html'))
+```
+
+# Summary Table: Water Potential
+```{r}
+# dep_var <- c('PC1','PC2','TTI','Prop Ignite (5%)','GTI','FH','Max Temp.','FD','GD','PFG','TTFG', 'Summary','PC1','PC2','TTI','Prop Ignite (5%)','GTI','FH','Max Temp.','FD','GD','PFG','TTFG', 'Summary')
+# spp <- c(rep('pije', 11), ' ', rep('CEME', 11), ' ')
+# sig_p <- c('Yes (p = 0_011)','Yes (p < 0_0005)','Yes (p < 0_0005)','No','Yes (p < 0_0005)','No','No','No','No','Yes (p = 0_0126)','No', '5/11 Significant', 'No', 'No','No','Yes (p = 0_024)','No','Yes (p = 0_00188)','No','No','No','No','No', '2/11 Significant')
+# thresholds <- c('-0_911','-0_4','-0_4','-0_4','-0_4','NA','NA','NA','-0_4','-0_4','NA', 'Avg:  -0_502','NA','NA','NA','-8_199','-1_240','-7_77','NA','NA','NA','NA','NA', 'Avg: -7_98')
+# seg_reg_table2_df <- data_frame(dep_var, spp, sig_p, thresholds)
+# 
+# seg_reg_table2_df %>% 
+#    mutate(dep_var = cell_spec(dep_var, 'html', color = 'black', bold = T), spp = cell_spec(spp, 'html', color = 'black'), sig_p = cell_spec(sig_p, 'html', color = 'black'), thresholds = cell_spec(thresholds, 'html', color = 'black')) %>% 
+#   kable(format = 'html', escape = F, col_names = c('Dependent Variable', 'Species', 'Significant?','Threshold'), caption = 'Water Potential') %>% 
+#   kable_styling(bootstrap_options = c('hover', 'bordered', 'condensed'), fixed_thead = T) %>% 
+#   row_spec(c(1:3, 5, 10, 16, 18), bold = T) %>% 
+#   row_spec(c(4, 6:9, 11, 13:15, 17, 19:23), bold = F) %>% 
+#   row_spec(c(12, 24), background = "#D3D3D3", bold = T) %>%
+#   save_kable(here('figures', 'supp-figures', 'lfm_segreg_summary_html'))
+```
+

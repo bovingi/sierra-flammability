@@ -5,6 +5,8 @@ date: "6/20/2022"
 output: html_document
 ---
 
+OCT 29 NOTES: Probably will not use PCA - doesn't really tell as nice of a story with all species. 
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
@@ -30,24 +32,27 @@ sierra_flamdata_pca_all <- read_csv(here("processed-data", "analysis 2.0", "sier
 
 sierra_flamdata_pca <- sierra_flamdata_pca_all %>% 
   filter(ignition == 1, 
-         ignition_num == 1) %>% 
-  na.omit(c("fh", "ttfg", "tti", "fd", "gd", "gti", "pfg","taller_temp_max", "hydration", "spp", "year_month", "sample"))
+        # ignition_num == 1
+         ) %>% 
+   select("fh", "ttfg", "tti", "fd", "gd", "gti", "pfg","temp_change", "hydration", "spp", "year_month", "sample") %>% 
+  na.omit(c("fh", "ttfg", "tti", "fd", "gd", "gti", "pfg","temp_change", "hydration", "spp", "year_month", "sample"))
 
  # filter(year == 2020)
 
-figure_epi_pca_quant <- (sierra_flamdata_pca[, c("fh", "ttfg", "tti", "fd", "gd", "gti", "pfg","taller_temp_max")]) %>%  
+figure_epi_pca_quant <- (sierra_flamdata_pca[, c("fh", "ttfg", "tti", "fd", "gd", "gti", "pfg","temp_change")]) %>%  
  transmute( "               Flame Duration" = fd, #using spaces to shift labels over instead of \t since \t is leading to little blank squares popping up on the plot.. spaces are just manual tabs anyways right?
            "                 Flame Height" = fh,
            "Post-flame Glow" = pfg,
           "Time to Ignition" = tti,
-          "Max. Temp" = taller_temp_max,
+         # "Max. Temp" = taller_temp_max,
             "Glow Duration" = gd,
           "\nGlow to Ignition" = gti,
-          "\nTime to First Glow" = ttfg
+          "\nTime to First Glow" = ttfg, 
+          "Temp Change" = temp_change
           ) %>% 
   na.omit()
 
-figure_epi_pca_cat <-  (sierra_flamdata_pca[, c("fh", "ttfg", "tti", "fd", "gd", "gti", "pfg","taller_temp_max", "hydration", "spp", "year_month", "sample")]) %>% 
+figure_epi_pca_cat <-  (sierra_flamdata_pca[, c("fh", "ttfg", "tti", "fd", "gd", "gti", "pfg","temp_change", "hydration", "spp", "year_month", "sample")]) %>% 
   na.omit() %>% 
   select(hydration, spp, year_month, sample) %>% 
   transmute("Hydration" = hydration, 
@@ -61,7 +66,7 @@ figure_epi_pca_cat <-  (sierra_flamdata_pca[, c("fh", "ttfg", "tti", "fd", "gd",
                           scale = TRUE, 
                           retx=TRUE)
   
-figure_epi_pca <- (sierra_flamdata_pca[, c("fh", "ttfg", "tti", "fd", "gd", "gti", "pfg","taller_temp_max", "hydration", "spp", "year_month", "sample")]) %>% 
+figure_epi_pca <- (sierra_flamdata_pca[, c("fh", "ttfg", "tti", "fd", "gd", "gti", "pfg","temp_change", "hydration", "spp", "year_month", "sample")]) %>% 
   na.omit() 
 ```
 
@@ -185,7 +190,7 @@ ggplot(PCAvalues, aes(x = PC1, y = PC2)) +
           legend.title = element_text(face = 'bold', size = 15),
           legend.text = element_text(face = 'italic', size = 13),
           axis.title = element_text(face = 'bold', size = 15)) +
-  scale_color_manual(values = c("#9D0208","#F48C06")) + 
+ # scale_color_manual(values = c("#9D0208","#F48C06")) + 
   geom_path(data = circle, color = "black",  size = 1/2, alpha = 1/3) + 
   xlab(u.axis.labs[1]) + 
    ylab(u.axis.labs[2]) +
@@ -202,7 +207,7 @@ x_flam <-predict(pcobj)  ### generate scores for each row in sierra_flamdata_pca
 
 pca_flam_data <- as_data_frame(x_flam) 
 
-sierra_flamdata_pca <- serra
+sierra_flamdata_pca <- sierra
 all_data_pca <- bind_cols(sierra_flamdata_pca, pca_flam_data)
 
 # #because we wants instances where they didn't ignite for the logistic regression: 

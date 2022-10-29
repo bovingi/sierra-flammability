@@ -401,6 +401,12 @@ ignite.only.hp <- data %>%
   mutate(gti = as.numeric(gti))
 ```
 
+What does outlierKD think of them? 
+```{r}
+outlierKD2(ignite_only_hp, tti)
+
+```
+
 ```{r}
 vis_miss(ignite.only.hp)
 gg_miss_var(ignite.only.hp, facet = year.month)

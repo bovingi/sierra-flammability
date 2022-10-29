@@ -1,0 +1,402 @@
+---
+title: "quke segmented regressions"
+author: "Indra Boving & Joe Celebrezze"
+date: "4/15/2021"
+output: html_document
+---
+
+#Setup:
+```{r}
+knitr::opts_chunk$set(echo = TRUE)
+#lots of extra here, but oh well___ 
+library(ggplot2)
+library(gapminder)
+library(tidyverse)
+library(lme4)
+library(here)
+library(segmented)
+library(nlme)
+citation('nlme')
+library(lubridate)
+#install.packages("plotrix")
+library(plotrix)
+filter = dplyr::filter
+here = here::here
+select = dplyr::select
+#source(here("source-code", "source-segmented_lme_R"))
+
+# Function to plot mixed effects model segmented regressions:
+
+source(here::here("scripts", "scripts_functions", "plot_segmented_MEM_V2.R"))
+```
+
+# Reading in Dataframe
+```{r}
+seg_data_subset <- read_csv(here("processed-data", "analysis 2.0", "sierra_flam_data_all.csv")) %>% 
+  mutate(id = individual)
+```
+
+# Color by Season
+
+```{r}
+seg_data_subset$color <- "#ee8577"
+seg_data_subset$color[seg_data_subset$year_month=='2020_october']="#ce4441"
+seg_data_subset$color[seg_data_subset$year_month=='2020_september']="#c969a1"
+seg_data_subset$color[seg_data_subset$year_month=='2021_august']="#ffbb44"
+```
+
+# Splitting by Species and by Sampling Date
+
+```{r} 
+seg_data_subset <- seg_data_subset %>% 
+  mutate_if(is.character, str_to_lower) %>% 
+  mutate(spp = str_trim(spp),
+         lfm_scaled = scale(lfm),
+    name = paste(spp,"_max", sep = ""), 
+    name_subset = paste(spp, "_subset_seg", sep = ""), #this is def working. 
+   # name_yearmonth = intersect(spp, year_month), 
+    name_yearmonth = paste(spp, year_month, "subset_seg", sep = "_")) 
+
+quke_subset_seg <- seg_data_subset %>% 
+  filter(spp == "quke")
+
+quke_2020_oct_subset_seg <- seg_data_subset %>% 
+  filter(spp == "quke", 
+         year_month == "2020_october")
+
+quke_2020_sept_subset_seg <- seg_data_subset %>% 
+  filter(spp == "quke", 
+         year_month == "2020_september")
+
+quke_2020_subset_seg <- seg_data_subset %>% 
+  filter(spp == "quke", 
+         year_month %in% c("2020_september", "2020_october"))
+
+quke_2021_aug_subset_seg <- seg_data_subset %>% 
+  filter(spp == "quke", 
+         year_month == "2021_august")
+
+# seg_data_subset %>% 
+#   group_split(spp) %>%
+#   #rowwise() %>% 
+#   setNames(unique(seg_data_subset$name_subset))  %>% #this is not working...wrong name for df. 
+#   list2env(envir = globalenv())
+
+# seg_data_subset %>% 
+#   group_split(name_yearmonth) %>%
+#   setNames(unique(seg_data_subset$name_yearmonth))  %>%
+#   list2env(envir = globalenv())
+```
+
+
+# Maximums for LFM, MPa
+
+```{r}
+max_seg_data <- seg_data_subset %>% 
+  type.convert(as.is = TRUE) %>% 
+  select(mpa, lfm, spp) %>% 
+  group_by(spp) %>% 
+  summarise(across(where(is.numeric), max, .names = "max_{.col}")) 
+
+quke_max_mpa <- max_seg_data %>% 
+  filter(spp == "quke") %>% 
+  select(max_mpa) %>% 
+  pull()
+
+quke_max_lfm <- max_seg_data %>% 
+  filter(spp == "quke") %>% 
+  select(max_lfm) %>% 
+  pull()
+```
+
+# PV Curve Data
+
+
+```{r}
+pv_summary_df_timing <- read_csv(here("processed-data", "pv_summary_df_timing.csv"), show_col_types = FALSE) %>% 
+   filter(timing == "fall") %>% 
+  mutate_if(is.character, str_to_lower) %>% 
+  #mutate_at(spp, str_to_lower) %>% 
+  mutate(spp = str_trim(spp),
+    name = paste(spp,"_pv", sep = ""), 
+    mean_tlp = -1*mean_tlp, 
+    lwr = -1*lwr, 
+    upr = -1*upr) %>% 
+  filter(!spp %in% c("ADFA", "CEME")) 
+  
+
+pv_summary_df_timing %>% 
+  group_split(spp) %>%
+   setNames(unique(pv_summary_df_timing$name)) %>%
+  list2env(envir = globalenv())
+
+mean_mpa_quke <- quke_pv %>% 
+  select(mean_tlp) %>% 
+  pull()
+
+lwr_mpa_quke <- quke_pv %>% 
+  select(lwr) %>% 
+  pull()
+
+upr_mpa_quke <- quke_pv %>% 
+  select(upr) %>% 
+  pull()
+
+mean_lfm_quke <- quke_pv %>% 
+  select(mean_lfm) %>% 
+  pull()
+
+lwr_lfm_quke <- quke_pv %>% 
+  select(lwr_lfm) %>% 
+  pull()
+
+upr_lfm_quke <- quke_pv %>% 
+  select(upr_lfm) %>% 
+  pull()
+```
+# -------
+
+#Summary visualizations:
+
+```{r}
+quke_subset_seg %>% 
+  filter(ignition == 1) %>% 
+  select(year_month, location, tti, fh, fd, gd, temp_change, prop_ignite) %>%
+  gather(-year_month, -location, key = "var", value = "value") %>%
+  ggplot() +
+  geom_density(aes(x = value, 
+                   color = year_month, 
+                   fill = year_month), 
+               alpha = .4) +
+  facet_wrap(~ var, scales = "free") 
+```
+
+```{r}
+quke_subset_seg %>% 
+  filter(ignition == 1) %>% 
+  select(year_month, year, location, tti, fh, fd, gd, temp_change, prop_ignite) %>%
+  gather(-year_month, -location, -year, key = "var", value = "value") %>%
+  ggplot() +
+  geom_density(aes(x = value, 
+                   color = as.factor(year), 
+                   fill =  as.factor(year)),
+               alpha = .4) +
+  facet_wrap(~ var, scales = "free") 
+```
+
+```{r}
+quke_cor <- quke_subset_seg %>% 
+  filter(ignition == 1) %>% 
+  select(tti, fh, fd, gd, temp_change, prop_ignite, lfm, mpa) %>% 
+  drop_na() %>% 
+  cor()
+
+corrplot::corrplot.mixed(quke_cor, order = 'AOE')
+```
+
+
+# -------
+
+#Segmented regressions: 
+
+We're just going to do a few metrics, to represent each of the axes: 
+
+Ignitability: TTI, Prop.ignite
+
+Combustibility: FH, Max Temp, Temp Change
+
+Sustainability: FD, 
+
+Consumability: GD
+
+Maybe: Max temp
+
+## LFM
+
+Ignitability Metrics:
+
+### Time to Ignition
+
+```{r}
+quke_subset_seg_tti <- quke_subset_seg %>%
+  drop_na(tti)
+
+o_mod<-lme(tti~lfm + year_month + site, random=~1|id, data=quke_subset_seg_tti)
+os_mod_b<-segmented.default(o_mod, ~lfm, npsi=list(lfm=1))
+#summarizing results (note the '_coef' argument)
+summary.segmented(os_mod_b)
+
+u_mod <- lm(tti~lfm + year_month + site, data = quke_subset_seg_tti)
+u_mod_b <- segmented(u_mod, ~lfm)
+davies.test(u_mod_b)
+summary.segmented(u_mod_b)
+
+rsegplot.lfm(os_mod_b, quke_subset_seg_tti, max.x = quke_max_lfm, y.variable = 'tti', y.lab = "Time to Ignition (s)", tlp = mean_lfm_quke, tlp.lower = lwr_lfm_quke, tlp.upper = upr_lfm_quke)
+```
+
+
+### Prop. Ignite (5%)
+```{r}
+quke_subset_seg_prop_ignite <- quke_subset_seg %>% drop_na(prop_ignite)
+
+o_mod<-lme(prop_ignite~lfm + year_month + site, random=~1|id, quke_subset_seg_prop_ignite )
+os_mod<-segmented.default(o_mod, ~lfm, npsi=list(lfm=1))
+#summarizing results (note the '_coef' argument)
+summary.segmented(os_mod)
+
+rsegplot.lfm(os_mod, quke_subset_seg_prop_ignite, max.x = quke_max_lfm, y.variable = 'prop_ignite', y.lab = "Proportion Ignted (5% Bins of LFM)", tlp = mean_lfm_quke, tlp.lower = lwr_lfm_quke, tlp.upper = upr_lfm_quke)
+```
+
+### Glow to Ignition
+```{r}
+quke_subset_seg_gti <- quke_subset_seg %>% 
+  drop_na(gti)
+
+o_mod<-lme(gti~lfm + year_month + site, random=~1|id, data=quke_subset_seg_gti)
+os_mod<-segmented.default(o_mod, ~lfm, npsi=list(lfm=1))
+#summarizing results (note the '_coef' argument)
+summary.segmented(os_mod)
+
+rsegplot.lfm(os_mod, quke_subset_seg_gti, max.x = quke_max_lfm, y.variable = 'gti', y.lab = "Glow to Ignition (s)", tlp = mean_lfm_quke, tlp.lower = lwr_lfm_quke, tlp.upper = upr_lfm_quke)
+```
+
+Combustibility Metrics:
+
+### Flame Height
+```{r}
+quke_subset_seg_fh <- quke_subset_seg %>% drop_na(fh) 
+
+o_mod<-lme(fh~lfm + year_month + site, random=~1|id, data=quke_subset_seg_fh)
+os_mod<-segmented.default(o_mod, ~lfm, npsi=list(lfm=1))
+#summarizing results (note the '_coef' argument)
+summary.segmented(os_mod)
+
+rsegplot.lfm(os_mod, quke_subset_seg_fh, max.x = quke_max_lfm, y.variable = 'fh', y.lab = "Flame Height (cm)", tlp = mean_lfm_quke, tlp.lower = lwr_lfm_quke, tlp.upper = upr_lfm_quke)
+```
+
+### Max_ Temp_
+```{r}
+quke_subset_seg_lower_temp_max <- quke_subset_seg %>% 
+  drop_na(lower_temp_max)
+
+o_mod<-lme(lower_temp_max~lfm + year_month + site, random=~1|id, data=quke_subset_seg_lower_temp_max)
+os_mod<-segmented.default(o_mod, ~lfm, npsi=list(lfm=1))
+#summarizing results (note the '_coef' argument)
+summary.segmented(os_mod)
+os_mod
+
+rsegplot.lfm(os_mod, quke_subset_seg_lower_temp_max, max.x = quke_max_lfm, y.variable = 'lower_temp_max', y.lab = "Maximum Temperature (C)", tlp = mean_lfm_quke, tlp.lower = lwr_lfm_quke, tlp.upper = upr_lfm_quke)
+```
+### Max_ Temp_
+```{r}
+quke_subset_seg_temp_change <- quke_subset_seg %>% 
+  drop_na(temp_change)
+
+o_mod<-lme(lower_temp_max~lfm + year_month + site, random=~1|id, data=quke_subset_seg_temp_change)
+os_mod<-segmented.default(o_mod, ~lfm, npsi=list(lfm=1))
+#summarizing results (note the '_coef' argument)
+summary.segmented(os_mod)
+os_mod
+
+rsegplot.lfm(os_mod, quke_subset_seg_temp_change, max.x = quke_max_lfm, y.variable = 'lower_temp_max', y.lab = "Maximum Temperature (C)", tlp = mean_lfm_quke, tlp.lower = lwr_lfm_quke, tlp.upper = upr_lfm_quke)
+```
+
+Sustainability Metrics:
+### Flame Duration
+```{r}
+quke_subset_seg_fd <- quke_subset_seg %>% drop_na(fd)
+
+o_mod<-lme(fd~lfm + year_month + site, random=~1|id, data=quke_subset_seg_fd)
+os_mod_f<-segmented.default(o_mod, ~lfm, npsi=list(lfm=1))
+#summarizing results (note the '_coef' argument)
+summary.segmented(os_mod_f)
+
+rsegplot.lfm(os_mod_f, quke_subset_seg_fd, max.x = quke_max_lfm, y.variable = 'fd', y.lab = "Flame Duration (s)", tlp = mean_lfm_quke, tlp.lower = lwr_lfm_quke, tlp.upper = upr_lfm_quke)
+```
+
+
+# -------
+
+
+## Water Potential
+```{r}
+quke_subset_seg <- quke_subset_seg %>% 
+  mutate(mpa_scaled = scale(mpa))
+```
+
+
+ 
+Ignitability Metrics:
+
+### Time to Ignition
+```{r}
+o_mod<-lme(tti~mpa + year_month + site, random=~1|id, data=quke_subset_seg_tti)
+os_mod_b1<-segmented.default(o_mod, ~mpa, npsi=list(mpa=1))
+#summarizing results (note the '_coef' argument)
+summary.segmented(os_mod_b1)
+
+rsegplot.mpa(os_mod_b1, quke_subset_seg_tti, max.x = quke_max_mpa, y.variable = 'tti', y.lab = "Time to Ignition (s)", tlp = mean_mpa_quke, tlp.lower = lwr_mpa_quke, tlp.upper = upr_mpa_quke)
+```
+
+### Prop_ Ignite (5%)
+```{r}
+quke_subset_seg_prop_ignite
+
+o_mod<-lme(prop_ignite~mpa + year_month + site, random=~1|id, data=quke_subset_seg_prop_ignite)
+os_mod<-segmented.default(o_mod, ~mpa, npsi=list(mpa=1))
+#summarizing results (note the '_coef' argument)
+summary.segmented(os_mod)
+
+rsegplot.mpa(os_mod, quke_subset_seg_prop_ignite, max.x = quke_max_mpa, y.variable = 'prop_ignite', y.lab = "Proportion Ignted (5% Bins of mpa)", tlp = mean_mpa_quke, tlp.lower = lwr_mpa_quke, tlp.upper = upr_mpa_quke)
+```
+
+### Glow to Ignition
+```{r}
+quke_subset_seg_gti <- quke_subset_seg_gti %>% 
+  filter(gti < 50, 
+         gti > 0)
+
+o_mod<-lme(gti~mpa + year_month + site, random=~1|id, data=quke_subset_seg_gti)
+os_mod<-segmented.default(o_mod, ~mpa, npsi=list(mpa=1))
+#summarizing results (note the '_coef' argument)
+summary.segmented(os_mod)
+
+rsegplot.mpa(os_mod, quke_subset_seg_gti, max.x = quke_max_mpa, y.variable = 'gti', y.lab = "Glow to Ignition (s)", tlp = mean_mpa_quke, tlp.lower = lwr_mpa_quke, tlp.upper = upr_mpa_quke)
+```
+
+### Temp Max
+```{r}
+
+o_mod<-lme(lower_temp_max~mpa + year_month + site, random=~1|id, quke_subset_seg_lower_temp_max)
+os_mod<-segmented.default(o_mod, ~mpa, npsi=list(mpa=1))
+#summarizing results (note the '_coef' argument)
+summary.segmented(os_mod)
+
+rsegplot.mpa(os_mod, quke_subset_seg_lower_temp_max, max.x = quke_max_mpa, y.variable = 'lower_temp_max', y.lab = "Lower Temp Max (C)", tlp = mean_mpa_quke, tlp.lower = lwr_mpa_quke, tlp.upper = upr_mpa_quke)
+```
+
+Combustibility Metrics:
+### Flame Height
+```{r}
+o_mod<-lme(fh~mpa + year_month + site, random=~1|id, data=quke_subset_seg_fh)
+os_mod<-segmented.default(o_mod, ~mpa, npsi=list(mpa=1))
+#summarizing results (note the '_coef' argument)
+summary.segmented(os_mod)
+
+rsegplot.mpa(os_mod, quke_subset_seg_fh, max.x = quke_max_mpa, y.variable = 'fh', y.lab = "Flame Height (cm)", tlp = mean_mpa_quke, tlp.lower = lwr_mpa_quke, tlp.upper = upr_mpa_quke)
+```
+
+### Flame Duration
+```{r}
+o_mod<-lme(fd~mpa + year_month + site, random=~1|id, data=quke_subset_seg_fd)
+os_mod<-segmented.default(o_mod, ~mpa, npsi=list(mpa=1))
+#summarizing results (note the '_coef' argument)
+summary.segmented(os_mod)
+
+rsegplot.mpa(os_mod, quke_subset_seg_fd, max.x = quke_max_mpa, y.variable = 'fd', y.lab = "Flame Duration (sec)", tlp = mean_mpa_quke, tlp.lower = lwr_mpa_quke, tlp.upper = upr_mpa_quke)
+```
+# -------
+
+#Split by Sampling Date
+
+
