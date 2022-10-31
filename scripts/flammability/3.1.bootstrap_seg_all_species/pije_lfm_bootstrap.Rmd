@@ -473,18 +473,18 @@ summary(pije_thresholds)
 # Summary Table: lfm
 
 ```{r}
-pije_summary_df <- pije_thresholds %>% 
+pije_bootstrap_summary_df <- pije_thresholds %>% 
   pivot_longer(everything(), 
                names_to = "flam_metric", 
               values_to = "value") %>% 
   group_by(flam_metric) %>% 
-  summarise(mean_bootstrap = mean(value), 
+  summarise(value = mean(value), 
             sd_bootstrap = sd(value)) %>% 
   mutate(across('flam_metric', str_replace, 'psi_', '')) %>% 
   mutate(across('flam_metric', str_replace, '_', ' ')) 
 pije_summary_df
 
-ggsave(plot=gridExtra::tableGrob(pije_summary_df), filename=here("figures", "segmented_tables", "bootstrap_lfm_pije.png"))
+ggsave(plot=gridExtra::tableGrob(pije_bootstrap_summary_df), filename=here("figures", "segmented_tables", "bootstrap_lfm_pije.png"))
 ```
 
 

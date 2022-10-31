@@ -381,7 +381,7 @@ lfm_pije_thresholds_rand_seg[6] <- summary(os_mod)$psi[3]
 
 # Segmented regression no random changepoints: 
 
-u_mod <- lm(fh~lfm + year_month + site, data = pije_subset_seg_fd)
+u_mod <- lm(fd~lfm + year_month + site, data = pije_subset_seg_fd)
 u_mod_b <- segmented(u_mod, ~lfm)
 summary.segmented(u_mod_b)
 
@@ -560,9 +560,10 @@ pije_lfm_rand_summary_df <- lfm_pije_thresholds_rand_seg %>%
 pije_lfm_rand_summary_df
 
 pije_lfm <- bind_rows(pije_lfm_rand_summary_df, pije_lfm_summary_df) %>% 
-  mutate(spp = "pije")
+  mutate(spp = "pije", 
+         water_variable = "lfm") 
 
-ggsave(plot=gridExtra::tableGrob(pije_lfm), filename=here("figures", "segmented_tables", "rand_segmented_lfm_pije.png"))
+#ggsave(plot=gridExtra::tableGrob(pije_lfm), filename=here("figures", "segmented_tables", "rand_segmented_lfm_pije.png"))
 ```
 
 
@@ -886,7 +887,7 @@ pije_mpa_summary_df <- mpa_pije_thresholds_seg %>%
    summarise(value = mean(value)) %>% 
              #sd_bootstrap = sd(value)) %>% 
   mutate(across('flam_metric', str_replace, 'mpa_', ''),
-         across('flam_metric', str_replace_all, '_', ' '), 
+        across('flam_metric', str_replace_all, '_', ' '), 
          statistic = case_when(
            grepl("p value", flam_metric) ~ "p value",
             grepl("psi", flam_metric) ~"psi",
@@ -906,23 +907,54 @@ pije_mpa_rand_summary_df <- mpa_pije_thresholds_rand_seg %>%
    summarise(value = mean(value)) %>% 
              #sd_bootstrap = sd(value)) %>% 
   mutate(across('flam_metric', str_replace, 'mpa_', ''),
-         across('flam_metric', str_replace_all, '_', ' '), 
+        across('flam_metric', str_replace_all, '_', ' '), 
          statistic = case_when(
            grepl("p value", flam_metric) ~ "p value",
             grepl("psi", flam_metric) ~"psi",
             grepl("st err", flam_metric) ~"st err")) %>% 
   mutate(across('flam_metric', str_replace, 'p value|st err|psi', ''), 
-         analysis = "segmented") %>% 
+         analysis = "random") %>% 
   arrange(flam_metric, statistic, value, analysis)
          
 pije_mpa_rand_summary_df
 
 pije_mpa <- bind_rows(pije_mpa_rand_summary_df, pije_mpa_summary_df) %>% 
-  mutate(spp = "pije")
+  mutate(spp = "pije", 
+         water_variable = "mpa") 
 
-ggsave(plot=gridExtra::tableGrob(pije_mpa), filename=here("figures", "segmented_tables", "rand_segmented_mpa_pije.png"))
+#ggsave(plot=gridExtra::tableGrob(pije_mpa), filename=here("figures", "segmented_tables", "rand_segmented_mpa_pije.png"))
 ```
 
 
+#------------
+
+#All together now:
+
+```{r}
+pije_all_segmented <- bind_rows(pije_lfm, pije_mpa)
+
+pije_all_segmented_wide <- pije_all_segmented %>% 
+  mutate(across('statistic', str_replace, ' ', '_')) %>% 
+  pivot_wider(names_from = statistic, 
+              values_from = value)
+
+write_csv(pije_all_segmented_wide, 
+          here::here("processed-data", "analysis 2.0", "segmented_reg_all", "pije_all_segmented_wide.csv"))
+```
+
+#Visualize: 
+
+```{r}
+pije_all_segmented_wide %>% 
+  #filter(statistic == "psi") %>% 
+  ggplot(aes(
+    y = psi, 
+    x = flam_metric,
+    color = analysis, 
+   # size = p_value
+  )) +
+  geom_point() +
+  facet_wrap(~water_variable,scales = "free")
+```
 
 

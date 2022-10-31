@@ -4,7 +4,7 @@ author: "Indra Boving"
 date: "4/15/2021"
 output: html_document
 ---
-
+#Setup:
 ```{r}
 knitr::opts_chunk$set(echo = TRUE)
 #lots of extra here, but oh well___ 
@@ -22,6 +22,10 @@ filter = dplyr::filter
 here = here::here
 library(janitor)
 #source(here("source-code", "source-segmented_lme_R"))
+library(naniar)
+
+source(here::here("scripts", "scripts_functions", "plot_facet_flam.R"))
+source(here::here("scripts", "scripts_functions", "figure_info_sierra_flammability.R"))
 ```
 
 #Data Wrangling: 
@@ -99,6 +103,7 @@ corrplot::corrplot(all_cor, method = 'number', order = 'FPC', type = 'lower', di
 ```
 
 
+#####Visualize: 
 
 ```{r}
 flam_sierra_df %>% 
@@ -115,17 +120,60 @@ flam_sierra_df %>%
   facet_wrap(~ var, scales = "free") 
 ```
 ```{r}
-flam_sierra_df %>% 
+plot_mpa_df <- flam_sierra_df %>% 
   filter(ignition == 1, 
          year_month != "2021_august") %>% 
   select(spp, year_month, tti, fh, fd, gd, lfm, mpa, temp_change, prop_ignite) %>%
-  gather(-spp, -year_month, -mpa,  key = "var", value = "value") %>%
-  ggplot() +
-  geom_point(aes(y = value, 
-                 x = mpa,
-                 fill = spp, 
-                 color = year_month), 
-               alpha = .4) +
-  facet_wrap(~ var, scales = "free") 
+  gather(-spp, -year_month, -mpa,  key = "flam_metric", value = "value")
+  
+  
+for (spp in unique(plot_mpa_df$spp)) {
+  
+ df <- plot_mpa_df %>% 
+    filter(spp == i)
+  
+  p <- plot_facet_flam(df, mpa, value, year_month, flam_metric)+
+    labs(title = spp)
+  
+  if (!is.null(p)) plot(p)
+  
+}
+```
+
+```{r}
+plot_lfm_df <- flam_sierra_df %>% 
+  filter(ignition == 1, 
+         year_month != "2021_august") %>% 
+  select(spp, year_month, tti, fh, fd, gd, lfm, lfm, temp_change, prop_ignite) %>%
+  gather(-spp, -year_month, -lfm,  key = "flam_metric", value = "value")
+  
+  
+for (i in unique(plot_lfm_df$spp)) {
+  
+  df <- plot_lfm_df %>% 
+    filter(spp == i)
+  
+  p <- plot_facet_flam(df, lfm, value, year_month, flam_metric) +
+    labs(title = i)
+  
+  if (!is.null(p)) plot(p)
+  
+}
+```
+Deal with outliers from the above : 
+```{r}
+abco <- flam_sierra_df %>% 
+  filter(spp == "abco", 
+         lfm < 220) 
+
+arpa <- flam_sierra_df 
+
+cade <- flam_sierra_df 
+
+quke <- flam_sierra_df %>% 
+  filter(spp == "quke") %>% 
+  replace_with_na_at(.vars = c("lfm"),
+                     condition = lfm > 250)
+  
 ```
 
