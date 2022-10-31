@@ -4,6 +4,9 @@ author: "Indra Boving"
 date: "10/31/2022"
 output: html_document
 ---
+
+#Setup:
+
 ```{r}
 library(here)
 library(plyr)
@@ -12,6 +15,13 @@ source(here::here("scripts", "scripts_functions", "plot_facet_flam.R"))
 source(here::here("scripts", "scripts_functions", "figure_info_sierra_flammability.R"))
 library(ggbeeswarm)
 library(ggpattern)
+library(kableExtra)
+#library(sjPlot)
+#install.packages("magick")
+#install.packages("webshot")
+library(webshot)
+library(magick)
+#webshot::install_phantomjs()
 library(kableExtra)
 ```
 
@@ -26,29 +36,40 @@ seg_results_df <- list.files(path = here::here("processed-data", "analysis 2.0",
     p_value > 0.05 ~ "no", 
     TRUE ~ as.character(p_value)
   ))
+
+#reorder so that the flam metrics are in logical order: 
+seg_results_df$flam_metric <- factor(seg_results_df$flam_metric, levels = 
+                                       c("tti", 
+                                         "fh", 
+                                         "fd", 
+                                         "temp change", 
+                                         "gd", 
+                                         "prop ignite", 
+                                         "lfm temp change" #comment this out once its fixed in processing code
+                                         ))
 ```
 
-Visualize: 
+#Visualize: 
 
 ```{r}
-seg_results_df %>% 
-  ggplot(aes(y = psi, 
-             x = flam_metric
-             )) + 
-  geom_bar(position = "dodge", 
-           #stat = identity,
-           aes(fill = analysis)) +
-  #geom_bar(position="dodge", stat="identity") +
-      geom_bar_pattern(#stat = "identity",
-                   pattern_color = "white",
-                   pattern_fill = "black",
-                   aes(pattern = significant)
-                  ) + 
-  facet_wrap(~water_variable, scales = "free") +
-  scale_pattern_manual(values = c("stripe","none")) +
-  scale_fill_discrete(
-    guide = guide_legend(override.aes = list(pattern = "none")) # <- hide pattern
-  )
+# seg_results_df %>% 
+#   ggplot(aes(y = psi, 
+#              x = flam_metric
+#              )) + 
+#   geom_bar(position = "dodge", 
+#            stat = identity,
+#            aes(fill = analysis)) +
+#   #geom_bar(position="dodge", stat="identity") +
+#       geom_bar_pattern(#stat = "identity",
+#                    pattern_color = "white",
+#                    pattern_fill = "black",
+#                    aes(pattern = significant)
+#                   ) + 
+#   facet_wrap(~water_variable, scales = "free") +
+#   scale_pattern_manual(values = c("stripe","none")) +
+#   scale_fill_discrete(
+#     guide = guide_legend(override.aes = list(pattern = "none")) # <- hide pattern
+#   )
 ```
 
 
@@ -78,35 +99,67 @@ for (i in unique(seg_results_df$spp)) {
  
 }
 ```
-Table: 
-```{r}
-#library(sjPlot)
-install.packages("magick")
-install.packages("webshot")
-library(webshot)
-library(magick)
-webshot::install_phantomjs()
-```
+#Table: 
 
-
+LFM: 
 ```{r}
-table_sig <- seg_results_df %>%
+table_sig_lfm <- seg_results_df %>%
   filter(analysis == "segmented", 
-         #water_variable == "lfm", 
+         water_variable == "lfm", 
          #significant =="yes"
          ) %>% 
   #mutate(p_value = cell_spec(p_value, color = ifelse(p_value < 0.05, "green","red"))) %>% 
   #group_by(flam_metric) %>% 
   select(flam_metric, spp, water_variable, psi, st_err, p_value, significant) %>% 
   kbl() %>% 
-  kable_paper(full_width = F)  %>%
-  as_image()
+  kable_paper(full_width = F) 
 #%>%
  # column_spec(5, color = ifelse(seg_results_df$p_value > 0.0500001, "red", "green"))
 
-table_sig
+table_sig_lfm
 
 
-save_kable(table_sig, here::here("figures", "segmented_tables", "table_sig.png"))
+save_kable(table_sig_lfm, here::here("figures", "segmented_tables", "table_sig_lfm.png"))
 ```
 
+MPa: 
+```{r}
+table_sig_mpa <- seg_results_df %>%
+  filter(analysis == "segmented", 
+         water_variable == "mpa", 
+         #significant =="yes"
+         ) %>% 
+  #mutate(p_value = cell_spec(p_value, color = ifelse(p_value < 0.05, "green","red"))) %>% 
+  #group_by(flam_metric) %>% 
+  select(flam_metric, spp, water_variable, psi, st_err, p_value, significant) %>% 
+  kbl() %>% 
+  kable_paper(full_width = F) 
+#%>%
+ # column_spec(5, color = ifelse(seg_results_df$p_value > 0.0500001, "red", "green"))
+
+table_sig_mpa
+
+
+save_kable(table_sig_mpa, here::here("figures", "segmented_tables", "table_sig_mpa.png"))
+```
+
+Only significant rows: 
+```{r}
+table_sig_mpa <- seg_results_df %>%
+  filter(analysis == "segmented", 
+         #water_variable == "mpa", 
+         significant =="yes"
+         ) %>% 
+  #mutate(p_value = cell_spec(p_value, color = ifelse(p_value < 0.05, "green","red"))) %>% 
+  #group_by(flam_metric) %>% 
+  select(flam_metric, spp, water_variable, psi, st_err, p_value, significant) %>% 
+  kbl() %>% 
+  kable_paper(full_width = F) 
+#%>%
+ # column_spec(5, color = ifelse(seg_results_df$p_value > 0.0500001, "red", "green"))
+
+table_sig_mpa
+
+
+save_kable(table_sig_mpa, here::here("figures", "segmented_tables", "table_sig_mpa.png"))
+```
