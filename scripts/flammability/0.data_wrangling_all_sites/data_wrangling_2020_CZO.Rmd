@@ -471,7 +471,7 @@ aq_nab <- nabular(ignite.only.hp)
 all.equal(aq_shadow, aq_nab)
 #glimpse(aq_nab)
 ```
-Not many missing, which is good!
+
 #Deal with NAs for hotplate:
 
 ```{r}
@@ -480,10 +480,12 @@ ignite.only.hp %>%
   mutate(gti = as.numeric(gti)) 
 
 ignite.only.hp <- ignite.only.hp %>%
-  group_by(year.month) %>% 
-  group_by(spp) %>% #this makes us take the median of based on the species, the model, and the lfm bins (of 10 lfm) the missing value is in. Preserves species differences, and lfm impact. 
-  impute_median_at(c("ttfg", "gd", "gti", "fd", "pfg","temp.max", "start.temp", "ros", "ignition.temp", "temp.change", "prop.ignite", "ros", "tti")) %>% 
-  impute_lm(fh ~ spp + lfm.NAs.imputed)  #since fh may have gone out of top of frame for some larger flame height trials, use existing information to impute those values (BUT doesn't really matter since so few fh's are actually missing)
+  mutate(fh_nas_imputed = fh) %>% 
+  group_by(year.month, spp, bins10lfm) %>% 
+#this makes us take the median of based on the species, the model, and the lfm bins (of 10 lfm) the missing value is in. Preserves species differences, and lfm impact. 
+  impute_median_at(c("ttfg", "gd", "gti", "fd", "pfg","temp.max", "start.temp", "ros", "ignition.temp", "temp.change", "prop.ignite", "ros", "tti", "fh_nas_imputed")) 
+#%>% 
+ # impute_lm(fh ~ spp + lfm.NAs.imputed)  #since fh may have gone out of top of frame for some larger flame height trials, use existing information to impute those values (BUT doesn't really matter since so few fh's are actually missing)
 
 colSums(is.na(ignite.only.hp)) #should not be any NAs except in LFM.outliers.out
 
@@ -498,6 +500,7 @@ multi.hist(dist.hp[,sapply(dist.hp, is.numeric)])
 ```{r}
 range(ignite.only.hp$gti)
 range(ignite.only.hp$tti)
+range(ignite.only.hp$fh_nas_imputed)
 range(ignite.only.hp$fh)
 range(ignite.only.hp$gd) #some high glow durations, but that is likely to be expected
 range(ignite.only.hp$pfg)
@@ -506,7 +509,7 @@ range(ignite.only.hp$ros)
 range(ignite.only.hp$dw.flam.sample)
 
 ignite.only.hp <- ignite.only.hp %>%
-  mutate(flam.index = .45*((387+tti)/(12.5+tti))*exp(fh/(fh+55))) #using max tti and max fh, becomes a scale of least (1) to most (20) flammable
+  mutate(flam.index = .45*((387+tti)/(12.5+tti))*exp(fh_nas_imputed/(fh_nas_imputed+55))) #using max tti and max fh, becomes a scale of least (1) to most (20) flammable
 
 range(ignite.only.hp$flam.index)
 ```

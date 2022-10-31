@@ -702,6 +702,8 @@ colSums(is.na(ignite.only.seki.arpa.epi)) #should not be any NAs except in LFM.o
 
 dist.epi <- ignite.only.seki.arpa.epi %>%
   select(fd, fh, gd, gti, pfg, prop.ignite, temp.max, ttfg, tti, temp.change)
+
+
 ```
 
 ```{r}
@@ -884,7 +886,7 @@ all.equal(aq_shadow, aq_nab)
 
 Not many missing, which is good!
 
-### Deal with NAs for hotplate:
+### ***}}****Deal with NAs for hotplate:
 
 -   impute medians at each missing flam metric
 
@@ -894,16 +896,18 @@ ignite.only.seki.arpa.hp %>%
   mutate(gti = as.numeric(gti)) 
 
 ignite.only.seki.arpa.hp <- ignite.only.seki.arpa.hp %>%
+  mutate(fh_nas_imputed = fh) %>% 
   group_by(year.month) %>% 
   group_by(spp) %>% #this makes us take the median of based on the species, the model, and the lfm bins (of 10 lfm) the missing value is in. Preserves species differences, and lfm impact. 
-  impute_median_at(c("ttfg", "ttms", "gd", "gti", "fd", "pfg","temp.max", "start.temp", "ros", "ignition.temp", "temp.change", "prop.ignite", "fh", "ros", "tti")) %>% 
-  impute_lm(fh ~ spp + lfm.NAs.imputed)  #since fh may have gone out of top of frame for some larger flame height trials, use existing information to impute those values (BUT doesn't really matter since so few fh's are actually missing)
+  impute_median_at(c("ttfg", "ttms", "gd", "gti", "fd", "pfg","temp.max", "start.temp", "ros", "ignition.temp", "temp.change", "prop.ignite", "fh_nas_imputed", "ros", "tti"))   #since fh may have gone out of top of frame for some larger flame height trials, use existing information to impute those values (BUT doesn't really matter since so few fh's are actually missing)
 
 colSums(is.na(ignite.only.seki.arpa.hp)) #should not be any NAs except in LFM.outliers.out
 
 dist.hp <- ignite.only.seki.arpa.hp %>%
   select(fd, fh, gd, gti, pfg, prop.ignite, temp.max, ttfg, tti, temp.change)
 ```
+
+
 
 ```{r}
 ##multi.hist(dist.epi[,sapply(dist.epi, is.numeric)])
@@ -973,7 +977,7 @@ range(ignite.only.seki.arpa.hp$ros)
 range(ignite.only.seki.arpa.hp$dw.flam.sample)
 
 ignite.only.seki.arpa.hp <- ignite.only.seki.arpa.hp %>%
-  mutate(flam.index = 3.45*((214+tti)/(12.5+tti))*exp(fh/(fh+38))) #using max tti and max fh, becomes a scale of least (1) to most (20) flammable
+  mutate(flam.index = 3.45*((214+tti)/(12.5+tti))*exp(fh_nas_imputed/(fh_nas_imputed+38))) #using max tti and max fh, becomes a scale of least (1) to most (20) flammable
 
 range(ignite.only.seki.arpa.hp$flam.index)
 ```
@@ -1519,7 +1523,7 @@ all.equal(aq_shadow, aq_nab)
 
 Not many missing, which is good!
 
-### Deal with NAs for hotplate:
+### ****}}***Deal with NAs for hotplate:
 
 -   impute medians at each missing flam metric
 
@@ -1529,10 +1533,10 @@ ignite.only.seki.ABCO.hp %>%
   mutate(gti = as.numeric(gti)) 
 
 ignite.only.seki.ABCO.hp <- ignite.only.seki.ABCO.hp %>%
+  mutate(fh_nas_imputed = fh) %>% 
   group_by(year.month) %>% 
   group_by(spp) %>% #this makes us take the median of based on the species, the model, and the lfm bins (of 10 lfm) the missing value is in. Preserves species differences, and lfm impact. 
-  impute_median_at(c("ttfg", "ttms", "gd", "gti", "fd", "pfg","temp.max", "start.temp", "ros", "ignition.temp", "temp.change", "prop.ignite", "fh", "ros", "tti")) %>% 
-  impute_lm(fh ~ spp + lfm.NAs.imputed)  #since fh may have gone out of top of frame for some larger flame height trials, use existing information to impute those values (BUT doesn't really matter since so few fh's are actually missing)
+  impute_median_at(c("ttfg", "ttms", "gd", "gti", "fd", "pfg","temp.max", "start.temp", "ros", "ignition.temp", "temp.change", "prop.ignite", "fh_nas_imputed", "ros", "tti"))  #since fh may have gone out of top of frame for some larger flame height trials, use existing information to impute those values (BUT doesn't really matter since so few fh's are actually missing)
 
 colSums(is.na(ignite.only.seki.ABCO.hp)) #should not be any NAs except in LFM.outliers.out
 
@@ -1609,7 +1613,7 @@ range(ignite.only.seki.ABCO.hp$tti)
 range(ignite.only.seki.ABCO.hp$fh)
 
 ignite.only.seki.ABCO.hp <- ignite.only.seki.ABCO.hp %>%
-  mutate(flam.index = 4.30*((144+tti)/(12.5+tti))*exp(fh/(fh+53))) #using max tti and max fh, becomes a scale of least (1) to most (20) flammable
+  mutate(flam.index = 4.30*((144+tti)/(12.5+tti))*exp(fh_nas_imputed/(fh_nas_imputed+53))) #using max tti and max fh, becomes a scale of least (1) to most (20) flammable
 
 range(ignite.only.seki.ABCO.hp$flam.index)
 ```
@@ -2008,7 +2012,7 @@ all.equal(aq_shadow, aq_nab)
 
 Not many missing, which is good!
 
-### Deal with NAs for hotplate:
+### ****}}***Deal with NAs for hotplate:
 
 -   impute medians at each missing flam metric
 
@@ -2018,10 +2022,10 @@ ignite.only.seki.CADE.hp %>%
   mutate(gti = as.numeric(gti)) 
 
 ignite.only.seki.CADE.hp <- ignite.only.seki.CADE.hp %>%
+  mutate(fh_nas_imputed = fh) %>% 
   group_by(year.month) %>% 
   group_by(spp) %>% #this makes us take the median of based on the species, the model, and the lfm bins (of 10 lfm) the missing value is in. Preserves species differences, and lfm impact. 
-  impute_median_at(c("ttfg", "ttms", "gd", "gti", "fd", "pfg","temp.max", "start.temp", "ros", "ignition.temp", "temp.change", "prop.ignite", "fh", "tti")) %>% 
-  impute_lm(fh ~ spp + lfm.NAs.imputed)  #since fh may have gone out of top of frame for some larger flame height trials, use existing information to impute those values (BUT doesn't really matter since so few fh's are actually missing)
+  impute_median_at(c("ttfg", "ttms", "gd", "gti", "fd", "pfg","temp.max", "start.temp", "ros", "ignition.temp", "temp.change", "prop.ignite", "fh_nas_imputed", "tti")) #since fh may have gone out of top of frame for some larger flame height trials, use existing information to impute those values (BUT doesn't really matter since so few fh's are actually missing)
 
 colSums(is.na(ignite.only.seki.CADE.hp)) #should not be any NAs in flam metrics
 
@@ -2047,7 +2051,7 @@ range(ignite.only.seki.CADE.hp$tti)
 range(ignite.only.seki.CADE.hp$fh)
 
 ignite.only.seki.CADE.hp <- ignite.only.seki.CADE.hp %>%
-  mutate(flam.index = 3.67*((137+tti)/(12.5+tti))*exp(fh/(fh+53))) #using max tti and max fh, becomes a scale of least (1) to most (20) flammable
+  mutate(flam.index = 3.67*((137+tti)/(12.5+tti))*exp(fh_nas_imputed/(fh_nas_imputed+53))) #using max tti and max fh, becomes a scale of least (1) to most (20) flammable
 range(ignite.only.seki.CADE.hp$flam.index)
 ```
 
@@ -2492,7 +2496,7 @@ all.equal(aq_shadow, aq_nab)
 
 Not many missing, which is good!
 
-### Deal with NAs for hotplate:
+### ***{{****Deal with NAs for hotplate:
 
 -   impute medians at each missing flam metric
 
@@ -2502,9 +2506,10 @@ ignite.only.seki.CECO.hp %>%
   mutate(gti = as.numeric(gti)) 
 
 ignite.only.seki.CECO.hp <- ignite.only.seki.CECO.hp %>%
+  mutate(fh_nas_imputed = fh) %>% 
   group_by(year.month) %>% 
   group_by(spp) %>% #this makes us take the median of based on the species, the model, and the lfm bins (of 10 lfm) the missing value is in. Preserves species differences, and lfm impact. 
-  impute_median_at(c("ttfg", "ttms", "gd", "gti", "fd", "pfg","temp.max", "start.temp", "ros", "ignition.temp", "temp.change", "prop.ignite", "fh", "ros", "tti")) %>% 
+  impute_median_at(c("ttfg", "ttms", "gd", "gti", "fd", "pfg","temp.max", "start.temp", "ros", "ignition.temp", "temp.change", "prop.ignite", "fh_nas_imputed", "ros", "tti")) %>% 
   impute_lm(fh ~ spp + lfm.NAs.imputed)  #since fh may have gone out of top of frame for some larger flame height trials, use existing information to impute those values (BUT doesn't really matter since so few fh's are actually missing)
 
 colSums(is.na(ignite.only.seki.CECO.hp)) #should not be any NAs except in LFM.outliers.out
@@ -2582,7 +2587,7 @@ range(ignite.only.seki.CECO.hp$tti)
 range(ignite.only.seki.CECO.hp$fh)
 
 ignite.only.seki.CECO.hp <- ignite.only.seki.CECO.hp %>%
-  mutate(flam.index = 5.5*((496+tti)/(12.5+tti))*exp(fh/(fh+34))) #using max tti and max fh, becomes a scale of least (1) to most (20) flammable
+  mutate(flam.index = 5.5*((496+tti)/(12.5+tti))*exp(fh_nas_imputed/(fh_nas_imputed+34))) #using max tti and max fh, becomes a scale of least (1) to most (20) flammable
 
 range(ignite.only.seki.CECO.hp$flam.index)
 ```
@@ -3132,7 +3137,7 @@ all.equal(aq_shadow, aq_nab)
 
 Not many missing, which is good!
 
-### Deal with NAs for hotplate:
+### ***}}****Deal with NAs for hotplate:
 
 -   impute medians at each missing flam metric
 
@@ -3142,10 +3147,10 @@ ignite.only.seki.PIJE.hp %>%
   mutate(gti = as.numeric(gti)) 
 
 ignite.only.seki.PIJE.hp <- ignite.only.seki.PIJE.hp %>%
+  mutate(fh_nas_imputed = fh_ %>% )
   group_by(year.month) %>% 
   group_by(spp) %>% #this makes us take the median of based on the species, the model, and the lfm bins (of 10 lfm) the missing value is in. Preserves species differences, and lfm impact. 
-  impute_median_at(c("ttfg", "ttms", "gd", "gti", "fd", "pfg","temp.max", "start.temp", "ros", "ignition.temp", "temp.change", "prop.ignite", "fh", "ros", "tti")) %>% 
-  impute_lm(fh ~ spp + lfm.NAs.imputed)  #since fh may have gone out of top of frame for some larger flame height trials, use existing information to impute those values (BUT doesn't really matter since so few fh's are actually missing)
+  impute_median_at(c("ttfg", "ttms", "gd", "gti", "fd", "pfg","temp.max", "start.temp", "ros", "ignition.temp", "temp.change", "prop.ignite", "fh_nas_imputed", "ros", "tti")) #since fh may have gone out of top of frame for some larger flame height trials, use existing information to impute those values (BUT doesn't really matter since so few fh's are actually missing)
 
 colSums(is.na(ignite.only.seki.PIJE.hp)) #should not be any NAs except in LFM.outliers.out
 
@@ -3222,7 +3227,7 @@ range(ignite.only.seki.PIJE.hp$tti)
 range(ignite.only.seki.PIJE.hp$fh)
 
 ignite.only.seki.PIJE.hp <- ignite.only.seki.PIJE.hp %>%
-  mutate(flam.index = 4.3*((130+tti)/(12.5+tti))*exp(fh/(fh+54))) #using max tti and max fh, becomes a scale of least (1) to most (20) flammable
+  mutate(flam.index = 4.3*((130+tti)/(12.5+tti))*exp(fh_nas_imputed/(fh_nas_imputed+54))) #using max tti and max fh, becomes a scale of least (1) to most (20) flammable
 
 range(ignite.only.seki.PIJE.hp$flam.index)
 ```
@@ -3772,7 +3777,7 @@ all.equal(aq_shadow, aq_nab)
 
 Not many missing, which is good!
 
-### Deal with NAs for hotplate:
+### *******Deal with NAs for hotplate:
 
 -   impute medians at each missing flam metric
 
@@ -3782,10 +3787,10 @@ ignite.only.seki.QUKE.hp %>%
   mutate(gti = as.numeric(gti)) 
 
 ignite.only.seki.QUKE.hp <- ignite.only.seki.QUKE.hp %>%
+  mutate(fh_nas_imputed = fh) %>% 
   group_by(year.month) %>% 
   group_by(spp) %>% #this makes us take the median of based on the species, the model, and the lfm bins (of 10 lfm) the missing value is in. Preserves species differences, and lfm impact. 
-  impute_median_at(c("ttfg", "ttms", "gd", "gti", "fd", "pfg","temp.max", "start.temp", "ros", "ignition.temp", "temp.change", "prop.ignite", "fh", "tti")) %>% 
-  impute_lm(fh ~ spp + lfm.NAs.imputed)  #since fh may have gone out of top of frame for some larger flame height trials, use existing information to impute those values (BUT doesn't really matter since so few fh's are actually missing)
+  impute_median_at(c("ttfg", "ttms", "gd", "gti", "fd", "pfg","temp.max", "start.temp", "ros", "ignition.temp", "temp.change", "prop.ignite", "fh_nas_imputed", "tti"))  #since fh may have gone out of top of frame for some larger flame height trials, use existing information to impute those values (BUT doesn't really matter since so few fh's are actually missing)
 
 colSums(is.na(ignite.only.seki.QUKE.hp)) #should not be any NAs except in LFM.outliers.out
 
@@ -3861,7 +3866,7 @@ range(ignite.only.seki.QUKE.hp$tti)
 range(ignite.only.seki.QUKE.hp$fh)
 
 ignite.only.seki.QUKE.hp <- ignite.only.seki.QUKE.hp %>%
-  mutate(flam.index = 7.5*((29+tti)/(12.5+tti))*exp(fh/(fh+40))) #using max tti and max fh, becomes a scale of least (1) to most (20) flammable
+  mutate(flam.index = 7.5*((29+tti)/(12.5+tti))*exp(fh_nas_imputed/(fh_nas_imputed+40))) #using max tti and max fh, becomes a scale of least (1) to most (20) flammable
 
 range(ignite.only.seki.QUKE.hp$flam.index)
 ```
