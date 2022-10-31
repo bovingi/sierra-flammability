@@ -16,7 +16,7 @@ library(lme4)
 library(here)
 library(segmented)
 library(nlme)
-citation('nlme')
+#citation('nlme')
 library(lubridate)
 #install.packages("plotrix")
 library(plotrix)
@@ -211,9 +211,95 @@ Consumability: GD
 
 Maybe: Max temp
 
-## LFM
+#LFM
 
-Ignitability Metrics:
+###Holding vectors: this will be a df with all to collect results as we go: 
+
+No random effects: 
+
+```{r}
+lfm_psi_tti <- c(rep(NaN, 1))
+lfm_psi_fh <- c(rep(NaN, 1))
+lfm_psi_fd <- c(rep(NaN, 1))
+lfm_psi_gd <- c(rep(NaN, 1))
+#lfm_psi_gti <- c(rep(NaN, 1))
+#lfm_psi_lfm_pfg <- c(rep(NaN, 1))
+#lfm_psi_ttfg <- c(rep(NaN, 1))
+lfm_psi_fd <- c(rep(NaN, 1))
+lfm_psi_prop_ignite <- c(rep(NaN, 1))
+lfm_psi_temp_change <- c(rep(NaN, 1))
+
+lfm_st_err_tti <- c(rep(NaN, 1))
+lfm_st_err_fh <- c(rep(NaN, 1))
+lfm_st_err_fd <- c(rep(NaN, 1))
+lfm_st_err_gd <- c(rep(NaN, 1))
+#lfm_st_err_gti <- c(rep(NaN, 1))
+#lfm_st_err_lfm_pfg <- c(rep(NaN, 1))
+#lfm_st_err_ttfg <- c(rep(NaN, 1))
+lfm_st_err_fd <- c(rep(NaN, 1))
+lfm_st_err_prop_ignite <- c(rep(NaN, 1))
+lfm_st_err_temp_change <- c(rep(NaN, 1))
+
+lfm_p_value_tti <- c(rep(NaN, 1))
+lfm_p_value_fh <- c(rep(NaN, 1))
+lfm_p_value_fd <- c(rep(NaN, 1))
+lfm_p_value_gd <- c(rep(NaN, 1))
+#lfm_p_value_gti <- c(rep(NaN, 1))
+#lfm_p_value_lfm_pfg <- c(rep(NaN, 1))
+#lfm_p_value_ttfg <- c(rep(NaN, 1))
+lfm_p_value_fd <- c(rep(NaN, 1))
+lfm_p_value_prop_ignite <- c(rep(NaN, 1))
+lfm_p_value_temp_change <- c(rep(NaN, 1))
+
+lfm_ceco_thresholds_seg <- tibble::data_frame(lfm_psi_tti, lfm_st_err_tti, lfm_p_value_tti,
+                              lfm_psi_fh, lfm_st_err_fh, lfm_p_value_fh,
+                              lfm_psi_fd, lfm_st_err_fd,lfm_p_value_fd,
+                              lfm_psi_gd, lfm_st_err_gd, lfm_p_value_gd, 
+                              #lfm_psi_gti, lfm_st_err_gti, 
+                              #lfm_psi_lfm_pfg, lfm_st_err_lfm_pfg, 
+                              #lfm_psi_ttfg, lfm_st_err_ttfg,
+                              lfm_psi_prop_ignite, lfm_st_err_prop_ignite, lfm_p_value_prop_ignite,
+                              lfm_psi_temp_change, lfm_st_err_temp_change, lfm_p_value_lfm_temp_change
+                              )
+```
+
+
+Randem effecs: 
+
+```{r}
+lfm_psi_tti <- c(rep(NaN, 1))
+lfm_psi_fh <- c(rep(NaN, 1))
+lfm_psi_fd <- c(rep(NaN, 1))
+lfm_psi_gd <- c(rep(NaN, 1))
+#lfm_psi_gti <- c(rep(NaN, 1))
+#lfm_psi_lfm_pfg <- c(rep(NaN, 1))
+#lfm_psi_ttfg <- c(rep(NaN, 1))
+lfm_psi_fd <- c(rep(NaN, 1))
+lfm_psi_prop_ignite <- c(rep(NaN, 1))
+lfm_psi_temp_change <- c(rep(NaN, 1))
+
+lfm_st_err_tti <- c(rep(NaN, 1))
+lfm_st_err_fh <- c(rep(NaN, 1))
+lfm_st_err_fd <- c(rep(NaN, 1))
+lfm_st_err_gd <- c(rep(NaN, 1))
+#lfm_st_err_gti <- c(rep(NaN, 1))
+#lfm_st_err_lfm_pfg <- c(rep(NaN, 1))
+#lfm_st_err_ttfg <- c(rep(NaN, 1))
+lfm_st_err_fd <- c(rep(NaN, 1))
+lfm_st_err_prop_ignite <- c(rep(NaN, 1))
+lfm_st_err_temp_change <- c(rep(NaN, 1))
+
+lfm_ceco_thresholds_rand_seg <- tibble::data_frame(lfm_psi_tti, lfm_st_err_tti,
+                              lfm_psi_fh, lfm_st_err_fh, 
+                              lfm_psi_fd, lfm_st_err_fd,
+                              lfm_psi_gd, lfm_st_err_gd, 
+                              #lfm_psi_gti, lfm_st_err_gti, 
+                              #lfm_psi_lfm_pfg, lfm_st_err_lfm_pfg, 
+                              #lfm_psi_ttfg, lfm_st_err_ttfg,
+                              lfm_psi_prop_ignite, lfm_st_err_prop_ignite, 
+                              lfm_psi_temp_change, lfm_st_err_temp_change)
+```
+
 
 ### Time to Ignition
 
@@ -221,17 +307,121 @@ Ignitability Metrics:
 ceco_subset_seg_tti <- ceco_subset_seg %>%
   drop_na(tti)
 
+#Segmented regression with random changepoints: 
+
 o_mod<-lme(tti~lfm + year_month + site, random=~1|id, data=ceco_subset_seg_tti)
 os_mod_b<-segmented.default(o_mod, ~lfm, npsi=list(lfm=1))
 #summarizing results (note the '_coef' argument)
 summary.segmented(os_mod_b)
 
+#put into the df:
+lfm_ceco_thresholds_rand_seg[1] <- summary(os_mod_b)$psi[2]
+lfm_ceco_thresholds_rand_seg[2] <- summary(os_mod_b)$psi[3]
+
+# Segmented regression no random changepoints: 
+
 u_mod <- lm(tti~lfm + year_month + site, data = ceco_subset_seg_tti)
 u_mod_b <- segmented(u_mod, ~lfm)
-davies.test(u_mod_b)
 summary.segmented(u_mod_b)
 
-rsegplot.lfm(os_mod_b, ceco_subset_seg_tti, max.x = ceco_max_lfm, y.variable = 'tti', y.lab = "Time to Ignition (s)", tlp = mean_lfm_ceco, tlp.lower = lwr_lfm_ceco, tlp.upper = upr_lfm_ceco)
+u_mod_davies <- davies.test(u_mod_b)
+
+#put into the df:
+lfm_ceco_thresholds_seg[1] <- summary(u_mod_b)$psi[2]
+lfm_ceco_thresholds_seg[2] <- summary(u_mod_b)$psi[3]
+lfm_ceco_thresholds_seg[3] <- u_mod_davies$p.value
+
+
+#rsegplot.lfm(os_mod_b, ceco_subset_seg_tti, max.x = ceco_max_lfm, y.variable = 'tti', y.lab = "Time to Ignition (s)", tlp = mean_lfm_ceco, tlp.lower = lwr_lfm_ceco, tlp.upper = upr_lfm_ceco)
+```
+Combustibility Metrics:
+
+### Flame Height
+```{r}
+ceco_subset_seg_fh <- ceco_subset_seg %>% drop_na(fh) 
+
+o_mod<-lme(fh~lfm + year_month + site, random=~1|id, data=ceco_subset_seg_fh)
+os_mod<-segmented.default(o_mod, ~lfm, npsi=list(lfm=1))
+#summarizing results (note the '_coef' argument)
+summary.segmented(os_mod)
+
+#put into the df:
+lfm_ceco_thresholds_rand_seg[3] <- summary(os_mod)$psi[2]
+lfm_ceco_thresholds_rand_seg[4] <- summary(os_mod)$psi[3]
+
+# Segmented regression no random changepoints: 
+
+u_mod <- lm(fh~lfm + year_month + site, data = ceco_subset_seg_fh)
+u_mod_b <- segmented(u_mod, ~lfm)
+summary.segmented(u_mod_b)
+
+u_mod_davies <- davies.test(u_mod_b)
+
+#put into the df:
+lfm_ceco_thresholds_seg[4] <- summary(u_mod_b)$psi[2]
+lfm_ceco_thresholds_seg[5] <- summary(u_mod_b)$psi[3]
+lfm_ceco_thresholds_seg[6] <- u_mod_davies$p.value
+
+#rsegplot.lfm(os_mod, ceco_subset_seg_fh, max.x = ceco_max_lfm, y.variable = 'fh', y.lab = "Flame Height (cm)", tlp = mean_lfm_ceco, tlp.lower = lwr_lfm_ceco, tlp.upper = upr_lfm_ceco)
+```
+
+Sustainability Metrics:
+### Flame Duration
+```{r}
+ceco_subset_seg_fd <- ceco_subset_seg %>% drop_na(fd)
+
+o_mod<-lme(fd~lfm + year_month + site, random=~1|id, data=ceco_subset_seg_fd)
+os_mod <-segmented.default(o_mod, ~lfm, npsi=list(lfm=1))
+#summarizing results (note the '_coef' argument)
+summary.segmented(os_mod)
+
+#put into the df:
+lfm_ceco_thresholds_rand_seg[5] <- summary(os_mod)$psi[2]
+lfm_ceco_thresholds_rand_seg[6] <- summary(os_mod)$psi[3]
+
+# Segmented regression no random changepoints: 
+
+u_mod <- lm(fd~lfm + year_month + site, data = ceco_subset_seg_fd)
+u_mod_b <- segmented(u_mod, ~lfm)
+summary.segmented(u_mod_b)
+
+u_mod_davies <- davies.test(u_mod_b)
+
+#put into the df:
+lfm_ceco_thresholds_seg[7] <- summary(u_mod_b)$psi[2]
+lfm_ceco_thresholds_seg[8] <- summary(u_mod_b)$psi[3]
+lfm_ceco_thresholds_seg[9] <- u_mod_davies$p.value
+
+#rsegplot.lfm(os_mod_f, ceco_subset_seg_fd, max.x = ceco_max_lfm, y.variable = 'fd', y.lab = "Flame Duration (s)", tlp = mean_lfm_ceco, tlp.lower = lwr_lfm_ceco, tlp.upper = upr_lfm_ceco)
+```
+
+### glow Duration
+```{r}
+ceco_subset_seg_gd <- ceco_subset_seg %>% drop_na(gd)
+
+o_mod<-lme(gd~lfm + year_month + site, random=~1|id, data=ceco_subset_seg_gd)
+os_mod <-segmented.default(o_mod, ~lfm, npsi=list(lfm=1))
+#summarizing results (note the '_coef' argument)
+summary.segmented(os_mod)
+
+#put into the df:
+lfm_ceco_thresholds_rand_seg[7] <- summary(os_mod)$psi[2]
+lfm_ceco_thresholds_rand_seg[8] <- summary(os_mod)$psi[3]
+
+# Segmented regression no random changepoints: 
+
+u_mod <- lm(gd~lfm + year_month + site, data = ceco_subset_seg_gd)
+u_mod_b <- segmented(u_mod, ~lfm)
+summary.segmented(u_mod_b)
+
+u_mod_davies <- davies.test(u_mod_b)
+
+#put into the df:
+lfm_ceco_thresholds_seg[10] <- summary(u_mod_b)$psi[2]
+lfm_ceco_thresholds_seg[11] <- summary(u_mod_b)$psi[3]
+lfm_ceco_thresholds_seg[12] <- u_mod_davies$p.value
+
+#rsegplot.lfm(os_mod, ceco_subset_seg_gd, max.x = ceco_max_lfm, y.variable = 'gd', y.lab = "Glow Duration (s)", tlp = mean_lfm_ceco, tlp.lower = lwr_lfm_ceco, tlp.upper = upr_lfm_ceco)
 ```
 
 
@@ -244,50 +434,58 @@ os_mod<-segmented.default(o_mod, ~lfm, npsi=list(lfm=1))
 #summarizing results (note the '_coef' argument)
 summary.segmented(os_mod)
 
-rsegplot.lfm(os_mod, ceco_subset_seg_prop_ignite, max.x = ceco_max_lfm, y.variable = 'prop_ignite', y.lab = "Proportion Ignted (5% Bins of LFM)", tlp = mean_lfm_ceco, tlp.lower = lwr_lfm_ceco, tlp.upper = upr_lfm_ceco)
+#put into the df:
+lfm_ceco_thresholds_rand_seg[9] <- summary(os_mod)$psi[2]
+lfm_ceco_thresholds_rand_seg[10] <- summary(os_mod)$psi[3]
+
+# Segmented regression no random changepoints: 
+
+u_mod <- lm(prop_ignite~lfm + year_month + site, data = ceco_subset_seg_prop_ignite)
+u_mod_b <- segmented(u_mod, ~lfm)
+summary.segmented(u_mod_b)
+
+u_mod_davies <- davies.test(u_mod_b)
+
+#put into the df:
+lfm_ceco_thresholds_seg[13] <- summary(u_mod_b)$psi[2]
+lfm_ceco_thresholds_seg[14] <- summary(u_mod_b)$psi[3]
+lfm_ceco_thresholds_seg[15] <- u_mod_davies$p.value
+
+#rsegplot.lfm(os_mod, ceco_subset_seg_prop_ignite, max.x = ceco_max_lfm, y.variable = 'prop_ignite', y.lab = "Proportion Ignted (5% Bins of LFM)", tlp = mean_lfm_ceco, tlp.lower = lwr_lfm_ceco, tlp.upper = upr_lfm_ceco)
 ```
 
-### Glow to Ignition
-```{r}
-ceco_subset_seg_gti <- ceco_subset_seg %>% 
-  drop_na(gti)
+<!-- ### Glow to Ignition -->
+<!-- ```{r} -->
+<!-- ceco_subset_seg_gti <- ceco_subset_seg %>%  -->
+<!--   drop_na(gti) -->
 
-o_mod<-lme(gti~lfm + year_month + site, random=~1|id, data=ceco_subset_seg_gti)
-os_mod<-segmented.default(o_mod, ~lfm, npsi=list(lfm=1))
-#summarizing results (note the '_coef' argument)
-summary.segmented(os_mod)
+<!-- o_mod<-lme(gti~lfm + year_month + site, random=~1|id, data=ceco_subset_seg_gti) -->
+<!-- os_mod<-segmented.default(o_mod, ~lfm, npsi=list(lfm=1)) -->
+<!-- #summarizing results (note the '_coef' argument) -->
+<!-- summary.segmented(os_mod) -->
 
-rsegplot.lfm(os_mod, ceco_subset_seg_gti, max.x = ceco_max_lfm, y.variable = 'gti', y.lab = "Glow to Ignition (s)", tlp = mean_lfm_ceco, tlp.lower = lwr_lfm_ceco, tlp.upper = upr_lfm_ceco)
-```
+<!-- #rsegplot.lfm(os_mod, ceco_subset_seg_gti, max.x = ceco_max_lfm, y.variable = 'gti', y.lab = "Glow to Ignition (s)", tlp = mean_lfm_ceco, tlp.lower = lwr_lfm_ceco, tlp.upper = upr_lfm_ceco) -->
+<!-- ``` -->
 
-Combustibility Metrics:
 
-### Flame Height
-```{r}
-ceco_subset_seg_fh <- ceco_subset_seg %>% drop_na(fh) 
 
-o_mod<-lme(fh~lfm + year_month + site, random=~1|id, data=ceco_subset_seg_fh)
-os_mod<-segmented.default(o_mod, ~lfm, npsi=list(lfm=1))
-#summarizing results (note the '_coef' argument)
-summary.segmented(os_mod)
+<!-- ### Max_ Temp_ -->
+<!-- ```{r} -->
+<!-- ceco_subset_seg_lower_temp_max <- ceco_subset_seg %>%  -->
+<!--   drop_na(lower_temp_max) -->
 
-rsegplot.lfm(os_mod, ceco_subset_seg_fh, max.x = ceco_max_lfm, y.variable = 'fh', y.lab = "Flame Height (cm)", tlp = mean_lfm_ceco, tlp.lower = lwr_lfm_ceco, tlp.upper = upr_lfm_ceco)
-```
+<!-- o_mod<-lme(lower_temp_max~lfm + year_month + site, random=~1|id, data=ceco_subset_seg_lower_temp_max) -->
+<!-- os_mod<-segmented.default(o_mod, ~lfm, npsi=list(lfm=1)) -->
+<!-- #summarizing results (note the '_coef' argument) -->
+<!-- summary.segmented(os_mod) -->
+<!-- os_mod -->
 
-### Max_ Temp_
-```{r}
-ceco_subset_seg_lower_temp_max <- ceco_subset_seg %>% 
-  drop_na(lower_temp_max)
+<!-- #rsegplot.lfm(os_mod, ceco_subset_seg_lower_temp_max, max.x = ceco_max_lfm, y.variable = 'lower_temp_max', y.lab = "Maximum Temperature (C)", tlp = mean_lfm_ceco, tlp.lower = lwr_lfm_ceco, tlp.upper = upr_lfm_ceco) -->
+<!-- ``` -->
 
-o_mod<-lme(lower_temp_max~lfm + year_month + site, random=~1|id, data=ceco_subset_seg_lower_temp_max)
-os_mod<-segmented.default(o_mod, ~lfm, npsi=list(lfm=1))
-#summarizing results (note the '_coef' argument)
-summary.segmented(os_mod)
-os_mod
 
-rsegplot.lfm(os_mod, ceco_subset_seg_lower_temp_max, max.x = ceco_max_lfm, y.variable = 'lower_temp_max', y.lab = "Maximum Temperature (C)", tlp = mean_lfm_ceco, tlp.lower = lwr_lfm_ceco, tlp.upper = upr_lfm_ceco)
-```
-### Max_ Temp_
+### Temp change: 
+
 ```{r}
 ceco_subset_seg_temp_change <- ceco_subset_seg %>% 
   drop_na(temp_change)
@@ -298,7 +496,233 @@ os_mod<-segmented.default(o_mod, ~lfm, npsi=list(lfm=1))
 summary.segmented(os_mod)
 os_mod
 
-rsegplot.lfm(os_mod, ceco_subset_seg_temp_change, max.x = ceco_max_lfm, y.variable = 'lower_temp_max', y.lab = "Maximum Temperature (C)", tlp = mean_lfm_ceco, tlp.lower = lwr_lfm_ceco, tlp.upper = upr_lfm_ceco)
+#put into the df:
+lfm_ceco_thresholds_rand_seg[11] <- summary(os_mod)$psi[2]
+lfm_ceco_thresholds_rand_seg[12] <- summary(os_mod)$psi[3]
+
+# Segmented regression no random changepoints: 
+
+u_mod <- lm(temp_change~lfm + year_month + site, data = ceco_subset_seg_temp_change)
+u_mod_b <- segmented(u_mod, ~lfm)
+summary.segmented(u_mod_b)
+
+u_mod_davies <- davies.test(u_mod_b)
+
+#put into the df:
+lfm_ceco_thresholds_seg[16] <- summary(u_mod_b)$psi[2]
+lfm_ceco_thresholds_seg[17] <- summary(u_mod_b)$psi[3]
+lfm_ceco_thresholds_seg[18] <- u_mod_davies$p.value
+
+#rsegplot.lfm(os_mod, ceco_subset_seg_temp_change, max.x = ceco_max_lfm, y.variable = 'temp_change', y.lab = "Temp Change (C)", tlp = mean_lfm_ceco, tlp.lower = lwr_lfm_ceco, tlp.upper = upr_lfm_ceco)
+```
+#LFM: FInal table: 
+
+
+```{r}
+#No random effects: 
+ceco_lfm_summary_df <- lfm_ceco_thresholds_seg %>% 
+  pivot_longer(everything(), 
+               names_to = "flam_metric", 
+              values_to = "value") %>% 
+  group_by(flam_metric) %>% 
+   summarise(value = mean(value)) %>% 
+             #sd_bootstrap = sd(value)) %>% 
+  mutate(across('flam_metric', str_replace, 'lfm_', ''),
+         across('flam_metric', str_replace_all, '_', ' '), 
+         statistic = case_when(
+           grepl("p value", flam_metric) ~ "p value",
+            grepl("psi", flam_metric) ~"psi",
+            grepl("st err", flam_metric) ~"st err")) %>% 
+  mutate(across('flam_metric', str_replace, 'p value|st err|psi', ''), 
+         analysis = "segmented") %>% 
+  arrange(flam_metric, statistic, value, analysis)
+         
+ceco_lfm_summary_df
+
+#with random effects: 
+ceco_lfm_rand_summary_df <- lfm_ceco_thresholds_rand_seg %>% 
+  pivot_longer(everything(), 
+               names_to = "flam_metric", 
+              values_to = "value") %>% 
+  group_by(flam_metric) %>% 
+   summarise(value = mean(value)) %>% 
+             #sd_bootstrap = sd(value)) %>% 
+  mutate(across('flam_metric', str_replace, 'lfm_', ''),
+         across('flam_metric', str_replace_all, '_', ' '), 
+         statistic = case_when(
+           grepl("p value", flam_metric) ~ "p value",
+            grepl("psi", flam_metric) ~"psi",
+            grepl("st err", flam_metric) ~"st err")) %>% 
+  mutate(across('flam_metric', str_replace, 'p value|st err|psi', ''), 
+         analysis = "random") %>% 
+  arrange(flam_metric, statistic, value, analysis)
+         
+ceco_lfm_rand_summary_df
+
+ceco_lfm <- bind_rows(ceco_lfm_rand_summary_df, ceco_lfm_summary_df) %>% 
+  mutate(spp = "ceco", 
+         water_variable = "lfm") 
+
+#ggsave(plot=gridExtra::tableGrob(ceco_lfm), filename=here("figures", "segmented_tables", "rand_segmented_lfm_ceco.png"))
+```
+
+
+
+# -------
+
+#MPa
+
+###Holding vectors: this will be a df with all to collect results as we go: 
+
+No random effects: 
+
+```{r}
+mpa_psi_tti <- c(rep(NaN, 1))
+mpa_psi_fh <- c(rep(NaN, 1))
+mpa_psi_fd <- c(rep(NaN, 1))
+mpa_psi_gd <- c(rep(NaN, 1))
+#mpa_psi_gti <- c(rep(NaN, 1))
+#mpa_psi_mpa_pfg <- c(rep(NaN, 1))
+#mpa_psi_ttfg <- c(rep(NaN, 1))
+mpa_psi_fd <- c(rep(NaN, 1))
+mpa_psi_prop_ignite <- c(rep(NaN, 1))
+mpa_psi_temp_change <- c(rep(NaN, 1))
+
+mpa_st_err_tti <- c(rep(NaN, 1))
+mpa_st_err_fh <- c(rep(NaN, 1))
+mpa_st_err_fd <- c(rep(NaN, 1))
+mpa_st_err_gd <- c(rep(NaN, 1))
+#mpa_st_err_gti <- c(rep(NaN, 1))
+#mpa_st_err_mpa_pfg <- c(rep(NaN, 1))
+#mpa_st_err_ttfg <- c(rep(NaN, 1))
+mpa_st_err_fd <- c(rep(NaN, 1))
+mpa_st_err_prop_ignite <- c(rep(NaN, 1))
+mpa_st_err_temp_change <- c(rep(NaN, 1))
+
+mpa_p_value_tti <- c(rep(NaN, 1))
+mpa_p_value_fh <- c(rep(NaN, 1))
+mpa_p_value_fd <- c(rep(NaN, 1))
+mpa_p_value_gd <- c(rep(NaN, 1))
+#mpa_p_value_gti <- c(rep(NaN, 1))
+#mpa_p_value_mpa_pfg <- c(rep(NaN, 1))
+#mpa_p_value_ttfg <- c(rep(NaN, 1))
+mpa_p_value_fd <- c(rep(NaN, 1))
+mpa_p_value_prop_ignite <- c(rep(NaN, 1))
+mpa_p_value_temp_change <- c(rep(NaN, 1))
+
+mpa_ceco_thresholds_seg <- tibble::data_frame(mpa_psi_tti, mpa_st_err_tti, mpa_p_value_tti,
+                              mpa_psi_fh, mpa_st_err_fh, mpa_p_value_fh,
+                              mpa_psi_fd, mpa_st_err_fd,mpa_p_value_fd,
+                              mpa_psi_gd, mpa_st_err_gd, mpa_p_value_gd, 
+                              #mpa_psi_gti, mpa_st_err_gti, 
+                              #mpa_psi_mpa_pfg, mpa_st_err_mpa_pfg, 
+                              #mpa_psi_ttfg, mpa_st_err_ttfg,
+                              mpa_psi_prop_ignite, mpa_st_err_prop_ignite, mpa_p_value_prop_ignite,
+                              mpa_psi_temp_change, mpa_st_err_temp_change, mpa_p_value_temp_change
+                              )
+```
+
+
+Randem effecs: 
+
+```{r}
+mpa_psi_tti <- c(rep(NaN, 1))
+mpa_psi_fh <- c(rep(NaN, 1))
+mpa_psi_fd <- c(rep(NaN, 1))
+mpa_psi_gd <- c(rep(NaN, 1))
+#mpa_psi_gti <- c(rep(NaN, 1))
+#mpa_psi_mpa_pfg <- c(rep(NaN, 1))
+#mpa_psi_ttfg <- c(rep(NaN, 1))
+mpa_psi_fd <- c(rep(NaN, 1))
+mpa_psi_prop_ignite <- c(rep(NaN, 1))
+mpa_psi_temp_change <- c(rep(NaN, 1))
+
+mpa_st_err_tti <- c(rep(NaN, 1))
+mpa_st_err_fh <- c(rep(NaN, 1))
+mpa_st_err_fd <- c(rep(NaN, 1))
+mpa_st_err_gd <- c(rep(NaN, 1))
+#mpa_st_err_gti <- c(rep(NaN, 1))
+#mpa_st_err_mpa_pfg <- c(rep(NaN, 1))
+#mpa_st_err_ttfg <- c(rep(NaN, 1))
+mpa_st_err_fd <- c(rep(NaN, 1))
+mpa_st_err_prop_ignite <- c(rep(NaN, 1))
+mpa_st_err_temp_change <- c(rep(NaN, 1))
+
+mpa_ceco_thresholds_rand_seg <- tibble::data_frame(mpa_psi_tti, mpa_st_err_tti,
+                              mpa_psi_fh, mpa_st_err_fh, 
+                              mpa_psi_fd, mpa_st_err_fd,
+                              mpa_psi_gd, mpa_st_err_gd, 
+                              #mpa_psi_gti, mpa_st_err_gti, 
+                              #mpa_psi_mpa_pfg, mpa_st_err_mpa_pfg, 
+                              #mpa_psi_ttfg, mpa_st_err_ttfg,
+                              mpa_psi_prop_ignite, mpa_st_err_prop_ignite, 
+                              mpa_psi_temp_change, mpa_st_err_temp_change)
+```
+
+
+### Time to Ignition
+
+```{r}
+ceco_subset_seg_tti <- ceco_subset_seg %>%
+  drop_na(tti)
+
+#Segmented regression with random changepoints: 
+
+o_mod<-lme(tti~mpa + year_month + site, random=~1|id, data=ceco_subset_seg_tti)
+os_mod_b<-segmented.default(o_mod, ~mpa, npsi=list(mpa=1))
+#summarizing results (note the '_coef' argument)
+summary.segmented(os_mod_b)
+
+#put into the df:
+mpa_ceco_thresholds_rand_seg[1] <- summary(os_mod_b)$psi[2]
+mpa_ceco_thresholds_rand_seg[2] <- summary(os_mod_b)$psi[3]
+
+# Segmented regression no random changepoints: 
+
+u_mod <- lm(tti~mpa + year_month + site, data = ceco_subset_seg_tti)
+u_mod_b <- segmented(u_mod, ~mpa)
+summary.segmented(u_mod_b)
+
+u_mod_davies <- davies.test(u_mod_b)
+
+#put into the df:
+mpa_ceco_thresholds_seg[1] <- summary(u_mod_b)$psi[2]
+mpa_ceco_thresholds_seg[2] <- summary(u_mod_b)$psi[3]
+mpa_ceco_thresholds_seg[3] <- u_mod_davies$p.value
+
+
+#rsegplot.mpa(os_mod_b, ceco_subset_seg_tti, max.x = ceco_max_mpa, y.variable = 'tti', y.lab = "Time to Ignition (s)", tlp = mean_mpa_ceco, tlp.lower = lwr_mpa_ceco, tlp.upper = upr_mpa_ceco)
+```
+Combustibility Metrics:
+
+### Flame Height
+```{r}
+ceco_subset_seg_fh <- ceco_subset_seg %>% drop_na(fh) 
+
+o_mod<-lme(fh~mpa + year_month + site, random=~1|id, data=ceco_subset_seg_fh)
+os_mod<-segmented.default(o_mod, ~mpa, npsi=list(mpa=1))
+#summarizing results (note the '_coef' argument)
+summary.segmented(os_mod)
+
+#put into the df:
+mpa_ceco_thresholds_rand_seg[3] <- summary(os_mod)$psi[2]
+mpa_ceco_thresholds_rand_seg[4] <- summary(os_mod)$psi[3]
+
+# Segmented regression no random changepoints: 
+
+u_mod <- lm(fh~mpa + year_month + site, data = ceco_subset_seg_fh)
+u_mod_b <- segmented(u_mod, ~mpa)
+summary.segmented(u_mod_b)
+
+u_mod_davies <- davies.test(u_mod_b)
+
+#put into the df:
+mpa_ceco_thresholds_seg[4] <- summary(u_mod_b)$psi[2]
+mpa_ceco_thresholds_seg[5] <- summary(u_mod_b)$psi[3]
+mpa_ceco_thresholds_seg[6] <- u_mod_davies$p.value
+
+#rsegplot.mpa(os_mod, ceco_subset_seg_fh, max.x = ceco_max_mpa, y.variable = 'fh', y.lab = "Flame Height (cm)", tlp = mean_mpa_ceco, tlp.lower = lwr_mpa_ceco, tlp.upper = upr_mpa_ceco)
+
 ```
 
 Sustainability Metrics:
@@ -306,97 +730,232 @@ Sustainability Metrics:
 ```{r}
 ceco_subset_seg_fd <- ceco_subset_seg %>% drop_na(fd)
 
-o_mod<-lme(fd~lfm + year_month + site, random=~1|id, data=ceco_subset_seg_fd)
-os_mod_f<-segmented.default(o_mod, ~lfm, npsi=list(lfm=1))
-#summarizing results (note the '_coef' argument)
-summary.segmented(os_mod_f)
-
-rsegplot.lfm(os_mod_f, ceco_subset_seg_fd, max.x = ceco_max_lfm, y.variable = 'fd', y.lab = "Flame Duration (s)", tlp = mean_lfm_ceco, tlp.lower = lwr_lfm_ceco, tlp.upper = upr_lfm_ceco)
-```
-
-
-# -------
-
-
-## Water Potential
-```{r}
-ceco_subset_seg <- ceco_subset_seg %>% 
-  mutate(mpa_scaled = scale(mpa))
-```
-
-
- 
-Ignitability Metrics:
-
-### Time to Ignition
-```{r}
-o_mod<-lme(tti~mpa + year_month + site, random=~1|id, data=ceco_subset_seg_tti)
-os_mod_b1<-segmented.default(o_mod, ~mpa, npsi=list(mpa=1))
-#summarizing results (note the '_coef' argument)
-summary.segmented(os_mod_b1)
-
-rsegplot.mpa(os_mod_b1, ceco_subset_seg_tti, max.x = ceco_max_mpa, y.variable = 'tti', y.lab = "Time to Ignition (s)", tlp = mean_mpa_ceco, tlp.lower = lwr_mpa_ceco, tlp.upper = upr_mpa_ceco)
-```
-
-### Prop_ Ignite (5%)
-```{r}
-ceco_subset_seg_prop_ignite
-
-o_mod<-lme(prop_ignite~mpa + year_month + site, random=~1|id, data=ceco_subset_seg_prop_ignite)
-os_mod<-segmented.default(o_mod, ~mpa, npsi=list(mpa=1))
-#summarizing results (note the '_coef' argument)
-summary.segmented(os_mod)
-
-rsegplot.mpa(os_mod, ceco_subset_seg_prop_ignite, max.x = ceco_max_mpa, y.variable = 'prop_ignite', y.lab = "Proportion Ignted (5% Bins of mpa)", tlp = mean_mpa_ceco, tlp.lower = lwr_mpa_ceco, tlp.upper = upr_mpa_ceco)
-```
-
-### Glow to Ignition
-```{r}
-ceco_subset_seg_gti <- ceco_subset_seg_gti %>% 
-  filter(gti < 50, 
-         gti > 0)
-
-o_mod<-lme(gti~mpa + year_month + site, random=~1|id, data=ceco_subset_seg_gti)
-os_mod<-segmented.default(o_mod, ~mpa, npsi=list(mpa=1))
-#summarizing results (note the '_coef' argument)
-summary.segmented(os_mod)
-
-rsegplot.mpa(os_mod, ceco_subset_seg_gti, max.x = ceco_max_mpa, y.variable = 'gti', y.lab = "Glow to Ignition (s)", tlp = mean_mpa_ceco, tlp.lower = lwr_mpa_ceco, tlp.upper = upr_mpa_ceco)
-```
-
-### Temp Max
-```{r}
-
-o_mod<-lme(lower_temp_max~mpa + year_month + site, random=~1|id, ceco_subset_seg_lower_temp_max)
-os_mod<-segmented.default(o_mod, ~mpa, npsi=list(mpa=1))
-#summarizing results (note the '_coef' argument)
-summary.segmented(os_mod)
-
-rsegplot.mpa(os_mod, ceco_subset_seg_lower_temp_max, max.x = ceco_max_mpa, y.variable = 'lower_temp_max', y.lab = "Lower Temp Max (C)", tlp = mean_mpa_ceco, tlp.lower = lwr_mpa_ceco, tlp.upper = upr_mpa_ceco)
-```
-
-Combustibility Metrics:
-### Flame Height
-```{r}
-o_mod<-lme(fh~mpa + year_month + site, random=~1|id, data=ceco_subset_seg_fh)
-os_mod<-segmented.default(o_mod, ~mpa, npsi=list(mpa=1))
-#summarizing results (note the '_coef' argument)
-summary.segmented(os_mod)
-
-rsegplot.mpa(os_mod, ceco_subset_seg_fh, max.x = ceco_max_mpa, y.variable = 'fh', y.lab = "Flame Height (cm)", tlp = mean_mpa_ceco, tlp.lower = lwr_mpa_ceco, tlp.upper = upr_mpa_ceco)
-```
-
-### Flame Duration
-```{r}
 o_mod<-lme(fd~mpa + year_month + site, random=~1|id, data=ceco_subset_seg_fd)
+os_mod <-segmented.default(o_mod, ~mpa, npsi=list(mpa=1))
+#summarizing results (note the '_coef' argument)
+summary.segmented(os_mod)
+
+#put into the df:
+mpa_ceco_thresholds_rand_seg[5] <- summary(os_mod)$psi[2]
+mpa_ceco_thresholds_rand_seg[6] <- summary(os_mod)$psi[3]
+
+# Segmented regression no random changepoints: 
+
+u_mod <- lm(fd~mpa + year_month + site, data = ceco_subset_seg_fd)
+u_mod_b <- segmented(u_mod, ~mpa)
+summary.segmented(u_mod_b)
+
+u_mod_davies <- davies.test(u_mod_b)
+
+#put into the df:
+mpa_ceco_thresholds_seg[7] <- summary(u_mod_b)$psi[2]
+mpa_ceco_thresholds_seg[8] <- summary(u_mod_b)$psi[3]
+mpa_ceco_thresholds_seg[9] <- u_mod_davies$p.value
+
+#rsegplot.mpa(os_mod, ceco_subset_seg_fd, max.x = ceco_max_mpa, y.variable = 'fd', y.lab = "Flame Duration (s)", tlp = mean_mpa_ceco, tlp.lower = lwr_mpa_ceco, tlp.upper = upr_mpa_ceco)
+```
+
+### glow Duration
+```{r}
+ceco_subset_seg_gd <- ceco_subset_seg %>% drop_na(gd)
+
+o_mod<-lme(gd~mpa + year_month + site, random=~1|id, data=ceco_subset_seg_gd)
+os_mod <-segmented.default(o_mod, ~mpa, npsi=list(mpa=1))
+#summarizing results (note the '_coef' argument)
+summary.segmented(os_mod)
+
+#put into the df:
+mpa_ceco_thresholds_rand_seg[7] <- summary(os_mod)$psi[2]
+mpa_ceco_thresholds_rand_seg[8] <- summary(os_mod)$psi[3]
+
+# Segmented regression no random changepoints: 
+
+u_mod <- lm(gd~mpa + year_month + site, data = ceco_subset_seg_gd)
+u_mod_b <- segmented(u_mod, ~mpa)
+summary.segmented(u_mod_b)
+
+u_mod_davies <- davies.test(u_mod_b)
+
+#put into the df:
+mpa_ceco_thresholds_seg[10] <- summary(u_mod_b)$psi[2]
+mpa_ceco_thresholds_seg[11] <- summary(u_mod_b)$psi[3]
+mpa_ceco_thresholds_seg[12] <- u_mod_davies$p.value
+
+#rsegplot.mpa(os_mod, ceco_subset_seg_gd, max.x = ceco_max_mpa, y.variable = 'gd', y.lab = "Glow Duration (s)", tlp = mean_mpa_ceco, tlp.lower = lwr_mpa_ceco, tlp.upper = upr_mpa_ceco)
+```
+
+
+### Prop. Ignite (5%)
+```{r}
+ceco_subset_seg_prop_ignite <- ceco_subset_seg %>% drop_na(prop_ignite)
+
+o_mod<-lme(prop_ignite~mpa + year_month + site, random=~1|id, ceco_subset_seg_prop_ignite )
 os_mod<-segmented.default(o_mod, ~mpa, npsi=list(mpa=1))
 #summarizing results (note the '_coef' argument)
 summary.segmented(os_mod)
 
-rsegplot.mpa(os_mod, ceco_subset_seg_fd, max.x = ceco_max_mpa, y.variable = 'fd', y.lab = "Flame Duration (sec)", tlp = mean_mpa_ceco, tlp.lower = lwr_mpa_ceco, tlp.upper = upr_mpa_ceco)
-```
-# -------
+#put into the df:
+mpa_ceco_thresholds_rand_seg[9] <- summary(os_mod)$psi[2]
+mpa_ceco_thresholds_rand_seg[10] <- summary(os_mod)$psi[3]
 
-#Split by Sampling Date
+# Segmented regression no random changepoints: 
+
+u_mod <- lm(prop_ignite~mpa + year_month + site, data = ceco_subset_seg_prop_ignite)
+u_mod_b <- segmented(u_mod, ~mpa)
+summary.segmented(u_mod_b)
+
+u_mod_davies <- davies.test(u_mod_b)
+
+#put into the df:
+mpa_ceco_thresholds_seg[13] <- summary(u_mod_b)$psi[2]
+mpa_ceco_thresholds_seg[14] <- summary(u_mod_b)$psi[3]
+mpa_ceco_thresholds_seg[15] <- u_mod_davies$p.value
+
+#rsegplot.mpa(os_mod, ceco_subset_seg_prop_ignite, max.x = ceco_max_mpa, y.variable = 'prop_ignite', y.lab = "Proportion Ignted (5% Bins of mpa)", tlp = mean_mpa_ceco, tlp.lower = lwr_mpa_ceco, tlp.upper = upr_mpa_ceco)
+```
+
+<!-- ### Glow to Ignition -->
+<!-- ```{r} -->
+<!-- ceco_subset_seg_gti <- ceco_subset_seg %>%  -->
+<!--   drop_na(gti) -->
+
+<!-- o_mod<-lme(gti~mpa + year_month + site, random=~1|id, data=ceco_subset_seg_gti) -->
+<!-- os_mod<-segmented.default(o_mod, ~mpa, npsi=list(mpa=1)) -->
+<!-- #summarizing results (note the '_coef' argument) -->
+<!-- summary.segmented(os_mod) -->
+
+<!-- #rsegplot.mpa(os_mod, ceco_subset_seg_gti, max.x = ceco_max_mpa, y.variable = 'gti', y.lab = "Glow to Ignition (s)", tlp = mean_mpa_ceco, tlp.lower = lwr_mpa_ceco, tlp.upper = upr_mpa_ceco) -->
+<!-- ``` -->
+
+
+
+<!-- ### Max_ Temp_ -->
+<!-- ```{r} -->
+<!-- ceco_subset_seg_lower_temp_max <- ceco_subset_seg %>%  -->
+<!--   drop_na(lower_temp_max) -->
+
+<!-- o_mod<-lme(lower_temp_max~mpa + year_month + site, random=~1|id, data=ceco_subset_seg_lower_temp_max) -->
+<!-- os_mod<-segmented.default(o_mod, ~mpa, npsi=list(mpa=1)) -->
+<!-- #summarizing results (note the '_coef' argument) -->
+<!-- summary.segmented(os_mod) -->
+<!-- os_mod -->
+
+<!-- #rsegplot.mpa(os_mod, ceco_subset_seg_lower_temp_max, max.x = ceco_max_mpa, y.variable = 'lower_temp_max', y.lab = "Maximum Temperature (C)", tlp = mean_mpa_ceco, tlp.lower = lwr_mpa_ceco, tlp.upper = upr_mpa_ceco) -->
+<!-- ``` -->
+
+
+### Temp change: 
+
+```{r}
+ceco_subset_seg_temp_change <- ceco_subset_seg %>% 
+  drop_na(temp_change)
+
+o_mod<-lme(lower_temp_max~mpa + year_month + site, random=~1|id, data=ceco_subset_seg_temp_change)
+os_mod<-segmented.default(o_mod, ~mpa, npsi=list(mpa=1))
+#summarizing results (note the '_coef' argument)
+summary.segmented(os_mod)
+os_mod
+
+#put into the df:
+mpa_ceco_thresholds_rand_seg[11] <- summary(os_mod)$psi[2]
+mpa_ceco_thresholds_rand_seg[12] <- summary(os_mod)$psi[3]
+
+# Segmented regression no random changepoints: 
+
+u_mod <- lm(temp_change~mpa + year_month + site, data = ceco_subset_seg_temp_change)
+u_mod_b <- segmented(u_mod, ~mpa)
+summary.segmented(u_mod_b)
+
+u_mod_davies <- davies.test(u_mod_b)
+
+#put into the df:
+mpa_ceco_thresholds_seg[16] <- summary(u_mod_b)$psi[2]
+mpa_ceco_thresholds_seg[17] <- summary(u_mod_b)$psi[3]
+mpa_ceco_thresholds_seg[18] <- u_mod_davies$p.value
+
+#rsegplot.mpa(os_mod, ceco_subset_seg_temp_change, max.x = ceco_max_mpa, y.variable = 'temp_change', y.lab = "Temp Change (C)", tlp = mean_mpa_ceco, tlp.lower = lwr_mpa_ceco, tlp.upper = upr_mpa_ceco)
+```
+#mpa: FInal table: 
+
+
+```{r}
+#No random effects: 
+ceco_mpa_summary_df <- mpa_ceco_thresholds_seg %>% 
+  pivot_longer(everything(), 
+               names_to = "flam_metric", 
+              values_to = "value") %>% 
+  group_by(flam_metric) %>% 
+   summarise(value = mean(value)) %>% 
+             #sd_bootstrap = sd(value)) %>% 
+  mutate(across('flam_metric', str_replace, 'mpa_', ''),
+        across('flam_metric', str_replace_all, '_', ' '), 
+         statistic = case_when(
+           grepl("p value", flam_metric) ~ "p value",
+            grepl("psi", flam_metric) ~"psi",
+            grepl("st err", flam_metric) ~"st err")) %>% 
+  mutate(across('flam_metric', str_replace, 'p value|st err|psi', ''), 
+         analysis = "segmented") %>% 
+  arrange(flam_metric, statistic, value, analysis)
+         
+ceco_mpa_summary_df
+
+#with random effects: 
+ceco_mpa_rand_summary_df <- mpa_ceco_thresholds_rand_seg %>% 
+  pivot_longer(everything(), 
+               names_to = "flam_metric", 
+              values_to = "value") %>% 
+  group_by(flam_metric) %>% 
+   summarise(value = mean(value)) %>% 
+             #sd_bootstrap = sd(value)) %>% 
+  mutate(across('flam_metric', str_replace, 'mpa_', ''),
+        across('flam_metric', str_replace_all, '_', ' '), 
+         statistic = case_when(
+           grepl("p value", flam_metric) ~ "p value",
+            grepl("psi", flam_metric) ~"psi",
+            grepl("st err", flam_metric) ~"st err")) %>% 
+  mutate(across('flam_metric', str_replace, 'p value|st err|psi', ''), 
+         analysis = "random") %>% 
+  arrange(flam_metric, statistic, value, analysis)
+         
+ceco_mpa_rand_summary_df
+
+ceco_mpa <- bind_rows(ceco_mpa_rand_summary_df, ceco_mpa_summary_df) %>% 
+  mutate(spp = "ceco", 
+         water_variable = "mpa") 
+
+#ggsave(plot=gridExtra::tableGrob(ceco_mpa), filename=here("figures", "segmented_tables", "rand_segmented_mpa_ceco.png"))
+```
+
+
+#------------
+
+#All together now:
+
+```{r}
+ceco_all_segmented <- bind_rows(ceco_lfm, ceco_mpa)
+
+ceco_all_segmented_wide <- ceco_all_segmented %>% 
+  mutate(across('statistic', str_replace, ' ', '_')) %>% 
+  pivot_wider(names_from = statistic, 
+              values_from = value)
+
+write_csv(ceco_all_segmented_wide, 
+          here::here("processed-data", "analysis 2.0", "segmented_reg_all", "ceco_all_segmented_wide.csv"))
+```
+
+#Visualize: 
+
+```{r}
+ceco_all_segmented_wide %>% 
+  #filter(statistic == "psi") %>% 
+  ggplot(aes(
+    y = psi, 
+    x = flam_metric,
+    color = analysis, 
+   # size = p_value
+  )) +
+  geom_point() +
+  facet_wrap(~water_variable,scales = "free")
+```
 
 

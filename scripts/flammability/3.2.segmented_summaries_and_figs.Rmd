@@ -1,0 +1,57 @@
+---
+title: "Untitled"
+author: "Indra Boving"
+date: "10/31/2022"
+output: html_document
+---
+```{r}
+library(here)
+library(plyr)
+library(tidyverse)
+source(here::here("scripts", "scripts_functions", "plot_facet_flam.R"))
+source(here::here("scripts", "scripts_functions", "figure_info_sierra_flammability.R"))
+library(ggbeeswarm)
+library(ggpattern)
+```
+
+
+```{r}
+seg_results_df <- list.files(path = here::here("processed-data", "analysis 2.0", "segmented_reg_all"),  # Identify all CSV files
+                       pattern = "*.csv", full.names = TRUE) %>% 
+  lapply(read_csv) %>%                              # Store all files in list
+  bind_rows %>% # Combine data sets into one data set 
+  mutate(significant = case_when(
+    p_value <= 0.05 ~ "yes", 
+    p_value > 0.05 ~ "no", 
+    TRUE ~ as.character(p_value)
+  ))
+  
+seg_results_df   
+```
+
+Visualize: 
+
+```{r}
+seg_results_df %>% 
+  ggplot(aes(y = psi, 
+             x = flam_metric, 
+             fill = analysis, 
+            # pattern_fill = significant
+             )) + 
+  #geom_bar(position="dodge", stat="identity") +
+  geom_bar_pattern(
+    aes(pattern = significant),
+     position = "dodge",
+     color = "black", 
+     pattern_fill = "black",
+    #position="dodge", 
+    stat="identity",
+    #pattern = "stripe"
+    ) +
+  facet_wrap(~water_variable, scales = "free") +
+  scale_pattern_manual(values = c("stripe","none")) +
+  scale_fill_discrete(
+    guide = guide_legend(override.aes = list(pattern = "none")) # <- hide pattern
+  )
+```
+
