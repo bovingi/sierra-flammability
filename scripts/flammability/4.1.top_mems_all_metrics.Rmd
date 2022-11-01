@@ -1,0 +1,207 @@
+---
+title: "Mixed Effects Models"
+author: "Indra Boving & Joe Celebrezze"
+date: "6/21/2022"
+output: html_document
+---
+
+# Setup
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+#lots of extra here, but oh well... 
+library(ggplot2)
+library(gapminder)
+library(data.table)
+library(purrr) #for visualizing all variables in one big plot
+library(naniar) #for dealing with NAs nicely 
+library(tidyverse)
+library(devtools)
+library(ggfortify)
+library(ggpubr)
+library(jtools)
+library(cowplot)
+library(lmerTest)
+library(ggeffects)  
+library(GGally) #for corr plots
+require(kimisc) # has the nlist function to create a named list
+require(AICcmodavg) # has the aictab function
+library(psych)
+
+#devtools::install_github("strengejacke/strengejacke")
+library(strengejacke)
+library(sjPlot) # table functions
+library(sjmisc) # sample data
+
+library(lme4) # fifhng models
+library(here)
+library(effects) #for plofhng model effects
+library(sjstats) #use for r2 functions
+library(TMB)
+library(glmmTMB)
+library(lattice)
+library(equatiomatic)
+library("broom.mixed")
+#library(ggbiplot)
+select = dplyr::select
+here = here::here
+library(MuMIn)
+library(modelsummary)
+#install_github("BlakeRMills/MetBrewer") 
+#library("BlakeRMills/MetBrewer")
+#library(memmented)
+filter = dplyr::filter
+mutate = dplyr::mutate
+library(nlme)
+library(MetBrewer)
+#install.packages("memmented")
+#devtools::install_github("hohenstein/remef")
+library(remef)
+library(kableExtra)
+```
+
+#------------------------------------
+# 1. Data wrangling
+Reading in dataframe
+
+- For the Sierra analysis, this is combining all species and dropping the august sampling data (not enough samples and it was measured a lil differently). 
+
+```{r}
+mem_data_all <- read_csv(here("processed-data", "analysis 2.0", "sierra_flam_data_all.csv")) %>% 
+  select(lfm, mpa, fh, fh, fd, gd,tti, prop_ignite, temp_change, ignition, sample_wt, dry_wt, fresh_wt, water_wt, location, site, year_month, spp, individual) %>% 
+  mutate(dw_flam_sample = sample_wt * (dry_wt/fresh_wt),
+         ww_flam_sample = sample_wt * (water_wt/fresh_wt)) %>% 
+  mutate(excess_water = (ww_flam_sample - dw_flam_sample)) %>% 
+  mutate(mpa_scaled = scale(mpa)) %>% 
+  group_by(spp) %>% 
+  mutate(dw_flam_sample_scaled = scale(dw_flam_sample), 
+         sample_wt_scaled = scale(sample_wt), 
+         ww_flam_sample_scaled = scale(ww_flam_sample),
+         lfm_scaled = scale(lfm), 
+         excess_water_scaled = scale(excess_water)) %>% 
+  filter(!year_month %in% c("2021_august"))
+```
+
+#Top models by metric: 
+
+##Flame height: 
+
+```{r}
+sw_m1 <- lmer(fh ~ spp*mpa_scaled + spp*lfm_scaled +  site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all)
+
+performance::multicollinearity(sw_m1)
+```
+
+```{r}
+m2 <- lmer(fh ~ spp * mpa_scaled + spp* lfm_scaled  + site + year_month + (1 | individual), data = mem_data_all)
+
+x <- performance::multicollinearity(m2)
+x <- performance::check_collinearity(m2)
+plot(x)
+```
+
+##Time to ignition: 
+
+```{r}
+m11 <- lmer(tti ~ mpa_scaled*spp + site + year_month + (1 | individual), data = mem_data_all)
+
+performance::multicollinearity(m11)
+```
+
+```{r}
+sw_m12.5 <- lmer(tti ~ excess_water_scaled + mpa_scaled + lfm_scaled+ spp + site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all)
+
+performance::multicollinearity(sw_m12.5) ##High correlation! Don't use
+```
+
+```{r}
+sw_m1 <- lmer(tti ~ spp*mpa_scaled + spp*lfm_scaled +  site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all)
+
+performance::multicollinearity(sw_m1)
+```
+
+```{r}
+m2 <- lmer(tti ~ spp * mpa_scaled + spp* lfm_scaled  + site + year_month + (1 | individual), data = mem_data_all)
+
+performance::multicollinearity(m2)
+```
+
+##Glow duration: 
+
+```{r}
+sw_m1 <- lmer(gd ~ spp*mpa_scaled + spp*lfm_scaled +  site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all)
+
+performance::multicollinearity(sw_m1)
+```
+
+```{r}
+m12 <- lmer(gd ~ excess_water_scaled + spp + site + year_month + (1 | individual), data = mem_data_all)
+
+performance::multicollinearity(m12)
+```
+
+```{r}
+m11 <- lmer(gd ~ mpa_scaled*spp + site + year_month + (1 | individual), data = mem_data_all)
+
+performance::multicollinearity(m11)
+```
+
+##Flame duration: 
+
+```{r}
+sw_m12.5 <- lmer(fd ~ excess_water_scaled + mpa_scaled + lfm_scaled+ spp + site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all)
+
+performance::multicollinearity(sw_m12.5) ##High correlation! Don't use
+```
+
+```{r}
+sw_m1 <- lmer(fd ~ spp*mpa_scaled + spp*lfm_scaled +  site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all)
+
+performance::multicollinearity(sw_m1)
+```
+
+```{r}
+m12 <- lmer(fd ~ excess_water_scaled + spp + site + year_month + (1 | individual), data = mem_data_all)
+
+performance::multicollinearity(m12)
+```
+
+```{r}
+m14 <- lmer(fd ~ excess_water_scaled + spp + site + year_month + (1 | individual), data = mem_data_all)
+
+performance::multicollinearity(m14)
+```
+
+```{r}
+m1 <- lmer(fd ~ spp +  mpa_scaled + lfm_scaled+ excess_water_scaled + site + year_month + (1 | individual), data = mem_data_all)
+
+performance::multicollinearity(m1)
+```
+
+##Temp change: 
+
+```{r}
+sw_m1 <- lmer(temp_change ~ spp*mpa_scaled + spp*lfm_scaled +  site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all)
+
+performance::multicollinearity(sw_m1)
+```
+
+```{r}
+m2 <- lmer(temp_change ~ spp * mpa_scaled + spp* lfm_scaled  + site + year_month + (1 | individual), data = mem_data_all)
+
+performance::multicollinearity(m2)
+```
+
+##Prop ignite: 
+
+```{r}
+sw_m1 <- lmer(prop_ignite ~ spp*mpa_scaled + spp*lfm_scaled +  site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all)
+
+performance::multicollinearity(sw_m1)
+```
+
+```{r}
+m2 <- lmer(prop_ignite ~ spp * mpa_scaled + spp* lfm_scaled  + site + year_month + (1 | individual), data = mem_data_all)
+
+performance::multicollinearity(m2)
+```
