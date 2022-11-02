@@ -334,7 +334,7 @@ tab_model(sw_mpa_mod_fig.mpa,
          title = "models with no collinearity; site + spp + year_month + sample wt",
   string.p = "P-Value", 
   p.style = "stars",
-  file = here('figures', 'MEM_figures','site_yearmonth_samplewt.html')) # saving _html into figures folder
+  file = here('figures', 'MEM_figures','site_yearmonth_samplewttemp_change.html')) # saving _html into figures folder
 ```
 #####temp_change top models
 ```{r}
@@ -372,7 +372,7 @@ tab_model(sw_m11, sw_m12.5, sw_m13, sw_m7,
          title = "models with no collinearity; site + spp + year_month + sample wt",
   string.p = "P-Value", 
   p.style = "stars",
-  file = here('figures', 'MEM_figures','site_yearmonth_samplewt_topAIC.html')) # saving _html into figures folder
+  file = here('figures', 'MEM_figures','site_yearmonth_samplewt_topAICtemp_change.html')) # saving _html into figures folder
 ```
 
 ## Site, spp, year_month
@@ -525,7 +525,7 @@ tab_model(mpa_mod_fig.mpa, m1, m2, m11, m7, m10, m3, m6, m6.5, m12, m15, m10, m1
                        "m1", 
                        "m2",
                        "m11", 
-                       "m7", 
+                       #"m7", 
                        "m7",
                        "m10",
                        "m3", 
@@ -542,7 +542,7 @@ tab_model(mpa_mod_fig.mpa, m1, m2, m11, m7, m10, m3, m6, m6.5, m12, m15, m10, m1
         # caption = "site, spp, year_month",
   string.p = "P-Value", 
   p.style = "stars",
-  file = here('figures', 'MEM_figures','site_yearmonth.html')) # saving .html into figures folder
+  file = here('figures', 'MEM_figures','site_yearmonthtemp_change.html')) # saving temp_change.html into figures folder
 ```
 ######temp_change top models: 
 
@@ -575,7 +575,7 @@ tab_model(m1, m2,
         # caption = "site, spp, year_month",
   string.p = "P-Value", 
   p.style = "stars",
-  file = here('figures', 'MEM_figures','site_yearmonth_topAIC.html')) # saving .html into figures folder
+  file = here('figures', 'MEM_figures','site_yearmonth_topAICtemp_change.html')) # saving temp_change.html into figures folder
 ```
 
 #temp_change best model in table: 
@@ -612,37 +612,9 @@ tab_model(m2, sw_m1,
         # caption = "site, spp, year_month",
   string.p = "P-Value", 
   p.style = "stars",
-  file = here('figures', 'MEM_figures','temp_change_topAIC.html')) # saving
+  file = here('figures', 'MEM_figures','temp_change_topAICtemp_change.html')) # saving
 ```
 
 
 
-# -*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*title: "Untitled"
-author: "Indra Boving"
-date: "11/1/2022"
-output: html_document
----
-
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
-
-## R Markdown
-
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
-summary(cars)
-```
-
-## Including Plots
-
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
-```
-
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+# -*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*

@@ -182,6 +182,8 @@ performance::multicollinearity(sw_mpa_mod_fig.mpa)
 sw_max_model <- lmer(tti ~ spp + dw_flam_sample_scaled + ww_flam_sample_scaled +  mpa_scaled + lfm_scaled + excess_water_scaled + site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all)
 
 performance::multicollinearity(sw_max_model)
+
+tidy_tti <- broom.mixed::tidy(sw_max_model)
 ```
 
 ```{r}
@@ -308,7 +310,7 @@ tab_model(sw_mpa_mod_fig.mpa,
          title = "models with no collinearity; site + spp + year_month + sample wt",
   string.p = "P-Value", 
   p.style = "stars",
-  file = here('figures', 'MEM_figures','site_yearmonth_samplewt.html')) # saving _html into figures folder
+  file = here('figures', 'MEM_figures','site_yearmonth_samplewt_tti.html')) # saving _html into figures folder
 ```
 #####TTI top models
 ```{r}
@@ -346,7 +348,7 @@ tab_model(sw_m11, sw_m12.5, sw_m13, sw_m7,
          title = "models with no collinearity; site + spp + year_month + sample wt",
   string.p = "P-Value", 
   p.style = "stars",
-  file = here('figures', 'MEM_figures','site_yearmonth_samplewt_topAIC.html')) # saving _html into figures folder
+  file = here('figures', 'MEM_figures','site_yearmonth_samplewt_topAIC_tti.html')) # saving _html into figures folder
 ```
 
 ## Site, spp, year_month
@@ -485,7 +487,7 @@ tab_model(mpa_mod_fig.mpa, m11, m7, m10, m3, m6, m6.5, m12, m15, m10, m13, m14,m
          dv.labels = c("mpa_spp", 
                        "m11", 
                        "m7", 
-                       "m7",
+                      # "m7",
                        "m10",
                        "m3", 
                        "m6", 
@@ -501,7 +503,7 @@ tab_model(mpa_mod_fig.mpa, m11, m7, m10, m3, m6, m6.5, m12, m15, m10, m13, m14,m
         # caption = "site, spp, year_month",
   string.p = "P-Value", 
   p.style = "stars",
-  file = here('figures', 'MEM_figures','site_yearmonth.html')) # saving .html into figures folder
+  file = here('figures', 'MEM_figures','site_yearmonth_tti.html')) # saving _tti.html into figures folder
 ```
 ######TTI top models: 
 
@@ -534,7 +536,7 @@ tab_model(m7, m11, m12.5, m13,
         # caption = "site, spp, year_month",
   string.p = "P-Value", 
   p.style = "stars",
-  file = here('figures', 'MEM_figures','site_yearmonth_topAIC.html')) # saving .html into figures folder
+  file = here('figures', 'MEM_figures','site_yearmonth_topAIC_tti.html')) # saving _tti.html into figures folder
 ```
 
 #TTI best model in table: 
@@ -546,8 +548,7 @@ tab_model(m11, sw_m12.5,
           show.ci = FALSE,
           show.icc = FALSE, 
           pred.labels = c('Intercept', 
-                          'MPa (scaled)', 
-                         # 'Dry weight (scaled)',
+                          'MPa (scaled)',
                           'A. patula',
                           "C. decurrens", 
                           "C. cordulatus", 
@@ -571,7 +572,7 @@ tab_model(m11, sw_m12.5,
         # caption = "site, spp, year_month",
   string.p = "P-Value", 
   p.style = "stars",
-  file = here('figures', 'MEM_figures','tti_topAIC.html')) # saving
+  file = here('figures', 'MEM_figures','tti_topAIC_tti.html')) # saving
 ```
 
 
@@ -624,7 +625,7 @@ Kable table:
 #   row_spec(c(18:19), bold = T) %>%
 #   row_spec(c(1:19), color = "black") %>% 
 #   column_spec(c(1), bold = T, border_right = T) %>% 
-#   save_kable(here('figures', 'MEM_figures', 'Main_MEM_Selection_kable.html'))
+#   save_kable(here('figures', 'MEM_figures', 'Main_MEM_Selection_kable_tti.html'))
 ```
 
 # -------------------------------
@@ -668,7 +669,7 @@ Kable table:
 #          title = "models with no collinearity",
 #   string.p = "P-Value", 
 #   p.style = "stars",
-#   file = here('figures', 'MEM_figures','tti_by_spp.html')) # saving .html into figures folder
+#   file = here('figures', 'MEM_figures','tti_by_spp_tti.html')) # saving _tti.html into figures folder
 # ```
 # 
 # ## Time to Ignition
@@ -710,7 +711,7 @@ Kable table:
 #          title = "models with no collinearity",
 #   string.p = "P-Value", 
 #   p.style = "stars",
-#   file = here('figures', 'MEM_figures','TTI_by_spp.html')) # saving .html into figures folder
+#   file = here('figures', 'MEM_figures','TTI_by_spp_tti.html')) # saving _tti.html into figures folder
 # ```
 # 
 # ## Flame Duration
@@ -752,7 +753,7 @@ Kable table:
 #          title = "models with no collinearity",
 #   string.p = "P-Value", 
 #   p.style = "stars",
-#   file = here('figures', 'MEM_figures','FD_by_spp.html')) # saving .html into figures folder
+#   file = here('figures', 'MEM_figures','FD_by_spp_tti.html')) # saving _tti.html into figures folder
 # ```
 # 
 # ## Glow Duration
@@ -794,7 +795,7 @@ Kable table:
 #          title = "models with no collinearity",
 #   string.p = "P-Value", 
 #   p.style = "stars",
-#   file = here('figures', 'MEM_figures','GD_by_spp.html')) # saving _html into figures folder
+#   file = here('figures', 'MEM_figures','GD_by_spp_tti.html')) # saving _html into figures folder
 # ```
 # 
 # ## SUPP: Kable Table
@@ -819,7 +820,7 @@ Kable table:
 #   row_spec(c(1, 6, 11, 16:17, 21:23, 26:28, 31, 36), bold = T) %>% 
 #   column_spec(2, italic = T) %>% 
 #   column_spec(1, width = "0.1in") %>% 
-#   save_kable(here('figures', 'supp-figures', 'Supp_spp_Split_MEM_kable.html'))
+#   save_kable(here('figures', 'supp-figures', 'Supp_spp_Split_MEM_kable_tti.html'))
 ```
 
 # -----------------------------------
@@ -935,7 +936,7 @@ tab_model(m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12,
          title = "models with no collinearity",
   string.p = "P-Value", 
   p.style = "stars",
-  file = here('figures', 'MEM_figures','fh.html')) # saving .html into figures folder
+  file = here('figures', 'MEM_figures','fh_tti.html')) # saving _tti.html into figures folder
 ```
 # -----------------------------------
 # Visualizations
@@ -1040,7 +1041,7 @@ ggarrange(p1,p2,p3, nrow = 1)
 "The variance inflation factor is a measure to analyze the magnitude of multicollinearity of model terms. A VIF less than 5 indicates a low correlation of that predictor with other predictors. A value between 5 and 10 indicates a moderate correlation, while VIF values larger than 10 are a sign for high, not tolerable correlation of model predictors.
 
 The Increased SE column in the output indicates how much larger the standard error is due to the correlation with other predictors." (https://easystats.github.io/blog/posts/performance_check_collinearity/)
-https://strengejacke.github.io/sjPlot/articles/tab_model_estimates.html 
+https://strengejacke.github.io/sjPlot/articles/tab_model_estimates_tti.html 
 ##### Tables
 ```{r}
 tab_model(mpa_mod_fig.mpa, m11, m7, m10, m3, m6, m6.5, m12, m15,
@@ -1075,7 +1076,7 @@ tab_model(mpa_mod_fig.mpa, m11, m7, m10, m3, m6, m6.5, m12, m15,
          title = "models with no collinearity",
   string.p = "P-Value", 
   p.style = "stars",
-  file = here('figures','MEM_figures','site.yearmonth.samplewt')) # saving .html into figures folder
+  file = here('figures','MEM_figures','site.yearmonth.samplewt')) # saving _tti.html into figures folder
 ```
 
 ```{r}
@@ -1255,7 +1256,7 @@ tab_model(m1, m2, m3, m4, m5,
          title = "models with no collinearity",
   string.p = "P-Value", 
   p.style = "stars",
-  file = here('figures','MEM_figures','mem_TTI.html')) # saving .html into figures folder
+  file = here('figures','MEM_figures','mem_TTI_tti.html')) # saving _tti.html into figures folder
 ```
 
 ## Flame Height
@@ -1286,7 +1287,7 @@ tab_model(m1, m2, m3, m4, m5,
          title = "models with no collinearity",
   string.p = "P-Value", 
   p.style = "stars",
-  file = here('figures','MEM_figures','mem.FH.html')) # saving .html into figures folder
+  file = here('figures','MEM_figures','mem.FH_tti.html')) # saving _tti.html into figures folder
 ```
 
 ## Glow Duration
@@ -1317,7 +1318,7 @@ tab_model(m1, m2, m3, m4, m5,
          title = "models with no collinearity",
   string.p = "P-Value", 
   p.style = "stars",
-  file = here('figures','MEM_figures','mem.GD.html')) # saving .html into figures folder
+  file = here('figures','MEM_figures','mem.GD_tti.html')) # saving _tti.html into figures folder
 ```
 
 ## Flame Duration
@@ -1348,7 +1349,7 @@ tab_model(m1, m2, m3, m4, m5,
          title = "models with no collinearity",
   string.p = "P-Value", 
   p.style = "stars",
-  file = here('figures', 'MEM_figures','mem.FD.html')) # saving .html into figures folder
+  file = here('figures', 'MEM_figures','mem.FD_tti.html')) # saving _tti.html into figures folder
 ```
 
 ## Max. Temp.
@@ -1379,7 +1380,7 @@ tab_model(m1, m2, m3, m4, m5,
          title = "models with no collinearity",
   string.p = "P-Value", 
   p.style = "stars",
-  file = here('figures', 'MEM_figures','mem.MAXTEMP.html')) # saving .html into figures folder
+  file = here('figures', 'MEM_figures','mem.MAXTEMP_tti.html')) # saving _tti.html into figures folder
 ```
 
 ## Post-Flame Glow
@@ -1410,7 +1411,7 @@ tab_model(m1, m2, m3, m4, m5,
          title = "models with no collinearity",
   string.p = "P-Value", 
   p.style = "stars",
-  file = here('figures', 'MEM_figures','mem.PFG.html')) # saving .html into figures folder
+  file = here('figures', 'MEM_figures','mem.PFG_tti.html')) # saving _tti.html into figures folder
 ```
 
 ## Time to First Glow
@@ -1441,7 +1442,7 @@ tab_model(m1, m2, m3, m4, m5,
          title = "models with no collinearity",
   string.p = "P-Value", 
   p.style = "stars",
-  file = here('figures', 'MEM_figures','mem.TTFG.html')) # saving .html into figures folder
+  file = here('figures', 'MEM_figures','mem.TTFG_tti.html')) # saving _tti.html into figures folder
 ```
 
 ## Glow to Ignition
@@ -1472,7 +1473,7 @@ tab_model(m1, m2, m3, m4, m5,
          title = "models with no collinearity",
   string.p = "P-Value", 
   p.style = "stars",
-  file = here('figures', 'MEM_figures','mem.GTI.html')) # saving .html into figures folder
+  file = here('figures', 'MEM_figures','mem.GTI_tti.html')) # saving _tti.html into figures folder
 ```
 
 # MAIN TABLE
@@ -1485,7 +1486,7 @@ mem.table2.df %>%
   kable_styling(bootstrap_options = c('hover', 'bordered', 'condensed'), fixed_thead = T) %>% 
   row_spec(c(1, 7, 13, 19), background = "#D3D3D3", bold = T, font_size = 16) %>% 
   row_spec(c(2, 8, 14, 15, 16, 20), bold = T) %>% 
-  save_kable(here('figures', 'main-figures', 'Table2_MEM_kable.html'))
+  save_kable(here('figures', 'main-figures', 'Table2_MEM_kable_tti.html'))
 ```
 
 ## BIC, AIC included
@@ -1524,7 +1525,7 @@ mem.table.df %>%
   kable_styling(bootstrap_options = c('hover', 'bordered', 'condensed'), fixed_thead = T) %>% 
   row_spec(c(1, 7, 13, 19), background = "#D3D3D3", bold = T, font_size = 16) %>% 
   row_spec(c(2, 8, 14, 15, 16, 20), bold = T) %>% 
-  save_kable(here('figures', 'extra-figures', 'expanded_MEM_kable.html'))
+  save_kable(here('figures', 'extra-figures', 'expanded_MEM_kable_tti.html'))
 ```
 
 ## Shortened Table (for presentation)
@@ -1538,7 +1539,7 @@ shortened.table.df %>%
   mutate(dep.var.s = cell_spec(dep.var.s, 'html', color = 'black', bold = T), top.models = cell_spec(top.models, 'html', color = 'black'), significance = cell_spec(significance, 'html', color = 'black')) %>% 
   kable(format = 'html', escape = F, col.names = c('Dependent Variable', 'Top Model(s)', 'Significance')) %>% 
   kable_styling(bootstrap_options = c('hover', 'bordered', 'condensed'), fixed_thead = T) %>% 
-  save_kable(here('figures', 'extra-figures', 'shortened_MEM_kable.html'))
+  save_kable(here('figures', 'extra-figures', 'shortened_MEM_kable_tti.html'))
 ```
 
 # ----------------------------------
@@ -1695,5 +1696,5 @@ tab_model(m1, m2, m3, m4, m5, m6, m7, m8,
          title = "models with no collinearity",
   string.p = "P-Value", 
   p.style = "stars",
-  file = here('figures', 'MEM_figures','excess.dry.weight.html')) # saving .html into figures folder
+  file = here('figures', 'MEM_figures','excess.dry.weight_tti.html')) # saving _tti.html into figures folder
 ```

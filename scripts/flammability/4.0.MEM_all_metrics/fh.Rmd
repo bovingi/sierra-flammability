@@ -333,7 +333,7 @@ tab_model(sw_mpa_mod_fig.mpa,
          title = "models with no collinearity; site + spp + year_month + sample wt",
   string.p = "P-Value", 
   p.style = "stars",
-  file = here('figures', 'MEM_figures','site_yearmonth_samplewt.html')) # saving _html into figures folder
+  file = here('figures', 'MEM_figures','site_yearmonth_samplewt_fh.html')) # saving _html into figures folder
 ```
 #####fh top models
 ```{r}
@@ -371,7 +371,7 @@ tab_model(sw_m11, sw_m12.5, sw_m13, sw_m7,
          title = "models with no collinearity; site + spp + year_month + sample wt",
   string.p = "P-Value", 
   p.style = "stars",
-  file = here('figures', 'MEM_figures','site_yearmonth_samplewt_topAIC.html')) # saving _html into figures folder
+  file = here('figures', 'MEM_figures','site_yearmonth_samplewt_topAIC_fh.html')) # saving _html into figures folder
 ```
 
 ## Site, spp, year_month
@@ -523,7 +523,7 @@ tab_model(mpa_mod_fig.mpa, m1, m2, m11, m7, m10, m3, m6, m6.5, m12, m15, m10, m1
                        "m1", 
                        "m2",
                        "m11", 
-                       "m7", 
+                       #"m7", 
                        "m7",
                        "m10",
                        "m3", 
@@ -540,7 +540,7 @@ tab_model(mpa_mod_fig.mpa, m1, m2, m11, m7, m10, m3, m6, m6.5, m12, m15, m10, m1
         # caption = "site, spp, year_month",
   string.p = "P-Value", 
   p.style = "stars",
-  file = here('figures', 'MEM_figures','site_yearmonth.html')) # saving .html into figures folder
+  file = here('figures', 'MEM_figures','site_yearmonth_fh.html')) # saving _fh.html into figures folder
 ```
 ######fh top models: 
 
@@ -573,7 +573,7 @@ tab_model(m1, m2,
         # caption = "site, spp, year_month",
   string.p = "P-Value", 
   p.style = "stars",
-  file = here('figures', 'MEM_figures','site_yearmonth_topAIC.html')) # saving .html into figures folder
+  file = here('figures', 'MEM_figures','site_yearmonth_topAIC_fh.html')) # saving _fh.html into figures folder
 ```
 
 #fh best model in table: 
@@ -610,7 +610,7 @@ tab_model(m2, sw_m1,
         # caption = "site, spp, year_month",
   string.p = "P-Value", 
   p.style = "stars",
-  file = here('figures', 'MEM_figures','fh_topAIC.html')) # saving
+  file = here('figures', 'MEM_figures','fh_topAIC_fh.html')) # saving
 ```
 
 

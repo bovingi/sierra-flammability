@@ -100,6 +100,70 @@ x <- performance::check_collinearity(m2)
 plot(x)
 ```
 
+```{r}
+m12 <- lmer(fh ~ excess_water_scaled + spp + site + year_month + (1 | individual), data = mem_data_all)
+
+performance::multicollinearity(m12)
+```
+
+```{r}
+m7 <- lmer(fh ~ mpa_scaled + lfm_scaled+ spp + site + year_month + (1 | individual), data = mem_data_all)
+
+performance::multicollinearity(m7)
+```
+
+```{r}
+m10 <- lmer(fh ~ lfm_scaled + spp + site + year_month + (1 | individual), data = mem_data_all)
+
+qqnorm(resid(m10))
+r <- resid(m10)
+plot(fitted(m10), r)
+
+performance::multicollinearity(m10)
+```
+
+ 
+```{r}
+tab_model(m10, m12, m7, m2, m1,
+          show.reflvl = TRUE, 
+          digits = 3, 
+          show.aic = TRUE, 
+          show.ci = FALSE,
+          show.icc = FALSE, 
+          dv.labels = c(
+            "m10", 
+            "m12",
+            "m7", 
+            "m2",
+            "m1"),
+         string.pred = "Coeffcient", 
+  string.p = "P-Value", 
+  p.style = "stars"
+  ) 
+```
+
+Best models for FH: 
+
+######final model
+
+```{r}
+m7_fh <- lmer(fh ~ mpa_scaled + lfm_scaled + spp + site + year_month + (1 | individual), data = mem_data_all)
+
+qqnorm(resid(m7_fh))
+r <- resid(m7_fh)
+plot(fitted(m7_fh), r)
+
+performance::multicollinearity(m7_fh)
+
+tidy_fh <- broom.mixed::tidy(m7_fh)%>% 
+  mutate(y_var = "fh")
+
+fh_mod <- lmer(fh ~ mpa_scaled + lfm_scaled+ spp + site + year_month + (1 | individual), data = mem_data_all)
+
+fh_mod_noints <- lmer(fh ~ mpa_scaled + lfm_scaled+ spp + site + year_month + (1 | individual), data = mem_data_all)
+```
+
+
 ##Time to ignition: 
 
 ```{r}
@@ -126,6 +190,90 @@ m2 <- lmer(tti ~ spp * mpa_scaled + spp* lfm_scaled  + site + year_month + (1 | 
 performance::multicollinearity(m2)
 ```
 
+```{r}
+m7 <- lmer(tti ~ mpa_scaled + lfm_scaled+ spp + site + year_month + (1 | individual), data = mem_data_all)
+
+performance::multicollinearity(m7)
+```
+
+```{r}
+sw_m11 <- lmer(tti ~ mpa_scaled*spp + site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all)
+
+performance::multicollinearity(sw_m11)
+```
+
+```{r}
+tab_model(sw_m11, m7, m2, sw_m1, sw_m12.5, m11,
+          show.reflvl = TRUE, 
+          digits = 3, 
+          show.aic = TRUE, 
+          show.ci = FALSE,
+          show.icc = FALSE, 
+          dv.labels = c(
+            "sw_m11", 
+            "m7",
+            "m2", 
+            "sw_m1",
+            "sw_m12.5", 
+            "m11"),
+         string.pred = "Coeffcient", 
+  string.p = "P-Value", 
+  p.style = "stars"
+  ) 
+```
+
+Best model for TTI: 
+
+```{r}
+mem_data_all %>% 
+ggplot(aes(y = tti, 
+           x = mpa, color = spp)) +
+  geom_point()+
+  geom_smooth(method = "lm")
+```
+
+
+```{r}
+mem_data_all %>% 
+ggplot(aes(y = tti, 
+           x = lfm, 
+           color = spp)) +
+  geom_point()+
+  geom_smooth(method = "lm")
+```
+
+
+```{r}
+m2 <- lmer(tti ~ spp * mpa_scaled + spp* lfm_scaled  + site + year_month + (1 | individual), data = mem_data_all)
+
+performance::multicollinearity(m2)
+plot(performance::check_collinearity(m2))
+
+qqnorm(resid(m2))
+r <- resid(m2)
+plot(fitted(m2), r)
+```
+
+######final model
+
+```{r}
+m7 <- lmer(tti ~ mpa_scaled + lfm_scaled + spp + site + year_month + (1 | individual), data = mem_data_all)
+
+performance::multicollinearity(m7)
+plot(performance::check_collinearity(m7))
+
+qqnorm(resid(m7))
+r <- resid(m7)
+plot(fitted(m7), r)
+
+tidy_tti <- broom.mixed::tidy(m7)%>% 
+  mutate(y_var = "tti")
+
+tti_mod <- lmer(tti ~ mpa_scaled + lfm_scaled + spp + site + year_month + (1 | individual), data = mem_data_all)
+
+tti_mod_noints <- lmer(tti ~ mpa_scaled + lfm_scaled + spp + site + year_month + (1 | individual), data = mem_data_all)
+```
+
 ##Glow duration: 
 
 ```{r}
@@ -135,10 +283,23 @@ performance::multicollinearity(sw_m1)
 ```
 
 ```{r}
-m12 <- lmer(gd ~ excess_water_scaled + spp + site + year_month + (1 | individual), data = mem_data_all)
+sw_m2 <- lmer(gd ~ spp + mpa_scaled + lfm_scaled +  site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all)
 
-performance::multicollinearity(m12)
+performance::multicollinearity(sw_m2)
 ```
+
+```{r}
+sw_m11 <- lmer(gd ~ mpa_scaled*spp + site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all)
+
+performance::multicollinearity(sw_m11)
+```
+
+```{r}
+m15 <- lmer(gd ~ excess_water_scaled * spp + site + year_month + (1 | individual), data = mem_data_all)
+
+performance::multicollinearity(m15)
+```
+
 
 ```{r}
 m11 <- lmer(gd ~ mpa_scaled*spp + site + year_month + (1 | individual), data = mem_data_all)
@@ -146,7 +307,70 @@ m11 <- lmer(gd ~ mpa_scaled*spp + site + year_month + (1 | individual), data = m
 performance::multicollinearity(m11)
 ```
 
+```{r}
+tab_model(sw_m2,
+  sw_m1, 
+          sw_m11, 
+          m15, 
+          m11,
+          show.reflvl = TRUE, 
+          digits = 3, 
+          show.aic = TRUE, 
+          show.ci = FALSE,
+          show.icc = FALSE, 
+          dv.labels = c(
+            "sw_m2",
+            "sw_m1",
+            "sw_m11", 
+            "m15",
+            "m11"),
+         string.pred = "Coeffcient", 
+  string.p = "P-Value", 
+  p.style = "stars"
+  ) 
+```
+
+Best model for glow duration: 
+
+######final model
+
+```{r}
+sw_m1 <- lmer(gd ~ spp*mpa_scaled + spp*lfm_scaled +  site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all)
+
+performance::multicollinearity(sw_m1)
+plot(performance::check_collinearity(sw_m1))
+
+qqnorm(resid(sw_m1))
+r <- resid(sw_m1)
+plot(fitted(sw_m1), r)
+
+tidy_gd <- broom.mixed::tidy(sw_m1)%>% 
+  mutate(y_var = "gd")
+
+gd_mod <- lmer(gd ~ spp*mpa_scaled + spp*lfm_scaled +  site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all)
+
+gd_mod_noints <- lmer(gd ~ spp + mpa_scaled + lfm_scaled +  site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all)
+```
+
 ##Flame duration: 
+
+```{r}
+sw_m7 <- lmer(fd ~ mpa_scaled + lfm_scaled+ spp + site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all)
+
+performance::multicollinearity(sw_m7)
+```
+
+```{r}
+max_model_noww <- lmer(fd ~ spp + dw_flam_sample_scaled +  mpa_scaled + lfm_scaled+ excess_water_scaled + site + year_month + (1 | individual), data = mem_data_all)
+
+performance::multicollinearity(max_model_noww)
+```
+
+```{r}
+m15 <- lmer(fd ~ excess_water_scaled * spp + site + year_month + (1 | individual), data = mem_data_all)
+
+performance::multicollinearity(m15)
+```
 
 ```{r}
 sw_m12.5 <- lmer(fd ~ excess_water_scaled + mpa_scaled + lfm_scaled+ spp + site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all)
@@ -178,6 +402,75 @@ m1 <- lmer(fd ~ spp +  mpa_scaled + lfm_scaled+ excess_water_scaled + site + yea
 performance::multicollinearity(m1)
 ```
 
+```{r}
+tab_model(m1, 
+          #m14, 
+          m12, 
+         # sw_m1, 
+          sw_m12.5 ,
+          m15, 
+          max_model_noww, 
+          sw_m7, 
+          show.reflvl = TRUE, 
+          digits = 3, 
+          show.aic = TRUE, 
+          show.ci = FALSE,
+          show.icc = FALSE, 
+          dv.labels = c(
+            "m1", 
+         # "m14", 
+          "m12", 
+         # "sw_m1", 
+          "sw_m12.5" ,
+          "m15", 
+          "max_model_noww", 
+          "sw_m7"),
+         string.pred = "Coeffcient", 
+  string.p = "P-Value", 
+  p.style = "stars"
+  ) 
+```
+
+
+Best model for flame duration: 
+
+```{r}
+sw_m1 <- lmer(fd ~ spp*mpa_scaled + spp*lfm_scaled +  site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all)
+
+performance::multicollinearity(sw_m1)
+
+#check without interaction terms:
+
+sw_m1.5 <- lmer(fd ~ spp + mpa_scaled + lfm_scaled +  site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all)
+
+performance::multicollinearity(sw_m1.5)
+```
+
+```{r}
+m12 <- lmer(fd ~ excess_water_scaled + spp + site + year_month + (1 | individual), data = mem_data_all)
+
+performance::multicollinearity(m12)
+```
+######final model
+
+```{r}
+sw_m1 <- lmer(fd ~ spp*mpa_scaled + spp*lfm_scaled +  site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all)
+
+performance::multicollinearity(sw_m1)
+plot(performance::check_collinearity(sw_m1))
+
+qqnorm(resid(sw_m1))
+r <- resid(sw_m1)
+plot(fitted(sw_m1), r)
+
+tidy_fd <- broom.mixed::tidy(sw_m1)%>% 
+  mutate(y_var = "fd")
+
+fd_mod <- lmer(fd ~ spp*mpa_scaled + spp*lfm_scaled +  site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all)
+
+fd_mod_noints <- lmer(fd ~ spp+ mpa_scaled + lfm_scaled +  site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all)
+```
+
 ##Temp change: 
 
 ```{r}
@@ -192,6 +485,92 @@ m2 <- lmer(temp_change ~ spp * mpa_scaled + spp* lfm_scaled  + site + year_month
 performance::multicollinearity(m2)
 ```
 
+```{r}
+max_model_noww <- lmer(temp_change ~ spp + dw_flam_sample_scaled +  mpa_scaled + lfm_scaled+ excess_water_scaled + site + year_month + (1 | individual), data = mem_data_all)
+
+performance::multicollinearity(max_model_noww)
+```
+
+```{r}
+m15 <- lmer(temp_change ~ excess_water_scaled * spp + site + year_month + (1 | individual), data = mem_data_all)
+
+performance::multicollinearity(m15)
+```
+
+```{r}
+sw_m11 <- lmer(temp_change ~ mpa_scaled*spp + site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all)
+
+performance::multicollinearity(sw_m11)
+```
+
+```{r}
+sw_m12.5 <- lmer(temp_change ~ excess_water_scaled + mpa_scaled + lfm_scaled+ spp + site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all)
+
+performance::multicollinearity(sw_m12.5) ##High correlation! Don't use
+```
+
+```{r}
+sw_m7 <- lmer(temp_change ~ mpa_scaled + lfm_scaled+ spp + site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all)
+
+performance::multicollinearity(sw_m7)
+```
+
+```{r}
+tab_model(sw_m1, 
+          m2,
+         # m12, 
+          sw_m11,
+          sw_m12.5 ,
+          m15, 
+          max_model_noww, 
+          sw_m7, 
+          show.reflvl = TRUE, 
+          digits = 3, 
+          show.aic = TRUE, 
+          show.ci = FALSE,
+          show.icc = FALSE, 
+          dv.labels = c(
+            "sw_m1", 
+         "m2",
+          #"m12", 
+        "sw_m11",
+          "sw_m12.5" ,
+          "m15", 
+          "max_model_noww", 
+          "sw_m7"),
+         string.pred = "Coeffcient", 
+  string.p = "P-Value", 
+  p.style = "stars"
+  ) 
+```
+
+######final model
+
+```{r}
+sw_m1 <- lmer(temp_change ~ spp*mpa_scaled + spp*lfm_scaled +  site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all)
+
+performance::multicollinearity(sw_m1)
+
+#check without interaction terms: 
+
+sw_m1.5 <- lmer(temp_change ~ spp + mpa_scaled + lfm_scaled +  site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all)
+
+performance::multicollinearity(sw_m1.5)
+
+
+qqnorm(resid(sw_m1))
+r <- resid(sw_m1)
+plot(fitted(sw_m1), r)
+
+tidy_temp_change <- broom.mixed::tidy(sw_m1)%>% 
+  mutate(y_var = "temp_change")
+
+temp_change_mod <- lmer(temp_change ~ spp*mpa_scaled + spp*lfm_scaled +  site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all) 
+
+temp_change_mod_noints <- lmer(temp_change ~ spp + mpa_scaled + lfm_scaled +  site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all) 
+```
+
+
 ##Prop ignite: 
 
 ```{r}
@@ -205,3 +584,215 @@ m2 <- lmer(prop_ignite ~ spp * mpa_scaled + spp* lfm_scaled  + site + year_month
 
 performance::multicollinearity(m2)
 ```
+
+```{r}
+sw_m7 <- lmer(prop_ignite ~ mpa_scaled + lfm_scaled+ spp + site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all)
+
+performance::multicollinearity(sw_m7)
+```
+
+```{r}
+sw_m11 <- lmer(prop_ignite ~ mpa_scaled*spp + site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all)
+
+performance::multicollinearity(sw_m11)
+```
+
+```{r}
+sw_m12.5 <- lmer(prop_ignite ~ excess_water_scaled + mpa_scaled + lfm_scaled+ spp + site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all)
+
+performance::multicollinearity(sw_m12.5) ##High correlation! Don't use
+```
+
+```{r}
+sw_m13 <- lmer(prop_ignite ~ excess_water_scaled + lfm_scaled+ spp + site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all)
+
+performance::multicollinearity(sw_m13) ##High correlation! Don't use
+```
+
+```{r}
+tab_model(sw_m1, 
+          m2,
+         # m12, 
+          sw_m7,
+         sw_m11,
+          sw_m12.5 ,
+          sw_m13, 
+        
+          show.reflvl = TRUE, 
+          digits = 3, 
+          show.aic = TRUE, 
+          show.ci = FALSE,
+          show.icc = FALSE, 
+          dv.labels = c(
+            "sw_m1", 
+         "m2",
+        "sw_m7",
+        "sw_m11",
+          "sw_m12.5" ,
+          "m13"),
+         string.pred = "Coeffcient", 
+  string.p = "P-Value", 
+  p.style = "stars"
+  ) 
+```
+
+
+```{r}
+sw_m1 <- lmer(prop_ignite ~ spp*mpa_scaled + spp*lfm_scaled +  site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all)
+
+performance::multicollinearity(sw_m1)
+```
+
+```{r}
+sw_m1.5 <- lmer(prop_ignite ~ spp + mpa_scaled + lfm_scaled +  site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all)
+
+performance::multicollinearity(sw_m1.5)
+```
+
+######final model
+
+```{r}
+m2 <- lmer(prop_ignite ~ spp * mpa_scaled + spp * lfm_scaled  + site + year_month + (1 | individual), data = mem_data_all)
+
+performance::multicollinearity(m2)
+
+m2.5 <- lmer(prop_ignite ~ spp + mpa_scaled +  lfm_scaled  + site + year_month + (1 | individual), data = mem_data_all)
+
+performance::multicollinearity(m2.5)
+
+
+qqnorm(resid(m2))
+r <- resid(m2)
+plot(fitted(m2), r)
+
+tidy_prop_ignite <- broom.mixed::tidy(m2) %>% 
+  mutate(y_var = "prop_ignite")
+
+prop_ignite_mod <- lmer(prop_ignite ~ spp * mpa_scaled + spp * lfm_scaled  + site + year_month + (1 | individual), data = mem_data_all)
+
+prop_ignite_mod_noints <- lmer(prop_ignite ~ spp + mpa_scaled + lfm_scaled  + site + year_month + (1 | individual), data = mem_data_all)
+```
+
+#----------------------
+
+#Combine all tidy df: 
+
+```{r}
+tidy_all_mems <- bind_rows(tidy_fd, 
+                           tidy_fh, 
+                           tidy_gd, 
+                           tidy_prop_ignite, 
+                           tidy_temp_change, 
+                           tidy_tti)
+write_csv(tidy_all_mems, here::here("processed-data", "analysis 2.0", "tidy_all_mems.csv"))
+```
+
+#Combine all table: 
+
+These do have interactions: 
+```{r}
+tab_model(tti_mod, 
+          fh_mod, 
+          fd_mod, 
+          gd_mod, 
+          temp_change_mod, 
+          prop_ignite_mod,
+          digits = 3, 
+          show.aic = TRUE, 
+          show.ci = FALSE,
+          show.icc = FALSE, 
+          # dv.labels = c(
+          #   "sw_m11", 
+          #   "m7",
+          #   "m2", 
+          #   "sw_m1",
+          #   "sw_m12.5", 
+          #   "m11"),
+         string.pred = "Coeffcient", 
+  string.p = "P-Value", 
+  p.style = "stars",
+  show.reflvl = TRUE, 
+  file = here('figures', 'MEM_figures', 'top_models_final.html'))
+```
+These do NOT have interactions: 
+```{r}
+tab_model(tti_mod_noints, 
+          fh_mod_noints, 
+          fd_mod_noints, 
+          gd_mod_noints, 
+          temp_change_mod_noints, 
+          prop_ignite_mod_noints,
+          digits = 3, 
+          show.aic = TRUE, 
+          show.ci = FALSE,
+          show.icc = FALSE, 
+          # dv.labels = c(
+          #   "sw_m11", 
+          #   "m7",
+          #   "m2", 
+          #   "sw_m1",
+          #   "sw_m12.5", 
+          #   "m11"),
+         string.pred = "Coeffcient", 
+  string.p = "P-Value", 
+  p.style = "stars",
+  show.reflvl = TRUE, 
+  file = here('figures', 'MEM_figures', 'top_mod_nointsels_final.html'))
+```
+
+```{r}
+tab_model(tti_mod, 
+          fh_mod, 
+          fd_mod, 
+          gd_mod, 
+          temp_change_mod, 
+          prop_ignite_mod,
+          digits = 3, 
+          show.aic = FALSE, 
+          show.ci = FALSE,
+          show.icc = FALSE, 
+          # dv.labels = c(
+          #   "sw_m11", 
+          #   "m7",
+          #   "m2", 
+          #   "sw_m1",
+          #   "sw_m12.5", 
+          #   "m11"),
+         string.pred = "Coeffcient", 
+  string.p = "P-Value", 
+  p.style = "stars",
+  show.reflvl = TRUE,
+    pred.labels = c('Intercept', 
+                    'LFM (scaled)', 
+                    'MPa (scaled)', 
+                      'Sample weight (scaled)',
+                    'Site',
+                    # 'Sequoia Sites',
+                     'CZO Sites',
+                  
+                   # 'A. concolor',
+                    'A. patula',
+                     'C. decurrens', 
+                    'C. cordulatus', 
+                    'P. jeffryii', 
+                     'Q. kelloggii', 
+                    'LFM x A. patula',
+                     'MPa x A. patula',
+                    'LFM x C. decurrens', 
+                    'MPa x C. decurrens', 
+                    
+                     'LFM x C. cordulatus', 
+                     'MPa x C. cordulatus', 
+                    
+                     'LFM x P. jeffryii', 
+                     'MPa x P. jeffryii', 
+                  
+                     'LFM x Q. kelloggii',
+                     'MPa x Q. kelloggii'
+                    
+                   ), 
+  file = here('figures', 'MEM_figures', 'top_models_pretty.html'))
+  ) 
+```
+```
+
