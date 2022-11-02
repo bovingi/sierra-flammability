@@ -792,7 +792,7 @@ tab_model(tti_mod,
                     
                    ), 
   file = here('figures', 'MEM_figures', 'top_models_pretty.html'))
-  ) 
+  
 ```
 ```
 

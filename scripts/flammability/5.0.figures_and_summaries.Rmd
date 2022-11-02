@@ -550,16 +550,16 @@ spp_estimates <- tidy_data  %>%
   filter(term %in% c("sppabco",
                      "spparpa", 
                      "sppcade" ,
-                    # "sppceco",
+                     "sppceco",
                      "spppije",
                      "sppquke"                 
                      )) %>% 
   ggplot(
     aes(color= species)
     ) + 
-  geom_point(aes(x = estimate,y = species), size =2) +
-    geom_point(aes(x = upr, y = species), size = .5) +
-  geom_point(aes(x = lwr, y = species), size = .5) +
+  geom_point(aes(x = estimate,y = species), size =3) +
+    geom_point(aes(x = upr, y = species), size = 1) +
+  geom_point(aes(x = lwr, y = species), size = 1) +
   #geom_line(aes(group = species, y = species, x = upr)) +
   geom_segment(aes(x= lwr, xend = upr, y = species, yend = species, color = species))+
   labs(y = "", 
@@ -574,7 +574,8 @@ theme(
   geom_vline(xintercept = 0,
              linetype="dotted") +
   color_many 
+spp_estimates
 
-ggsave(plot=spp_estimates, bg = "white" , here::here("figures", "spp_estimates_flam_metrics.jpeg"), device="jpg")
+ggsave(plot=spp_estimates, bg = "white" , here::here("figures", "spp_estimates_flam_metrics_withceco.jpeg"), device="jpg")
 ```
 

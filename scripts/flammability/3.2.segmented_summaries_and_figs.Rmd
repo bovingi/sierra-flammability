@@ -77,7 +77,7 @@ seg_results_df$flam_metric <- factor(seg_results_df$flam_metric, levels =
 for (i in unique(seg_results_df$spp)) {
 
      df <- seg_results_df %>% 
-    filter(spp == i)
+    filter(spp == i) 
 
  p <-  ggplot(df,
    aes(
@@ -99,6 +99,20 @@ for (i in unique(seg_results_df$spp)) {
  
 }
 ```
+```{r}
+seg_results_df %>% 
+  filter(significant == "yes") %>% 
+ggplot(
+   aes(y = psi, 
+             x = flam_metric, 
+             fill = spp)) + 
+  geom_bar(position="dodge", stat="identity") +
+
+  facet_wrap(~water_variable, scales = "free") +
+  color_many
+```
+
+
 #Table: 
 
 LFM: 
@@ -146,13 +160,17 @@ save_kable(table_sig_mpa, here::here("figures", "segmented_tables", "table_sig_m
 Only significant rows: 
 ```{r}
 table_sig_mpa <- seg_results_df %>%
-  filter(analysis == "segmented", 
-         #water_variable == "mpa", 
-         significant =="yes"
-         ) %>% 
+  #filter(significant == "yes") %>% 
+ # pivot_wider(names_from = analysis, 
+           #   values_from = c(psi, st_err, p_value)) %>% 
+  filter(significant == "yes") %>% 
+  # filter(analysis == "segmented", 
+  #        #water_variable == "mpa", 
+  #        significant =="yes"
+  #        ) %>% 
   #mutate(p_value = cell_spec(p_value, color = ifelse(p_value < 0.05, "green","red"))) %>% 
   #group_by(flam_metric) %>% 
-  select(flam_metric, spp, water_variable, psi, st_err, p_value, significant) %>% 
+  #select(flam_metric, spp, water_variable, psi, st_err, p_value, significant) %>% 
   kbl() %>% 
   kable_paper(full_width = F) 
 #%>%
@@ -161,5 +179,19 @@ table_sig_mpa <- seg_results_df %>%
 table_sig_mpa
 
 
-save_kable(table_sig_mpa, here::here("figures", "segmented_tables", "table_sig_mpa.png"))
+save_kable(table_sig_mpa, here::here("figures", "segmented_tables", "table_sig_all.png"))
+
+#How many? 
+sig_prop_df_sig <- seg_results_df %>%
+  filter(significant == "yes", 
+         analysis == "segmented") %>% 
+  count() %>% 
+  pull()
+
+sig_prop_df_all <- seg_results_df %>%
+  filter(#significant == "yes", 
+         analysis == "segmented") %>% 
+  count() %>% 
+  pull()
+
 ```
