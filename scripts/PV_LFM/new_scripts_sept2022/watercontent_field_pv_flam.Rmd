@@ -198,8 +198,8 @@ pv.summary.spp <- pv_allcurves_data_clean %>%
   filter(timing == "fall") %>% 
   filter(spp != "ADFA") %>% 
   filter(spp != "CEME") %>%
-  mutate(spp = recode(spp, ABCO = "Abies concolor", ARPA = "Arctostaphylos patula", CADE = "Calocedrus decurrens", CECO = "Ceanothus cordulatus", PIJE = "Pinus jeffreyii", QUKE = "Quercus kelloggii")) %>% 
-  group_by(spp) %>% 
+  mutate(spp_name = recode(spp, ABCO = "Abies concolor", ARPA = "Arctostaphylos patula", CADE = "Calocedrus decurrens", CECO = "Ceanothus cordulatus", PIJE = "Pinus jeffreyii", QUKE = "Quercus kelloggii")) %>% 
+  group_by(spp_name, spp) %>% 
   summarise(n=n(), 
             mean_tlp=mean(tlp),
             sd_tlp=sd(tlp), 
@@ -210,7 +210,7 @@ pv.summary.spp <- pv_allcurves_data_clean %>%
             sd_lfm = sd(lfm_at_tlp))
 
 pv.summary.spp %>% 
-  transmute(Species = spp,
+  transmute(Species = spp_name,
             TLP = mean_tlp, 
          "TLP sd" = sd_tlp, 
          RWC = mean_rwc, 
@@ -310,9 +310,10 @@ write_csv(mpa_lfm_ackerly, here("processed-data", "lfm_mpa_all.csv"))
 
 ```{r}
 mpa_lfm_ackerly %>% 
-  ggplot(aes(y = LFM, x = MPa, color = full_name)) +
+  ggplot(aes(y = lfm, x = mpa, color = full_name)) +
   geom_point() +
-  geom_smooth()
+  geom_smooth(method = "lm", se = F) +
+  color_all
 ```
 
 

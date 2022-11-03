@@ -48,15 +48,15 @@ mem_data_all <- read_csv(here("processed-data", "analysis 2.0", "sierra_flam_dat
   mutate(dw_flam_sample = sample_wt * (dry_wt/fresh_wt),
          ww_flam_sample = sample_wt * (water_wt/fresh_wt)) %>% 
   mutate(excess_water = (ww_flam_sample - dw_flam_sample)) %>% 
-  group_by(spp) %>% 
-  mutate(mpa_scaled = scale(mpa),
-         dw_flam_sample_scaled = scale(dw_flam_sample), 
-         sample_wt_scaled = scale(sample_wt), 
-         ww_flam_sample_scaled = scale(ww_flam_sample),
-         lfm_scaled = scale(lfm), 
-         excess_water_scaled = scale(excess_water)) %>% 
+ # mutate(mpa = scale(mpa)) %>% 
+#  group_by(spp) %>% 
+ # mutate(dw_flam_sample = scale(dw_flam_sample), 
+   #      sample_wt = scale(sample_wt), 
+     #    ww_flam_sample = scale(ww_flam_sample),
+     #    lfm = scale(lfm), 
+     #    excess_water = scale(excess_water)) %>% 
   filter(!year_month %in% c("2021_august")) %>% 
-  drop_na(mpa_scaled, lfm_scaled, sample_wt_scaled)
+  drop_na(mpa, lfm, sample_wt)
 #%>% 
   #filter(!spp %in% c("ceco"))
 ```
@@ -64,25 +64,25 @@ mem_data_all <- read_csv(here("processed-data", "analysis 2.0", "sierra_flam_dat
 #2. Remeff figures of each flam metric
 
 ```{r}
-#fh_mod_noints <- lmer(fh ~ mpa_scaled + lfm_scaled+ spp + site + year_month + (1 | individual), data = mem_data_all)
+#fh_mod_noints <- lmer(fh ~ mpa + lfm+ spp + site + year_month + (1 | individual), data = mem_data_all)
 
-#tti_mod_noints <- lmer(tti ~ mpa_scaled + lfm_scaled + spp + site + year_month + (1 | individual), data = mem_data_all)
+#tti_mod_noints <- lmer(tti ~ mpa + lfm + spp + site + year_month + (1 | individual), data = mem_data_all)
 
-#gd_mod <- lmer(gd ~ spp*mpa_scaled + spp*lfm_scaled +  site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all)
+#gd_mod <- lmer(gd ~ spp*mpa + spp*lfm +  site + year_month + sample_wt + (1 | individual), data = mem_data_all)
 
-#gd_mod_noints <- lmer(gd ~ spp + mpa_scaled + lfm_scaled +  site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all)
+#gd_mod_noints <- lmer(gd ~ spp + mpa + lfm +  site + year_month + sample_wt + (1 | individual), data = mem_data_all)
 
-#fd_mod <- lmer(fd ~ spp*mpa_scaled + spp*lfm_scaled +  site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all)
+#fd_mod <- lmer(fd ~ spp*mpa + spp*lfm +  site + year_month + sample_wt + (1 | individual), data = mem_data_all)
 
-#fd_mod_noints <- lmer(fd ~ spp+ mpa_scaled + lfm_scaled +  site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all)
+#fd_mod_noints <- lmer(fd ~ spp+ mpa + lfm +  site + year_month + sample_wt + (1 | individual), data = mem_data_all)
 
-#temp_change_mod <- lmer(temp_change ~ spp*mpa_scaled + spp*lfm_scaled +  site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all) 
+#temp_change_mod <- lmer(temp_change ~ spp*mpa + spp*lfm +  site + year_month + sample_wt + (1 | individual), data = mem_data_all) 
 
-#temp_change_mod_noints <- lmer(temp_change ~ spp + mpa_scaled + lfm_scaled +  site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all) 
+#temp_change_mod_noints <- lmer(temp_change ~ spp + mpa + lfm +  site + year_month + sample_wt + (1 | individual), data = mem_data_all) 
 
-#prop_ignite_mod <- lmer(prop_ignite ~ spp * mpa_scaled + spp * lfm_scaled  + site + year_month + (1 | individual), data = mem_data_all)
+#prop_ignite_mod <- lmer(prop_ignite ~ spp * mpa + spp * lfm  + site + year_month + (1 | individual), data = mem_data_all)
 
-#prop_ignite_mod_noints <- lmer(prop_ignite ~ spp + mpa_scaled + lfm_scaled  + site + year_month + (1 | individual), data = mem_data_all)
+#prop_ignite_mod_noints <- lmer(prop_ignite ~ spp + mpa + lfm  + site + year_month + (1 | individual), data = mem_data_all)
 ```
 
 #TTI
@@ -92,20 +92,20 @@ Lets just do TTI first:
 ```{r}
 mem_data_all_tti <- mem_data_all 
 
-tti_mod_noints <- lmer(tti ~ spp*mpa_scaled + spp*lfm_scaled +  site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all_tti)
+tti_mod_noints <- lmer(tti ~ spp*mpa + spp*lfm +  site + year_month + sample_wt + (1 | individual), data = mem_data_all_tti)
 
-r_tti <- remef(tti_mod_noints, fix = c("mpa_scaled","lfm_scaled","site"), ran = list(individual = c("(Intercept)")))
+r_tti <- remef(tti_mod_noints, fix = c("mpa","lfm","site"), ran = list(individual = c("(Intercept)")))
 
-mem_data_all_r <- mem_data_all%>% drop_na(mpa_scaled, lfm_scaled, sample_wt_scaled)
+mem_data_all_r <- mem_data_all%>% drop_na(mpa, lfm, sample_wt)
 mem_data_all_r$r_tti <- r_tti
 
 tti_plot <- mem_data_all_r %>% 
   ggplot(aes(y = tti, 
-             x = mpa_scaled, 
+             x = mpa, 
              color = spp)) +
   geom_point(alpha= .6)+
   geom_smooth(method = "lm", se = F) + 
-  color_many  + theme(legend.position = "none",                                   axis.text = element_text(size = 14), axis.title = element_text(size = 22))+
+  color_many  + theme(legend.position = "none", axis.text = element_text(size = 14), axis.title = element_text(size = 22))+
   labs(x = "", 
        y = "Time to Ignition (sec)") 
    
@@ -113,7 +113,7 @@ tti_plot
 
 tti_plot_r <- mem_data_all_r %>% 
   ggplot(aes(y = r_tti, 
-             x = mpa_scaled, 
+             x = mpa, 
              color = spp)) +
   geom_point(alpha= .6)+
   geom_smooth(method = "lm", se = F) + 
@@ -124,7 +124,7 @@ tti_plot_r
 
 tti_plot_lfm <- mem_data_all_r %>% 
   ggplot(aes(y = tti, 
-             x = lfm_scaled, 
+             x = lfm, 
              color = spp)) +
   geom_point(alpha= .6)+
   geom_smooth(method = "lm", se = F) + 
@@ -137,7 +137,7 @@ tti_plot_lfm
 
 tti_plot_lfm_r <- mem_data_all_r %>% 
   ggplot(aes(y = r_tti, 
-             x = lfm_scaled, 
+             x = lfm, 
              color = spp)) +
   geom_point(alpha= .6)+
   geom_smooth(method = "lm", se = F) + 
@@ -153,16 +153,16 @@ tti_plot_lfm_r
 #FH
 
 ```{r}
-fh_mod_noints <- lmer(fh ~ spp*mpa_scaled + spp*lfm_scaled +  site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all)
+fh_mod_noints <- lmer(fh ~ spp*mpa + spp*lfm +  site + year_month + sample_wt + (1 | individual), data = mem_data_all)
 
-r_fh <- remef(fh_mod_noints, fix = c("mpa_scaled","lfm_scaled","site"), ran = list(individual = c("(Intercept)")))
+r_fh <- remef(fh_mod_noints, fix = c("mpa","lfm","site"), ran = list(individual = c("(Intercept)")))
 
 mem_data_all_r <- mem_data_all %>% drop_na(fh)
 mem_data_all_r$r_fh <- r_fh
 
 fh_plot <- mem_data_all_r %>% 
   ggplot(aes(y = fh, 
-             x = mpa_scaled, 
+             x = mpa, 
              color = spp)) +
   geom_point(alpha= .6)+
   geom_smooth(method = "lm", se = F) + 
@@ -174,7 +174,7 @@ fh_plot
 
 fh_plot_r <- mem_data_all_r %>% 
   ggplot(aes(y = r_fh, 
-             x = mpa_scaled, 
+             x = mpa, 
              color = spp)) +
   geom_point(alpha= .6)+
   geom_smooth(method = "lm", se = F) + 
@@ -185,7 +185,7 @@ fh_plot_r
 
 fh_plot_lfm <- mem_data_all_r %>% 
   ggplot(aes(y = fh, 
-             x = lfm_scaled, 
+             x = lfm, 
              color = spp)) +
   geom_point(alpha= .6)+
   geom_smooth(method = "lm", se = F) + 
@@ -197,7 +197,7 @@ fh_plot
 
 fh_plot_lfm_r <- mem_data_all_r %>% 
   ggplot(aes(y = r_fh, 
-             x = lfm_scaled, 
+             x = lfm, 
              color = spp)) +
   geom_point(alpha= .6)+
   geom_smooth(method = "lm", se = F) + 
@@ -211,18 +211,18 @@ fh_plot_r
 #GD
 
 ```{r}
-gd_mod <- lmer(gd ~ spp*mpa_scaled + spp*lfm_scaled +  site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all)
+gd_mod <- lmer(gd ~ spp*mpa + spp*lfm +  site + year_month + sample_wt + (1 | individual), data = mem_data_all)
 
-#gd_mod_noints <- lmer(gd ~ spp + mpa_scaled + lfm_scaled +  site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all)
+#gd_mod_noints <- lmer(gd ~ spp + mpa + lfm +  site + year_month + sample_wt + (1 | individual), data = mem_data_all)
 
-r_gd <- remef(gd_mod, fix = c("mpa_scaled","lfm_scaled","site"), ran = list(individual = c("(Intercept)")))
+r_gd <- remef(gd_mod, fix = c("mpa","lfm","site"), ran = list(individual = c("(Intercept)")))
 
 mem_data_all_r <- mem_data_all %>% drop_na(gd)
 mem_data_all_r$r_gd <- r_gd
 
 gd_plot <- mem_data_all_r %>% 
   ggplot(aes(y = gd, 
-             x = mpa_scaled, 
+             x = mpa, 
              color = spp)) +
   geom_point(alpha= .6)+
   geom_smooth(method = "lm", se = F) + 
@@ -234,7 +234,7 @@ gd_plot
 
 gd_plot_r <- mem_data_all_r %>% 
   ggplot(aes(y = r_gd, 
-             x = mpa_scaled, 
+             x = mpa, 
              color = spp)) +
   geom_point(alpha= .6)+
   geom_smooth(method = "lm", se = F) + 
@@ -245,7 +245,7 @@ gd_plot_r
 
 gd_plot_lfm <- mem_data_all_r %>% 
   ggplot(aes(y = gd, 
-             x = lfm_scaled, 
+             x = lfm, 
              color = spp)) +
   geom_point(alpha= .6)+
   geom_smooth(method = "lm", se = F) + 
@@ -257,7 +257,7 @@ gd_plot
 
 gd_plot_lfm_r <- mem_data_all_r %>% 
   ggplot(aes(y = r_gd, 
-             x = lfm_scaled, 
+             x = lfm, 
              color = spp)) +
   geom_point(alpha= .6)+
   geom_smooth(method = "lm", se = F) + 
@@ -272,18 +272,18 @@ gd_plot_r
 #FD
 
 ```{r}
-fd_mod <- lmer(fd ~ spp*mpa_scaled + spp*lfm_scaled +  site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all)
+fd_mod <- lmer(fd ~ spp*mpa + spp*lfm +  site + year_month + sample_wt + (1 | individual), data = mem_data_all)
 
-#fd_mod_noints <- lmer(fd ~ spp+ mpa_scaled + lfm_scaled +  site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all)
+#fd_mod_noints <- lmer(fd ~ spp+ mpa + lfm +  site + year_month + sample_wt + (1 | individual), data = mem_data_all)
 
-r_fd <- remef(fd_mod, fix = c("mpa_scaled","lfm_scaled","site"), ran = list(individual = c("(Intercept)")))
+r_fd <- remef(fd_mod, fix = c("mpa","lfm","site"), ran = list(individual = c("(Intercept)")))
 
 mem_data_all_r <- mem_data_all %>% drop_na(fd)
 mem_data_all_r$r_fd <- r_fd
 
 fd_plot <- mem_data_all_r %>% 
   ggplot(aes(y = fd, 
-             x = mpa_scaled, 
+             x = mpa, 
              color = spp)) +
   geom_point(alpha= .6)+
   geom_smooth(method = "lm", se = F) + 
@@ -295,7 +295,7 @@ fd_plot
 
 fd_plot_r <- mem_data_all_r %>% 
   ggplot(aes(y = r_fd, 
-             x = mpa_scaled, 
+             x = mpa, 
              color = spp)) +
   geom_point(alpha= .6)+
   geom_smooth(method = "lm", se = F) + 
@@ -306,7 +306,7 @@ fd_plot_r
 
 fd_plot_lfm <- mem_data_all_r %>% 
   ggplot(aes(y = fd, 
-             x = lfm_scaled, 
+             x = lfm, 
              color = spp)) +
   geom_point(alpha= .6)+
   geom_smooth(method = "lm", se = F) + 
@@ -317,7 +317,7 @@ fd_plot
 
 fd_plot_lfm_r <- mem_data_all_r %>% 
   ggplot(aes(y = r_fd, 
-             x = lfm_scaled, 
+             x = lfm, 
              color = spp)) +
   geom_point(alpha= .6)+
   geom_smooth(method = "lm", se = F) + 
@@ -331,7 +331,7 @@ fd_plot_r
 
 #Temp change
 ```{r}
-temp_change_mod <- lmer(temp_change ~ spp*mpa_scaled + spp*lfm_scaled +  site + year_month + spp*sample_wt_scaled + (1 | individual), data = mem_data_all) 
+temp_change_mod <- lmer(temp_change ~ spp*mpa + spp*lfm +  site + year_month + spp*sample_wt + (1 | individual), data = mem_data_all) 
 
 performance::check_collinearity(temp_change_mod)
 temp_change_mod
@@ -339,18 +339,18 @@ AIC(temp_change_mod)
 ```
 
 ```{r}
-temp_change_mod <- lmer(temp_change ~ spp*mpa_scaled + spp*lfm_scaled +  site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all) 
+temp_change_mod <- lmer(temp_change ~ spp*mpa + spp*lfm +  site + year_month + sample_wt + (1 | individual), data = mem_data_all) 
 
-temp_change_mod_noints <- lmer(temp_change ~ spp + mpa_scaled + lfm_scaled +  site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all) 
+temp_change_mod_noints <- lmer(temp_change ~ spp + mpa + lfm +  site + year_month + sample_wt + (1 | individual), data = mem_data_all) 
 
-r_temp_change <- remef(temp_change_mod, fix = c("mpa_scaled","lfm_scaled","site"), ran = list(individual = c("(Intercept)")))
+r_temp_change <- remef(temp_change_mod, fix = c("mpa","lfm","site"), ran = list(individual = c("(Intercept)")))
 
 mem_data_all_r <- mem_data_all %>% drop_na(temp_change)
 mem_data_all_r$r_temp_change <- r_temp_change
 
 temp_change_plot <- mem_data_all_r %>% 
   ggplot(aes(y = temp_change, 
-             x = mpa_scaled, 
+             x = mpa, 
              color = spp)) +
   geom_point(alpha= .6)+
   geom_smooth(method = "lm", se = F) + 
@@ -361,7 +361,7 @@ temp_change_plot
 
 temp_change_plot_r <- mem_data_all_r %>% 
   ggplot(aes(y = r_temp_change, 
-             x = mpa_scaled, 
+             x = mpa, 
              color = spp)) +
   geom_point(alpha= .6)+
   geom_smooth(method = "lm", se = F) + 
@@ -372,7 +372,7 @@ temp_change_plot_r
 
 temp_change_plot_lfm <- mem_data_all_r %>% 
   ggplot(aes(y = temp_change, 
-             x = lfm_scaled, 
+             x = lfm, 
              color = spp)) +
   geom_point(alpha= .6)+
   geom_smooth(method = "lm", se = F) + 
@@ -383,7 +383,7 @@ temp_change_plot
 
 temp_change_plot_lfm_r <- mem_data_all_r %>% 
   ggplot(aes(y = r_temp_change, 
-             x = lfm_scaled, 
+             x = lfm, 
              color = spp)) +
   geom_point(alpha= .6)+
   geom_smooth(method = "lm", se = F) + 
@@ -398,18 +398,18 @@ temp_change_plot_r
 #Prop. ignite
 
 ```{r}
-prop_ignite_mod <- lmer(prop_ignite ~ spp * mpa_scaled + spp * lfm_scaled  + site + year_month + (1 | individual), data = mem_data_all)
+prop_ignite_mod <- lmer(prop_ignite ~ spp * mpa + spp * lfm  + site + year_month + (1 | individual), data = mem_data_all)
 
-prop_ignite_mod_noints <- lmer(prop_ignite ~ spp + mpa_scaled + lfm_scaled  + site + year_month + (1 | individual), data = mem_data_all)
+prop_ignite_mod_noints <- lmer(prop_ignite ~ spp + mpa + lfm  + site + year_month + (1 | individual), data = mem_data_all)
 
-r_prop_ignite <- remef(prop_ignite_mod, fix = c("mpa_scaled","lfm_scaled","site"), ran = list(individual = c("(Intercept)")))
+r_prop_ignite <- remef(prop_ignite_mod, fix = c("mpa","lfm","site"), ran = list(individual = c("(Intercept)")))
 
 mem_data_all_r <- mem_data_all %>% drop_na(prop_ignite)
 mem_data_all_r$r_prop_ignite <- r_prop_ignite
 
 prop_ignite_plot <- mem_data_all_r %>% 
   ggplot(aes(y = prop_ignite, 
-             x = mpa_scaled, 
+             x = mpa, 
              color = spp)) +
   geom_point(alpha= .6)+
   geom_smooth(method = "lm", se = F) + 
@@ -420,7 +420,7 @@ prop_ignite_plot
 
 prop_ignite_plot_r <- mem_data_all_r %>% 
   ggplot(aes(y = r_prop_ignite, 
-             x = mpa_scaled, 
+             x = mpa, 
              color = spp)) +
   geom_point(alpha= .6)+
   geom_smooth(method = "lm", se = F) + 
@@ -431,7 +431,7 @@ prop_ignite_plot_r
 
 prop_ignite_plot_lfm <- mem_data_all_r %>% 
   ggplot(aes(y = prop_ignite, 
-             x = lfm_scaled, 
+             x = lfm, 
              color = spp)) +
   geom_point(alpha= .6)+
   geom_smooth(method = "lm", se = F) + 
@@ -442,7 +442,7 @@ prop_ignite_plot
 
 prop_ignite_plot_lfm_r <- mem_data_all_r %>% 
   ggplot(aes(y = r_prop_ignite, 
-             x = lfm_scaled, 
+             x = lfm, 
              color = spp)) +
   geom_point(alpha= .6)+
   geom_smooth(method = "lm", se = F) + 
@@ -489,9 +489,9 @@ plots
 plots_legend <- cowplot::plot_grid(plots, legend, rel_widths = c(5, .6))
 plots_legend
 
-#ggsave(plot=plots_legend, bg = "white" , here::here("figures", "mpa_flam_metrics.jpeg"), device="jpg")
+#ggsave(plot=plots_legend, bg = "white" , here::here("figures", "mpa_flam_metrics_unscaled"), device="jpg")
 
-ggsave(plot=plots_legend, bg = "white" , here::here("figures", "mpa_flam_metrics_withceco.jpeg"), device="jpg")
+ggsave(plot=plots_legend, bg = "white" , here::here("figures", "mpa_flam_metrics_withceco_unscaled"), device="jpg")
 ```
 
 ####LFMs:
@@ -510,9 +510,9 @@ plots
 plots_legend <- cowplot::plot_grid(plots, legend, rel_widths = c(5, .6))
 plots_legend
 
-#ggsave(plot=plots_legend, bg = "white" , here::here("figures", "lfm_flam_metrics.jpeg"), device="jpg")
+#ggsave(plot=plots_legend, bg = "white" , here::here("figures", "lfm_flam_metrics_unscaled"), device="jpg")
 
-ggsave(plot=plots_legend, bg = "white" , here::here("figures", "lfm_flam_metrics_withceco.jpeg"), device="jpg")
+ggsave(plot=plots_legend, bg = "white" , here::here("figures", "lfm_flam_metrics_withceco_unscaled"), device="jpg")
 ```
 #3. Species differences: 
 
@@ -579,6 +579,6 @@ theme(
   color_many 
 spp_estimates
 
-ggsave(plot=spp_estimates, bg = "white" , here::here("figures", "spp_estimates_flam_metrics_withceco.jpeg"), device="jpg")
+ggsave(plot=spp_estimates, bg = "white" , here::here("figures", "spp_estimates_flam_metrics_withceco_unscaled"), device="jpg")
 ```
 

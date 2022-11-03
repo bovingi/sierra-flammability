@@ -98,12 +98,13 @@ Sys.setenv("VROOM_CONNECTION_SIZE" = 500073)
 pv_allcurves_data <- read_csv(here("raw-data", "allcurves.csv")) %>%
   clean_names() %>% 
   select(-swc) %>% 
+  mutate(fresh_weight_saturated = as.numeric(fresh_weight_saturated)) %>% 
   dplyr::mutate(water_weight = fresh_weight - dry_weight, 
          lfm = (((fresh_weight - dry_weight)/dry_weight)* 100), 
-         swc = fresh_weight_saturated_excel - dry_weight, 
-         rwc = fresh_weight/fresh_weight_saturated_excel, 
+         swc = fresh_weight_saturated - dry_weight, 
+         rwc = fresh_weight/fresh_weight_saturated, 
          rwd = 100 - rwc, 
-         tlp = tlp_excel,
+         tlp = tlp,
          neg_mpa = -1/water_potential,
          sample = as.character(sample), 
          date = mdy(date),
@@ -125,19 +126,20 @@ data.adfa <- pv_allcurves_data %>%
 pv_allcurves_data_clean  <- rbind(data.adfa, data.not.adfa)
 
 pv_allcurves_data_clean  %>% 
-write_csv(here("processed-data", "allcurves_clean.csv"))
+write_csv(here("processed-data", "allcurves_clean_v2.csv"))
 ```
 
 Visualize to make sure everything makes sense:
 
 ```{r, warning = F}
 pv_allcurves_data_clean%>% 
-ggplot(aes(y = neg_mpa, x = rwd_excel, color = spp)) + 
+ggplot(aes(y = neg_mpa, x = rwd, color = spp)) + 
   geom_jitter(alpha = .5, size = 1) +
   labs(title = "Pressure Volume Curves",
          y = "-1/Mpa", 
        x = "Relative Water Deficit (%)") +
-  theme_bw()
+  theme_bw() +
+  color_many
 ```
 
 Visualize LFM and Mpa ("Pressure Moisture Curves"):

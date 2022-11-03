@@ -70,7 +70,8 @@ flam_sierra_raw_no2021 <- bind_rows(flam_seki_raw, flam_czo_2020_raw) %>%
 flam_sierra_df <- bind_rows(flam_sierra_raw_no2021, flam_czo_2021_raw) %>% 
   mutate(lfm = lfm_n_as_imputed) %>% 
   select(-lfm_n_as_imputed) %>% 
-    mutate_if(is.character, str_to_lower) 
+    mutate_if(is.character, str_to_lower) %>% 
+  dplyr::mutate(id = row_number())
 
 
 ##Aaaaaaand viola! A very silly large dataframe of allllll of our samples. Woo! 
@@ -79,7 +80,6 @@ dlookr::diagnose(flam_sierra_df)
 ```
 
 View all: 
-
 ```{r}
 flam_sierra_df %>% 
   filter(ignition == 1) %>% 
@@ -88,7 +88,22 @@ flam_sierra_df %>%
   ggplot() +
   geom_density(aes(x = value, fill = spp), 
                alpha = .4) +
-  facet_wrap(~ var, scales = "free") 
+  facet_wrap(~ var, scales = "free") +
+  color_fill +
+  labs(y = "Value", x = "Density")
+```
+
+```{r}
+flam_sierra_df %>% 
+  filter(ignition == 1) %>% 
+  select(spp, year_month, tti, fh, fd, gd, temp_change, prop_ignite) %>%
+  gather(-spp, -year_month, key = "var", value = "value") %>%
+  ggplot() +
+  geom_density(aes(x = value, fill = spp), 
+               alpha = .4) +
+  facet_wrap(~ var, scales = "free") +
+  color_fill +
+  labs(y = "Value", x = "Density")
 ```
 ```{r}
 all_cor <- flam_sierra_df %>% 
@@ -142,27 +157,32 @@ Outliers:
 
 ```{r}
 quke_mpa <- flam_sierra_df %>% 
+  #select(spp, individual, sample_wt, mpa, lfm) %>% 
   filter(spp == "quke") 
 
 ceco_mpa <- flam_sierra_df  %>% 
+ #select(spp, individual, sample_wt, mpa, lfm) %>% 
   filter(spp == "ceco") #not enough ignitions to do anything really --> filter out ceco?
 
 pije_mpa <- flam_sierra_df %>% 
+# select(spp, individual, sample_wt, mpa, lfm) %>% 
   filter(spp == "pije") %>% 
   replace_with_na_at("lfm", ~.x < 55) 
 
 cade_mpa <- flam_sierra_df %>% 
+ # select(spp, individual, sample_wt, mpa, lfm) %>% 
   filter(spp == "cade") %>% 
   replace_with_na_at("mpa", ~.x > 7)
 
 arpa_mpa <- flam_sierra_df %>% 
+  # select(spp, individual, sample_wt, mpa, lfm) %>% 
   filter(spp == "arpa",)%>% 
-   replace_with_na_at("mpa", ~.x < 10) 
+   replace_with_na_at("mpa", ~.x > 9) 
 
 abco_mpa <- flam_sierra_df %>% 
+ # select(spp, individual, sample_wt, mpa, lfm) %>% 
   filter(spp == "abco") %>% 
-  replace_with_na_at("mpa", ~.x > 6) %>% 
-  replace_with_na_at("tti", ~.x < 300) 
+  replace_with_na_at("mpa", ~.x > 6) 
 
 #combine back together: 
 plot_mpa_df <- bind_rows(abco_mpa, arpa_mpa, cade_mpa, pije_mpa, ceco_mpa, quke_mpa)
@@ -192,27 +212,27 @@ for (i in unique(plot_lfm_df$spp)) {
 Deal with outliers from the above : 
 
 ```{r}
-quke_lfm <- flam_sierra_df %>% 
+quke_lfm <- plot_mpa_df %>% 
   filter(spp == "quke") %>% 
   replace_with_na_at("lfm", ~.x > 190) 
 
-ceco_lfm <- flam_sierra_df  %>% 
+ceco_lfm <- plot_mpa_df %>% 
   filter(spp == "ceco") #not enough ignitions to do anything really --> filter out ceco?
 
-pije_lfm <- flam_sierra_df %>% 
+pije_lfm <- plot_mpa_df %>% 
   filter(spp == "pije") %>% 
   replace_with_na_at("lfm", ~.x < 55)  %>% 
   replace_with_na_at("tti", ~.x > 200) 
 
-cade_lfm <- flam_sierra_df %>% 
+cade_lfm <- plot_mpa_df %>% 
   filter(spp == "cade") %>% 
   replace_with_na_at("gd", ~.x > 300)
 
-arpa_lfm <- flam_sierra_df %>% 
+arpa_lfm <- plot_mpa_df %>% 
   filter(spp == "arpa") %>% #remove 1 row
  replace_with_na_at("tti", ~.x > 300) 
 
-abco_lfm <- flam_sierra_df %>% 
+abco_lfm <- plot_mpa_df %>% 
   filter(spp == "abco") %>% 
  # replace_with_na_at("lfm", ~.x > 6) %>% 
   replace_with_na_at("tti", ~.x > 300) 
@@ -221,11 +241,72 @@ abco_lfm <- flam_sierra_df %>%
 plot_lfm_df <- bind_rows(abco_lfm, arpa_lfm, cade_lfm, pije_lfm, ceco_lfm, quke_lfm)
 ```
 
+```{r}
+plot_sw_df <- flam_sierra_df %>% 
+  filter(ignition == 1, 
+         year_month != "2021_august") %>% 
+  select(spp, year_month, tti, fh, fd, gd, lfm, lfm, temp_change, prop_ignite, sample_wt) %>%
+  gather(-spp, -year_month, - sample_wt,  key = "flam_metric", value = "value")
+  
+  
+for (i in unique(plot_sw_df$spp)) {
+  
+  df <- plot_sw_df %>% 
+    filter(spp == i)
+  
+  p <- plot_facet_flam(df, sample_wt, value, year_month, flam_metric) +
+    labs(title = i)
+  
+  if (!is.null(p)) plot(p)
+  
+}
+```
+
+```{r}
+quke_sw <- plot_lfm_df %>% 
+  filter(spp == "quke") %>% 
+  replace_with_na_at("sample_wt", ~.x > 5) 
+
+ceco_sw <- plot_lfm_df %>% 
+  filter(spp == "ceco") #not enough ignitions to do anything really --> filter out ceco?
+
+pije_sw <- plot_lfm_df %>% 
+  filter(spp == "pije") %>% 
+  replace_with_na_at("sample_wt", ~.x > 18) 
+
+cade_sw <- plot_lfm_df %>% 
+  filter(spp == "cade") 
+
+arpa_sw <- plot_lfm_df %>% 
+  filter(spp == "arpa") 
+
+abco_sw <- plot_lfm_df %>% 
+  filter(spp == "abco") %>% 
+  replace_with_na_at("sample_wt", ~.x > 9) 
+
+#combine back together: 
+flam_plot_sw_df <- bind_rows(abco_sw, arpa_sw, cade_sw, pije_sw, ceco_sw, quke_sw)
+```
+
+
+
 #Write csv
 ```{r}
-flam_sierra_df_final <- bind_rows(plot_lfm_df, plot_mpa_df)
+# flam_deps_final_1 <- cbind(plot_lfm_df, plot_mpa_df
+#                               #by = c("spp", "individual")
+#                               )
+# 
+# flam_deps_final_2 <- cbind(plot_sw_df, flam_deps_final_1
+#                               #by = c("spp", "individual"), all.y = T
+#                            )
 
-flam_sierra_df %>% 
+flam_sierra_df_1 <- flam_sierra_df %>% 
+                          select(-lfm, -sample_wt, - mpa, -individual)
+
+flam_sierra_df_2 <-  merge(flam_plot_sw_df, flam_sierra_df_1, all.y = T)
+  
+
+flam_sierra_df_2 %>% 
   write_csv(here("processed-data", "analysis 2.0", "sierra_flam_data_all.csv"))
 ```
 

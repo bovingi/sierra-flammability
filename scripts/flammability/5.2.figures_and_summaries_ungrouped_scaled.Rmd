@@ -48,7 +48,7 @@ mem_data_all <- read_csv(here("processed-data", "analysis 2.0", "sierra_flam_dat
   mutate(dw_flam_sample = sample_wt * (dry_wt/fresh_wt),
          ww_flam_sample = sample_wt * (water_wt/fresh_wt)) %>% 
   mutate(excess_water = (ww_flam_sample - dw_flam_sample)) %>% 
-  group_by(spp) %>% 
+  #group_by(spp) %>% 
   mutate(mpa_scaled = scale(mpa),
          dw_flam_sample_scaled = scale(dw_flam_sample), 
          sample_wt_scaled = scale(sample_wt), 
@@ -489,9 +489,9 @@ plots
 plots_legend <- cowplot::plot_grid(plots, legend, rel_widths = c(5, .6))
 plots_legend
 
-#ggsave(plot=plots_legend, bg = "white" , here::here("figures", "mpa_flam_metrics.jpeg"), device="jpg")
+#ggsave(plot=plots_legend, bg = "white" , here::here("figures", "mpa_flam_metrics_scaled_ungrouped"), device="jpg")
 
-ggsave(plot=plots_legend, bg = "white" , here::here("figures", "mpa_flam_metrics_withceco.jpeg"), device="jpg")
+ggsave(plot=plots_legend, bg = "white" , here::here("figures", "mpa_flam_metrics_withceco_scaled_ungrouped"), device="jpg")
 ```
 
 ####LFMs:
@@ -510,9 +510,9 @@ plots
 plots_legend <- cowplot::plot_grid(plots, legend, rel_widths = c(5, .6))
 plots_legend
 
-#ggsave(plot=plots_legend, bg = "white" , here::here("figures", "lfm_flam_metrics.jpeg"), device="jpg")
+#ggsave(plot=plots_legend, bg = "white" , here::here("figures", "lfm_flam_metrics_scaled_ungrouped"), device="jpg")
 
-ggsave(plot=plots_legend, bg = "white" , here::here("figures", "lfm_flam_metrics_withceco.jpeg"), device="jpg")
+ggsave(plot=plots_legend, bg = "white" , here::here("figures", "lfm_flam_metrics_withceco_scaled_ungrouped"), device="jpg")
 ```
 #3. Species differences: 
 
@@ -579,6 +579,6 @@ theme(
   color_many 
 spp_estimates
 
-ggsave(plot=spp_estimates, bg = "white" , here::here("figures", "spp_estimates_flam_metrics_withceco.jpeg"), device="jpg")
+ggsave(plot=spp_estimates, bg = "white" , here::here("figures", "spp_estimates_flam_metrics_withceco_scaled_ungrouped"), device="jpg")
 ```
 

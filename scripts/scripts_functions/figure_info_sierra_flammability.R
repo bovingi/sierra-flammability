@@ -20,4 +20,6 @@ color_fill <- scale_fill_manual(values = met.brewer("Tam"))
 
 color_grad <- scale_color_gradientn(colors=met.brewer("Tam", direction = -1))
 
+color_all <- scale_color_manual(values = met.brewer("Tam", direction = -1, type = "discrete")) 
+
 axis_size <- theme(axis_text = element_text(size = 24))
