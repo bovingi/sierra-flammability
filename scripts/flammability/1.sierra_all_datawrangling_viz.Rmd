@@ -67,13 +67,40 @@ flam_sierra_raw_no2021 <- bind_rows(flam_seki_raw, flam_czo_2020_raw) %>%
   select(-precip_2month, -x1, -video_notes_57, -video_notes_58, -gr, -lfm,
          -temp_max_higher, - temp_max, -start_temp, -ignition_temp_higher, - ignition_temp)
 
-flam_sierra_df <- bind_rows(flam_sierra_raw_no2021, flam_czo_2021_raw) %>% 
+flam_sierra_df_noswc <- bind_rows(flam_sierra_raw_no2021, flam_czo_2021_raw) %>% 
   mutate(lfm = lfm_n_as_imputed) %>% 
   select(-lfm_n_as_imputed) %>% 
     mutate_if(is.character, str_to_lower) %>% 
-  dplyr::mutate(id = row_number())
+   mutate(id = row_number(), 
+          gww_gdw = water_wt/dry_wt, 
+          pos_mpa = mpa, 
+          rwc_max_wc = rwc, #these are using the max values, not the extrapolated values
+          rwd_max_wc = rwd
+          )
+# %>% 
+#     dplyr::mutate(tlp = dplyr::case_when(
+#                   spp %in% c("abco") ~ "2.27", 
+#                   #spp %in%c("adfa")  ~ "3.31", 
+#                   spp %in% c("arpa") ~ "2.21", 
+#                   spp %in% c("cade") ~ "2.32",
+#                   spp %in% c("ceco") ~ "2.64", 
+#                   spp %in% c("pije") ~ "2.59", 
+#                   spp %in% c("quke") ~ "2.87", 
+#                   TRUE ~ NA_real_
+#                 )) %>% 
+#     mutate(tlp = as.numeric(tlp))
+  
 
+flam_swc_df <- flam_sierra_df_noswc %>% 
+  select(id, individual, gww_gdw, pos_mpa) %>% 
+  filter(pos_mpa > 2.4) %>% #for points above the tlp (estimated to be around ~2)
+  group_by(individual) %>% 
+  drop_na(gww_gdw) %>% 
+  summarise(swc_sat = lm(formula = gww_gdw ~ pos_mpa)$coefficients[["(Intercept)"]]) 
 
+flam_sierra_df <- merge(flam_swc_df, flam_sierra_df_noswc, all.x = T) %>% 
+  mutate(rwc = (gww_gdw/swc_sat)*100, 
+         rwd = 100 - rwc)
 ##Aaaaaaand viola! A very silly large dataframe of allllll of our samples. Woo! 
 
 dlookr::diagnose(flam_sierra_df)
@@ -288,7 +315,29 @@ abco_sw <- plot_lfm_df %>%
 flam_plot_sw_df <- bind_rows(abco_sw, arpa_sw, cade_sw, pije_sw, ceco_sw, quke_sw)
 ```
 
-
+```{r}
+plot_rwc_df <- flam_sierra_df %>% 
+  filter(ignition == 1, 
+         year_month != "2021_august", 
+         rwc < 100, 
+         rwc > 0
+         ) %>% 
+  select(spp, year_month, tti, fh, fd, gd, lfm, lfm, temp_change, prop_ignite, rwc) %>%
+  gather(-spp, -year_month, - rwc,  key = "flam_metric", value = "value")
+  
+  
+for (i in unique(plot_rwc_df$spp)) {
+  
+  df <- plot_rwc_df %>% 
+    filter(spp == i)
+  
+  p <- plot_facet_flam(df, rwc, value, year_month, flam_metric) +
+    labs(title = i)
+  
+  if (!is.null(p)) plot(p)
+  
+}
+```
 
 #Write csv
 ```{r}

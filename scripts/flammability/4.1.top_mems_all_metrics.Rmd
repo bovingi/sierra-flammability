@@ -72,7 +72,7 @@ mem_data_all <- read_csv(here("processed-data", "analysis 2.0", "sierra_flam_dat
   mutate(dw_flam_sample = sample_wt * (dry_wt/fresh_wt),
          ww_flam_sample = sample_wt * (water_wt/fresh_wt)) %>% 
   mutate(excess_water = (ww_flam_sample - dw_flam_sample)) %>% 
-   group_by(spp) %>% 
+   #group_by(spp) %>% 
   mutate(mpa_scaled = scale(mpa),
          dw_flam_sample_scaled = scale(dw_flam_sample), 
          sample_wt_scaled = scale(sample_wt), 
