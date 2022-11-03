@@ -138,8 +138,7 @@ ggplot(aes(y = neg_mpa, x = rwd, color = spp)) +
   labs(title = "Pressure Volume Curves",
          y = "-1/Mpa", 
        x = "Relative Water Deficit (%)") +
-  theme_bw() +
-  color_many
+  color_all
 ```
 
 Visualize LFM and Mpa ("Pressure Moisture Curves"):
@@ -151,8 +150,7 @@ ggplot(aes(y = neg_mpa, x = lfm, color = spp)) +
   labs(title = "Pressure Moisture Curves", 
        y = "-1/Mpa", 
        x = "Live Fuel Moisture (%)") +
-  theme_bw() +
-  facet_wrap(~spp)
+  facet_wrap(~spp, scales = "free") + color_all
 ```
 
 Non-transformed Mpa:
@@ -164,41 +162,38 @@ ggplot(aes(y = water_potential, x = lfm, color = spp)) +
   labs(title = "Pressure Volume Curves", 
        y = "Mpa", 
        x = "Live Fuel Moisture (%)") +
-  theme_bw()
+  color_all
 all
-ggplotly(all, tooltip = c("spp"))
+#ggplotly(all, tooltip = c("spp")) 
 ```
 
 Working with all species again, what is the relationship between RWC and TLP?
 
 ```{r}
-ggplot(data= pv_allcurves_data_clean, aes(y = tlp, x = rwc_at_tlp, color = spp, shape = timing)) +
+ggplot(data= pv_allcurves_data_clean, aes(y = tlp, 
+                                          x = rwc_at_tlp, 
+                                          color = spp, 
+                                          #shape = timing
+                                          )) +
   geom_point(alpha = .8, size = 1) +
   labs(title = "TLP and RWC at TLP",
        y = "TLP (-Mpa)", 
-       x = "SWC (grams water/gram dry ")  +
-  geom_smooth(method='lm') +
-  theme_bw()
+       x = "RWC (%)")  +
+  color_all+
+  geom_smooth(method='lm', se = F)
 ```
 
 ```{r}
-ggplot(data = pv_allcurves_data_clean, aes(y = tlp, x = lfm_at_tlp, color = spp)) +
+ggplot(data = pv_allcurves_data_clean, aes(y = tlp, 
+                                           x = lfm_at_tlp, 
+                                           color = spp)) +
   geom_point(alpha = .8, size = 1) +
   labs(title = "TLP and LFM at TLP",
        y = "TLP (-Mpa)", 
        x = "LFM (%)") +
-  geom_smooth(method='lm') +
-  theme_bw()
-```
-
-```{r}
-ggplot(data = pv_allcurves_data_clean, aes(y = tlp, x = lfm_at_tlp)) +
-  geom_point(alpha = .8, size = 1) +
-  labs(title = "TLP and LFM at TLP, all spp together",
-       y = "TLP (-Mpa)", 
-       x = "LFM (%)") +
-  geom_smooth(method='lm') +
-  theme_bw()
+  geom_smooth(method='lm', se = F) +
+  color_all
+  
 ```
 
 Remove CECO, since that spp is strange...(result of using branchlet? Impossible to do leaves??)
@@ -212,7 +207,20 @@ ggplot(aes(y = tlp, x = lfm_at_tlp, color = spp)) +
        y = "TLP (-Mpa)", 
        x = "LFM at TLP (%)") +
   geom_smooth(method='lm') +
-  theme_bw()
+  color_all
+```
+```{r}
+pv_allcurves_data_clean %>% 
+  filter(spp != "CECO") %>% 
+ggplot(aes(y = rwc_at_tlp, 
+           x = lfm_at_tlp, 
+           color = spp)) +
+  geom_point(alpha = .8, size = 1) +
+  labs(title = "RWC and LFM at TLP",
+       y = "RWC at TLP (%)", 
+       x = "LFM at TLP (%)") +
+  geom_smooth(method='lm', se = F) +
+  color_all
 ```
 
 ##### PV summaries 
@@ -230,7 +238,7 @@ tlp_summary_spp <- pv_allcurves_data_clean %>%
 tlp_summary_spp
 
 tlp_summary_month <-pv_allcurves_data_clean %>%
-  mutate(month_char = rlang::as_character(month)) %>% 
+  mutate(month_char = as_character(month)) %>% 
   group_by(month_char, spp) %>% 
   summarise(n=n(), mean_tlp_month =mean(tlp),sd_month=sd(tlp))
 
@@ -267,8 +275,7 @@ ggplot(tlp_summary_timing, aes(y = mean_tlp_timing, x = spp, fill = timing)) +
                   color = "black",
                   size = .5) +
    labs(title = "TLP with sd", y = "TLP", x = "Species") +
-   theme_bw() +
-   scale_fill_manual(values = c("goldenrod", "olivedrab3", "blue"))
+   color_fill
 ```
 
 #--------------------------
@@ -335,12 +342,15 @@ write_csv(flam_curve_phys_all, here("processed-data", "compiled-datasets", "flam
 This is effectively what we're trying to do to get the saturated water content except we'll do it for each individual, not for each species. 
 
 ```{r}
-ggplot(flam_curve_phys_all, aes(x = pos_mpa, y = gww_gdw, color = spp)) +
+ggplot(flam_curve_phys_all, aes(x = pos_mpa, 
+                                y = gww_gdw, 
+                                color = spp)) +
   geom_point(alpha = .3) +
   geom_smooth(method = "lm", se = FALSE, size = .5) +
+  color_all +
   labs(title = "Intercept = saturated water content", 
        y = "water:dry matter", 
-       x = "water potential (+Mpa)")
+       x = "water potential (+Mpa)") 
 ```
 
 We need the extrapolated saturated water content so that we can determine the relative water content. We do that here by: 
@@ -377,77 +387,78 @@ Make a smaller df to see what that looks like:
 
 ```{r, warning= FALSE}
 subset <- flam_curve_phys_all %>% 
-  select(individual, dry_wt, lfm, mpa,pos_mpa, gww_gdw, tlp, swc_sat, rwc_new, spp) %>% 
-  filter(rwc_new > 100)
+ # select(individual, dry_wt, lfm, mpa,pos_mpa, gww_gdw, tlp, swc_sat, rwc_new, spp) %>% 
+  filter(rwc_new < 100)
 
 unique(subset$individual)
 
-#See if those values make sense: 
-ggplot(subset, aes(x = pos_mpa, 
-                   y = gww_gdw)) +
-  geom_point(alpha = .3) +
-  geom_smooth(method = "lm", se = FALSE) +
-  labs(title = "Intercept = saturated water content", 
-       y = "water:dry matter", 
-       x = "water potential (+Mpa)") +
-  facet_wrap(~spp)
+#See if those swc values make sense: 
+# ggplot(subset, aes(x = pos_mpa, 
+#                    y = gww_gdw)) +
+#   geom_point(alpha = .3) +
+#   geom_smooth(method = "lm", se = FALSE) +
+#   labs(title = "Intercept = saturated water content", 
+#        y = "water:dry matter", 
+#        x = "water potential (+Mpa)") +
+#   facet_wrap(~spp)
+rwc_at_tlp_mean <- pv_allcurves_data_clean %>% 
+  select(rwc_at_tlp) %>% 
+  drop_na() %>% 
+  mutate(rwc_at_tlp = mean(rwc_at_tlp)) %>% 
+  distinct() %>% 
+  pull() 
 
 subset %>% 
   ggplot(aes(y = mpa, 
              x = rwc_new, 
              color = spp)) +
-  geom_point()
+  geom_point(size = .5) +
+ # geom_smooth(method = "lm", se = FALSE) +
+  geom_smooth(method = loess, se = F, size = .5, color = "black") +
+  color_all +
+  ylim(-10, 0) +
+  labs(y = "MPa", 
+       x = "RWC", 
+       title= "Estimated RWC and MPa: Drydown 'PV-Curves'"
+         ) +
+  geom_vline(xintercept = rwc_at_tlp_mean, linetype = "dotted")
+```
 
-#Visualize: 
-flam_curve_phys_all %>% 
-ggplot(aes(y = swc_sat, 
-           x = spp, 
-           color = spp)) +
-  geom_col() +
-  theme()
 
-# ggplot(flam_curves_phys_all_swc, aes(y = gww_gdw, x = swc_sat, color = spp)) +
-#   geom_point() +
-#   labs(title = "saturated wet weight calculated two different ways", 
-#        y = "based on greatest gww/gdw per individual", 
-#        x = "based on linear regression extrapolation") +
-#   theme_bw()
+```{r, warning= FALSE}
+subset %>% 
+  ggplot(aes(y = -1/mpa, 
+             x = 100 - rwc_new, 
+             color = spp)) +
+  geom_point(size = .5) +
+  #geom_smooth(method = "lm", se = FALSE) +
+  color_all +
+  geom_smooth(method = loess, se = F, size = .5, color = "black") +
+  geom_vline(xintercept = 100 - rwc_at_tlp_mean, linetype = "dotted") +
+  labs(y = "-1/MPa", 
+       x = "RWD", 
+       title= "Estimated RWC and MPa: Drydown 'PV-Curves'",
+       caption = "dotted line is TLP"
+         ) +
+  facet_wrap(~spp, scales = "free")
 ```
 
 ```{r}
+#for just 1 individual- looks kinda bad? 
 flam_curve_phys_all %>%
   filter(individual == "2020_September_CEME_1.3") %>%
   ggplot(aes(x = pos_mpa, y = gww_gdw, color = individual)) +
   geom_point(alpha = .3) +
   geom_smooth(method = "lm")
+```
 
-# 
-# flam_curve_phys_all %>% 
-#   filter(spp == "ADFA") %>% 
-#   ggplot(aes(x = pos_mpa, y = gww_gdw, color = individual)) +
-#   geom_point(alpha = .3) +
-#   geom_smooth(method = "lm")
-# 
-# flam_curve_phys_all %>% 
-#   filter(spp == "ARPA") %>% 
-#   ggplot(aes(x = pos_mpa, y = gww_gdw, color = individual)) +
-#   geom_point(alpha = .3) +
-#   geom_smooth(method = "lm", alpha = .1)
-flam_curve_phys_all %>% 
-  filter(rwc_new < 100) %>% 
-ggplot(aes(y = -1/mpa, x = 100 - rwc_new, color = spp)) +
-  geom_point(alpha = .3)
+New dataset with calculated RWC: 
 
-flam_curve_phys_all %>% 
-  filter(rwc_new < 100) %>% 
-ggplot(aes(y = -1/mpa, x = 100 - rwc_new, color = spp)) +
-  geom_point(alpha = .3) +
-  geom_smooth(method = loess, se = F, size = .5) +
-  facet_wrap(~spp) 
-
+```{r}
 flam_curve_phys_all %>% 
   write_csv(here("processed-data", "flam_curve_phys_all.csv"))
 ```
+
 #--------------------------
 ##Section 3: Field-collected data: 
 
@@ -471,14 +482,14 @@ field_data_2021 <- read.csv(here("raw-data", "Summer2021.LFM.mpa.data.analysis.c
   mutate(water_potential = midday) %>% 
   mutate(swc = wettest_lfm/100)
 
-field_data_2021_tlps <- merge(merge(tlp.summary.spp, tlp.summary.spp.lfm, by = "spp", all = T), field_data_2021, by = "spp", all = T)
+field_data_2021_tlps <- merge(merge(tlp_summary_spp, tlp_summary_spp_lfm, by = "spp", all = T), field_data_2021, by = "spp", all = T)
 
-field_data_2021_pv <- merge(merge(tlp.summary.timing, tlp.summary.timing.lfm, by = c("spp", "timing"), all = T), field_data_2021_tlps, by = c("spp", "timing"), all =T) #add in mean TLP for each species
+field_data_2021_pv <- merge(merge(tlp_summary_timing, tlp_summary_timing_lfm, by = c("spp", "timing"), all = T), field_data_2021_tlps, by = c("spp", "timing"), all =T) #add in mean TLP for each species
 
-field_data_2021_pv <- merge(tlp.summary.spp.lfm, field_data_2021_tlps, by = "spp", all = T) #add in mean LFM at TLP for each spp
+field_data_2021_pv <- merge(tlp_summary_spp_lfm, field_data_2021_tlps, by = "spp", all = T) #add in mean LFM at TLP for each spp
 
 #field_data_2021_pv %>% 
-#write_csv(here("processed-data", "field_data_2021.csv"))
+#write_csv(here("processed-data", "field_data_2021_csv"))
 outlierKD2(field_data_2021_pv, lfm)
 ```
 
@@ -499,13 +510,13 @@ field_data_2020 <- read_csv(here("raw-data", "field.summer.2020.csv"), show_col_
   mutate(rwc = 100 * (lfm/wettest_lfm)) %>% 
   mutate(rwd = 100 - rwc) %>% 
   mutate(water_potential = midday) %>% 
-  mutate(swc = wettest_lfm/100)
+  mutate(swc = wettest_lfm/100) 
 
-field_data_2020_tlps <- merge(merge(tlp.summary.spp, tlp.summary.spp.lfm, by = "spp", all = T), field_data_2020, by = "spp", all = T)
+field_data_2020_tlps <- merge(merge(tlp_summary_spp, tlp_summary_spp_lfm, by = "spp", all = T), field_data_2020, by = "spp", all = T)
 
-field_data_2020_pv <- merge(merge(tlp.summary.timing, tlp.summary.timing.lfm, by = c("spp", "timing"), all = T), field_data_2020_tlps, by = c("spp", "timing"), all =T) #add in mean TLP for each species
+field_data_2020_pv <- merge(merge(tlp_summary_timing, tlp_summary_timing_lfm, by = c("spp", "timing"), all = T), field_data_2020_tlps, by = c("spp", "timing"), all =T) #add in mean TLP for each species
 
-field_data_2020_pv <- merge(tlp.summary.spp.lfm, field_data_2020_tlps, by = "spp", all = T)
+field_data_2020_pv <- merge(tlp_summary_spp_lfm, field_data_2020_tlps, by = "spp", all = T)
 
 #field_data_2020_pv %>% 
 #write_csv(here("processed-data", "field_data_2020.csv"))
@@ -513,10 +524,61 @@ field_data_2020_pv <- merge(tlp.summary.spp.lfm, field_data_2020_tlps, by = "spp
 outlierKD2(field_data_2020_pv, lfm)
 ```
 
+
 ###All dates
 ```{r}
 field_data_all <- merge(field_data_2020_pv, field_data_2021_pv, all = T)
+```
 
+We probbably also want to get swc to be the extrapolated value, so....
+
+
+This is effectively what we're trying to do to get the saturated water content except we'll do it for each individual, not for each species. 
+
+```{r}
+ggplot(flam_curve_phys_all, aes(x = pos_mpa, 
+                                y = gww_gdw, 
+                                color = spp)) +
+  geom_point(alpha = .3) +
+  geom_smooth(method = "lm", se = FALSE, size = .5) +
+  color_all +
+  labs(title = "Intercept = saturated water content", 
+       y = "water:dry matter", 
+       x = "water potential (+Mpa)") 
+```
+
+We need the extrapolated saturated water content so that we can determine the relative water content. We do that here by: 
+1. Finding a lm for each indvidual that relates **water content:dry matter** with **water potential**.
+2. Extracting the y-intercept. This is the extrapolated saturated water content. 
+3. Add that value back into the dataset so it is useful. 
+
+```{r, warning= FALSE}
+#get the extrapolated saturated water content:
+swc_field_data_all <- field_data_all %>% 
+  mutate(gww_gdw = )
+  filter(water_potential > tlp) %>% #for points above the tlp (estimated to be around ~2)
+  group_by(individual) %>% 
+  summarise(swc_sat = lm(formula = gww_gdw ~ (-1 * water))$coefficients[["(Intercept)"]]) 
+
+# try.broom <- flam_curve_phys_all %>%
+#   filter(mpa > -2) %>%
+#   group_by(individual) %>%
+#   do(broom::tidy(lm(gww_gdw ~ pos_mpa, .))) %>%
+#   filter(term == "(Intercept)") %>%
+#   select(individual, estimate)
+# 
+# merged <- merge(try.broom, swc_all, by = "individual", all = T)
+# 
+# merged %>% 
+#   ggplot(aes(y = estimate, x = swc_sat)) +
+#   geom_point()
+
+#add that back to the master dataset:
+flam_curve_phys_all <- merge(flam_curve_phys_all, swc_all, by="individual", all = T) %>%
+  mutate(rwc_new = 100 * (gww_gdw/swc_sat))
+```
+
+```{r}
 field_data_all %>%
 write_csv(here("processed-data", "compiled-datasets", "SEKI", "field_data_2020_2021.csv"))
 ```
