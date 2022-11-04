@@ -310,7 +310,8 @@ flam_curve_phys_all_raw <- read_csv(here("processed-data", "analysis 2.0", "flam
 
 flam_curve_predict_df <- flam_curve_phys_all_raw %>% 
   mutate(water_potential = -1*pos_mpa, 
-         swc = swc_sat) %>% 
+         swc = swc_sat, 
+         month = as.factor(month)) %>% 
   select(spp, swc, lfm, mpa, month, tlp, water_potential, po)
 ```
 
@@ -394,8 +395,10 @@ predict_graph_below
 
 1. all possible inclusions: 
 
+#HERE - temp
+
 ```{r}
-complex_model_below <- lm(formula = -1/water_potential ~ lfm + swc + po + spp + 1, data = all_below_tlp)
+complex_model_below <- lm(formula = -1/water_potential ~ lfm + swc + po + spp + 1 + month, data = all_below_tlp)
 
 predict_below <- predict(complex_model_below, newdata = flam_curve_phys_below, se_fit = TRUE, interval = "confidence") #make prediction
 
@@ -412,7 +415,7 @@ predict_df_below %>%
   geom_abline(color = "red") +
  # ylim(0, 1) +
  # xlim(0, 1) +
-  labs(title = "Complex model: Actual vs_ predicted, BELOW the TLP", 
+  labs(title = "Complex model: Actual vs predicted, BELOW the TLP", 
        y = "Actual -1/Mpa", 
        x = "Predicted -1/Mpa") 
    #theme_light() 
@@ -440,7 +443,60 @@ predict_graph_below <-
  # facet_wrap(~St) +
   labs(x = "LFM (%)", 
        y = "Water Potential (Mpa)", 
-       title = "Complex model: Predicted (lightblue) vs_ observed (black) LFM and Mpa for point BELOW the TLP (ABCO)") 
+       title = "Complex model: Predicted (lightblue) vs. observed (black) LFM and Mpa for point BELOW the TLP (ABCO)") 
+ # scale_x_continuous(limits = c(500,3500), breaks = seq(500, 3500, by = 1000)) +
+ # scale_y_continuous(limits = c(0,1.5e6))
+  #theme_light() 
+predict_graph_below
+```
+
+```{r}
+complex_model_below <- lm(formula = -1/water_potential ~ lfm + swc + po + spp + 1, data = all_below_tlp)
+
+predict_below <- predict(complex_model_below, newdata = flam_curve_phys_below, se_fit = TRUE, interval = "confidence") #make prediction
+
+# Bind to the data to make it actually useful:
+
+predict_df_below <- data.frame(flam_curve_phys_below, predict_below)
+
+predict_df_below %>% 
+  ggplot(aes(y = -1/water_potential, 
+             x = fit, 
+             color = spp)) +
+  geom_point() +
+  geom_abline(method = lm) +
+  geom_abline(color = "red") +
+ # ylim(0, 1) +
+ # xlim(0, 1) +
+  labs(title = "Complex model: Actual vs predicted, BELOW the TLP", 
+       y = "Actual -1/Mpa", 
+       x = "Predicted -1/Mpa") 
+   #theme_light() 
+
+
+
+predict_df_below %>% 
+  ggplot(aes(y = water_potential, 
+             x = -1/fit, 
+             color = spp)) +
+  geom_point() +
+  geom_abline(method = lm) +
+  geom_abline(color = "red") +
+  ylim(0, -5) +
+  xlim(0, -5) +
+  labs(title = "Complex model: Actual vs. predicted BELOW the TLP", 
+       y = "Actual Mpa", 
+       x = "Predicted Mpa") 
+   #theme_light() 
+
+predict_graph_below <- 
+  ggplot(predict_df_below, aes(x = lfm, y = fit)) +
+  geom_point(color = "lightblue", alpha = 0.7) +
+  geom_point(data = flam_curve_phys_below, aes(x = lfm, y = -1/mpa), alpha = 0.7) +
+ # facet_wrap(~St) +
+  labs(x = "LFM (%)", 
+       y = "Water Potential (Mpa)", 
+       title = "Complex model: Predicted (lightblue) vs. observed (black) LFM and Mpa for point BELOW the TLP (ABCO)") 
  # scale_x_continuous(limits = c(500,3500), breaks = seq(500, 3500, by = 1000)) +
  # scale_y_continuous(limits = c(0,1.5e6))
   #theme_light() 
@@ -450,7 +506,7 @@ predict_graph_below
 2. all just po + lfm
 
 ```{r}
-complex_model_below <- lm(formula = -1/water_potential ~ lfm +  po + spp + 1, data = all_below_tlp)
+complex_model_below <- lm(formula = -1/water_potential ~ lfm + po + spp + 1, data = all_below_tlp)
 
 predict_below <- predict(complex_model_below, newdata = flam_curve_phys_below, se_fit = TRUE, interval = "confidence") #make prediction
 
@@ -490,7 +546,7 @@ predict_df_below %>%
 
 predict_graph_below <- 
   ggplot(predict_df_below, aes(x = lfm, y = fit)) +
-  geom_point(color = "lightblue", alpha = 0.7) +
+  geom_point(color = "pink", alpha = 0.7) +
   geom_point(data = flam_curve_phys_below, aes(x = lfm, y = -1/mpa), alpha = 0.7) +
  # facet_wrap(~St) +
   labs(x = "LFM (%)", 
