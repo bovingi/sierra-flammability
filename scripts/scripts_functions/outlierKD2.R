@@ -1,4 +1,4 @@
-#source("http://goo.gl/UUyEzD") #outlier KD (original function)
+source("http://goo.gl/UUyEzD") #outlier KD (original function)
 
 #The following function is derived from outlierKD (from above)
 outlierKD2 <- function(dt, var) {

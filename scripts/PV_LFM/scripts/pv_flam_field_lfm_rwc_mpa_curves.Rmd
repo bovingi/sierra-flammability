@@ -190,6 +190,8 @@ flam_phys_data_adfa <- flam_phys_data_local %>%
 mod_local_mpalfm_adfa <- lmer(lfm ~ mpa + year_month  + (1|individual), data = flam_phys_data_adfa)
 summary(mod_local_mpalfm_adfa)
 ```
+
+
 ```{r}
 flam_phys_data_ceme <- flam_phys_data_local %>% 
   filter(spp == "CEME")

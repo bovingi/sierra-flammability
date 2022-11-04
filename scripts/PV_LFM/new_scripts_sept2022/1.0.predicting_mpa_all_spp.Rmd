@@ -1,0 +1,836 @@
+---
+title: "RWC x LFM"
+author: "Indra Boving"
+date: "10/24/2021"
+output: html_document
+
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo=FALSE, message=FALSE, results='hide', warning= FALSE)
+options(knitr.duplicate.label = "allow")
+library(here)
+library(janitor)
+library(tidyverse)
+library(plotly)
+library(DT)
+library(broom)
+library(lubridate)
+library(udpipe)
+library(equatiomatic)
+library(MuMIn)
+# rmarkdown::render('lfm_rwc_Rmd', output_file = here("htmls", "lfm_rwc_html"))
+```
+
+# Section 1: Pressure Volume Curves
+
+```{r}
+data <- read_csv(here("processed-data", "allcurves_clean.csv"), show_col_types = FALSE) %>% 
+  mutate(sample = as.factor(sample)) %>% 
+  mutate(month = as.factor(month)) %>% 
+  mutate(date = date(date)) %>% 
+  clean_names()
+```
+ 
+### 1.1: Variation in TLPs
+ 
+Look at just one species and timepoint: ABCO and fall
+
+```{r}
+pv_all <- data 
+
+ggplot(pv_all) +
+  geom_point(aes(x = rwd, y = -1/water_potential, 
+                 color = as.factor(date)), 
+             size = .5, alpha = .5) +
+  facet_wrap(~spp) +
+  #theme_light() +
+  labs(x = "Relative Water Deficit", 
+       y = "-1/Water potential")
+
+pv_fall_summary <- data %>%
+  group_by(date, spp) %>% 
+  filter(timing == "fall" ) %>% 
+  summarise(n=n(), mean=mean(tlp),sd=sd(tlp)) %>% 
+  mutate(year = year(date), 
+         month = month(date))
+```
+...Fix this if we want to use it. 
+```{r}
+ggplot(pv_fall_summary) +
+    geom_bar(aes(y = mean, 
+                 x = year), 
+             position="dodge", 
+             stat="identity", 
+             fill = "lightblue", 
+             alpha = .5) +
+    geom_errorbar(aes(x= year, 
+                      ymin=mean-sd, 
+                      ymax=mean+sd), 
+                  width=.4, colour="black", alpha=0.9) +
+   labs(title = "All TLPs, fall dates") +
+  facet_wrap(~spp, scales = "free")
+   #theme_light()
+```
+
+In fall and spring: 
+
+- fall both dates combined ()
+
+```{r}
+# pv_summary <- data %>%
+#   group_by(timing) %>% 
+#  # filter(spp == "ABCO") %>% 
+#   summarise(n=n(), mean=mean(tlp),sd=sd(tlp))
+# 
+#  ggplot(pv_summary) +
+#     geom_bar(aes(y = mean, x = timing), position="dodge", stat="identity", fill = "lightblue", alpha = .5) +
+#     geom_errorbar(aes(x=timing, ymin=mean-sd, ymax=mean+sd), width=0_4, colour="black", alpha=0_9) +
+#    labs(title = "ABCO TLP, all dates", 
+#         y = "TLP (-Mpa)", 
+#         x = "timing") +
+#    #theme_light()
+```
+
+See if sig. difference in TLP for each spp: 
+
+```{r, include = TRUE}
+for (i in unique(pv_all$spp)) {
+#Split df into groups, then pull sample vectors
+fall_spp <- pv_all %>% 
+  filter(timing == "fall", 
+         spp == i) %>% 
+  group_by(sample) %>% 
+  arrange(water_potential) %>%
+  filter(row_number()==1) %>% 
+  pull(tlp)
+
+spring_spp <- pv_all %>% 
+  filter(timing == "spring", spp == i) %>% 
+   group_by(sample) %>% 
+  arrange(water_potential) %>%
+  filter(row_number()==1) %>% 
+  pull(tlp)
+
+spp_tlp_t <- t.test(spring_spp, fall_spp)
+spp_tlp_t 
+
+t_test_out <- c(i, spp_tlp_t)
+}
+```
+
+
+### 1.2: Try to predict Mpa from LFM with just one species
+
+1.  Get datasets in order:
+
+-   select for just the species and date we are interested in
+-   remove any anomalous curves
+-   pull the TLP as a value
+-   make two sub-datasets: one for all points above the TLP, one for all points below the TLP
+
+```{r message=FALSE, warnings=F}
+pv_fall <- data %>%
+  filter(
+    #spp == "ABCO" &
+           timing == "fall" )  %>% 
+  mutate(sample = as.numeric(sample)) %>% 
+  filter(!(spp == "PIJE" & sample == 7)) %>% 
+  filter(!(spp == "QUKE" & sample == 2)) %>% 
+  filter(!(spp == "ARPA" & sample == 5 & !month == 10)) 
+
+fall_tlp <- pv_fall %>% 
+  group_by(spp) %>% 
+  summarise(mean(tlp)) %>% pull()
+
+fall_sd <- pv_fall %>% 
+  group_by(spp) %>% 
+  summarise(sd(tlp)) %>% pull()
+```
+
+For fall PV curves, the mean TLP = `r round(mean(fall_tlp,2))`, sd = `r round(mean(fall_sd,2))`
+
+```{r, echo=FALSE, message=FALSE, results='hide'}
+pv_fall %>% 
+  ggplot(aes(y = water_potential, 
+             x = lfm, 
+             color = as.factor(date))
+         ) +
+  geom_point(alpha = .5, size = .5) +
+  geom_hline(yintercept = fall_tlp,
+             colour = "lightblue") +
+  facet_wrap(~spp) +
+  labs(title = "Pressure Volume Curves, LFM x Mpa", 
+       x = "LFM (%)", y = "Mpa") 
+
+  #theme_light()
+```
+Subset data based on TLP: 
+
+```{r}
+all_above_tlp <- pv_fall %>% 
+  group_by(spp) %>% 
+  filter(water_potential > tlp) 
+# %>% 
+#   filter(lfm < 200, lfm > 90)
+
+all_below_tlp <- pv_fall %>% 
+   group_by(spp) %>% 
+  filter(water_potential < tlp)
+```
+
+#### 2.  For points BELOW the TLP, there should be a linear relationship between -1/Mpa and LFM
+
+```{r}
+all_below_tlp %>% 
+ggplot(aes(y = -1/water_potential, 
+           x = lfm, 
+           color = as.factor(sample), 
+           shape = as.factor(month))) +
+  geom_jitter(alpha = .6, size = 1) +
+  geom_smooth(method = "lm", se = FALSE, size = .5, alpha = .5) +
+  labs(y = "-1/Mpa", x = "LFM (%)") +
+  facet_wrap(~spp, scales = "free")
+  #theme_light()
+
+fit_below_all <-lm(-1/water_potential~lfm + spp, all_below_tlp)
+
+summary(fit_below_all)
+
+mpa_predicted_r <- predict.lm(fit_below_all, newdata = data_frame(lfm = 180, spp = "CADE")) %>% #180 is a random num
+  as.numeric() #use this to extract lfm
+mpa_predicted_r
+
+mpa_predicted_r <- predict.lm(fit_below_all, newdata = data_frame(lfm = 180, spp = "ABCO")) %>% #180 is a random num
+  as.numeric() #use this to extract lfm
+mpa_predicted_r
+```
+
+#### 2.1. Try adding in other predictors: 
+```{r}
+options(na.action = "na.fail") # Required for dredge to run 
+
+fit_below_all <- MuMIn::dredge(lm(-1/water_potential~lfm + po + swc + rwc_at_tlp + spp, all_below_tlp))
+
+options(na.action = "na.omit") # set back to default
+
+head(fit_below_all)
+```
+
+This is the model that dredge() likes the best: 
+
+```{r}
+top_model_below <- get.models(fit_below_all, subset = 1)[[1]]
+summary(top_model_below)
+```
+ 
+
+VIFs:
+```{r}
+car::vif(top_model_below) ##
+plot(top_model_below)
+#VIF is ok: less than 4 for mpa and LFM_
+extract_eq(top_model_below)
+```
+
+ Unfortunately, it's unlikely that we'd know the swc, but we can use spp means for po and rwc at tlp. Lets try with just po though
+ 
+ 
+#### 3.  For points ABOVE the TLP, there should be a linear relationship between Mpa and lfm
+
+```{r}
+ggplot(data = all_above_tlp, aes(y = water_potential, 
+                                 x = lfm, 
+                                 color = spp, 
+                                 shape = as.factor(date))) +
+  geom_jitter(alpha = .6, size = 1) +
+  geom_smooth(method = "lm", se = FALSE, size = .5, alpha = .5) +
+labs(y = "Mpa", x = "LFM (%)")
+  #theme_light()
+```
+Looks like maybe date really matters for CECO? Weird... 
+
+```{r}
+fit_above_all <- lm(water_potential ~ lfm + spp, all_above_tlp)
+summary(fit_above_all)
+
+lfm_predicted_r_fit1 <- predict.lm(fit_above_all, newdata = data.frame(lfm = 150, spp = "CADE")) %>% 
+  as.numeric() #use this to extract lfm
+lfm_predicted_r_fit1
+```
+
+Try some models based on what we'd probably know: 
+
+```{r}
+#Adding in po might help model?
+fit2 <- lm(water_potential ~ lfm + po + spp, all_above_tlp)
+summary(fit2)
+
+broom::tidy(fit2)
+
+lfm_predicted_r <- predict.lm(fit2, newdata = data.frame(lfm = 150, po = -1.42, spp = "CADE")) %>% as.numeric() #use this to extract lfm
+lfm_predicted_r
+```
+
+We have some linear models that should be able to predict Mpa from LFM_ Now, to test it out___
+
+#### 3.1. Try adding in other predictors: 
+```{r}
+options(na_action = "na_fail") # Required for dredge to run 
+
+fit_above_all <- MuMIn::dredge(lm(water_potential~ lfm + po + swc + rwc_at_tlp, all_above_tlp))
+
+options(na_action = "na_omit") # set back to default
+
+head(fit_above_all)
+```
+
+This is the model that dredge() likes the best: 
+
+```{r}
+top_model_above <- get_models(fit_above_all, subset = 1)[[1]]
+summary(top_model_above)
+```
+ 
+VIFs:
+```{r}
+car::vif(top_model_above) ##
+plot(top_model_above)
+#VIF is ok: less than 4 for mpa and LFM_
+```
+
+# Sections 2-3: Can we predict actual values using the models built from the PV curves?
+
+### 2.1: Flam-curve values
+
+- Read in flam curve data
+
+```{r}
+flam_curve_phys_all_raw <- read_csv(here("processed-data", "analysis 2.0", "flam_curve_phys_all.csv"), show_col_types = FALSE)
+
+flam_curve_predict_df <- flam_curve_phys_all_raw %>% 
+  mutate(water_potential = -1*pos_mpa, 
+         swc = swc_sat) %>% 
+  select(spp, swc, lfm, mpa, month, tlp, water_potential, po)
+```
+
+- Use `predict()` to see if we can use PV curve models to get values collected during flammability curve testing. 
+
+```{r}
+#Our models: 
+pretty1 <- extract_eq(fit_below_all)
+pretty1
+pretty2 <- extract_eq(fit_above_all)
+pretty2
+
+summary(fit_below_all)
+```
+
+We're just interested in ABCO, so just look there: 
+
+```{r}
+flam_curve_phys_above <- flam_curve_predict_df %>% 
+ # filter(rwc_new < 100) %>% 
+ # filter(spp == "ABCO") %>% 
+  filter(water_potential > tlp)
+
+flam_curve_phys_below <- flam_curve_predict_df %>% 
+ # filter(rwc_new < 100) %>% 
+ # filter(spp == "ABCO") %>% 
+  filter(water_potential < tlp)
+```
+
+###  2.2 Predict below TLP: 
+
+#### 2.2.1 Simple model - below: 
+
+```{r}
+fit_below_all <-lm(-1/water_potential~lfm + spp, all_below_tlp)
+
+predict_below <- predict(fit_below_all, 
+                         newdata = flam_curve_phys_below, 
+                         se_fit = TRUE, 
+                         interval = "confidence") #make prediction
+
+# Bind to the data to make it actually useful:
+
+predict_df_below <- data.frame(flam_curve_phys_below, predict_below)
+
+predict_df_below %>% 
+  ggplot(aes(y = -1/water_potential, 
+             x = fit, 
+         color = spp)) +
+  geom_point() +
+  geom_abline(method = lm) +
+  geom_abline(color = "red") +
+ # ylim(0, 1) +
+ # xlim(0, 1) +
+  labs(title = "Actual vs predicted water potential for points BELOW the TLP", 
+       y = "Actual -1/Mpa", 
+       x = "Predicted -1/Mpa")
+   #theme_light() 
+```
+
+
+
+```{r, echo = FALSE, messages = "hide", warning = FALSE}
+predict_graph_below <- ggplot(predict_df_below, aes(x = lfm, 
+                                                    y = fit)) +
+  geom_point(color = "lightblue", alpha = 0.7) +
+  geom_point(data = flam_curve_phys_below, 
+             aes(x = lfm, y = -1/water_potential), 
+             alpha = 0.7) +
+ # facet_wrap(~St) +
+  labs(x = "LFM (%)", 
+       y = "Water Potential (Mpa)", 
+       title = "Predicted (lightblue) vs_ observed (black) LFM and Mpa for point BELOW the TLP") 
+ # scale_x_continuous(limits = c(500,3500), breaks = seq(500, 3500, by = 1000)) +
+ # scale_y_continuous(limits = c(0,1.5e6))
+  #theme_light() 
+predict_graph_below
+```
+
+#### 2.2.2. Complex model  - below: 
+
+1. all possible inclusions: 
+
+```{r}
+complex_model_below <- lm(formula = -1/water_potential ~ lfm + swc + po + spp + 1, data = all_below_tlp)
+
+predict_below <- predict(complex_model_below, newdata = flam_curve_phys_below, se_fit = TRUE, interval = "confidence") #make prediction
+
+# Bind to the data to make it actually useful:
+
+predict_df_below <- data.frame(flam_curve_phys_below, predict_below)
+
+predict_df_below %>% 
+  ggplot(aes(y = -1/water_potential, 
+             x = fit, 
+             color = spp)) +
+  geom_point() +
+  geom_abline(method = lm) +
+  geom_abline(color = "red") +
+ # ylim(0, 1) +
+ # xlim(0, 1) +
+  labs(title = "Complex model: Actual vs_ predicted, BELOW the TLP", 
+       y = "Actual -1/Mpa", 
+       x = "Predicted -1/Mpa") 
+   #theme_light() 
+
+
+
+predict_df_below %>% 
+  ggplot(aes(y = water_potential, 
+             x = -1/fit, 
+             color = spp)) +
+  geom_point() +
+  geom_abline(method = lm) +
+  geom_abline(color = "red") +
+  ylim(0, -5) +
+  xlim(0, -5) +
+  labs(title = "Complex model: Actual vs. predicted BELOW the TLP", 
+       y = "Actual Mpa", 
+       x = "Predicted Mpa") 
+   #theme_light() 
+
+predict_graph_below <- 
+  ggplot(predict_df_below, aes(x = lfm, y = fit)) +
+  geom_point(color = "lightblue", alpha = 0.7) +
+  geom_point(data = flam_curve_phys_below, aes(x = lfm, y = -1/mpa), alpha = 0.7) +
+ # facet_wrap(~St) +
+  labs(x = "LFM (%)", 
+       y = "Water Potential (Mpa)", 
+       title = "Complex model: Predicted (lightblue) vs_ observed (black) LFM and Mpa for point BELOW the TLP (ABCO)") 
+ # scale_x_continuous(limits = c(500,3500), breaks = seq(500, 3500, by = 1000)) +
+ # scale_y_continuous(limits = c(0,1.5e6))
+  #theme_light() 
+predict_graph_below
+```
+
+2. all just po + lfm
+
+```{r}
+complex_model_below <- lm(formula = -1/water_potential ~ lfm +  po + spp + 1, data = all_below_tlp)
+
+predict_below <- predict(complex_model_below, newdata = flam_curve_phys_below, se_fit = TRUE, interval = "confidence") #make prediction
+
+# Bind to the data to make it actually useful:
+
+predict_df_below <- data.frame(flam_curve_phys_below, predict_below)
+
+predict_df_below %>% 
+  ggplot(aes(y = -1/water_potential, 
+             x = fit, 
+             color = spp)) +
+  geom_point() +
+  geom_abline(method = lm) +
+  geom_abline(color = "red") +
+ # ylim(0, 1) +
+ # xlim(0, 1) +
+  labs(title = "Complex model: Actual vs_ predicted, BELOW the TLP", 
+       y = "Actual -1/Mpa", 
+       x = "Predicted -1/Mpa") 
+   #theme_light() 
+
+
+
+predict_df_below %>% 
+  ggplot(aes(y = water_potential, 
+             x = -1/fit, 
+             color = spp)) +
+  geom_point() +
+  geom_abline(method = lm) +
+  geom_abline(color = "red") +
+  ylim(0, -5) +
+  xlim(0, -5) +
+  labs(title = "Complex model: Actual vs. predicted BELOW the TLP", 
+       y = "Actual Mpa", 
+       x = "Predicted Mpa") 
+   #theme_light() 
+
+predict_graph_below <- 
+  ggplot(predict_df_below, aes(x = lfm, y = fit)) +
+  geom_point(color = "lightblue", alpha = 0.7) +
+  geom_point(data = flam_curve_phys_below, aes(x = lfm, y = -1/mpa), alpha = 0.7) +
+ # facet_wrap(~St) +
+  labs(x = "LFM (%)", 
+       y = "Water Potential (Mpa)", 
+       title = "Complex model: Predicted (lightblue) vs_ observed (black) LFM and Mpa for point BELOW the TLP (ABCO)") 
+ # scale_x_continuous(limits = c(500,3500), breaks = seq(500, 3500, by = 1000)) +
+ # scale_y_continuous(limits = c(0,1.5e6))
+  #theme_light() 
+predict_graph_below
+```
+
+####2.2.3. Simple model - above: 
+
+```{r}
+fit_above_all <- lm(water_potential ~ lfm + spp, all_above_tlp)
+summary(fit_above_all)
+
+predict_above <- predict(fit_above_all, newdata = flam_curve_phys_above, se_fit = TRUE, interval = "confidence") #make prediction
+
+# Bind to the data to make it actually useful:
+
+predict_df_above <- data_frame(flam_curve_phys_above, predict_above)
+
+predict_df_above %>% 
+  ggplot(aes(y = water_potential, x = fit_fit)) +
+  geom_point() +
+  geom_abline(method = lm) +
+  geom_abline(color = "red") +
+  ylim(0, -3) +
+  xlim(0, -3) +
+  labs(title = "Actual vs_ predicted water potential for points ABOVE the TLP", 
+       y = "Actual Mpa", 
+       x = "Predicted Mpa") +
+   #theme_light() 
+
+predict_graph_above <- ggplot(predict_df_above, 
+                              aes(x = lfm, y = fit)) +
+  geom_point(color = "lightblue", alpha = 0.7) +
+  geom_point(data = flam_curve_phys_above, aes(x = lfm, y = mpa), alpha = 0.7) +
+ # facet_wrap(~St) +
+  labs(x = "LFM (%)", 
+       y = "Water Potential (Mpa)", 
+       title = "Predicted (lightblue) vs_ observed (black) LFM and Mpa for points ABOVE the TLP (ABCO)") +
+ # scale_x_continuous(limits = c(500,3500), breaks = seq(500, 3500, by = 1000)) +
+ # scale_y_continuous(limits = c(0,1.5e6))
+  #theme_light() 
+predict_graph_above
+```
+
+
+#### 2.2.4 Complex model - above: 
+
+1. all possible predictors: 
+```{r}
+complex_model_above <- lm(formula = water_potential ~ lfm + swc + po + spp + 1, data = all_above_tlp)
+
+
+predict_above <- predict(complex_model_above, newdata = flam_curve_phys_above, se_fit = TRUE, interval = "confidence") #make prediction
+
+# Bind to the data to make it actually useful:
+
+predict_df_above <- data.frame(flam_curve_phys_above, predict_above)
+
+predict_df_above %>% 
+  ggplot(aes(y = water_potential, x = fit)) +
+  geom_point() +
+  geom_abline(method = lm) +
+  geom_abline(color = "red") +
+  ylim(0, -3) +
+  xlim(0, -3) +
+  labs(title = "Complex: Actual vs_ predicted water potential for points ABOVE the TLP", 
+       y = "Actual Mpa", 
+       x = "Predicted Mpa") 
+
+predict_graph_above <- ggplot(predict_df_above, aes(x = lfm, y = fit)) +
+  geom_point(color = "lightblue", alpha = 0.7) +
+  geom_point(data = flam_curve_phys_above, aes(x = lfm, y = mpa), alpha = 0.7) +
+ # facet_wrap(~St) +
+  labs(x = "LFM (%)", 
+       y = "Water Potential (Mpa)", 
+       title = "Complex: Predicted (lightblue) vs_ observed (black) LFM and Mpa for points ABOVE the TLP (ABCO)") 
+ # scale_x_continuous(limits = c(500,3500), breaks = seq(500, 3500, by = 1000)) +
+ # scale_y_continuous(limits = c(0,1.5e6))
+  #theme_light() 
+predict_graph_above
+```
+1. just po, lfm, and spp
+
+```{r}
+complex_model_above <- lm(formula = water_potential ~ lfm + po + spp + 1, data = all_above_tlp)
+
+
+predict_above <- predict(complex_model_above, newdata = flam_curve_phys_above, se_fit = TRUE, interval = "confidence") #make prediction
+
+# Bind to the data to make it actually useful:
+
+predict_df_above <- data.frame(flam_curve_phys_above, predict_above)
+
+predict_df_above %>% 
+  ggplot(aes(y = water_potential, x = fit)) +
+  geom_point() +
+  geom_abline(method = lm) +
+  geom_abline(color = "red") +
+  ylim(0, -3) +
+  xlim(0, -3) +
+  labs(title = "Complex: Actual vs_ predicted water potential for points ABOVE the TLP", 
+       y = "Actual Mpa", 
+       x = "Predicted Mpa") 
+
+predict_graph_above <- ggplot(predict_df_above, aes(x = lfm, y = fit)) +
+  geom_point(color = "lightblue", alpha = 0.7) +
+  geom_point(data = flam_curve_phys_above, aes(x = lfm, y = mpa), alpha = 0.7) +
+ # facet_wrap(~St) +
+  labs(x = "LFM (%)", 
+       y = "Water Potential (Mpa)", 
+       title = "Complex: Predicted (lightblue) vs_ observed (black) LFM and Mpa for points ABOVE the TLP (ABCO)") 
+ # scale_x_continuous(limits = c(500,3500), breaks = seq(500, 3500, by = 1000)) +
+ # scale_y_continuous(limits = c(0,1.5e6))
+  #theme_light() 
+predict_graph_above
+```
+
+### 3.1: Field data
+
+#HERE: Nov. 4
+
+This data is from measurements of predawn and midday Mpa, and midday measured LFM_ SWC is equivalent to the wettest lfm measured for each invidual divided by 100 to get *grams water/grams dry*_ 
+
+- Use `predict()` to see if we can use PV curve models to get values collected in the field (predict midday Mpa from LFM): 
+
+```{r}
+field_data_all <- read_csv(here("processed-data", "field_data_csv"), show_col_types = FALSE) %>% 
+  filter(spp == "ABCO")
+```
+
+We're just interested in ABCO, so just look there: 
+
+```{r}
+field_data_above <- field_data_all %>% 
+  filter(water_potential > tlp)
+
+field_data_below <- field_data_all %>% 
+  filter(water_potential < tlp)
+```
+
+#### 3.2.1 Simple model - above
+
+```{r}
+eq <-extract_eq(fit_below_all)
+eq
+```
+
+```{r}
+predict_below <- predict(fit_below_all, newdata = field_data_below, se_fit = TRUE, interval = "confidence") #make prediction
+
+# Bind to the data to make it actually useful:
+
+predict_df_below <- data_frame(field_data_below, predict_below)
+
+predict_df_below %>% 
+  ggplot(aes(y = -1/water_potential, x = fit_fit)) +
+  geom_point() +
+  geom_abline(method = lm) +
+  geom_abline(color = "red") +
+  ylim(0, 1) +
+  xlim(0, 1) +
+  labs(title = "Actual vs_ predicted water potential for points BELOW the TLP (ABCO)", 
+       y = "Actual -1/Mpa", 
+       x = "Predicted -1/Mpa") +
+   #theme_light() 
+
+predict_df_below %>% 
+  ggplot(aes(y = water_potential, x = -1/fit_fit)) +
+  geom_point() +
+  geom_abline(method = lm) +
+  geom_abline(color = "red") +
+  ylim(0, -5) +
+  xlim(0, -5) +
+  labs(title = "Actual vs_ predicted for points BELOW TLP (ABCO)", 
+       y = "Actual Mpa", 
+       x = "Predicted Mpa") +
+   #theme_light() 
+```
+
+
+```{r, echo = FALSE, messages = "hide", warning = FALSE}
+predict_graph_below <- ggplot(predict_df_below, aes(x = lfm, y = fit_fit)) +
+  geom_point(color = "lightblue", alpha = 0_7) +
+  geom_point(data = field_data_below, aes(x = lfm, y = -1/water_potential), alpha = 0_7) +
+ # facet_wrap(~St) +
+  labs(x = "LFM (%)", 
+       y = "Water Potential (Mpa)", 
+       title = "Predicted (lightblue) vs_ observed (black) LFM and Mpa BELOW TLP (ABCO)") +
+ # scale_x_continuous(limits = c(500,3500), breaks = seq(500, 3500, by = 1000)) +
+ # scale_y_continuous(limits = c(0,1.5e6))
+  #theme_light() 
+predict_graph_below
+```
+
+#### 3.2.2. Complex model  - below: 
+
+Since we don't have Po for the field data, so we'll have to do the best we can_ 
+
+```{r}
+complex_model_below <- lm(formula = -1/water_potential ~ lfm + swc + 1, data = all_below_tlp)
+
+eq <-extract_eq(complex_model_below)
+eq
+```
+
+```{r}
+predict_below <- predict(complex_model_below, newdata = field_data_below, se_fit = TRUE, interval = "confidence") #make prediction
+
+# Bind to the data to make it actually useful:
+
+predict_df_below <- data_frame(field_data_below, predict_below)
+
+predict_df_below %>% 
+  ggplot(aes(y = -1/water_potential, x = fit_fit)) +
+  geom_point() +
+  geom_abline(method = lm) +
+  geom_abline(color = "red") +
+  ylim(0, 1) +
+  xlim(0, 1) +
+  labs(title = "ABCO - Complex model: Actual vs_ predicted, BELOW the TLP", 
+       y = "Actual -1/Mpa", 
+       x = "Predicted -1/Mpa") +
+   #theme_light() 
+```
+
+
+```{r}
+predict_df_below %>% 
+  ggplot(aes(y = water_potential, x = -1/fit_fit)) +
+  geom_point() +
+  geom_abline(method = lm) +
+  geom_abline(color = "red") +
+  ylim(0, -5) +
+  xlim(0, -5) +
+  labs(title = "ABCO - Complex model: Actual vs_ predicted BELOW the TLP", 
+       y = "Actual Mpa", 
+       x = "Predicted Mpa") +
+   #theme_light() 
+```
+
+
+```{r, echo = FALSE, messages = "hide", warning = FALSE}
+predict_graph_below <- ggplot(predict_df_below, aes(x = lfm, y = fit_fit)) +
+  geom_point(color = "lightblue", alpha = 0_7) +
+  geom_point(data = flam_curve_phys_below, aes(x = lfm, y = -1/mpa), alpha = 0_7) +
+ # facet_wrap(~St) +
+  labs(x = "LFM (%)", 
+       y = "Water Potential (Mpa)", 
+       title = "Complex model: Predicted (lightblue) vs_ observed (black) LFM and Mpa for point BELOW the TLP (ABCO)") +
+ # scale_x_continuous(limits = c(500,3500), breaks = seq(500, 3500, by = 1000)) +
+ # scale_y_continuous(limits = c(0,1.5e6))
+  #theme_light() 
+predict_graph_below
+```
+
+#### 3.2.3 Simple model - above
+
+```{r}
+eq <- extract_eq(fit_above_all)
+eq
+```
+
+```{r}
+predict_above <- predict(fit_above_all, newdata = field_data_above, se_fit = TRUE, interval = "confidence") #make prediction
+
+# Bind to the data to make it actually useful:
+
+predict_df_above <- data_frame(field_data_above, predict_above)
+
+predict_df_above %>% 
+  ggplot(aes(y = water_potential, x = fit_fit)) +
+  geom_point() +
+  geom_abline(method = lm) +
+  geom_abline(color = "red") +
+  ylim(0, -3) +
+  xlim(0, -3) +
+  labs(title = "Actual vs_ predicted water potential for points ABOVE the TLP (ABCO)", 
+       y = "Actual Mpa", 
+       x = "Predicted Mpa") +
+ #theme_light() 
+```
+
+```{r, echo = FALSE, messages = "hide", warning = FALSE}
+predict_graph_above <- ggplot(predict_df_above, aes(x = lfm, y = fit_fit)) +
+  geom_point(color = "lightblue", alpha = 0_7) +
+  geom_point(data = field_data_above, aes(x = lfm, y = water_potential), alpha = 0_7) +
+ # facet_wrap(~St) +
+  labs(x = "LFM (%)", 
+       y = "Water Potential (Mpa)", 
+       title = "Predicted (lightblue) vs_ observed (black) LFM and Mpa for points ABOVE the TLP (ABCO)")+
+ # scale_x_continuous(limits = c(500,3500), breaks = seq(500, 3500, by = 1000)) +
+ # scale_y_continuous(limits = c(0,1.5e6))
+  #theme_light() 
+predict_graph_above
+```
+
+#### 3.2.4 Complex model - above: 
+
+```{r}
+complex_model_above <- lm(formula = water_potential ~ lfm + swc + 1, data = all_above_tlp)
+
+eq <-extract_eq(complex_model_above)
+eq
+```
+
+```{r}
+predict_above <- predict(complex_model_above, newdata = field_data_above, se_fit = TRUE, interval = "confidence") #make prediction
+
+# Bind to the data to make it actually useful:
+
+predict_df_above <- data_frame(field_data_above, predict_above)
+
+predict_df_above %>% 
+  ggplot(aes(y = water_potential, x = fit_fit)) +
+  geom_point() +
+  geom_abline(method = lm) +
+  geom_abline(color = "red") +
+  ylim(0, -3) +
+  xlim(0, -3) +
+  labs(title = "Complex: Actual vs_ predicted water potential for points ABOVE the TLP", 
+       y = "Actual Mpa", 
+       x = "Predicted Mpa") +
+   #theme_light() 
+```
+
+```{r, echo = FALSE, messages = "hide", warning = FALSE}
+predict_graph_above <- ggplot(predict_df_above, aes(x = lfm, y = fit_fit)) +
+  geom_point(color = "lightblue", alpha = 0_7) +
+  geom_point(data = flam_curve_phys_above, aes(x = lfm, y = mpa), alpha = 0_7) +
+ # facet_wrap(~St) +
+  labs(x = "LFM (%)", 
+       y = "Water Potential (Mpa)", 
+       title = "Complex: Predicted (lightblue) vs_ observed (black) LFM and Mpa for points ABOVE the TLP (ABCO)") +
+ # scale_x_continuous(limits = c(500,3500), breaks = seq(500, 3500, by = 1000)) +
+ # scale_y_continuous(limits = c(0,1.5e6))
+  #theme_light() 
+predict_graph_above
+```

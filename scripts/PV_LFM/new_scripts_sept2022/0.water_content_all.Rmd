@@ -126,7 +126,7 @@ data.adfa <- pv_allcurves_data %>%
 pv_allcurves_data_clean  <- rbind(data.adfa, data.not.adfa)
 
 pv_allcurves_data_clean  %>% 
-write_csv(here("processed-data", "allcurves_clean_v2.csv"))
+write_csv(here("processed-data", "analysis 2.0", "all_pv_curves_clean_v2.csv"))
 ```
 
 Visualize to make sure everything makes sense:
@@ -229,27 +229,32 @@ Get TLPs into dataframe so we can look at them more closely:
 ```{r}
 tlp_summary_spp_date <- pv_allcurves_data_clean %>% 
   group_by(spp, date) %>% 
-  summarise(mean_tlp_date = mean(tlp), sd_date = sd(tlp))
+  summarise(mean_tlp_date = mean(tlp), sd_date = sd(tlp), 
+            mean_po_date = mean(po), sd_date = sd(po))
 tlp_summary_spp_date
 
 tlp_summary_spp <- pv_allcurves_data_clean %>% 
   group_by(spp) %>% 
-  summarise(mean_tlp_spp = mean(tlp), sd_spp = sd(tlp))
+  summarise(mean_tlp_spp = mean(tlp), sd_spp = sd(tlp), 
+            mean_po_date = mean(po), sd_date = sd(po))
 tlp_summary_spp
 
 tlp_summary_month <-pv_allcurves_data_clean %>%
   mutate(month_char = as_character(month)) %>% 
   group_by(month_char, spp) %>% 
-  summarise(n=n(), mean_tlp_month =mean(tlp),sd_month=sd(tlp))
+  summarise(n=n(), mean_tlp_month =mean(tlp),sd_month=sd(tlp), 
+            mean_po_month =mean(po),sd_month=sd(po))
 
 tlp_summary_timing <- pv_allcurves_data_clean %>%
   group_by(timing, spp) %>% 
-  summarise(n=n(), mean_tlp_timing=mean(tlp),sd_timing=sd(tlp))
+  summarise(n=n(), mean_tlp_timing=mean(tlp),sd_timing=sd(tlp), 
+            mean_po_month =mean(po),sd_month=sd(po))
 
 pv_summary_spp <- pv_allcurves_data_clean %>%
   filter(timing == "fall") %>% 
   group_by(spp) %>% 
-  summarise(n=n(), mean_tlp_fall_spp=mean(tlp),sd_fall_spp=sd(tlp))
+  summarise(n=n(), mean_tlp_fall_spp=mean(tlp),sd_fall_spp=sd(tlp), 
+             mean_po_fall_spp=mean(po),sd_fall_spp=sd(po))
 ```
 
 LFM based on the above: 
@@ -333,10 +338,9 @@ diagnostics
 
 ##note: TLPs are species means, NOT from specific sampling times (should only matter for ABCO)
 flam_curve_phys_all <- merge(flam_curve_phys_all_notlp, pv_summary_spp, by = "spp", all = T) %>% 
-  mutate(tlp = mean_tlp_fall_spp) %>% 
+  mutate(tlp = mean_tlp_fall_spp, 
+         po = mean_po_fall_spp) %>% 
   select(-mean_tlp_fall_spp)
-
-write_csv(flam_curve_phys_all, here("processed-data", "compiled-datasets", "flam_curve_phys_all.csv"))
 ```
 
 This is effectively what we're trying to do to get the saturated water content except we'll do it for each individual, not for each species. 
@@ -453,10 +457,10 @@ flam_curve_phys_all %>%
 ```
 
 New dataset with calculated RWC: 
-
+###Phys dataset write out
 ```{r}
 flam_curve_phys_all %>% 
-  write_csv(here("processed-data", "flam_curve_phys_all.csv"))
+  write_csv(here("processed-data", "analysis 2.0", "flam_curve_phys_all.csv"))
 ```
 
 #--------------------------
@@ -464,11 +468,13 @@ flam_curve_phys_all %>%
 
 ###2021
 
-Saturated content here is the wettest LFM observed during the field season/100. 
+Saturated content here is the wettest LFM observed during the field season/100. (indicated with _wettest)
 
 ```{r, message = FALSE}
-field_data_2021 <- read.csv(here("raw-data", "Summer2021.LFM.mpa.data.analysis.csv")) %>%
-  clean_names() %>% 
+field_data_2021_raw <- read.csv(here("raw-data", "Summer2021.LFM.mpa.data.analysis.csv")) %>%
+  clean_names() 
+
+field_data_2021 <- field_data_2021_raw %>% 
   select(bottle_number:location) %>% 
   mutate(date = mdy(date), month = month(date)) %>%
   mutate(timing = case_when(
@@ -477,8 +483,8 @@ field_data_2021 <- read.csv(here("raw-data", "Summer2021.LFM.mpa.data.analysis.c
   unite(unique_id, c("spp", "age", "site", "pod"), remove = FALSE) %>% 
   group_by(unique_id) %>% 
   dplyr::mutate(wettest_lfm = max((lfm))) %>%
-  mutate(rwc = 100 * (lfm/wettest_lfm)) %>% 
-  mutate(rwd = 100 - rwc) %>% 
+  mutate(rwc_wettest = 100 * (lfm/wettest_lfm)) %>% 
+  mutate(rwd_wettest = 100 - rwc) %>% 
   mutate(water_potential = midday) %>% 
   mutate(swc = wettest_lfm/100)
 
@@ -498,36 +504,87 @@ outlierKD2(field_data_2021_pv, lfm)
 Saturated content here is the wettest LFM observed during the field season/100. 
 
 ```{r, message = FALSE}
-field_data_2020 <- read_csv(here("raw-data", "field.summer.2020.csv"), show_col_types = FALSE) %>% clean_names() %>% 
-  select(bottle_number:location) %>% 
-  mutate(date = mdy(date), month = month(date)) %>%
+#LFM data: 
+field_data_2020_lfm_raw <- read_csv(here("raw-data", "LFM_Sierra_AllDates.csv"), show_col_types = FALSE) %>% 
+  clean_names()
+
+field_data_2020_lfm <- field_data_2020_lfm_raw %>% 
+ # select(bottle_number:location) %>% 
+  mutate(date = mdy(date), 
+         month = month(date), 
+         g_ww = wet_with_bottle - bottle_weight, 
+         g_dw = dry_with_bottle - bottle_weight, 
+         gww_gdw = g_ww/g_dw) %>%
   mutate(timing = case_when(
     month <= 7 ~ "spring", 
     month > 7 ~ "fall" ))  %>% 
   unite(unique_id, c("spp", "age", "site", "pod"), remove = FALSE) %>% 
   group_by(unique_id) %>% 
   dplyr::mutate(wettest_lfm = max((lfm))) %>%
-  mutate(rwc = 100 * (lfm/wettest_lfm)) %>% 
-  mutate(rwd = 100 - rwc) %>% 
-  mutate(water_potential = midday) %>% 
-  mutate(swc = wettest_lfm/100) 
+  mutate(rwc_wettest = 100 * (lfm/wettest_lfm)) %>% 
+  mutate(rwd_wettest = 100 - rwc_wettest) %>% 
+ # mutate(water_potential = midday) %>% 
+  mutate(swc_wettest = wettest_lfm/100)
 
+field_data_2020_mpa_raw <- read_csv(here("raw-data", "field.summer.2020.csv"), show_col_types = FALSE) 
+
+field_data_2020_mpa  <- field_data_2020_mpa_raw  %>% 
+  clean_names() %>% 
+  select(spp:location) %>% 
+  unite(unique_id, c("spp","age", "site", "pod"), remove = FALSE) %>% 
+  mutate(date = mdy(date), 
+         month = month(date), 
+         mpa = midday)%>% 
+ select(-predawn1, -predawn2, -midday1, -midday2, -lfm)
+
+field_data_2020 <- merge(field_data_2020_lfm, field_data_2020_mpa,
+                        # by = c("unique_id", "spp", "pod", "type", "site", "date", "location", 
+                               # "month", "doy", "age"),
+                         all.y = T) 
+
+dlookr::diagnose(field_data_2020)
+```
+
+
+```{r, message = FALSE}
 field_data_2020_tlps <- merge(merge(tlp_summary_spp, tlp_summary_spp_lfm, by = "spp", all = T), field_data_2020, by = "spp", all = T)
 
 field_data_2020_pv <- merge(merge(tlp_summary_timing, tlp_summary_timing_lfm, by = c("spp", "timing"), all = T), field_data_2020_tlps, by = c("spp", "timing"), all =T) #add in mean TLP for each species
 
-field_data_2020_pv <- merge(tlp_summary_spp_lfm, field_data_2020_tlps, by = "spp", all = T)
+field_data_2020_pv <- merge(tlp_summary_spp_lfm, field_data_2020_tlps, by = "spp", all = T)%>% 
+  filter(!spp %in% c("ADFA", "CEME"))
 
 #field_data_2020_pv %>% 
 #write_csv(here("processed-data", "field_data_2020.csv"))
 
-outlierKD2(field_data_2020_pv, lfm)
+#outlierKD2(field_data_2020_pv, lfm)
+
+for (i in unique(field_data_2020_pv$spp)) {
+  
+  df <- field_data_2020_pv %>% 
+    filter(spp == i)
+  
+  outlierKD(df, lfm)
+}
+#hit n, n, n, n, y, n (seems that PIJE has 1 weird outlier)
+
+# for (i in unique(field_data_2020_pv$spp)) {
+#   
+#   df <- field_data_2020_pv %>% 
+#     filter(spp == i)
+#   
+#   outlierKD(df, mpa)
+# }
+# #hit n, n, n, n, n, n (seems that PIJE has 1 weird outlier)
+
+unique(field_data_2020_pv$spp)
 ```
 
 
 ###All dates
 ```{r}
-field_data_all <- merge(field_data_2020_pv, field_data_2021_pv, all = T)
+field_data_all <- merge(field_data_2020_pv, field_data_2021_pv, all = T) %>% 
+  mutate(year = year(date))
 ```
 
 We probbably also want to get swc to be the extrapolated value, so....
@@ -536,15 +593,18 @@ We probbably also want to get swc to be the extrapolated value, so....
 This is effectively what we're trying to do to get the saturated water content except we'll do it for each individual, not for each species. 
 
 ```{r}
-ggplot(flam_curve_phys_all, aes(x = pos_mpa, 
-                                y = gww_gdw, 
-                                color = spp)) +
+ggplot(field_data_all, aes(x = -1*mpa, 
+                              y = gww_gdw, 
+                              color = spp)) +
   geom_point(alpha = .3) +
   geom_smooth(method = "lm", se = FALSE, size = .5) +
-  color_all +
+ # color_all +
   labs(title = "Intercept = saturated water content", 
        y = "water:dry matter", 
-       x = "water potential (+Mpa)") 
+       x = "water potential (+Mpa)") +
+  theme(legend.position = "none") 
+#+
+ # facet_wrap(~year)
 ```
 
 We need the extrapolated saturated water content so that we can determine the relative water content. We do that here by: 
@@ -555,10 +615,9 @@ We need the extrapolated saturated water content so that we can determine the re
 ```{r, warning= FALSE}
 #get the extrapolated saturated water content:
 swc_field_data_all <- field_data_all %>% 
-  mutate(gww_gdw = )
-  filter(water_potential > tlp) %>% #for points above the tlp (estimated to be around ~2)
-  group_by(individual) %>% 
-  summarise(swc_sat = lm(formula = gww_gdw ~ (-1 * water))$coefficients[["(Intercept)"]]) 
+  filter(water_potential > mean_tlp_spp) %>% #for points above the tlp (estimated to be around ~2)
+  group_by(spp) %>% 
+  summarise(swc_sat = lm(formula = gww_gdw ~ (-1 * mpa))$coefficients[["(Intercept)"]]) 
 
 # try.broom <- flam_curve_phys_all %>%
 #   filter(mpa > -2) %>%
@@ -574,13 +633,13 @@ swc_field_data_all <- field_data_all %>%
 #   geom_point()
 
 #add that back to the master dataset:
-flam_curve_phys_all <- merge(flam_curve_phys_all, swc_all, by="individual", all = T) %>%
+flam_curve_phys_all <- merge(flam_curve_phys_all, swc_all, by="unique_id", all = T) %>%
   mutate(rwc_new = 100 * (gww_gdw/swc_sat))
 ```
 
 ```{r}
 field_data_all %>%
-write_csv(here("processed-data", "compiled-datasets", "SEKI", "field_data_2020_2021.csv"))
+write_csv(here("processed-data", "analysis 2.0","field_data_2020_2021.csv"))
 ```
 #--------------------------
 #Section 4: Stems v. leaves
@@ -595,7 +654,7 @@ stems_leaves_2021 <- readr::read_csv(here("raw-data", "CZO_October_StemsLeaves_2
   unite(unique_id, c("spp", "age", "site", "pod"), remove = FALSE) 
   
 stems_leaves_2021 %>% 
-write_csv(here("processed-data", "compiled-datasets", "SEKI", "stems_leaves_2021.csv"))
+write_csv(here("processed-data", "analysis 2.0","stems_leaves_2021.csv"))
 ```
 
 
