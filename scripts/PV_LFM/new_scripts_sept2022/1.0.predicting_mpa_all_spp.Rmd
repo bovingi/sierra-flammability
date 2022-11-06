@@ -28,17 +28,18 @@ library(MuMIn)
 data <- read_csv(here("processed-data", "allcurves_clean.csv"), show_col_types = FALSE) %>% 
   mutate(sample = as.factor(sample)) %>% 
   mutate(month = as.factor(month)) %>% 
-  mutate(date = date(date)) %>% 
-  clean_names()
+  mutate(date = date(date), 
+         individual = unique_id) %>% 
+  clean_names() %>% 
+  group_by(spp) %>% 
+  mutate(plant = unique_identifier(individual)) 
+
+pv_all <- data 
 ```
  
 ### 1.1: Variation in TLPs
- 
-Look at just one species and timepoint: ABCO and fall
 
 ```{r}
-pv_all <- data 
-
 ggplot(pv_all) +
   geom_point(aes(x = rwd, y = -1/water_potential, 
                  color = as.factor(date)), 
@@ -95,28 +96,28 @@ In fall and spring:
 See if sig. difference in TLP for each spp: 
 
 ```{r, include = TRUE}
-for (i in unique(pv_all$spp)) {
-#Split df into groups, then pull sample vectors
-fall_spp <- pv_all %>% 
-  filter(timing == "fall", 
-         spp == i) %>% 
-  group_by(sample) %>% 
-  arrange(water_potential) %>%
-  filter(row_number()==1) %>% 
-  pull(tlp)
-
-spring_spp <- pv_all %>% 
-  filter(timing == "spring", spp == i) %>% 
-   group_by(sample) %>% 
-  arrange(water_potential) %>%
-  filter(row_number()==1) %>% 
-  pull(tlp)
-
-spp_tlp_t <- t.test(spring_spp, fall_spp)
-spp_tlp_t 
-
-t_test_out <- c(i, spp_tlp_t)
-}
+# for (i in unique(pv_all$spp)) {
+# #Split df into groups, then pull sample vectors
+# fall_spp <- pv_all %>% 
+#   filter(timing == "fall", 
+#          spp == i) %>% 
+#   group_by(sample) %>% 
+#   arrange(water_potential) %>%
+#   filter(row_number()==1) %>% 
+#   pull(tlp)
+# 
+# spring_spp <- pv_all %>% 
+#   filter(timing == "spring", spp == i) %>% 
+#    group_by(sample) %>% 
+#   arrange(water_potential) %>%
+#   filter(row_number()==1) %>% 
+#   pull(tlp)
+# 
+# spp_tlp_t <- t.test(spring_spp, fall_spp)
+# spp_tlp_t 
+# 
+# t_test_out <- c(i, spp_tlp_t)
+# }
 ```
 
 
@@ -135,7 +136,7 @@ pv_fall <- data %>%
     #spp == "ABCO" &
            timing == "fall" )  %>% 
   mutate(sample = as.numeric(sample)) %>% 
-  filter(!(spp == "PIJE" & sample == 7)) %>% 
+  filter(!(spp == "PIJE" & sample == 7)) %>% #these appear to be anomolous curves? 
   filter(!(spp == "QUKE" & sample == 2)) %>% 
   filter(!(spp == "ARPA" & sample == 5 & !month == 10)) 
 
@@ -146,6 +147,16 @@ fall_tlp <- pv_fall %>%
 fall_sd <- pv_fall %>% 
   group_by(spp) %>% 
   summarise(sd(tlp)) %>% pull()
+
+all_above_tlp <- pv_fall %>% 
+  group_by(spp) %>% 
+  filter(water_potential > tlp) 
+# %>% 
+#   filter(lfm < 200, lfm > 90)
+
+all_below_tlp <- pv_fall %>% 
+   group_by(spp) %>% 
+  filter(water_potential < tlp)
 ```
 
 For fall PV curves, the mean TLP = `r round(mean(fall_tlp,2))`, sd = `r round(mean(fall_sd,2))`
@@ -164,19 +175,6 @@ pv_fall %>%
        x = "LFM (%)", y = "Mpa") 
 
   #theme_light()
-```
-Subset data based on TLP: 
-
-```{r}
-all_above_tlp <- pv_fall %>% 
-  group_by(spp) %>% 
-  filter(water_potential > tlp) 
-# %>% 
-#   filter(lfm < 200, lfm > 90)
-
-all_below_tlp <- pv_fall %>% 
-   group_by(spp) %>% 
-  filter(water_potential < tlp)
 ```
 
 #### 2.  For points BELOW the TLP, there should be a linear relationship between -1/Mpa and LFM
@@ -312,24 +310,10 @@ flam_curve_predict_df <- flam_curve_phys_all_raw %>%
   mutate(water_potential = -1*pos_mpa, 
          swc = swc_sat, 
          month = as.factor(month)) %>% 
-  select(spp, swc, lfm, mpa, month, tlp, water_potential, po)
-```
+  group_by(spp) %>% 
+  mutate(plant = unique_identifier(individual)) %>% 
+  select(spp, swc, lfm, mpa, month, tlp, water_potential, po, individual, plant)
 
-- Use `predict()` to see if we can use PV curve models to get values collected during flammability curve testing. 
-
-```{r}
-#Our models: 
-pretty1 <- extract_eq(fit_below_all)
-pretty1
-pretty2 <- extract_eq(fit_above_all)
-pretty2
-
-summary(fit_below_all)
-```
-
-We're just interested in ABCO, so just look there: 
-
-```{r}
 flam_curve_phys_above <- flam_curve_predict_df %>% 
  # filter(rwc_new < 100) %>% 
  # filter(spp == "ABCO") %>% 
@@ -340,6 +324,19 @@ flam_curve_phys_below <- flam_curve_predict_df %>%
  # filter(spp == "ABCO") %>% 
   filter(water_potential < tlp)
 ```
+
+- Use `predict()` to see if we can use PV curve models to get values collected during flammability curve testing. 
+
+```{r}
+#Our models: 
+# pretty1 <- extract_eq(fit_below_all)
+# pretty1
+# pretty2 <- extract_eq(fit_above_all)
+# pretty2
+# 
+# summary(fit_below_all)
+```
+
 
 ###  2.2 Predict below TLP: 
 
@@ -393,13 +390,17 @@ predict_graph_below
 
 #### 2.2.2. Complex model  - below: 
 
-1. all possible inclusions: 
-
-#HERE - temp
+1. all possible inclusions with random effect of individual:
+#HERE - tmp
 
 ```{r}
-complex_model_below <- lm(formula = -1/water_potential ~ lfm + swc + po + spp + 1 + month, data = all_below_tlp)
+complex_model_below <- lm(formula = -1/water_potential ~ lfm + swc + po + spp + 1, data = all_below_tlp)
 
+#ranef(complex_model_below)
+```
+
+
+```{r}
 predict_below <- predict(complex_model_below, newdata = flam_curve_phys_below, se_fit = TRUE, interval = "confidence") #make prediction
 
 # Bind to the data to make it actually useful:
@@ -409,7 +410,7 @@ predict_df_below <- data.frame(flam_curve_phys_below, predict_below)
 predict_df_below %>% 
   ggplot(aes(y = -1/water_potential, 
              x = fit, 
-             color = spp)) +
+             color = spp )) +
   geom_point() +
   geom_abline(method = lm) +
   geom_abline(color = "red") +
@@ -437,13 +438,21 @@ predict_df_below %>%
    #theme_light() 
 
 predict_graph_below <- 
-  ggplot(predict_df_below, aes(x = lfm, y = fit)) +
-  geom_point(color = "lightblue", alpha = 0.7) +
-  geom_point(data = flam_curve_phys_below, aes(x = lfm, y = -1/mpa), alpha = 0.7) +
+  ggplot(predict_df_below, aes(x = lfm, 
+                               y = fit, 
+                               shape = spp)) +
+  geom_point(color = "lightblue", 
+             alpha = 0.7) +
+  geom_point(data = flam_curve_phys_below, 
+             aes(x = lfm, 
+                 y = -1/mpa, 
+                 shap = spp), 
+             alpha = 0.7) +
  # facet_wrap(~St) +
   labs(x = "LFM (%)", 
        y = "Water Potential (Mpa)", 
-       title = "Complex model: Predicted (lightblue) vs. observed (black) LFM and Mpa for point BELOW the TLP (ABCO)") 
+       title = "Complex model: Predicted (lightblue) vs. observed (black) LFM and Mpa for point BELOW the TLP (ABCO)") +
+  facet_wrap(~month, scales = "free")
  # scale_x_continuous(limits = c(500,3500), breaks = seq(500, 3500, by = 1000)) +
  # scale_y_continuous(limits = c(0,1.5e6))
   #theme_light() 
@@ -503,7 +512,7 @@ predict_graph_below <-
 predict_graph_below
 ```
 
-2. all just po + lfm
+2. just po + lfm
 
 ```{r}
 complex_model_below <- lm(formula = -1/water_potential ~ lfm + po + spp + 1, data = all_below_tlp)
