@@ -5,6 +5,21 @@ date: "4/15/2021"
 output: html_document
 ---
 
+#NOTES: 
+This is a markdown that we can use to to run segmented regessions on individual species, by finding and replacing one lowercase spp code (e.g. "abco" in this doc) witn another lowercase spp code. 
+ 
+The existing models include year_month and site (i.e. site 1 or 2 at either CZO or SEKI)and either LFM or MPa respectively. 
+
+Could try: 
+Having lfm and mpa in the same model 
+Adding sample weight
+Removing Aug 2021 sample date, which is what we do in the MEMs
+Running with RWC instead of LFM. (started spp_rwc.Rmd code for that, but did not get far)
+
+If making big changes, I'd suggest starting a new markdown and then adding model changes in bulk (i.e. find '+ site +' and replace with '+ site + sample_wt') to add sample weight. 
+
+
+
 #Setup:
 ```{r}
 knitr::opts_chunk$set(echo = TRUE)
