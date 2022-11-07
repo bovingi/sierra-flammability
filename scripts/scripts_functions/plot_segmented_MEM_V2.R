@@ -1,6 +1,5 @@
 
 rsegplot.lfm <- function(model, dataframe, x.variable = 'lfm', y.variable, max.x,
-                        # max.x = abco_max_lfm, 
                          x.lab = 'Live Fuel Moisture (%)', y.lab = NULL, tlp = NULL, tlp.upper = NULL, tlp.lower = NULL) {
   
   p <- summary.segmented(model)$psi[2]
@@ -33,9 +32,7 @@ rsegplot.lfm <- function(model, dataframe, x.variable = 'lfm', y.variable, max.x
 
 
 rsegplot.mpa <- function(model, dataframe, x.variable = 'mpa', y.variable, 
-                         max.x,
-                        # max.x = abco_max_mpa, 
-                         x.lab = 'Water Potential (MPa)', y.lab = NULL, tlp = NULL, tlp.upper = NULL, tlp.lower = NULL) {
+                         max.x, x.lab = 'Water Potential (MPa)', y.lab = NULL, tlp = NULL, tlp.upper = NULL, tlp.lower = NULL) {
   
   p <- summary.segmented(model)$psi[2]
   m <- slope(model, .coef = fixef(model))[[1]][[1]]

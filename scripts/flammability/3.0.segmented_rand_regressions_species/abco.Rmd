@@ -19,7 +19,6 @@ Running with RWC instead of LFM. (started spp_rwc.Rmd code for that, but did not
 If making big changes, I'd suggest starting a new markdown and then adding model changes in bulk (i.e. find '+ site +' and replace with '+ site + sample_wt') to add sample weight. 
 
 
-
 #Setup:
 ```{r}
 knitr::opts_chunk$set(echo = TRUE)
@@ -31,17 +30,13 @@ library(lme4)
 library(here)
 library(segmented)
 library(nlme)
-#citation('nlme')
 library(lubridate)
-#install.packages("plotrix")
 library(plotrix)
 filter = dplyr::filter
 here = here::here
 select = dplyr::select
-#source(here("source-code", "source-segmented_lme_R"))
 
 # Function to plot mixed effects model segmented regressions:
-
 source(here::here("scripts", "scripts_functions", "plot_segmented_MEM_V2.R"))
 ```
 
@@ -70,7 +65,8 @@ seg_data_subset <- seg_data_subset %>%
     name = paste(spp,"_max", sep = ""), 
     name_subset = paste(spp, "_subset_seg", sep = ""), #this is def working. 
    # name_yearmonth = intersect(spp, year_month), 
-    name_yearmonth = paste(spp, year_month, "subset_seg", sep = "_")) 
+    name_yearmonth = paste(spp, year_month, "subset_seg", sep = "_")) %>% 
+  drop_na(lfm, mpa) #Dropping NA values for both LFM and mpa
 
 abco_subset_seg <- seg_data_subset %>% 
   filter(spp == "abco")
@@ -274,7 +270,7 @@ lfm_abco_thresholds_seg <- tibble::data_frame(lfm_psi_tti, lfm_st_err_tti, lfm_p
                               #lfm_psi_lfm_pfg, lfm_st_err_lfm_pfg, 
                               #lfm_psi_ttfg, lfm_st_err_ttfg,
                               lfm_psi_prop_ignite, lfm_st_err_prop_ignite, lfm_p_value_prop_ignite,
-                              lfm_psi_temp_change, lfm_st_err_temp_change, lfm_p_value_lfm_temp_change
+                              lfm_psi_temp_change, lfm_st_err_temp_change, lfm_p_value_temp_change
                               )
 ```
 
@@ -347,7 +343,7 @@ lfm_abco_thresholds_seg[2] <- summary(u_mod_b)$psi[3]
 lfm_abco_thresholds_seg[3] <- u_mod_davies$p.value
 
 
-#rsegplot.lfm(os_mod_b, abco_subset_seg_tti, max.x = abco_max_lfm, y.variable = 'tti', y.lab = "Time to Ignition (s)", tlp = mean_lfm_abco, tlp.lower = lwr_lfm_abco, tlp.upper = upr_lfm_abco)
+rsegplot.lfm(os_mod_b, abco_subset_seg_tti, max.x = abco_max_lfm, y.variable = 'tti', y.lab = "Time to Ignition (s)", tlp = mean_lfm_abco, tlp.lower = lwr_lfm_abco, tlp.upper = upr_lfm_abco)
 ```
 Combustibility Metrics:
 
@@ -377,7 +373,7 @@ lfm_abco_thresholds_seg[4] <- summary(u_mod_b)$psi[2]
 lfm_abco_thresholds_seg[5] <- summary(u_mod_b)$psi[3]
 lfm_abco_thresholds_seg[6] <- u_mod_davies$p.value
 
-#rsegplot.lfm(os_mod, abco_subset_seg_fh, max.x = abco_max_lfm, y.variable = 'fh', y.lab = "Flame Height (cm)", tlp = mean_lfm_abco, tlp.lower = lwr_lfm_abco, tlp.upper = upr_lfm_abco)
+rsegplot.lfm(os_mod, abco_subset_seg_fh, max.x = abco_max_lfm, y.variable = 'fh', y.lab = "Flame Height (cm)", tlp = mean_lfm_abco, tlp.lower = lwr_lfm_abco, tlp.upper = upr_lfm_abco)
 ```
 
 Sustainability Metrics:
@@ -407,10 +403,10 @@ lfm_abco_thresholds_seg[7] <- summary(u_mod_b)$psi[2]
 lfm_abco_thresholds_seg[8] <- summary(u_mod_b)$psi[3]
 lfm_abco_thresholds_seg[9] <- u_mod_davies$p.value
 
-#rsegplot.lfm(os_mod_f, abco_subset_seg_fd, max.x = abco_max_lfm, y.variable = 'fd', y.lab = "Flame Duration (s)", tlp = mean_lfm_abco, tlp.lower = lwr_lfm_abco, tlp.upper = upr_lfm_abco)
+rsegplot.lfm(os_mod, abco_subset_seg_fd, max.x = abco_max_lfm, y.variable = 'fd', y.lab = "Flame Duration (s)", tlp = mean_lfm_abco, tlp.lower = lwr_lfm_abco, tlp.upper = upr_lfm_abco)
 ```
 
-### glow Duration
+### Glow Duration
 ```{r}
 abco_subset_seg_gd <- abco_subset_seg %>% drop_na(gd)
 
@@ -436,7 +432,7 @@ lfm_abco_thresholds_seg[10] <- summary(u_mod_b)$psi[2]
 lfm_abco_thresholds_seg[11] <- summary(u_mod_b)$psi[3]
 lfm_abco_thresholds_seg[12] <- u_mod_davies$p.value
 
-#rsegplot.lfm(os_mod, abco_subset_seg_gd, max.x = abco_max_lfm, y.variable = 'gd', y.lab = "Glow Duration (s)", tlp = mean_lfm_abco, tlp.lower = lwr_lfm_abco, tlp.upper = upr_lfm_abco)
+rsegplot.lfm(os_mod, abco_subset_seg_gd, max.x = abco_max_lfm, y.variable = 'gd', y.lab = "Glow Duration (s)", tlp = mean_lfm_abco, tlp.lower = lwr_lfm_abco, tlp.upper = upr_lfm_abco)
 ```
 
 
@@ -466,7 +462,7 @@ lfm_abco_thresholds_seg[13] <- summary(u_mod_b)$psi[2]
 lfm_abco_thresholds_seg[14] <- summary(u_mod_b)$psi[3]
 lfm_abco_thresholds_seg[15] <- u_mod_davies$p.value
 
-#rsegplot.lfm(os_mod, abco_subset_seg_prop_ignite, max.x = abco_max_lfm, y.variable = 'prop_ignite', y.lab = "Proportion Ignted (5% Bins of LFM)", tlp = mean_lfm_abco, tlp.lower = lwr_lfm_abco, tlp.upper = upr_lfm_abco)
+rsegplot.lfm(os_mod, abco_subset_seg_prop_ignite, max.x = abco_max_lfm, y.variable = 'prop_ignite', y.lab = "Proportion Ignted (5% Bins of LFM)", tlp = mean_lfm_abco, tlp.lower = lwr_lfm_abco, tlp.upper = upr_lfm_abco)
 ```
 
 <!-- ### Glow to Ignition -->
@@ -528,7 +524,7 @@ lfm_abco_thresholds_seg[16] <- summary(u_mod_b)$psi[2]
 lfm_abco_thresholds_seg[17] <- summary(u_mod_b)$psi[3]
 lfm_abco_thresholds_seg[18] <- u_mod_davies$p.value
 
-#rsegplot.lfm(os_mod, abco_subset_seg_temp_change, max.x = abco_max_lfm, y.variable = 'temp_change', y.lab = "Temp Change (C)", tlp = mean_lfm_abco, tlp.lower = lwr_lfm_abco, tlp.upper = upr_lfm_abco)
+rsegplot.lfm(os_mod, abco_subset_seg_temp_change, max.x = abco_max_lfm, y.variable = 'temp_change', y.lab = "Temp Change (C)", tlp = mean_lfm_abco, tlp.lower = lwr_lfm_abco, tlp.upper = upr_lfm_abco)
 ```
 #LFM: FInal table: 
 
@@ -578,7 +574,7 @@ abco_lfm <- bind_rows(abco_lfm_rand_summary_df, abco_lfm_summary_df) %>%
   mutate(spp = "abco", 
          water_variable = "lfm") 
 
-#ggsave(plot=gridExtra::tableGrob(abco_lfm), filename=here("figures", "segmented_tables", "rand_segmented_lfm_abco.png"))
+ggsave(plot=gridExtra::tableGrob(abco_lfm), filename=here("figures", "segmented_tables", "rand_segmented_lfm_abco.png"))
 ```
 
 
@@ -706,7 +702,7 @@ mpa_abco_thresholds_seg[2] <- summary(u_mod_b)$psi[3]
 mpa_abco_thresholds_seg[3] <- u_mod_davies$p.value
 
 
-#rsegplot.mpa(os_mod_b, abco_subset_seg_tti, max.x = abco_max_mpa, y.variable = 'tti', y.lab = "Time to Ignition (s)", tlp = mean_mpa_abco, tlp.lower = lwr_mpa_abco, tlp.upper = upr_mpa_abco)
+rsegplot.mpa(os_mod_b, abco_subset_seg_tti, max.x = abco_max_mpa, y.variable = 'tti', y.lab = "Time to Ignition (s)", tlp = mean_mpa_abco, tlp.lower = lwr_mpa_abco, tlp.upper = upr_mpa_abco)
 ```
 Combustibility Metrics:
 
@@ -736,7 +732,7 @@ mpa_abco_thresholds_seg[4] <- summary(u_mod_b)$psi[2]
 mpa_abco_thresholds_seg[5] <- summary(u_mod_b)$psi[3]
 mpa_abco_thresholds_seg[6] <- u_mod_davies$p.value
 
-#rsegplot.mpa(os_mod, abco_subset_seg_fh, max.x = abco_max_mpa, y.variable = 'fh', y.lab = "Flame Height (cm)", tlp = mean_mpa_abco, tlp.lower = lwr_mpa_abco, tlp.upper = upr_mpa_abco)
+rsegplot.mpa(os_mod, abco_subset_seg_fh, max.x = abco_max_mpa, y.variable = 'fh', y.lab = "Flame Height (cm)", tlp = mean_mpa_abco, tlp.lower = lwr_mpa_abco, tlp.upper = upr_mpa_abco)
 
 ```
 
@@ -767,7 +763,7 @@ mpa_abco_thresholds_seg[7] <- summary(u_mod_b)$psi[2]
 mpa_abco_thresholds_seg[8] <- summary(u_mod_b)$psi[3]
 mpa_abco_thresholds_seg[9] <- u_mod_davies$p.value
 
-#rsegplot.mpa(os_mod, abco_subset_seg_fd, max.x = abco_max_mpa, y.variable = 'fd', y.lab = "Flame Duration (s)", tlp = mean_mpa_abco, tlp.lower = lwr_mpa_abco, tlp.upper = upr_mpa_abco)
+rsegplot.mpa(os_mod, abco_subset_seg_fd, max.x = abco_max_mpa, y.variable = 'fd', y.lab = "Flame Duration (s)", tlp = mean_mpa_abco, tlp.lower = lwr_mpa_abco, tlp.upper = upr_mpa_abco)
 ```
 
 ### glow Duration
@@ -796,7 +792,7 @@ mpa_abco_thresholds_seg[10] <- summary(u_mod_b)$psi[2]
 mpa_abco_thresholds_seg[11] <- summary(u_mod_b)$psi[3]
 mpa_abco_thresholds_seg[12] <- u_mod_davies$p.value
 
-#rsegplot.mpa(os_mod, abco_subset_seg_gd, max.x = abco_max_mpa, y.variable = 'gd', y.lab = "Glow Duration (s)", tlp = mean_mpa_abco, tlp.lower = lwr_mpa_abco, tlp.upper = upr_mpa_abco)
+rsegplot.mpa(os_mod, abco_subset_seg_gd, max.x = abco_max_mpa, y.variable = 'gd', y.lab = "Glow Duration (s)", tlp = mean_mpa_abco, tlp.lower = lwr_mpa_abco, tlp.upper = upr_mpa_abco)
 ```
 
 
@@ -826,7 +822,7 @@ mpa_abco_thresholds_seg[13] <- summary(u_mod_b)$psi[2]
 mpa_abco_thresholds_seg[14] <- summary(u_mod_b)$psi[3]
 mpa_abco_thresholds_seg[15] <- u_mod_davies$p.value
 
-#rsegplot.mpa(os_mod, abco_subset_seg_prop_ignite, max.x = abco_max_mpa, y.variable = 'prop_ignite', y.lab = "Proportion Ignted (5% Bins of mpa)", tlp = mean_mpa_abco, tlp.lower = lwr_mpa_abco, tlp.upper = upr_mpa_abco)
+rsegplot.mpa(os_mod, abco_subset_seg_prop_ignite, max.x = abco_max_mpa, y.variable = 'prop_ignite', y.lab = "Proportion Ignted (5% Bins of mpa)", tlp = mean_mpa_abco, tlp.lower = lwr_mpa_abco, tlp.upper = upr_mpa_abco)
 ```
 
 <!-- ### Glow to Ignition -->
@@ -888,7 +884,7 @@ mpa_abco_thresholds_seg[16] <- summary(u_mod_b)$psi[2]
 mpa_abco_thresholds_seg[17] <- summary(u_mod_b)$psi[3]
 mpa_abco_thresholds_seg[18] <- u_mod_davies$p.value
 
-#rsegplot.mpa(os_mod, abco_subset_seg_temp_change, max.x = abco_max_mpa, y.variable = 'temp_change', y.lab = "Temp Change (C)", tlp = mean_mpa_abco, tlp.lower = lwr_mpa_abco, tlp.upper = upr_mpa_abco)
+rsegplot.mpa(os_mod, abco_subset_seg_temp_change, max.x = abco_max_mpa, y.variable = 'temp_change', y.lab = "Temp Change (C)", tlp = mean_mpa_abco, tlp.lower = lwr_mpa_abco, tlp.upper = upr_mpa_abco)
 ```
 #mpa: FInal table: 
 
@@ -938,7 +934,7 @@ abco_mpa <- bind_rows(abco_mpa_rand_summary_df, abco_mpa_summary_df) %>%
   mutate(spp = "abco", 
          water_variable = "mpa") 
 
-#ggsave(plot=gridExtra::tableGrob(abco_mpa), filename=here("figures", "segmented_tables", "rand_segmented_mpa_abco.png"))
+ggsave(plot=gridExtra::tableGrob(abco_mpa), filename=here("figures", "segmented_tables", "rand_segmented_mpa_abco.png"))
 ```
 
 

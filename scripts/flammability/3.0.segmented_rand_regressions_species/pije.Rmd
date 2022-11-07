@@ -16,17 +16,13 @@ library(lme4)
 library(here)
 library(segmented)
 library(nlme)
-#citation('nlme')
 library(lubridate)
-#install.packages("plotrix")
 library(plotrix)
 filter = dplyr::filter
 here = here::here
 select = dplyr::select
-#source(here("source-code", "source-segmented_lme_R"))
 
 # Function to plot mixed effects model segmented regressions:
-
 source(here::here("scripts", "scripts_functions", "plot_segmented_MEM_V2.R"))
 ```
 
@@ -55,7 +51,8 @@ seg_data_subset <- seg_data_subset %>%
     name = paste(spp,"_max", sep = ""), 
     name_subset = paste(spp, "_subset_seg", sep = ""), #this is def working. 
    # name_yearmonth = intersect(spp, year_month), 
-    name_yearmonth = paste(spp, year_month, "subset_seg", sep = "_")) 
+    name_yearmonth = paste(spp, year_month, "subset_seg", sep = "_")) %>% 
+  drop_na(lfm, mpa) #Dropping NA values for both LFM and mpa
 
 pije_subset_seg <- seg_data_subset %>% 
   filter(spp == "pije")
@@ -259,7 +256,7 @@ lfm_pije_thresholds_seg <- tibble::data_frame(lfm_psi_tti, lfm_st_err_tti, lfm_p
                               #lfm_psi_lfm_pfg, lfm_st_err_lfm_pfg, 
                               #lfm_psi_ttfg, lfm_st_err_ttfg,
                               lfm_psi_prop_ignite, lfm_st_err_prop_ignite, lfm_p_value_prop_ignite,
-                              lfm_psi_temp_change, lfm_st_err_temp_change, lfm_p_value_lfm_temp_change
+                              lfm_psi_temp_change, lfm_st_err_temp_change, lfm_p_value_temp_change
                               )
 ```
 
@@ -332,7 +329,7 @@ lfm_pije_thresholds_seg[2] <- summary(u_mod_b)$psi[3]
 lfm_pije_thresholds_seg[3] <- u_mod_davies$p.value
 
 
-#rsegplot.lfm(os_mod_b, pije_subset_seg_tti, max.x = pije_max_lfm, y.variable = 'tti', y.lab = "Time to Ignition (s)", tlp = mean_lfm_pije, tlp.lower = lwr_lfm_pije, tlp.upper = upr_lfm_pije)
+rsegplot.lfm(os_mod_b, pije_subset_seg_tti, max.x = pije_max_lfm, y.variable = 'tti', y.lab = "Time to Ignition (s)", tlp = mean_lfm_pije, tlp.lower = lwr_lfm_pije, tlp.upper = upr_lfm_pije)
 ```
 Combustibility Metrics:
 
@@ -362,7 +359,7 @@ lfm_pije_thresholds_seg[4] <- summary(u_mod_b)$psi[2]
 lfm_pije_thresholds_seg[5] <- summary(u_mod_b)$psi[3]
 lfm_pije_thresholds_seg[6] <- u_mod_davies$p.value
 
-#rsegplot.lfm(os_mod, pije_subset_seg_fh, max.x = pije_max_lfm, y.variable = 'fh', y.lab = "Flame Height (cm)", tlp = mean_lfm_pije, tlp.lower = lwr_lfm_pije, tlp.upper = upr_lfm_pije)
+rsegplot.lfm(os_mod, pije_subset_seg_fh, max.x = pije_max_lfm, y.variable = 'fh', y.lab = "Flame Height (cm)", tlp = mean_lfm_pije, tlp.lower = lwr_lfm_pije, tlp.upper = upr_lfm_pije)
 ```
 
 Sustainability Metrics:
@@ -392,10 +389,10 @@ lfm_pije_thresholds_seg[7] <- summary(u_mod_b)$psi[2]
 lfm_pije_thresholds_seg[8] <- summary(u_mod_b)$psi[3]
 lfm_pije_thresholds_seg[9] <- u_mod_davies$p.value
 
-#rsegplot.lfm(os_mod_f, pije_subset_seg_fd, max.x = pije_max_lfm, y.variable = 'fd', y.lab = "Flame Duration (s)", tlp = mean_lfm_pije, tlp.lower = lwr_lfm_pije, tlp.upper = upr_lfm_pije)
+rsegplot.lfm(os_mod, pije_subset_seg_fd, max.x = pije_max_lfm, y.variable = 'fd', y.lab = "Flame Duration (s)", tlp = mean_lfm_pije, tlp.lower = lwr_lfm_pije, tlp.upper = upr_lfm_pije)
 ```
 
-### glow Duration
+### Glow Duration
 ```{r}
 pije_subset_seg_gd <- pije_subset_seg %>% drop_na(gd)
 
@@ -421,7 +418,7 @@ lfm_pije_thresholds_seg[10] <- summary(u_mod_b)$psi[2]
 lfm_pije_thresholds_seg[11] <- summary(u_mod_b)$psi[3]
 lfm_pije_thresholds_seg[12] <- u_mod_davies$p.value
 
-#rsegplot.lfm(os_mod, pije_subset_seg_gd, max.x = pije_max_lfm, y.variable = 'gd', y.lab = "Glow Duration (s)", tlp = mean_lfm_pije, tlp.lower = lwr_lfm_pije, tlp.upper = upr_lfm_pije)
+rsegplot.lfm(os_mod, pije_subset_seg_gd, max.x = pije_max_lfm, y.variable = 'gd', y.lab = "Glow Duration (s)", tlp = mean_lfm_pije, tlp.lower = lwr_lfm_pije, tlp.upper = upr_lfm_pije)
 ```
 
 
@@ -451,7 +448,7 @@ lfm_pije_thresholds_seg[13] <- summary(u_mod_b)$psi[2]
 lfm_pije_thresholds_seg[14] <- summary(u_mod_b)$psi[3]
 lfm_pije_thresholds_seg[15] <- u_mod_davies$p.value
 
-#rsegplot.lfm(os_mod, pije_subset_seg_prop_ignite, max.x = pije_max_lfm, y.variable = 'prop_ignite', y.lab = "Proportion Ignted (5% Bins of LFM)", tlp = mean_lfm_pije, tlp.lower = lwr_lfm_pije, tlp.upper = upr_lfm_pije)
+rsegplot.lfm(os_mod, pije_subset_seg_prop_ignite, max.x = pije_max_lfm, y.variable = 'prop_ignite', y.lab = "Proportion Ignted (5% Bins of LFM)", tlp = mean_lfm_pije, tlp.lower = lwr_lfm_pije, tlp.upper = upr_lfm_pije)
 ```
 
 <!-- ### Glow to Ignition -->
@@ -513,7 +510,7 @@ lfm_pije_thresholds_seg[16] <- summary(u_mod_b)$psi[2]
 lfm_pije_thresholds_seg[17] <- summary(u_mod_b)$psi[3]
 lfm_pije_thresholds_seg[18] <- u_mod_davies$p.value
 
-#rsegplot.lfm(os_mod, pije_subset_seg_temp_change, max.x = pije_max_lfm, y.variable = 'temp_change', y.lab = "Temp Change (C)", tlp = mean_lfm_pije, tlp.lower = lwr_lfm_pije, tlp.upper = upr_lfm_pije)
+rsegplot.lfm(os_mod, pije_subset_seg_temp_change, max.x = pije_max_lfm, y.variable = 'temp_change', y.lab = "Temp Change (C)", tlp = mean_lfm_pije, tlp.lower = lwr_lfm_pije, tlp.upper = upr_lfm_pije)
 ```
 #LFM: FInal table: 
 
@@ -691,7 +688,7 @@ mpa_pije_thresholds_seg[2] <- summary(u_mod_b)$psi[3]
 mpa_pije_thresholds_seg[3] <- u_mod_davies$p.value
 
 
-#rsegplot.mpa(os_mod_b, pije_subset_seg_tti, max.x = pije_max_mpa, y.variable = 'tti', y.lab = "Time to Ignition (s)", tlp = mean_mpa_pije, tlp.lower = lwr_mpa_pije, tlp.upper = upr_mpa_pije)
+rsegplot.mpa(os_mod_b, pije_subset_seg_tti, max.x = pije_max_mpa, y.variable = 'tti', y.lab = "Time to Ignition (s)", tlp = mean_mpa_pije, tlp.lower = lwr_mpa_pije, tlp.upper = upr_mpa_pije)
 ```
 Combustibility Metrics:
 
@@ -721,7 +718,8 @@ mpa_pije_thresholds_seg[4] <- summary(u_mod_b)$psi[2]
 mpa_pije_thresholds_seg[5] <- summary(u_mod_b)$psi[3]
 mpa_pije_thresholds_seg[6] <- u_mod_davies$p.value
 
-#rsegplot.mpa(os_mod, pije_subset_seg_fh, max.x = pije_max_mpa, y.variable = 'fh', y.lab = "Flame Height (cm)", tlp = mean_mpa_pije, tlp.lower = lwr_mpa_pije, tlp.upper = upr_mpa_pije)
+rsegplot.mpa(os_mod, pije_subset_seg_fh, max.x = pije_max_mpa, y.variable = 'fh', y.lab = "Flame Height (cm)", tlp = mean_mpa_pije, tlp.lower = lwr_mpa_pije, tlp.upper = upr_mpa_pije)
+
 ```
 
 Sustainability Metrics:
@@ -740,7 +738,7 @@ mpa_pije_thresholds_rand_seg[6] <- summary(os_mod)$psi[3]
 
 # Segmented regression no random changepoints: 
 
-u_mod <- lm(fh~mpa + year_month + site, data = pije_subset_seg_fd)
+u_mod <- lm(fd~mpa + year_month + site, data = pije_subset_seg_fd)
 u_mod_b <- segmented(u_mod, ~mpa)
 summary.segmented(u_mod_b)
 
@@ -751,7 +749,7 @@ mpa_pije_thresholds_seg[7] <- summary(u_mod_b)$psi[2]
 mpa_pije_thresholds_seg[8] <- summary(u_mod_b)$psi[3]
 mpa_pije_thresholds_seg[9] <- u_mod_davies$p.value
 
-#rsegplot.mpa(os_mod, pije_subset_seg_fd, max.x = pije_max_mpa, y.variable = 'fd', y.lab = "Flame Duration (s)", tlp = mean_mpa_pije, tlp.lower = lwr_mpa_pije, tlp.upper = upr_mpa_pije)
+rsegplot.mpa(os_mod, pije_subset_seg_fd, max.x = pije_max_mpa, y.variable = 'fd', y.lab = "Flame Duration (s)", tlp = mean_mpa_pije, tlp.lower = lwr_mpa_pije, tlp.upper = upr_mpa_pije)
 ```
 
 ### glow Duration
@@ -780,7 +778,7 @@ mpa_pije_thresholds_seg[10] <- summary(u_mod_b)$psi[2]
 mpa_pije_thresholds_seg[11] <- summary(u_mod_b)$psi[3]
 mpa_pije_thresholds_seg[12] <- u_mod_davies$p.value
 
-#rsegplot.mpa(os_mod, pije_subset_seg_gd, max.x = pije_max_mpa, y.variable = 'gd', y.lab = "Glow Duration (s)", tlp = mean_mpa_pije, tlp.lower = lwr_mpa_pije, tlp.upper = upr_mpa_pije)
+rsegplot.mpa(os_mod, pije_subset_seg_gd, max.x = pije_max_mpa, y.variable = 'gd', y.lab = "Glow Duration (s)", tlp = mean_mpa_pije, tlp.lower = lwr_mpa_pije, tlp.upper = upr_mpa_pije)
 ```
 
 
@@ -810,7 +808,7 @@ mpa_pije_thresholds_seg[13] <- summary(u_mod_b)$psi[2]
 mpa_pije_thresholds_seg[14] <- summary(u_mod_b)$psi[3]
 mpa_pije_thresholds_seg[15] <- u_mod_davies$p.value
 
-#rsegplot.mpa(os_mod, pije_subset_seg_prop_ignite, max.x = pije_max_mpa, y.variable = 'prop_ignite', y.lab = "Proportion Ignted (5% Bins of mpa)", tlp = mean_mpa_pije, tlp.lower = lwr_mpa_pije, tlp.upper = upr_mpa_pije)
+rsegplot.mpa(os_mod, pije_subset_seg_prop_ignite, max.x = pije_max_mpa, y.variable = 'prop_ignite', y.lab = "Proportion Ignted (5% Bins of mpa)", tlp = mean_mpa_pije, tlp.lower = lwr_mpa_pije, tlp.upper = upr_mpa_pije)
 ```
 
 <!-- ### Glow to Ignition -->
@@ -872,7 +870,7 @@ mpa_pije_thresholds_seg[16] <- summary(u_mod_b)$psi[2]
 mpa_pije_thresholds_seg[17] <- summary(u_mod_b)$psi[3]
 mpa_pije_thresholds_seg[18] <- u_mod_davies$p.value
 
-#rsegplot.mpa(os_mod, pije_subset_seg_temp_change, max.x = pije_max_mpa, y.variable = 'temp_change', y.lab = "Temp Change (C)", tlp = mean_mpa_pije, tlp.lower = lwr_mpa_pije, tlp.upper = upr_mpa_pije)
+rsegplot.mpa(os_mod, pije_subset_seg_temp_change, max.x = pije_max_mpa, y.variable = 'temp_change', y.lab = "Temp Change (C)", tlp = mean_mpa_pije, tlp.lower = lwr_mpa_pije, tlp.upper = upr_mpa_pije)
 ```
 #mpa: FInal table: 
 
@@ -956,5 +954,6 @@ pije_all_segmented_wide %>%
   geom_point() +
   facet_wrap(~water_variable,scales = "free")
 ```
+
 
 

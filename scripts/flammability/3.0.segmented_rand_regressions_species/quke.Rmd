@@ -5,6 +5,7 @@ date: "4/15/2021"
 output: html_document
 ---
 
+
 #Setup:
 ```{r}
 knitr::opts_chunk$set(echo = TRUE)
@@ -16,17 +17,13 @@ library(lme4)
 library(here)
 library(segmented)
 library(nlme)
-#citation('nlme')
 library(lubridate)
-#install.packages("plotrix")
 library(plotrix)
 filter = dplyr::filter
 here = here::here
 select = dplyr::select
-#source(here("source-code", "source-segmented_lme_R"))
 
 # Function to plot mixed effects model segmented regressions:
-
 source(here::here("scripts", "scripts_functions", "plot_segmented_MEM_V2.R"))
 ```
 
@@ -55,7 +52,8 @@ seg_data_subset <- seg_data_subset %>%
     name = paste(spp,"_max", sep = ""), 
     name_subset = paste(spp, "_subset_seg", sep = ""), #this is def working. 
    # name_yearmonth = intersect(spp, year_month), 
-    name_yearmonth = paste(spp, year_month, "subset_seg", sep = "_")) 
+    name_yearmonth = paste(spp, year_month, "subset_seg", sep = "_")) %>% 
+  drop_na(lfm, mpa) #Dropping NA values for both LFM and mpa
 
 quke_subset_seg <- seg_data_subset %>% 
   filter(spp == "quke")
@@ -259,7 +257,7 @@ lfm_quke_thresholds_seg <- tibble::data_frame(lfm_psi_tti, lfm_st_err_tti, lfm_p
                               #lfm_psi_lfm_pfg, lfm_st_err_lfm_pfg, 
                               #lfm_psi_ttfg, lfm_st_err_ttfg,
                               lfm_psi_prop_ignite, lfm_st_err_prop_ignite, lfm_p_value_prop_ignite,
-                              lfm_psi_temp_change, lfm_st_err_temp_change, lfm_p_value_lfm_temp_change
+                              lfm_psi_temp_change, lfm_st_err_temp_change, lfm_p_value_temp_change
                               )
 ```
 
@@ -309,7 +307,7 @@ quke_subset_seg_tti <- quke_subset_seg %>%
 
 #Segmented regression with random changepoints: 
 
-o_mod<-lme(tti~lfm + year_month , random=~1|id, data=quke_subset_seg_tti)
+o_mod<-lme(tti~lfm + year_month, random=~1|id, data=quke_subset_seg_tti)
 os_mod_b<-segmented.default(o_mod, ~lfm, npsi=list(lfm=1))
 #summarizing results (note the '_coef' argument)
 summary.segmented(os_mod_b)
@@ -320,7 +318,7 @@ lfm_quke_thresholds_rand_seg[2] <- summary(os_mod_b)$psi[3]
 
 # Segmented regression no random changepoints: 
 
-u_mod <- lm(tti~lfm + year_month , data = quke_subset_seg_tti)
+u_mod <- lm(tti~lfm + year_month, data = quke_subset_seg_tti)
 u_mod_b <- segmented(u_mod, ~lfm)
 summary.segmented(u_mod_b)
 
@@ -332,7 +330,7 @@ lfm_quke_thresholds_seg[2] <- summary(u_mod_b)$psi[3]
 lfm_quke_thresholds_seg[3] <- u_mod_davies$p.value
 
 
-#rsegplot.lfm(os_mod_b, quke_subset_seg_tti, max.x = quke_max_lfm, y.variable = 'tti', y.lab = "Time to Ignition (s)", tlp = mean_lfm_quke, tlp.lower = lwr_lfm_quke, tlp.upper = upr_lfm_quke)
+rsegplot.lfm(os_mod_b, quke_subset_seg_tti, max.x = quke_max_lfm, y.variable = 'tti', y.lab = "Time to Ignition (s)", tlp = mean_lfm_quke, tlp.lower = lwr_lfm_quke, tlp.upper = upr_lfm_quke)
 ```
 Combustibility Metrics:
 
@@ -340,7 +338,7 @@ Combustibility Metrics:
 ```{r}
 quke_subset_seg_fh <- quke_subset_seg %>% drop_na(fh) 
 
-o_mod<-lme(fh~lfm + year_month , random=~1|id, data=quke_subset_seg_fh)
+o_mod<-lme(fh~lfm + year_month, random=~1|id, data=quke_subset_seg_fh)
 os_mod<-segmented.default(o_mod, ~lfm, npsi=list(lfm=1))
 #summarizing results (note the '_coef' argument)
 summary.segmented(os_mod)
@@ -351,7 +349,7 @@ lfm_quke_thresholds_rand_seg[4] <- summary(os_mod)$psi[3]
 
 # Segmented regression no random changepoints: 
 
-u_mod <- lm(fh~lfm + year_month , data = quke_subset_seg_fh)
+u_mod <- lm(fh~lfm + year_month, data = quke_subset_seg_fh)
 u_mod_b <- segmented(u_mod, ~lfm)
 summary.segmented(u_mod_b)
 
@@ -362,7 +360,7 @@ lfm_quke_thresholds_seg[4] <- summary(u_mod_b)$psi[2]
 lfm_quke_thresholds_seg[5] <- summary(u_mod_b)$psi[3]
 lfm_quke_thresholds_seg[6] <- u_mod_davies$p.value
 
-#rsegplot.lfm(os_mod, quke_subset_seg_fh, max.x = quke_max_lfm, y.variable = 'fh', y.lab = "Flame Height (cm)", tlp = mean_lfm_quke, tlp.lower = lwr_lfm_quke, tlp.upper = upr_lfm_quke)
+rsegplot.lfm(os_mod, quke_subset_seg_fh, max.x = quke_max_lfm, y.variable = 'fh', y.lab = "Flame Height (cm)", tlp = mean_lfm_quke, tlp.lower = lwr_lfm_quke, tlp.upper = upr_lfm_quke)
 ```
 
 Sustainability Metrics:
@@ -370,7 +368,7 @@ Sustainability Metrics:
 ```{r}
 quke_subset_seg_fd <- quke_subset_seg %>% drop_na(fd)
 
-o_mod<-lme(fd~lfm + year_month , random=~1|id, data=quke_subset_seg_fd)
+o_mod<-lme(fd~lfm + year_month, random=~1|id, data=quke_subset_seg_fd)
 os_mod <-segmented.default(o_mod, ~lfm, npsi=list(lfm=1))
 #summarizing results (note the '_coef' argument)
 summary.segmented(os_mod)
@@ -381,7 +379,7 @@ lfm_quke_thresholds_rand_seg[6] <- summary(os_mod)$psi[3]
 
 # Segmented regression no random changepoints: 
 
-u_mod <- lm(fd~lfm + year_month , data = quke_subset_seg_fd)
+u_mod <- lm(fd~lfm + year_month, data = quke_subset_seg_fd)
 u_mod_b <- segmented(u_mod, ~lfm)
 summary.segmented(u_mod_b)
 
@@ -392,14 +390,14 @@ lfm_quke_thresholds_seg[7] <- summary(u_mod_b)$psi[2]
 lfm_quke_thresholds_seg[8] <- summary(u_mod_b)$psi[3]
 lfm_quke_thresholds_seg[9] <- u_mod_davies$p.value
 
-#rsegplot.lfm(os_mod_f, quke_subset_seg_fd, max.x = quke_max_lfm, y.variable = 'fd', y.lab = "Flame Duration (s)", tlp = mean_lfm_quke, tlp.lower = lwr_lfm_quke, tlp.upper = upr_lfm_quke)
+rsegplot.lfm(os_mod, quke_subset_seg_fd, max.x = quke_max_lfm, y.variable = 'fd', y.lab = "Flame Duration (s)", tlp = mean_lfm_quke, tlp.lower = lwr_lfm_quke, tlp.upper = upr_lfm_quke)
 ```
 
-### glow Duration
+### Glow Duration
 ```{r}
 quke_subset_seg_gd <- quke_subset_seg %>% drop_na(gd)
 
-o_mod<-lme(gd~lfm + year_month , random=~1|id, data=quke_subset_seg_gd)
+o_mod<-lme(gd~lfm + year_month, random=~1|id, data=quke_subset_seg_gd)
 os_mod <-segmented.default(o_mod, ~lfm, npsi=list(lfm=1))
 #summarizing results (note the '_coef' argument)
 summary.segmented(os_mod)
@@ -410,7 +408,7 @@ lfm_quke_thresholds_rand_seg[8] <- summary(os_mod)$psi[3]
 
 # Segmented regression no random changepoints: 
 
-u_mod <- lm(gd~lfm + year_month , data = quke_subset_seg_gd)
+u_mod <- lm(gd~lfm + year_month, data = quke_subset_seg_gd)
 u_mod_b <- segmented(u_mod, ~lfm)
 summary.segmented(u_mod_b)
 
@@ -421,7 +419,7 @@ lfm_quke_thresholds_seg[10] <- summary(u_mod_b)$psi[2]
 lfm_quke_thresholds_seg[11] <- summary(u_mod_b)$psi[3]
 lfm_quke_thresholds_seg[12] <- u_mod_davies$p.value
 
-#rsegplot.lfm(os_mod, quke_subset_seg_gd, max.x = quke_max_lfm, y.variable = 'gd', y.lab = "Glow Duration (s)", tlp = mean_lfm_quke, tlp.lower = lwr_lfm_quke, tlp.upper = upr_lfm_quke)
+rsegplot.lfm(os_mod, quke_subset_seg_gd, max.x = quke_max_lfm, y.variable = 'gd', y.lab = "Glow Duration (s)", tlp = mean_lfm_quke, tlp.lower = lwr_lfm_quke, tlp.upper = upr_lfm_quke)
 ```
 
 
@@ -429,7 +427,7 @@ lfm_quke_thresholds_seg[12] <- u_mod_davies$p.value
 ```{r}
 quke_subset_seg_prop_ignite <- quke_subset_seg %>% drop_na(prop_ignite)
 
-o_mod<-lme(prop_ignite~lfm + year_month , random=~1|id, quke_subset_seg_prop_ignite )
+o_mod<-lme(prop_ignite~lfm + year_month, random=~1|id, quke_subset_seg_prop_ignite )
 os_mod<-segmented.default(o_mod, ~lfm, npsi=list(lfm=1))
 #summarizing results (note the '_coef' argument)
 summary.segmented(os_mod)
@@ -440,7 +438,7 @@ lfm_quke_thresholds_rand_seg[10] <- summary(os_mod)$psi[3]
 
 # Segmented regression no random changepoints: 
 
-u_mod <- lm(prop_ignite~lfm + year_month , data = quke_subset_seg_prop_ignite)
+u_mod <- lm(prop_ignite~lfm + year_month, data = quke_subset_seg_prop_ignite)
 u_mod_b <- segmented(u_mod, ~lfm)
 summary.segmented(u_mod_b)
 
@@ -451,7 +449,7 @@ lfm_quke_thresholds_seg[13] <- summary(u_mod_b)$psi[2]
 lfm_quke_thresholds_seg[14] <- summary(u_mod_b)$psi[3]
 lfm_quke_thresholds_seg[15] <- u_mod_davies$p.value
 
-#rsegplot.lfm(os_mod, quke_subset_seg_prop_ignite, max.x = quke_max_lfm, y.variable = 'prop_ignite', y.lab = "Proportion Ignted (5% Bins of LFM)", tlp = mean_lfm_quke, tlp.lower = lwr_lfm_quke, tlp.upper = upr_lfm_quke)
+rsegplot.lfm(os_mod, quke_subset_seg_prop_ignite, max.x = quke_max_lfm, y.variable = 'prop_ignite', y.lab = "Proportion Ignted (5% Bins of LFM)", tlp = mean_lfm_quke, tlp.lower = lwr_lfm_quke, tlp.upper = upr_lfm_quke)
 ```
 
 <!-- ### Glow to Ignition -->
@@ -459,7 +457,7 @@ lfm_quke_thresholds_seg[15] <- u_mod_davies$p.value
 <!-- quke_subset_seg_gti <- quke_subset_seg %>%  -->
 <!--   drop_na(gti) -->
 
-<!-- o_mod<-lme(gti~lfm + year_month , random=~1|id, data=quke_subset_seg_gti) -->
+<!-- o_mod<-lme(gti~lfm + year_month, random=~1|id, data=quke_subset_seg_gti) -->
 <!-- os_mod<-segmented.default(o_mod, ~lfm, npsi=list(lfm=1)) -->
 <!-- #summarizing results (note the '_coef' argument) -->
 <!-- summary.segmented(os_mod) -->
@@ -474,7 +472,7 @@ lfm_quke_thresholds_seg[15] <- u_mod_davies$p.value
 <!-- quke_subset_seg_lower_temp_max <- quke_subset_seg %>%  -->
 <!--   drop_na(lower_temp_max) -->
 
-<!-- o_mod<-lme(lower_temp_max~lfm + year_month , random=~1|id, data=quke_subset_seg_lower_temp_max) -->
+<!-- o_mod<-lme(lower_temp_max~lfm + year_month, random=~1|id, data=quke_subset_seg_lower_temp_max) -->
 <!-- os_mod<-segmented.default(o_mod, ~lfm, npsi=list(lfm=1)) -->
 <!-- #summarizing results (note the '_coef' argument) -->
 <!-- summary.segmented(os_mod) -->
@@ -490,7 +488,7 @@ lfm_quke_thresholds_seg[15] <- u_mod_davies$p.value
 quke_subset_seg_temp_change <- quke_subset_seg %>% 
   drop_na(temp_change)
 
-o_mod<-lme(lower_temp_max~lfm + year_month , random=~1|id, data=quke_subset_seg_temp_change)
+o_mod<-lme(lower_temp_max~lfm + year_month, random=~1|id, data=quke_subset_seg_temp_change)
 os_mod<-segmented.default(o_mod, ~lfm, npsi=list(lfm=1))
 #summarizing results (note the '_coef' argument)
 summary.segmented(os_mod)
@@ -502,7 +500,7 @@ lfm_quke_thresholds_rand_seg[12] <- summary(os_mod)$psi[3]
 
 # Segmented regression no random changepoints: 
 
-u_mod <- lm(temp_change~lfm + year_month , data = quke_subset_seg_temp_change)
+u_mod <- lm(temp_change~lfm + year_month, data = quke_subset_seg_temp_change)
 u_mod_b <- segmented(u_mod, ~lfm)
 summary.segmented(u_mod_b)
 
@@ -513,7 +511,7 @@ lfm_quke_thresholds_seg[16] <- summary(u_mod_b)$psi[2]
 lfm_quke_thresholds_seg[17] <- summary(u_mod_b)$psi[3]
 lfm_quke_thresholds_seg[18] <- u_mod_davies$p.value
 
-#rsegplot.lfm(os_mod, quke_subset_seg_temp_change, max.x = quke_max_lfm, y.variable = 'temp_change', y.lab = "Temp Change (C)", tlp = mean_lfm_quke, tlp.lower = lwr_lfm_quke, tlp.upper = upr_lfm_quke)
+rsegplot.lfm(os_mod, quke_subset_seg_temp_change, max.x = quke_max_lfm, y.variable = 'temp_change', y.lab = "Temp Change (C)", tlp = mean_lfm_quke, tlp.lower = lwr_lfm_quke, tlp.upper = upr_lfm_quke)
 ```
 #LFM: FInal table: 
 
@@ -668,7 +666,7 @@ quke_subset_seg_tti <- quke_subset_seg %>%
 
 #Segmented regression with random changepoints: 
 
-o_mod<-lme(tti~ mpa, random=~1|id, data=quke_subset_seg_tti)
+o_mod<-lme(tti~mpa + year_month, random=~1|id, data=quke_subset_seg_tti)
 os_mod_b<-segmented.default(o_mod, ~mpa, npsi=list(mpa=1))
 #summarizing results (note the '_coef' argument)
 summary.segmented(os_mod_b)
@@ -679,7 +677,7 @@ mpa_quke_thresholds_rand_seg[2] <- summary(os_mod_b)$psi[3]
 
 # Segmented regression no random changepoints: 
 
-u_mod <- lm(tti~mpa, data = quke_subset_seg_tti)
+u_mod <- lm(tti~mpa + year_month, data = quke_subset_seg_tti)
 u_mod_b <- segmented(u_mod, ~mpa)
 summary.segmented(u_mod_b)
 
@@ -691,15 +689,16 @@ mpa_quke_thresholds_seg[2] <- summary(u_mod_b)$psi[3]
 mpa_quke_thresholds_seg[3] <- u_mod_davies$p.value
 
 
-#rsegplot.mpa(os_mod_b, quke_subset_seg_tti, max.x = quke_max_mpa, y.variable = 'tti', y.lab = "Time to Ignition (s)", tlp = mean_mpa_quke, tlp.lower = lwr_mpa_quke, tlp.upper = upr_mpa_quke)
+rsegplot.mpa(os_mod_b, quke_subset_seg_tti, max.x = quke_max_mpa, y.variable = 'tti', y.lab = "Time to Ignition (s)", tlp = mean_mpa_quke, tlp.lower = lwr_mpa_quke, tlp.upper = upr_mpa_quke)
 ```
 Combustibility Metrics:
 
 ### Flame Height
+NOTE: Error popping up for this one...
 ```{r}
 quke_subset_seg_fh <- quke_subset_seg %>% drop_na(fh) 
 
-o_mod<-lme(fh~mpa, random=~1|id, data=quke_subset_seg_fh)
+o_mod<-lme(fh~mpa + year_month, random=~1|id, data=quke_subset_seg_fh)
 os_mod<-segmented.default(o_mod, ~mpa, npsi=list(mpa=1))
 #summarizing results (note the '_coef' argument)
 summary.segmented(os_mod)
@@ -710,7 +709,7 @@ mpa_quke_thresholds_rand_seg[4] <- summary(os_mod)$psi[3]
 
 # Segmented regression no random changepoints: 
 
-u_mod <- lm(fh~mpa, data = quke_subset_seg_fh)
+u_mod <- lm(fh~mpa + year_month, data = quke_subset_seg_fh)
 u_mod_b <- segmented(u_mod, ~mpa)
 summary.segmented(u_mod_b)
 
@@ -721,8 +720,7 @@ mpa_quke_thresholds_seg[4] <- summary(u_mod_b)$psi[2]
 mpa_quke_thresholds_seg[5] <- summary(u_mod_b)$psi[3]
 mpa_quke_thresholds_seg[6] <- u_mod_davies$p.value
 
-#rsegplot.mpa(os_mod, quke_subset_seg_fh, max.x = quke_max_mpa, y.variable = 'fh', y.lab = "Flame Height (cm)", tlp = mean_mpa_quke, tlp.lower = lwr_mpa_quke, tlp.upper = upr_mpa_quke)
-
+rsegplot.mpa(os_mod, quke_subset_seg_fh, max.x = quke_max_mpa, y.variable = 'fh', y.lab = "Flame Height (cm)", tlp = mean_mpa_quke, tlp.lower = lwr_mpa_quke, tlp.upper = upr_mpa_quke)
 ```
 
 Sustainability Metrics:
@@ -730,7 +728,7 @@ Sustainability Metrics:
 ```{r}
 quke_subset_seg_fd <- quke_subset_seg %>% drop_na(fd)
 
-o_mod<-lme(fd~mpa, random=~1|id, data=quke_subset_seg_fd)
+o_mod<-lme(fd~mpa + year_month, random=~1|id, data=quke_subset_seg_fd)
 os_mod <-segmented.default(o_mod, ~mpa, npsi=list(mpa=1))
 #summarizing results (note the '_coef' argument)
 summary.segmented(os_mod)
@@ -741,7 +739,7 @@ mpa_quke_thresholds_rand_seg[6] <- summary(os_mod)$psi[3]
 
 # Segmented regression no random changepoints: 
 
-u_mod <- lm(fd~mpa, data = quke_subset_seg_fd)
+u_mod <- lm(fd~mpa + year_month, data = quke_subset_seg_fd)
 u_mod_b <- segmented(u_mod, ~mpa)
 summary.segmented(u_mod_b)
 
@@ -752,14 +750,14 @@ mpa_quke_thresholds_seg[7] <- summary(u_mod_b)$psi[2]
 mpa_quke_thresholds_seg[8] <- summary(u_mod_b)$psi[3]
 mpa_quke_thresholds_seg[9] <- u_mod_davies$p.value
 
-#rsegplot.mpa(os_mod, quke_subset_seg_fd, max.x = quke_max_mpa, y.variable = 'fd', y.lab = "Flame Duration (s)", tlp = mean_mpa_quke, tlp.lower = lwr_mpa_quke, tlp.upper = upr_mpa_quke)
+rsegplot.mpa(os_mod, quke_subset_seg_fd, max.x = quke_max_mpa, y.variable = 'fd', y.lab = "Flame Duration (s)", tlp = mean_mpa_quke, tlp.lower = lwr_mpa_quke, tlp.upper = upr_mpa_quke)
 ```
 
 ### glow Duration
 ```{r}
 quke_subset_seg_gd <- quke_subset_seg %>% drop_na(gd)
 
-o_mod<-lme(gd~mpa, random=~1|id, data=quke_subset_seg_gd)
+o_mod<-lme(gd~mpa + year_month, random=~1|id, data=quke_subset_seg_gd)
 os_mod <-segmented.default(o_mod, ~mpa, npsi=list(mpa=1))
 #summarizing results (note the '_coef' argument)
 summary.segmented(os_mod)
@@ -770,7 +768,7 @@ mpa_quke_thresholds_rand_seg[8] <- summary(os_mod)$psi[3]
 
 # Segmented regression no random changepoints: 
 
-u_mod <- lm(gd~mpa, data = quke_subset_seg_gd)
+u_mod <- lm(gd~mpa + year_month, data = quke_subset_seg_gd)
 u_mod_b <- segmented(u_mod, ~mpa)
 summary.segmented(u_mod_b)
 
@@ -781,7 +779,7 @@ mpa_quke_thresholds_seg[10] <- summary(u_mod_b)$psi[2]
 mpa_quke_thresholds_seg[11] <- summary(u_mod_b)$psi[3]
 mpa_quke_thresholds_seg[12] <- u_mod_davies$p.value
 
-#rsegplot.mpa(os_mod, quke_subset_seg_gd, max.x = quke_max_mpa, y.variable = 'gd', y.lab = "Glow Duration (s)", tlp = mean_mpa_quke, tlp.lower = lwr_mpa_quke, tlp.upper = upr_mpa_quke)
+rsegplot.mpa(os_mod, quke_subset_seg_gd, max.x = quke_max_mpa, y.variable = 'gd', y.lab = "Glow Duration (s)", tlp = mean_mpa_quke, tlp.lower = lwr_mpa_quke, tlp.upper = upr_mpa_quke)
 ```
 
 
@@ -789,7 +787,7 @@ mpa_quke_thresholds_seg[12] <- u_mod_davies$p.value
 ```{r}
 quke_subset_seg_prop_ignite <- quke_subset_seg %>% drop_na(prop_ignite)
 
-o_mod<-lme(prop_ignite~mpa, random=~1|id, quke_subset_seg_prop_ignite )
+o_mod<-lme(prop_ignite~mpa + year_month, random=~1|id, quke_subset_seg_prop_ignite )
 os_mod<-segmented.default(o_mod, ~mpa, npsi=list(mpa=1))
 #summarizing results (note the '_coef' argument)
 summary.segmented(os_mod)
@@ -800,7 +798,7 @@ mpa_quke_thresholds_rand_seg[10] <- summary(os_mod)$psi[3]
 
 # Segmented regression no random changepoints: 
 
-u_mod <- lm(prop_ignite~mpa, data = quke_subset_seg_prop_ignite)
+u_mod <- lm(prop_ignite~mpa + year_month, data = quke_subset_seg_prop_ignite)
 u_mod_b <- segmented(u_mod, ~mpa)
 summary.segmented(u_mod_b)
 
@@ -811,7 +809,7 @@ mpa_quke_thresholds_seg[13] <- summary(u_mod_b)$psi[2]
 mpa_quke_thresholds_seg[14] <- summary(u_mod_b)$psi[3]
 mpa_quke_thresholds_seg[15] <- u_mod_davies$p.value
 
-#rsegplot.mpa(os_mod, quke_subset_seg_prop_ignite, max.x = quke_max_mpa, y.variable = 'prop_ignite', y.lab = "Proportion Ignted (5% Bins of mpa)", tlp = mean_mpa_quke, tlp.lower = lwr_mpa_quke, tlp.upper = upr_mpa_quke)
+rsegplot.mpa(os_mod, quke_subset_seg_prop_ignite, max.x = quke_max_mpa, y.variable = 'prop_ignite', y.lab = "Proportion Ignted (5% Bins of mpa)", tlp = mean_mpa_quke, tlp.lower = lwr_mpa_quke, tlp.upper = upr_mpa_quke)
 ```
 
 <!-- ### Glow to Ignition -->
@@ -819,7 +817,7 @@ mpa_quke_thresholds_seg[15] <- u_mod_davies$p.value
 <!-- quke_subset_seg_gti <- quke_subset_seg %>%  -->
 <!--   drop_na(gti) -->
 
-<!-- o_mod<-lme(gti~mpa, random=~1|id, data=quke_subset_seg_gti) -->
+<!-- o_mod<-lme(gti~mpa + year_month, random=~1|id, data=quke_subset_seg_gti) -->
 <!-- os_mod<-segmented.default(o_mod, ~mpa, npsi=list(mpa=1)) -->
 <!-- #summarizing results (note the '_coef' argument) -->
 <!-- summary.segmented(os_mod) -->
@@ -834,7 +832,7 @@ mpa_quke_thresholds_seg[15] <- u_mod_davies$p.value
 <!-- quke_subset_seg_lower_temp_max <- quke_subset_seg %>%  -->
 <!--   drop_na(lower_temp_max) -->
 
-<!-- o_mod<-lme(lower_temp_max~mpa, random=~1|id, data=quke_subset_seg_lower_temp_max) -->
+<!-- o_mod<-lme(lower_temp_max~mpa + year_month, random=~1|id, data=quke_subset_seg_lower_temp_max) -->
 <!-- os_mod<-segmented.default(o_mod, ~mpa, npsi=list(mpa=1)) -->
 <!-- #summarizing results (note the '_coef' argument) -->
 <!-- summary.segmented(os_mod) -->
@@ -844,13 +842,13 @@ mpa_quke_thresholds_seg[15] <- u_mod_davies$p.value
 <!-- ``` -->
 
 
-### Temp change: 
-
+### Temp change
+NOTE: Error popping up...
 ```{r}
 quke_subset_seg_temp_change <- quke_subset_seg %>% 
-  drop_na(temp_change)
+  drop_na(temp_change, lower_temp_max)
 
-o_mod<-lme(lower_temp_max~mpa, random=~1|id, data=quke_subset_seg_temp_change)
+o_mod<-lme(lower_temp_max~mpa + year_month, random=~1|id, data=quke_subset_seg_temp_change)
 os_mod<-segmented.default(o_mod, ~mpa, npsi=list(mpa=1))
 #summarizing results (note the '_coef' argument)
 summary.segmented(os_mod)
@@ -862,7 +860,7 @@ mpa_quke_thresholds_rand_seg[12] <- summary(os_mod)$psi[3]
 
 # Segmented regression no random changepoints: 
 
-u_mod <- lm(temp_change~mpa, data = quke_subset_seg_temp_change)
+u_mod <- lm(temp_change~mpa + year_month, data = quke_subset_seg_temp_change)
 u_mod_b <- segmented(u_mod, ~mpa)
 summary.segmented(u_mod_b)
 
@@ -873,7 +871,7 @@ mpa_quke_thresholds_seg[16] <- summary(u_mod_b)$psi[2]
 mpa_quke_thresholds_seg[17] <- summary(u_mod_b)$psi[3]
 mpa_quke_thresholds_seg[18] <- u_mod_davies$p.value
 
-#rsegplot.mpa(os_mod, quke_subset_seg_temp_change, max.x = quke_max_mpa, y.variable = 'temp_change', y.lab = "Temp Change (C)", tlp = mean_mpa_quke, tlp.lower = lwr_mpa_quke, tlp.upper = upr_mpa_quke)
+rsegplot.mpa(os_mod, quke_subset_seg_temp_change, max.x = quke_max_mpa, y.variable = 'temp_change', y.lab = "Temp Change (C)", tlp = mean_mpa_quke, tlp.lower = lwr_mpa_quke, tlp.upper = upr_mpa_quke)
 ```
 #mpa: FInal table: 
 
@@ -958,4 +956,27 @@ quke_all_segmented_wide %>%
   facet_wrap(~water_variable,scales = "free")
 ```
 
+
+# ------------
+# All species together
+
+I made this chunk of code which only runs if all of the species-specific scripts have been run prior to running this
+
+Due to this, I have the chunk of code as text when I am not planning on using it
+
+```{r}
+all_spp_all_segmented <- rbind(abco_all_segmented_wide, arpa_all_segmented_wide, cade_all_segmented_wide, ceco_all_segmented_wide, pije_all_segmented_wide, quke_all_segmented_wide)
+
+mpa_seg_results <- all_spp_all_segmented %>% 
+  filter(analysis == 'segmented') %>% 
+  filter(water_variable == 'mpa')
+focus_mpa_seg_results <- mpa_seg_results %>% 
+  filter(st_err < 0.95)
+
+lfm_seg_results <- all_spp_all_segmented %>% 
+  filter(analysis == 'segmented') %>% 
+  filter(water_variable == 'lfm')
+focus_lfm_seg_results <- lfm_seg_results %>% 
+  filter(st_err < 15)
+```
 
