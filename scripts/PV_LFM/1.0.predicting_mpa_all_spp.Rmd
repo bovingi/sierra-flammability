@@ -679,8 +679,6 @@ predict_graph_above
 
 ### 3.1: Field data
 
-#HERE: Nov. 4
-
 This data is from measurements of predawn and midday Mpa, and midday measured LFM_ SWC is equivalent to the wettest lfm measured for each invidual divided by 100 to get *grams water/grams dry*_ 
 
 - Use `predict()` to see if we can use PV curve models to get values collected in the field (predict midday Mpa from LFM): 
