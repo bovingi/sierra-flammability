@@ -5,7 +5,7 @@ date: "4/15/2021"
 output: html_document
 ---
 
-#Setup:
+# Setup
 ```{r}
 knitr::opts_chunk$set(echo = TRUE)
 #lots of extra here, but oh well___ 
@@ -120,7 +120,7 @@ abco_2021_aug_subset_seg <- seg_data_subset %>%
 ```
 
 
-# Maximums for rwc, MPa
+# Maximums for RWC
 
 ```{r}
 max_seg_data <- seg_data_subset %>% 
@@ -138,7 +138,7 @@ abco_max_rwc <- max_seg_data %>%
 # PV Curve Data
 Note: will add TLP in later and use full function, but for now (since I am just seeing if RWC performs any better than rwc or mpa) I am going to simplify it. I am pessimistic that this will work any better than rwc or mpa anyways since I think it is more of an issue on the flammability data being noisy with the hot plate method rather than it being a messy correlation with rwc and/or mpa
 
-#Summary visualizations:
+# Summary Vis.
 
 ```{r}
 abco_subset_seg %>% 
@@ -179,7 +179,7 @@ corrplot::corrplot.mixed(abco_cor, order = 'AOE')
 
 # -------
 
-#Segmented regressions: 
+# Seg. Regressions 
 
 We're just going to do a few metrics, to represent each of the axes: 
 
@@ -193,7 +193,8 @@ Consumability: GD
 
 Maybe: Max temp
 
-###Holding vectors: this will be a df with all to collect results as we go: 
+### Holding Vectors
+This will be a dataframe with all to collect results as we go: 
 
 No random effects: 
 
@@ -434,7 +435,7 @@ rwc_abco_thresholds_seg[15] <- u_mod_davies$p.value
 rsegplot.rwc(os_mod, abco_subset_seg_prop_ignite, max.x = abco_max_rwc, y.variable = 'prop_ignite', y.lab = "Proportion Ignted (5% Bins of rwc)")
 ```
 
-### Temp change: 
+### Temp Change
 
 ```{r}
 abco_subset_seg_temp_change <- abco_subset_seg %>% 
@@ -465,9 +466,8 @@ rwc_abco_thresholds_seg[18] <- u_mod_davies$p.value
 
 rsegplot.rwc(os_mod, abco_subset_seg_temp_change, max.x = abco_max_rwc, y.variable = 'temp_change', y.lab = "Temp Change (C)")
 ```
+
 # Final Table 
-
-
 ```{r}
 #No random effects: 
 abco_rwc_summary_df <- rwc_abco_thresholds_seg %>% 
@@ -515,3 +515,4 @@ abco_rwc <- bind_rows(abco_rwc_rand_summary_df, abco_rwc_summary_df) %>%
 
 #ggsave(plot=gridExtra::tableGrob(abco_rwc), filename=here("figures", "segmented_tables", "rand_segmented_rwc_abco.png"))
 ```
+

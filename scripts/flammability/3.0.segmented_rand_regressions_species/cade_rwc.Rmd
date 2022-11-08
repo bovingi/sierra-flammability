@@ -1,11 +1,11 @@
 ---
-title: "cade segmented regressions"
+title: "cade segmented regressions: rwc"
 author: "Indra Boving & Joe Celebrezze"
 date: "4/15/2021"
 output: html_document
 ---
 
-#Setup:
+# Setup
 ```{r}
 knitr::opts_chunk$set(echo = TRUE)
 #lots of extra here, but oh well___ 
@@ -16,19 +16,49 @@ library(lme4)
 library(here)
 library(segmented)
 library(nlme)
-#citation('nlme')
 library(lubridate)
-#install.packages("plotrix")
 library(plotrix)
 filter = dplyr::filter
 here = here::here
 select = dplyr::select
-#source(here("source-code", "source-segmented_lme_R"))
 
 # Function to plot mixed effects model segmented regressions:
-
 source(here::here("scripts", "scripts_functions", "plot_segmented_MEM_V2.R"))
 ```
+
+# -------
+# Visualization Function
+```{r}
+rsegplot.rwc <- function(model, dataframe, x.variable = 'rwc', y.variable, max.x,
+                         x.lab = 'Relative Water Content', y.lab = NULL) {
+  
+  p <- summary.segmented(model)$psi[2]
+  m <- slope(model, .coef = fixef(model))[[1]][[1]]
+  b <- intercept(model, .coef = fixef(model))[[1]][[1]]
+  m2 <- slope(model, .coef = fixef(model))[[1]][[2]]
+  b2 <- intercept(model, .coef = fixef(model))[[1]][[2]]
+  yvar <- dataframe[[y.variable]]
+  xvar <- dataframe[[x.variable]]
+  confint <- confint.segmented(model, x.variable, .coef=fixef(model))
+  lower <- confint[2]
+  upper <- confint[3]
+  ymax <- max(yvar)
+  ymin <- min(yvar)
+  
+  wacky <- plot(xvar, yvar, xlim = c(0, max.x), ylim = c(ymin-0.05*ymin, ymax+0.05*ymax), 
+                xlab = x.lab, ylab = y.lab,
+                pch = 16, col = alpha('black', 0.8),
+                cex.lab = 1.3)
+  polygon(x = c(lower, upper, upper, lower), y = c(ymax + 0.2*ymax, ymax +0.2*ymax, ymin - 30, ymin - 30), col = alpha('gray', 0.3), lty = 2)
+  for(z in 1:length(xvar)){
+    if(z < p){
+      segments(x0 = 0, x1 = p, y0 = b, y1 = m*((b2 - b)/(m - m2))+b, lwd = 3, col = "#9D0208")
+    }else{
+      segments(x0 = p, x1 = max.x, y0 = m2*((b - b2)/(m2 - m))+b2 , y1 = m2*max.x + b2, lwd = 3, col = "#9D0208")}}
+  return(wacky)
+}
+```
+
 
 # Reading in Dataframe
 ```{r}
@@ -51,11 +81,12 @@ seg_data_subset$color[seg_data_subset$year_month=='2021_august']="#ffbb44"
 seg_data_subset <- seg_data_subset %>% 
   mutate_if(is.character, str_to_lower) %>% 
   mutate(spp = str_trim(spp),
-         lfm_scaled = scale(lfm),
+         rwc_scaled = scale(rwc),
     name = paste(spp,"_max", sep = ""), 
     name_subset = paste(spp, "_subset_seg", sep = ""), #this is def working. 
    # name_yearmonth = intersect(spp, year_month), 
-    name_yearmonth = paste(spp, year_month, "subset_seg", sep = "_")) 
+    name_yearmonth = paste(spp, year_month, "subset_seg", sep = "_")) %>% 
+  drop_na(rwc, mpa) #Dropping NA values for both rwc and mpa
 
 cade_subset_seg <- seg_data_subset %>% 
   filter(spp == "cade")
@@ -89,74 +120,25 @@ cade_2021_aug_subset_seg <- seg_data_subset %>%
 ```
 
 
-# Maximums for LFM, MPa
+# Maximums for RWC
 
 ```{r}
 max_seg_data <- seg_data_subset %>% 
   type.convert(as.is = TRUE) %>% 
-  select(mpa, lfm, spp) %>% 
+  select(rwc, spp) %>% 
   group_by(spp) %>% 
   summarise(across(where(is.numeric), max, .names = "max_{.col}")) 
 
-cade_max_mpa <- max_seg_data %>% 
+cade_max_rwc <- max_seg_data %>% 
   filter(spp == "cade") %>% 
-  select(max_mpa) %>% 
-  pull()
-
-cade_max_lfm <- max_seg_data %>% 
-  filter(spp == "cade") %>% 
-  select(max_lfm) %>% 
+  select(max_rwc) %>% 
   pull()
 ```
 
 # PV Curve Data
+Note: will add TLP in later and use full function, but for now (since I am just seeing if RWC performs any better than rwc or mpa) I am going to simplify it. I am pessimistic that this will work any better than rwc or mpa anyways since I think it is more of an issue on the flammability data being noisy with the hot plate method rather than it being a messy correlation with rwc and/or mpa
 
-
-```{r}
-pv_summary_df_timing <- read_csv(here("processed-data", "pv_summary_df_timing.csv"), show_col_types = FALSE) %>% 
-   filter(timing == "fall") %>% 
-  mutate_if(is.character, str_to_lower) %>% 
-  #mutate_at(spp, str_to_lower) %>% 
-  mutate(spp = str_trim(spp),
-    name = paste(spp,"_pv", sep = ""), 
-    mean_tlp = -1*mean_tlp, 
-    lwr = -1*lwr, 
-    upr = -1*upr) %>% 
-  filter(!spp %in% c("ADFA", "CEME")) 
-  
-
-pv_summary_df_timing %>% 
-  group_split(spp) %>%
-   setNames(unique(pv_summary_df_timing$name)) %>%
-  list2env(envir = globalenv())
-
-mean_mpa_cade <- cade_pv %>% 
-  select(mean_tlp) %>% 
-  pull()
-
-lwr_mpa_cade <- cade_pv %>% 
-  select(lwr) %>% 
-  pull()
-
-upr_mpa_cade <- cade_pv %>% 
-  select(upr) %>% 
-  pull()
-
-mean_lfm_cade <- cade_pv %>% 
-  select(mean_lfm) %>% 
-  pull()
-
-lwr_lfm_cade <- cade_pv %>% 
-  select(lwr_lfm) %>% 
-  pull()
-
-upr_lfm_cade <- cade_pv %>% 
-  select(upr_lfm) %>% 
-  pull()
-```
-# -------
-
-#Summary visualizations:
+# Summary Vis.
 
 ```{r}
 cade_subset_seg %>% 
@@ -187,7 +169,7 @@ cade_subset_seg %>%
 ```{r}
 cade_cor <- cade_subset_seg %>% 
   filter(ignition == 1) %>% 
-  select(tti, fh, fd, gd, temp_change, prop_ignite, lfm, mpa) %>% 
+  select(tti, fh, fd, gd, temp_change, prop_ignite, rwc, mpa) %>% 
   drop_na() %>% 
   cor()
 
@@ -197,7 +179,7 @@ corrplot::corrplot.mixed(cade_cor, order = 'AOE')
 
 # -------
 
-#Segmented regressions: 
+# Seg. Regressions 
 
 We're just going to do a few metrics, to represent each of the axes: 
 
@@ -211,55 +193,54 @@ Consumability: GD
 
 Maybe: Max temp
 
-#LFM
-
-###Holding vectors: this will be a df with all to collect results as we go: 
+### Holding Vectors
+This will be a dataframe with all to collect results as we go: 
 
 No random effects: 
 
 ```{r}
-lfm_psi_tti <- c(rep(NaN, 1))
-lfm_psi_fh <- c(rep(NaN, 1))
-lfm_psi_fd <- c(rep(NaN, 1))
-lfm_psi_gd <- c(rep(NaN, 1))
-#lfm_psi_gti <- c(rep(NaN, 1))
-#lfm_psi_lfm_pfg <- c(rep(NaN, 1))
-#lfm_psi_ttfg <- c(rep(NaN, 1))
-lfm_psi_fd <- c(rep(NaN, 1))
-lfm_psi_prop_ignite <- c(rep(NaN, 1))
-lfm_psi_temp_change <- c(rep(NaN, 1))
+rwc_psi_tti <- c(rep(NaN, 1))
+rwc_psi_fh <- c(rep(NaN, 1))
+rwc_psi_fd <- c(rep(NaN, 1))
+rwc_psi_gd <- c(rep(NaN, 1))
+#rwc_psi_gti <- c(rep(NaN, 1))
+#rwc_psi_rwc_pfg <- c(rep(NaN, 1))
+#rwc_psi_ttfg <- c(rep(NaN, 1))
+rwc_psi_fd <- c(rep(NaN, 1))
+rwc_psi_prop_ignite <- c(rep(NaN, 1))
+rwc_psi_temp_change <- c(rep(NaN, 1))
 
-lfm_st_err_tti <- c(rep(NaN, 1))
-lfm_st_err_fh <- c(rep(NaN, 1))
-lfm_st_err_fd <- c(rep(NaN, 1))
-lfm_st_err_gd <- c(rep(NaN, 1))
-#lfm_st_err_gti <- c(rep(NaN, 1))
-#lfm_st_err_lfm_pfg <- c(rep(NaN, 1))
-#lfm_st_err_ttfg <- c(rep(NaN, 1))
-lfm_st_err_fd <- c(rep(NaN, 1))
-lfm_st_err_prop_ignite <- c(rep(NaN, 1))
-lfm_st_err_temp_change <- c(rep(NaN, 1))
+rwc_st_err_tti <- c(rep(NaN, 1))
+rwc_st_err_fh <- c(rep(NaN, 1))
+rwc_st_err_fd <- c(rep(NaN, 1))
+rwc_st_err_gd <- c(rep(NaN, 1))
+#rwc_st_err_gti <- c(rep(NaN, 1))
+#rwc_st_err_rwc_pfg <- c(rep(NaN, 1))
+#rwc_st_err_ttfg <- c(rep(NaN, 1))
+rwc_st_err_fd <- c(rep(NaN, 1))
+rwc_st_err_prop_ignite <- c(rep(NaN, 1))
+rwc_st_err_temp_change <- c(rep(NaN, 1))
 
-lfm_p_value_tti <- c(rep(NaN, 1))
-lfm_p_value_fh <- c(rep(NaN, 1))
-lfm_p_value_fd <- c(rep(NaN, 1))
-lfm_p_value_gd <- c(rep(NaN, 1))
-#lfm_p_value_gti <- c(rep(NaN, 1))
-#lfm_p_value_lfm_pfg <- c(rep(NaN, 1))
-#lfm_p_value_ttfg <- c(rep(NaN, 1))
-lfm_p_value_fd <- c(rep(NaN, 1))
-lfm_p_value_prop_ignite <- c(rep(NaN, 1))
-lfm_p_value_temp_change <- c(rep(NaN, 1))
+rwc_p_value_tti <- c(rep(NaN, 1))
+rwc_p_value_fh <- c(rep(NaN, 1))
+rwc_p_value_fd <- c(rep(NaN, 1))
+rwc_p_value_gd <- c(rep(NaN, 1))
+#rwc_p_value_gti <- c(rep(NaN, 1))
+#rwc_p_value_rwc_pfg <- c(rep(NaN, 1))
+#rwc_p_value_ttfg <- c(rep(NaN, 1))
+rwc_p_value_fd <- c(rep(NaN, 1))
+rwc_p_value_prop_ignite <- c(rep(NaN, 1))
+rwc_p_value_temp_change <- c(rep(NaN, 1))
 
-lfm_cade_thresholds_seg <- tibble::data_frame(lfm_psi_tti, lfm_st_err_tti, lfm_p_value_tti,
-                              lfm_psi_fh, lfm_st_err_fh, lfm_p_value_fh,
-                              lfm_psi_fd, lfm_st_err_fd,lfm_p_value_fd,
-                              lfm_psi_gd, lfm_st_err_gd, lfm_p_value_gd, 
-                              #lfm_psi_gti, lfm_st_err_gti, 
-                              #lfm_psi_lfm_pfg, lfm_st_err_lfm_pfg, 
-                              #lfm_psi_ttfg, lfm_st_err_ttfg,
-                              lfm_psi_prop_ignite, lfm_st_err_prop_ignite, lfm_p_value_prop_ignite,
-                              lfm_psi_temp_change, lfm_st_err_temp_change, lfm_p_value_lfm_temp_change
+rwc_cade_thresholds_seg <- tibble::data_frame(rwc_psi_tti, rwc_st_err_tti, rwc_p_value_tti,
+                              rwc_psi_fh, rwc_st_err_fh, rwc_p_value_fh,
+                              rwc_psi_fd, rwc_st_err_fd,rwc_p_value_fd,
+                              rwc_psi_gd, rwc_st_err_gd, rwc_p_value_gd, 
+                              #rwc_psi_gti, rwc_st_err_gti, 
+                              #rwc_psi_rwc_pfg, rwc_st_err_rwc_pfg, 
+                              #rwc_psi_ttfg, rwc_st_err_ttfg,
+                              rwc_psi_prop_ignite, rwc_st_err_prop_ignite, rwc_p_value_prop_ignite,
+                              rwc_psi_temp_change, rwc_st_err_temp_change, rwc_p_value_temp_change
                               )
 ```
 
@@ -267,37 +248,37 @@ lfm_cade_thresholds_seg <- tibble::data_frame(lfm_psi_tti, lfm_st_err_tti, lfm_p
 Randem effecs: 
 
 ```{r}
-lfm_psi_tti <- c(rep(NaN, 1))
-lfm_psi_fh <- c(rep(NaN, 1))
-lfm_psi_fd <- c(rep(NaN, 1))
-lfm_psi_gd <- c(rep(NaN, 1))
-#lfm_psi_gti <- c(rep(NaN, 1))
-#lfm_psi_lfm_pfg <- c(rep(NaN, 1))
-#lfm_psi_ttfg <- c(rep(NaN, 1))
-lfm_psi_fd <- c(rep(NaN, 1))
-lfm_psi_prop_ignite <- c(rep(NaN, 1))
-lfm_psi_temp_change <- c(rep(NaN, 1))
+rwc_psi_tti <- c(rep(NaN, 1))
+rwc_psi_fh <- c(rep(NaN, 1))
+rwc_psi_fd <- c(rep(NaN, 1))
+rwc_psi_gd <- c(rep(NaN, 1))
+#rwc_psi_gti <- c(rep(NaN, 1))
+#rwc_psi_rwc_pfg <- c(rep(NaN, 1))
+#rwc_psi_ttfg <- c(rep(NaN, 1))
+rwc_psi_fd <- c(rep(NaN, 1))
+rwc_psi_prop_ignite <- c(rep(NaN, 1))
+rwc_psi_temp_change <- c(rep(NaN, 1))
 
-lfm_st_err_tti <- c(rep(NaN, 1))
-lfm_st_err_fh <- c(rep(NaN, 1))
-lfm_st_err_fd <- c(rep(NaN, 1))
-lfm_st_err_gd <- c(rep(NaN, 1))
-#lfm_st_err_gti <- c(rep(NaN, 1))
-#lfm_st_err_lfm_pfg <- c(rep(NaN, 1))
-#lfm_st_err_ttfg <- c(rep(NaN, 1))
-lfm_st_err_fd <- c(rep(NaN, 1))
-lfm_st_err_prop_ignite <- c(rep(NaN, 1))
-lfm_st_err_temp_change <- c(rep(NaN, 1))
+rwc_st_err_tti <- c(rep(NaN, 1))
+rwc_st_err_fh <- c(rep(NaN, 1))
+rwc_st_err_fd <- c(rep(NaN, 1))
+rwc_st_err_gd <- c(rep(NaN, 1))
+#rwc_st_err_gti <- c(rep(NaN, 1))
+#rwc_st_err_rwc_pfg <- c(rep(NaN, 1))
+#rwc_st_err_ttfg <- c(rep(NaN, 1))
+rwc_st_err_fd <- c(rep(NaN, 1))
+rwc_st_err_prop_ignite <- c(rep(NaN, 1))
+rwc_st_err_temp_change <- c(rep(NaN, 1))
 
-lfm_cade_thresholds_rand_seg <- tibble::data_frame(lfm_psi_tti, lfm_st_err_tti,
-                              lfm_psi_fh, lfm_st_err_fh, 
-                              lfm_psi_fd, lfm_st_err_fd,
-                              lfm_psi_gd, lfm_st_err_gd, 
-                              #lfm_psi_gti, lfm_st_err_gti, 
-                              #lfm_psi_lfm_pfg, lfm_st_err_lfm_pfg, 
-                              #lfm_psi_ttfg, lfm_st_err_ttfg,
-                              lfm_psi_prop_ignite, lfm_st_err_prop_ignite, 
-                              lfm_psi_temp_change, lfm_st_err_temp_change)
+rwc_cade_thresholds_rand_seg <- tibble::data_frame(rwc_psi_tti, rwc_st_err_tti,
+                              rwc_psi_fh, rwc_st_err_fh, 
+                              rwc_psi_fd, rwc_st_err_fd,
+                              rwc_psi_gd, rwc_st_err_gd, 
+                              #rwc_psi_gti, rwc_st_err_gti, 
+                              #rwc_psi_rwc_pfg, rwc_st_err_rwc_pfg, 
+                              #rwc_psi_ttfg, rwc_st_err_ttfg,
+                              rwc_psi_prop_ignite, rwc_st_err_prop_ignite, 
+                              rwc_psi_temp_change, rwc_st_err_temp_change)
 ```
 
 
@@ -309,30 +290,30 @@ cade_subset_seg_tti <- cade_subset_seg %>%
 
 #Segmented regression with random changepoints: 
 
-o_mod<-lme(tti~lfm + year_month + site, random=~1|id, data=cade_subset_seg_tti)
-os_mod_b<-segmented.default(o_mod, ~lfm, npsi=list(lfm=1))
+o_mod<-lme(tti~rwc + year_month + site, random=~1|id, data=cade_subset_seg_tti)
+os_mod_b<-segmented.default(o_mod, ~rwc, npsi=list(rwc=1))
 #summarizing results (note the '_coef' argument)
 summary.segmented(os_mod_b)
 
 #put into the df:
-lfm_cade_thresholds_rand_seg[1] <- summary(os_mod_b)$psi[2]
-lfm_cade_thresholds_rand_seg[2] <- summary(os_mod_b)$psi[3]
+rwc_cade_thresholds_rand_seg[1] <- summary(os_mod_b)$psi[2]
+rwc_cade_thresholds_rand_seg[2] <- summary(os_mod_b)$psi[3]
 
 # Segmented regression no random changepoints: 
 
-u_mod <- lm(tti~lfm + year_month + site, data = cade_subset_seg_tti)
-u_mod_b <- segmented(u_mod, ~lfm)
+u_mod <- lm(tti~rwc + year_month + site, data = cade_subset_seg_tti)
+u_mod_b <- segmented(u_mod, ~rwc)
 summary.segmented(u_mod_b)
 
 u_mod_davies <- davies.test(u_mod_b)
 
 #put into the df:
-lfm_cade_thresholds_seg[1] <- summary(u_mod_b)$psi[2]
-lfm_cade_thresholds_seg[2] <- summary(u_mod_b)$psi[3]
-lfm_cade_thresholds_seg[3] <- u_mod_davies$p.value
+rwc_cade_thresholds_seg[1] <- summary(u_mod_b)$psi[2]
+rwc_cade_thresholds_seg[2] <- summary(u_mod_b)$psi[3]
+rwc_cade_thresholds_seg[3] <- u_mod_davies$p.value
 
 
-#rsegplot.lfm(os_mod_b, cade_subset_seg_tti, max.x = cade_max_lfm, y.variable = 'tti', y.lab = "Time to Ignition (s)", tlp = mean_lfm_cade, tlp.lower = lwr_lfm_cade, tlp.upper = upr_lfm_cade)
+rsegplot.rwc(os_mod_b, cade_subset_seg_tti, max.x = cade_max_rwc, y.variable = 'tti', y.lab = "Time to Ignition (s)")
 ```
 Combustibility Metrics:
 
@@ -340,29 +321,29 @@ Combustibility Metrics:
 ```{r}
 cade_subset_seg_fh <- cade_subset_seg %>% drop_na(fh) 
 
-o_mod<-lme(fh~lfm + year_month + site, random=~1|id, data=cade_subset_seg_fh)
-os_mod<-segmented.default(o_mod, ~lfm, npsi=list(lfm=1))
+o_mod<-lme(fh~rwc + year_month + site, random=~1|id, data=cade_subset_seg_fh)
+os_mod<-segmented.default(o_mod, ~rwc, npsi=list(rwc=1))
 #summarizing results (note the '_coef' argument)
 summary.segmented(os_mod)
 
 #put into the df:
-lfm_cade_thresholds_rand_seg[3] <- summary(os_mod)$psi[2]
-lfm_cade_thresholds_rand_seg[4] <- summary(os_mod)$psi[3]
+rwc_cade_thresholds_rand_seg[3] <- summary(os_mod)$psi[2]
+rwc_cade_thresholds_rand_seg[4] <- summary(os_mod)$psi[3]
 
 # Segmented regression no random changepoints: 
 
-u_mod <- lm(fh~lfm + year_month + site, data = cade_subset_seg_fh)
-u_mod_b <- segmented(u_mod, ~lfm)
+u_mod <- lm(fh~rwc + year_month + site, data = cade_subset_seg_fh)
+u_mod_b <- segmented(u_mod, ~rwc)
 summary.segmented(u_mod_b)
 
 u_mod_davies <- davies.test(u_mod_b)
 
 #put into the df:
-lfm_cade_thresholds_seg[4] <- summary(u_mod_b)$psi[2]
-lfm_cade_thresholds_seg[5] <- summary(u_mod_b)$psi[3]
-lfm_cade_thresholds_seg[6] <- u_mod_davies$p.value
+rwc_cade_thresholds_seg[4] <- summary(u_mod_b)$psi[2]
+rwc_cade_thresholds_seg[5] <- summary(u_mod_b)$psi[3]
+rwc_cade_thresholds_seg[6] <- u_mod_davies$p.value
 
-#rsegplot.lfm(os_mod, cade_subset_seg_fh, max.x = cade_max_lfm, y.variable = 'fh', y.lab = "Flame Height (cm)", tlp = mean_lfm_cade, tlp.lower = lwr_lfm_cade, tlp.upper = upr_lfm_cade)
+rsegplot.rwc(os_mod, cade_subset_seg_fh, max.x = cade_max_rwc, y.variable = 'fh', y.lab = "Flame Height (cm)")
 ```
 
 Sustainability Metrics:
@@ -370,58 +351,58 @@ Sustainability Metrics:
 ```{r}
 cade_subset_seg_fd <- cade_subset_seg %>% drop_na(fd)
 
-o_mod<-lme(fd~lfm + year_month + site, random=~1|id, data=cade_subset_seg_fd)
-os_mod <-segmented.default(o_mod, ~lfm, npsi=list(lfm=1))
+o_mod<-lme(fd~rwc + year_month + site, random=~1|id, data=cade_subset_seg_fd)
+os_mod <-segmented.default(o_mod, ~rwc, npsi=list(rwc=1))
 #summarizing results (note the '_coef' argument)
 summary.segmented(os_mod)
 
 #put into the df:
-lfm_cade_thresholds_rand_seg[5] <- summary(os_mod)$psi[2]
-lfm_cade_thresholds_rand_seg[6] <- summary(os_mod)$psi[3]
+rwc_cade_thresholds_rand_seg[5] <- summary(os_mod)$psi[2]
+rwc_cade_thresholds_rand_seg[6] <- summary(os_mod)$psi[3]
 
 # Segmented regression no random changepoints: 
 
-u_mod <- lm(fd~lfm + year_month + site, data = cade_subset_seg_fd)
-u_mod_b <- segmented(u_mod, ~lfm)
+u_mod <- lm(fd~rwc + year_month + site, data = cade_subset_seg_fd)
+u_mod_b <- segmented(u_mod, ~rwc)
 summary.segmented(u_mod_b)
 
 u_mod_davies <- davies.test(u_mod_b)
 
 #put into the df:
-lfm_cade_thresholds_seg[7] <- summary(u_mod_b)$psi[2]
-lfm_cade_thresholds_seg[8] <- summary(u_mod_b)$psi[3]
-lfm_cade_thresholds_seg[9] <- u_mod_davies$p.value
+rwc_cade_thresholds_seg[7] <- summary(u_mod_b)$psi[2]
+rwc_cade_thresholds_seg[8] <- summary(u_mod_b)$psi[3]
+rwc_cade_thresholds_seg[9] <- u_mod_davies$p.value
 
-#rsegplot.lfm(os_mod_f, cade_subset_seg_fd, max.x = cade_max_lfm, y.variable = 'fd', y.lab = "Flame Duration (s)", tlp = mean_lfm_cade, tlp.lower = lwr_lfm_cade, tlp.upper = upr_lfm_cade)
+rsegplot.rwc(os_mod, cade_subset_seg_fd, max.x = cade_max_rwc, y.variable = 'fd', y.lab = "Flame Duration (s)")
 ```
 
-### glow Duration
+### Glow Duration
 ```{r}
 cade_subset_seg_gd <- cade_subset_seg %>% drop_na(gd)
 
-o_mod<-lme(gd~lfm + year_month + site, random=~1|id, data=cade_subset_seg_gd)
-os_mod <-segmented.default(o_mod, ~lfm, npsi=list(lfm=1))
+o_mod<-lme(gd~rwc + year_month + site, random=~1|id, data=cade_subset_seg_gd)
+os_mod <-segmented.default(o_mod, ~rwc, npsi=list(rwc=1))
 #summarizing results (note the '_coef' argument)
 summary.segmented(os_mod)
 
 #put into the df:
-lfm_cade_thresholds_rand_seg[7] <- summary(os_mod)$psi[2]
-lfm_cade_thresholds_rand_seg[8] <- summary(os_mod)$psi[3]
+rwc_cade_thresholds_rand_seg[7] <- summary(os_mod)$psi[2]
+rwc_cade_thresholds_rand_seg[8] <- summary(os_mod)$psi[3]
 
 # Segmented regression no random changepoints: 
 
-u_mod <- lm(gd~lfm + year_month + site, data = cade_subset_seg_gd)
-u_mod_b <- segmented(u_mod, ~lfm)
+u_mod <- lm(gd~rwc + year_month + site, data = cade_subset_seg_gd)
+u_mod_b <- segmented(u_mod, ~rwc)
 summary.segmented(u_mod_b)
 
 u_mod_davies <- davies.test(u_mod_b)
 
 #put into the df:
-lfm_cade_thresholds_seg[10] <- summary(u_mod_b)$psi[2]
-lfm_cade_thresholds_seg[11] <- summary(u_mod_b)$psi[3]
-lfm_cade_thresholds_seg[12] <- u_mod_davies$p.value
+rwc_cade_thresholds_seg[10] <- summary(u_mod_b)$psi[2]
+rwc_cade_thresholds_seg[11] <- summary(u_mod_b)$psi[3]
+rwc_cade_thresholds_seg[12] <- u_mod_davies$p.value
 
-#rsegplot.lfm(os_mod, cade_subset_seg_gd, max.x = cade_max_lfm, y.variable = 'gd', y.lab = "Glow Duration (s)", tlp = mean_lfm_cade, tlp.lower = lwr_lfm_cade, tlp.upper = upr_lfm_cade)
+rsegplot.rwc(os_mod, cade_subset_seg_gd, max.x = cade_max_rwc, y.variable = 'gd', y.lab = "Glow Duration (s)")
 ```
 
 
@@ -429,105 +410,74 @@ lfm_cade_thresholds_seg[12] <- u_mod_davies$p.value
 ```{r}
 cade_subset_seg_prop_ignite <- cade_subset_seg %>% drop_na(prop_ignite)
 
-o_mod<-lme(prop_ignite~lfm + year_month + site, random=~1|id, cade_subset_seg_prop_ignite )
-os_mod<-segmented.default(o_mod, ~lfm, npsi=list(lfm=1))
+o_mod<-lme(prop_ignite~rwc + year_month + site, random=~1|id, cade_subset_seg_prop_ignite )
+os_mod<-segmented.default(o_mod, ~rwc, npsi=list(rwc=1))
 #summarizing results (note the '_coef' argument)
 summary.segmented(os_mod)
 
 #put into the df:
-lfm_cade_thresholds_rand_seg[9] <- summary(os_mod)$psi[2]
-lfm_cade_thresholds_rand_seg[10] <- summary(os_mod)$psi[3]
+rwc_cade_thresholds_rand_seg[9] <- summary(os_mod)$psi[2]
+rwc_cade_thresholds_rand_seg[10] <- summary(os_mod)$psi[3]
 
 # Segmented regression no random changepoints: 
 
-u_mod <- lm(prop_ignite~lfm + year_month + site, data = cade_subset_seg_prop_ignite)
-u_mod_b <- segmented(u_mod, ~lfm)
+u_mod <- lm(prop_ignite~rwc + year_month + site, data = cade_subset_seg_prop_ignite)
+u_mod_b <- segmented(u_mod, ~rwc)
 summary.segmented(u_mod_b)
 
 u_mod_davies <- davies.test(u_mod_b)
 
 #put into the df:
-lfm_cade_thresholds_seg[13] <- summary(u_mod_b)$psi[2]
-lfm_cade_thresholds_seg[14] <- summary(u_mod_b)$psi[3]
-lfm_cade_thresholds_seg[15] <- u_mod_davies$p.value
+rwc_cade_thresholds_seg[13] <- summary(u_mod_b)$psi[2]
+rwc_cade_thresholds_seg[14] <- summary(u_mod_b)$psi[3]
+rwc_cade_thresholds_seg[15] <- u_mod_davies$p.value
 
-#rsegplot.lfm(os_mod, cade_subset_seg_prop_ignite, max.x = cade_max_lfm, y.variable = 'prop_ignite', y.lab = "Proportion Ignted (5% Bins of LFM)", tlp = mean_lfm_cade, tlp.lower = lwr_lfm_cade, tlp.upper = upr_lfm_cade)
+rsegplot.rwc(os_mod, cade_subset_seg_prop_ignite, max.x = cade_max_rwc, y.variable = 'prop_ignite', y.lab = "Proportion Ignted (5% Bins of rwc)")
 ```
 
-<!-- ### Glow to Ignition -->
-<!-- ```{r} -->
-<!-- cade_subset_seg_gti <- cade_subset_seg %>%  -->
-<!--   drop_na(gti) -->
-
-<!-- o_mod<-lme(gti~lfm + year_month + site, random=~1|id, data=cade_subset_seg_gti) -->
-<!-- os_mod<-segmented.default(o_mod, ~lfm, npsi=list(lfm=1)) -->
-<!-- #summarizing results (note the '_coef' argument) -->
-<!-- summary.segmented(os_mod) -->
-
-<!-- #rsegplot.lfm(os_mod, cade_subset_seg_gti, max.x = cade_max_lfm, y.variable = 'gti', y.lab = "Glow to Ignition (s)", tlp = mean_lfm_cade, tlp.lower = lwr_lfm_cade, tlp.upper = upr_lfm_cade) -->
-<!-- ``` -->
-
-
-
-<!-- ### Max_ Temp_ -->
-<!-- ```{r} -->
-<!-- cade_subset_seg_lower_temp_max <- cade_subset_seg %>%  -->
-<!--   drop_na(lower_temp_max) -->
-
-<!-- o_mod<-lme(lower_temp_max~lfm + year_month + site, random=~1|id, data=cade_subset_seg_lower_temp_max) -->
-<!-- os_mod<-segmented.default(o_mod, ~lfm, npsi=list(lfm=1)) -->
-<!-- #summarizing results (note the '_coef' argument) -->
-<!-- summary.segmented(os_mod) -->
-<!-- os_mod -->
-
-<!-- #rsegplot.lfm(os_mod, cade_subset_seg_lower_temp_max, max.x = cade_max_lfm, y.variable = 'lower_temp_max', y.lab = "Maximum Temperature (C)", tlp = mean_lfm_cade, tlp.lower = lwr_lfm_cade, tlp.upper = upr_lfm_cade) -->
-<!-- ``` -->
-
-
-### Temp change: 
+### Temp Change
 
 ```{r}
 cade_subset_seg_temp_change <- cade_subset_seg %>% 
   drop_na(temp_change)
 
-o_mod<-lme(lower_temp_max~lfm + year_month + site, random=~1|id, data=cade_subset_seg_temp_change)
-os_mod<-segmented.default(o_mod, ~lfm, npsi=list(lfm=1))
+o_mod<-lme(lower_temp_max~rwc + year_month + site, random=~1|id, data=cade_subset_seg_temp_change)
+os_mod<-segmented.default(o_mod, ~rwc, npsi=list(rwc=1))
 #summarizing results (note the '_coef' argument)
 summary.segmented(os_mod)
 os_mod
 
 #put into the df:
-lfm_cade_thresholds_rand_seg[11] <- summary(os_mod)$psi[2]
-lfm_cade_thresholds_rand_seg[12] <- summary(os_mod)$psi[3]
+rwc_cade_thresholds_rand_seg[11] <- summary(os_mod)$psi[2]
+rwc_cade_thresholds_rand_seg[12] <- summary(os_mod)$psi[3]
 
 # Segmented regression no random changepoints: 
 
-u_mod <- lm(temp_change~lfm + year_month + site, data = cade_subset_seg_temp_change)
-u_mod_b <- segmented(u_mod, ~lfm)
+u_mod <- lm(temp_change~rwc + year_month + site, data = cade_subset_seg_temp_change)
+u_mod_b <- segmented(u_mod, ~rwc)
 summary.segmented(u_mod_b)
 
 u_mod_davies <- davies.test(u_mod_b)
 
 #put into the df:
-lfm_cade_thresholds_seg[16] <- summary(u_mod_b)$psi[2]
-lfm_cade_thresholds_seg[17] <- summary(u_mod_b)$psi[3]
-lfm_cade_thresholds_seg[18] <- u_mod_davies$p.value
+rwc_cade_thresholds_seg[16] <- summary(u_mod_b)$psi[2]
+rwc_cade_thresholds_seg[17] <- summary(u_mod_b)$psi[3]
+rwc_cade_thresholds_seg[18] <- u_mod_davies$p.value
 
-#rsegplot.lfm(os_mod, cade_subset_seg_temp_change, max.x = cade_max_lfm, y.variable = 'temp_change', y.lab = "Temp Change (C)", tlp = mean_lfm_cade, tlp.lower = lwr_lfm_cade, tlp.upper = upr_lfm_cade)
+rsegplot.rwc(os_mod, cade_subset_seg_temp_change, max.x = cade_max_rwc, y.variable = 'temp_change', y.lab = "Temp Change (C)")
 ```
-#LFM: FInal table: 
 
-
+# Final Table 
 ```{r}
 #No random effects: 
-cade_lfm_summary_df <- lfm_cade_thresholds_seg %>% 
+cade_rwc_summary_df <- rwc_cade_thresholds_seg %>% 
   pivot_longer(everything(), 
                names_to = "flam_metric", 
               values_to = "value") %>% 
   group_by(flam_metric) %>% 
    summarise(value = mean(value)) %>% 
              #sd_bootstrap = sd(value)) %>% 
-  mutate(across('flam_metric', str_replace, 'lfm_', ''),
+  mutate(across('flam_metric', str_replace, 'rwc_', ''),
          across('flam_metric', str_replace_all, '_', ' '), 
          statistic = case_when(
            grepl("p value", flam_metric) ~ "p value",
@@ -537,17 +487,17 @@ cade_lfm_summary_df <- lfm_cade_thresholds_seg %>%
          analysis = "segmented") %>% 
   arrange(flam_metric, statistic, value, analysis)
          
-cade_lfm_summary_df
+cade_rwc_summary_df
 
 #with random effects: 
-cade_lfm_rand_summary_df <- lfm_cade_thresholds_rand_seg %>% 
+cade_rwc_rand_summary_df <- rwc_cade_thresholds_rand_seg %>% 
   pivot_longer(everything(), 
                names_to = "flam_metric", 
               values_to = "value") %>% 
   group_by(flam_metric) %>% 
    summarise(value = mean(value)) %>% 
              #sd_bootstrap = sd(value)) %>% 
-  mutate(across('flam_metric', str_replace, 'lfm_', ''),
+  mutate(across('flam_metric', str_replace, 'rwc_', ''),
          across('flam_metric', str_replace_all, '_', ' '), 
          statistic = case_when(
            grepl("p value", flam_metric) ~ "p value",
@@ -557,405 +507,12 @@ cade_lfm_rand_summary_df <- lfm_cade_thresholds_rand_seg %>%
          analysis = "random") %>% 
   arrange(flam_metric, statistic, value, analysis)
          
-cade_lfm_rand_summary_df
+cade_rwc_rand_summary_df
 
-cade_lfm <- bind_rows(cade_lfm_rand_summary_df, cade_lfm_summary_df) %>% 
+cade_rwc <- bind_rows(cade_rwc_rand_summary_df, cade_rwc_summary_df) %>% 
   mutate(spp = "cade", 
-         water_variable = "lfm") 
+         water_variable = "rwc") 
 
-#ggsave(plot=gridExtra::tableGrob(cade_lfm), filename=here("figures", "segmented_tables", "rand_segmented_lfm_cade.png"))
+#ggsave(plot=gridExtra::tableGrob(cade_rwc), filename=here("figures", "segmented_tables", "rand_segmented_rwc_cade.png"))
 ```
-
-
-
-# -------
-
-#MPa
-
-###Holding vectors: this will be a df with all to collect results as we go: 
-
-No random effects: 
-
-```{r}
-mpa_psi_tti <- c(rep(NaN, 1))
-mpa_psi_fh <- c(rep(NaN, 1))
-mpa_psi_fd <- c(rep(NaN, 1))
-mpa_psi_gd <- c(rep(NaN, 1))
-#mpa_psi_gti <- c(rep(NaN, 1))
-#mpa_psi_mpa_pfg <- c(rep(NaN, 1))
-#mpa_psi_ttfg <- c(rep(NaN, 1))
-mpa_psi_fd <- c(rep(NaN, 1))
-mpa_psi_prop_ignite <- c(rep(NaN, 1))
-mpa_psi_temp_change <- c(rep(NaN, 1))
-
-mpa_st_err_tti <- c(rep(NaN, 1))
-mpa_st_err_fh <- c(rep(NaN, 1))
-mpa_st_err_fd <- c(rep(NaN, 1))
-mpa_st_err_gd <- c(rep(NaN, 1))
-#mpa_st_err_gti <- c(rep(NaN, 1))
-#mpa_st_err_mpa_pfg <- c(rep(NaN, 1))
-#mpa_st_err_ttfg <- c(rep(NaN, 1))
-mpa_st_err_fd <- c(rep(NaN, 1))
-mpa_st_err_prop_ignite <- c(rep(NaN, 1))
-mpa_st_err_temp_change <- c(rep(NaN, 1))
-
-mpa_p_value_tti <- c(rep(NaN, 1))
-mpa_p_value_fh <- c(rep(NaN, 1))
-mpa_p_value_fd <- c(rep(NaN, 1))
-mpa_p_value_gd <- c(rep(NaN, 1))
-#mpa_p_value_gti <- c(rep(NaN, 1))
-#mpa_p_value_mpa_pfg <- c(rep(NaN, 1))
-#mpa_p_value_ttfg <- c(rep(NaN, 1))
-mpa_p_value_fd <- c(rep(NaN, 1))
-mpa_p_value_prop_ignite <- c(rep(NaN, 1))
-mpa_p_value_temp_change <- c(rep(NaN, 1))
-
-mpa_cade_thresholds_seg <- tibble::data_frame(mpa_psi_tti, mpa_st_err_tti, mpa_p_value_tti,
-                              mpa_psi_fh, mpa_st_err_fh, mpa_p_value_fh,
-                              mpa_psi_fd, mpa_st_err_fd,mpa_p_value_fd,
-                              mpa_psi_gd, mpa_st_err_gd, mpa_p_value_gd, 
-                              #mpa_psi_gti, mpa_st_err_gti, 
-                              #mpa_psi_mpa_pfg, mpa_st_err_mpa_pfg, 
-                              #mpa_psi_ttfg, mpa_st_err_ttfg,
-                              mpa_psi_prop_ignite, mpa_st_err_prop_ignite, mpa_p_value_prop_ignite,
-                              mpa_psi_temp_change, mpa_st_err_temp_change, mpa_p_value_temp_change
-                              )
-```
-
-
-Randem effecs: 
-
-```{r}
-mpa_psi_tti <- c(rep(NaN, 1))
-mpa_psi_fh <- c(rep(NaN, 1))
-mpa_psi_fd <- c(rep(NaN, 1))
-mpa_psi_gd <- c(rep(NaN, 1))
-#mpa_psi_gti <- c(rep(NaN, 1))
-#mpa_psi_mpa_pfg <- c(rep(NaN, 1))
-#mpa_psi_ttfg <- c(rep(NaN, 1))
-mpa_psi_fd <- c(rep(NaN, 1))
-mpa_psi_prop_ignite <- c(rep(NaN, 1))
-mpa_psi_temp_change <- c(rep(NaN, 1))
-
-mpa_st_err_tti <- c(rep(NaN, 1))
-mpa_st_err_fh <- c(rep(NaN, 1))
-mpa_st_err_fd <- c(rep(NaN, 1))
-mpa_st_err_gd <- c(rep(NaN, 1))
-#mpa_st_err_gti <- c(rep(NaN, 1))
-#mpa_st_err_mpa_pfg <- c(rep(NaN, 1))
-#mpa_st_err_ttfg <- c(rep(NaN, 1))
-mpa_st_err_fd <- c(rep(NaN, 1))
-mpa_st_err_prop_ignite <- c(rep(NaN, 1))
-mpa_st_err_temp_change <- c(rep(NaN, 1))
-
-mpa_cade_thresholds_rand_seg <- tibble::data_frame(mpa_psi_tti, mpa_st_err_tti,
-                              mpa_psi_fh, mpa_st_err_fh, 
-                              mpa_psi_fd, mpa_st_err_fd,
-                              mpa_psi_gd, mpa_st_err_gd, 
-                              #mpa_psi_gti, mpa_st_err_gti, 
-                              #mpa_psi_mpa_pfg, mpa_st_err_mpa_pfg, 
-                              #mpa_psi_ttfg, mpa_st_err_ttfg,
-                              mpa_psi_prop_ignite, mpa_st_err_prop_ignite, 
-                              mpa_psi_temp_change, mpa_st_err_temp_change)
-```
-
-
-### Time to Ignition
-
-```{r}
-cade_subset_seg_tti <- cade_subset_seg %>%
-  drop_na(tti)
-
-#Segmented regression with random changepoints: 
-
-o_mod<-lme(tti~mpa + year_month + site, random=~1|id, data=cade_subset_seg_tti)
-os_mod_b<-segmented.default(o_mod, ~mpa, npsi=list(mpa=1))
-#summarizing results (note the '_coef' argument)
-summary.segmented(os_mod_b)
-
-#put into the df:
-mpa_cade_thresholds_rand_seg[1] <- summary(os_mod_b)$psi[2]
-mpa_cade_thresholds_rand_seg[2] <- summary(os_mod_b)$psi[3]
-
-# Segmented regression no random changepoints: 
-
-u_mod <- lm(tti~mpa + year_month + site, data = cade_subset_seg_tti)
-u_mod_b <- segmented(u_mod, ~mpa)
-summary.segmented(u_mod_b)
-
-u_mod_davies <- davies.test(u_mod_b)
-
-#put into the df:
-mpa_cade_thresholds_seg[1] <- summary(u_mod_b)$psi[2]
-mpa_cade_thresholds_seg[2] <- summary(u_mod_b)$psi[3]
-mpa_cade_thresholds_seg[3] <- u_mod_davies$p.value
-
-
-#rsegplot.mpa(os_mod_b, cade_subset_seg_tti, max.x = cade_max_mpa, y.variable = 'tti', y.lab = "Time to Ignition (s)", tlp = mean_mpa_cade, tlp.lower = lwr_mpa_cade, tlp.upper = upr_mpa_cade)
-```
-Combustibility Metrics:
-
-### Flame Height
-```{r}
-cade_subset_seg_fh <- cade_subset_seg %>% drop_na(fh) 
-
-o_mod<-lme(fh~mpa + year_month + site, random=~1|id, data=cade_subset_seg_fh)
-os_mod<-segmented.default(o_mod, ~mpa, npsi=list(mpa=1))
-#summarizing results (note the '_coef' argument)
-summary.segmented(os_mod)
-
-#put into the df:
-mpa_cade_thresholds_rand_seg[3] <- summary(os_mod)$psi[2]
-mpa_cade_thresholds_rand_seg[4] <- summary(os_mod)$psi[3]
-
-# Segmented regression no random changepoints: 
-
-u_mod <- lm(fh~mpa + year_month + site, data = cade_subset_seg_fh)
-u_mod_b <- segmented(u_mod, ~mpa)
-summary.segmented(u_mod_b)
-
-u_mod_davies <- davies.test(u_mod_b)
-
-#put into the df:
-mpa_cade_thresholds_seg[4] <- summary(u_mod_b)$psi[2]
-mpa_cade_thresholds_seg[5] <- summary(u_mod_b)$psi[3]
-mpa_cade_thresholds_seg[6] <- u_mod_davies$p.value
-
-#rsegplot.mpa(os_mod, cade_subset_seg_fh, max.x = cade_max_mpa, y.variable = 'fh', y.lab = "Flame Height (cm)", tlp = mean_mpa_cade, tlp.lower = lwr_mpa_cade, tlp.upper = upr_mpa_cade)
-
-```
-
-Sustainability Metrics:
-### Flame Duration
-```{r}
-cade_subset_seg_fd <- cade_subset_seg %>% drop_na(fd)
-
-o_mod<-lme(fd~mpa + year_month + site, random=~1|id, data=cade_subset_seg_fd)
-os_mod <-segmented.default(o_mod, ~mpa, npsi=list(mpa=1))
-#summarizing results (note the '_coef' argument)
-summary.segmented(os_mod)
-
-#put into the df:
-mpa_cade_thresholds_rand_seg[5] <- summary(os_mod)$psi[2]
-mpa_cade_thresholds_rand_seg[6] <- summary(os_mod)$psi[3]
-
-# Segmented regression no random changepoints: 
-
-u_mod <- lm(fd~mpa + year_month + site, data = cade_subset_seg_fd)
-u_mod_b <- segmented(u_mod, ~mpa)
-summary.segmented(u_mod_b)
-
-u_mod_davies <- davies.test(u_mod_b)
-
-#put into the df:
-mpa_cade_thresholds_seg[7] <- summary(u_mod_b)$psi[2]
-mpa_cade_thresholds_seg[8] <- summary(u_mod_b)$psi[3]
-mpa_cade_thresholds_seg[9] <- u_mod_davies$p.value
-
-#rsegplot.mpa(os_mod, cade_subset_seg_fd, max.x = cade_max_mpa, y.variable = 'fd', y.lab = "Flame Duration (s)", tlp = mean_mpa_cade, tlp.lower = lwr_mpa_cade, tlp.upper = upr_mpa_cade)
-```
-
-### glow Duration
-```{r}
-cade_subset_seg_gd <- cade_subset_seg %>% drop_na(gd)
-
-o_mod<-lme(gd~mpa + year_month + site, random=~1|id, data=cade_subset_seg_gd)
-os_mod <-segmented.default(o_mod, ~mpa, npsi=list(mpa=1))
-#summarizing results (note the '_coef' argument)
-summary.segmented(os_mod)
-
-#put into the df:
-mpa_cade_thresholds_rand_seg[7] <- summary(os_mod)$psi[2]
-mpa_cade_thresholds_rand_seg[8] <- summary(os_mod)$psi[3]
-
-# Segmented regression no random changepoints: 
-
-u_mod <- lm(gd~mpa + year_month + site, data = cade_subset_seg_gd)
-u_mod_b <- segmented(u_mod, ~mpa)
-summary.segmented(u_mod_b)
-
-u_mod_davies <- davies.test(u_mod_b)
-
-#put into the df:
-mpa_cade_thresholds_seg[10] <- summary(u_mod_b)$psi[2]
-mpa_cade_thresholds_seg[11] <- summary(u_mod_b)$psi[3]
-mpa_cade_thresholds_seg[12] <- u_mod_davies$p.value
-
-#rsegplot.mpa(os_mod, cade_subset_seg_gd, max.x = cade_max_mpa, y.variable = 'gd', y.lab = "Glow Duration (s)", tlp = mean_mpa_cade, tlp.lower = lwr_mpa_cade, tlp.upper = upr_mpa_cade)
-```
-
-
-### Prop. Ignite (5%)
-```{r}
-cade_subset_seg_prop_ignite <- cade_subset_seg %>% drop_na(prop_ignite)
-
-o_mod<-lme(prop_ignite~mpa + year_month + site, random=~1|id, cade_subset_seg_prop_ignite )
-os_mod<-segmented.default(o_mod, ~mpa, npsi=list(mpa=1))
-#summarizing results (note the '_coef' argument)
-summary.segmented(os_mod)
-
-#put into the df:
-mpa_cade_thresholds_rand_seg[9] <- summary(os_mod)$psi[2]
-mpa_cade_thresholds_rand_seg[10] <- summary(os_mod)$psi[3]
-
-# Segmented regression no random changepoints: 
-
-u_mod <- lm(prop_ignite~mpa + year_month + site, data = cade_subset_seg_prop_ignite)
-u_mod_b <- segmented(u_mod, ~mpa)
-summary.segmented(u_mod_b)
-
-u_mod_davies <- davies.test(u_mod_b)
-
-#put into the df:
-mpa_cade_thresholds_seg[13] <- summary(u_mod_b)$psi[2]
-mpa_cade_thresholds_seg[14] <- summary(u_mod_b)$psi[3]
-mpa_cade_thresholds_seg[15] <- u_mod_davies$p.value
-
-#rsegplot.mpa(os_mod, cade_subset_seg_prop_ignite, max.x = cade_max_mpa, y.variable = 'prop_ignite', y.lab = "Proportion Ignted (5% Bins of mpa)", tlp = mean_mpa_cade, tlp.lower = lwr_mpa_cade, tlp.upper = upr_mpa_cade)
-```
-
-<!-- ### Glow to Ignition -->
-<!-- ```{r} -->
-<!-- cade_subset_seg_gti <- cade_subset_seg %>%  -->
-<!--   drop_na(gti) -->
-
-<!-- o_mod<-lme(gti~mpa + year_month + site, random=~1|id, data=cade_subset_seg_gti) -->
-<!-- os_mod<-segmented.default(o_mod, ~mpa, npsi=list(mpa=1)) -->
-<!-- #summarizing results (note the '_coef' argument) -->
-<!-- summary.segmented(os_mod) -->
-
-<!-- #rsegplot.mpa(os_mod, cade_subset_seg_gti, max.x = cade_max_mpa, y.variable = 'gti', y.lab = "Glow to Ignition (s)", tlp = mean_mpa_cade, tlp.lower = lwr_mpa_cade, tlp.upper = upr_mpa_cade) -->
-<!-- ``` -->
-
-
-
-<!-- ### Max_ Temp_ -->
-<!-- ```{r} -->
-<!-- cade_subset_seg_lower_temp_max <- cade_subset_seg %>%  -->
-<!--   drop_na(lower_temp_max) -->
-
-<!-- o_mod<-lme(lower_temp_max~mpa + year_month + site, random=~1|id, data=cade_subset_seg_lower_temp_max) -->
-<!-- os_mod<-segmented.default(o_mod, ~mpa, npsi=list(mpa=1)) -->
-<!-- #summarizing results (note the '_coef' argument) -->
-<!-- summary.segmented(os_mod) -->
-<!-- os_mod -->
-
-<!-- #rsegplot.mpa(os_mod, cade_subset_seg_lower_temp_max, max.x = cade_max_mpa, y.variable = 'lower_temp_max', y.lab = "Maximum Temperature (C)", tlp = mean_mpa_cade, tlp.lower = lwr_mpa_cade, tlp.upper = upr_mpa_cade) -->
-<!-- ``` -->
-
-
-### Temp change: 
-
-```{r}
-cade_subset_seg_temp_change <- cade_subset_seg %>% 
-  drop_na(temp_change)
-
-o_mod<-lme(lower_temp_max~mpa + year_month + site, random=~1|id, data=cade_subset_seg_temp_change)
-os_mod<-segmented.default(o_mod, ~mpa, npsi=list(mpa=1))
-#summarizing results (note the '_coef' argument)
-summary.segmented(os_mod)
-os_mod
-
-#put into the df:
-mpa_cade_thresholds_rand_seg[11] <- summary(os_mod)$psi[2]
-mpa_cade_thresholds_rand_seg[12] <- summary(os_mod)$psi[3]
-
-# Segmented regression no random changepoints: 
-
-u_mod <- lm(temp_change~mpa + year_month + site, data = cade_subset_seg_temp_change)
-u_mod_b <- segmented(u_mod, ~mpa)
-summary.segmented(u_mod_b)
-
-u_mod_davies <- davies.test(u_mod_b)
-
-#put into the df:
-mpa_cade_thresholds_seg[16] <- summary(u_mod_b)$psi[2]
-mpa_cade_thresholds_seg[17] <- summary(u_mod_b)$psi[3]
-mpa_cade_thresholds_seg[18] <- u_mod_davies$p.value
-
-#rsegplot.mpa(os_mod, cade_subset_seg_temp_change, max.x = cade_max_mpa, y.variable = 'temp_change', y.lab = "Temp Change (C)", tlp = mean_mpa_cade, tlp.lower = lwr_mpa_cade, tlp.upper = upr_mpa_cade)
-```
-#mpa: FInal table: 
-
-
-```{r}
-#No random effects: 
-cade_mpa_summary_df <- mpa_cade_thresholds_seg %>% 
-  pivot_longer(everything(), 
-               names_to = "flam_metric", 
-              values_to = "value") %>% 
-  group_by(flam_metric) %>% 
-   summarise(value = mean(value)) %>% 
-             #sd_bootstrap = sd(value)) %>% 
-  mutate(across('flam_metric', str_replace, 'mpa_', ''),
-        across('flam_metric', str_replace_all, '_', ' '), 
-         statistic = case_when(
-           grepl("p value", flam_metric) ~ "p value",
-            grepl("psi", flam_metric) ~"psi",
-            grepl("st err", flam_metric) ~"st err")) %>% 
-  mutate(across('flam_metric', str_replace, 'p value|st err|psi', ''), 
-         analysis = "segmented") %>% 
-  arrange(flam_metric, statistic, value, analysis)
-         
-cade_mpa_summary_df
-
-#with random effects: 
-cade_mpa_rand_summary_df <- mpa_cade_thresholds_rand_seg %>% 
-  pivot_longer(everything(), 
-               names_to = "flam_metric", 
-              values_to = "value") %>% 
-  group_by(flam_metric) %>% 
-   summarise(value = mean(value)) %>% 
-             #sd_bootstrap = sd(value)) %>% 
-  mutate(across('flam_metric', str_replace, 'mpa_', ''),
-        across('flam_metric', str_replace_all, '_', ' '), 
-         statistic = case_when(
-           grepl("p value", flam_metric) ~ "p value",
-            grepl("psi", flam_metric) ~"psi",
-            grepl("st err", flam_metric) ~"st err")) %>% 
-  mutate(across('flam_metric', str_replace, 'p value|st err|psi', ''), 
-         analysis = "random") %>% 
-  arrange(flam_metric, statistic, value, analysis)
-         
-cade_mpa_rand_summary_df
-
-cade_mpa <- bind_rows(cade_mpa_rand_summary_df, cade_mpa_summary_df) %>% 
-  mutate(spp = "cade", 
-         water_variable = "mpa") 
-
-#ggsave(plot=gridExtra::tableGrob(cade_mpa), filename=here("figures", "segmented_tables", "rand_segmented_mpa_cade.png"))
-```
-
-
-#------------
-
-#All together now:
-
-```{r}
-cade_all_segmented <- bind_rows(cade_lfm, cade_mpa)
-
-cade_all_segmented_wide <- cade_all_segmented %>% 
-  mutate(across('statistic', str_replace, ' ', '_')) %>% 
-  pivot_wider(names_from = statistic, 
-              values_from = value)
-
-write_csv(cade_all_segmented_wide, 
-          here::here("processed-data", "analysis 2.0", "segmented_reg_all", "cade_all_segmented_wide.csv"))
-```
-
-#Visualize: 
-
-```{r}
-cade_all_segmented_wide %>% 
-  #filter(statistic == "psi") %>% 
-  ggplot(aes(
-    y = psi, 
-    x = flam_metric,
-    color = analysis, 
-   # size = p_value
-  )) +
-  geom_point() +
-  facet_wrap(~water_variable,scales = "free")
-```
-
 
