@@ -33,9 +33,9 @@ library(strengejacke)
 library(sjPlot) # table functions
 library(sjmisc) # sample data
 
-library(lme4) # fifdng models
+library(lme4) # fitting models
 library(here)
-library(effects) #for plofdng model effects
+library(effects) #for plotting model effects
 library(sjstats) #use for r2 functions
 library(TMB)
 library(glmmTMB)
@@ -69,7 +69,7 @@ Reading in dataframe
 
 ```{r}
 mem_data_all <- read_csv(here("processed-data", "analysis 2.0", "sierra_flam_data_all.csv")) %>% 
-  select(lfm, mpa, fd, fd, fd, fd, prop_ignite, temp_change, ignition, sample_wt, dry_wt, fresh_wt, water_wt, location, site, year_month, spp, individual) %>% 
+  select(rwc, mpa, tti, fh, fd, gd, prop_ignite, temp_change, ignition, sample_wt, dry_wt, fresh_wt, water_wt, location, site, year_month, spp, individual, rwc) %>% 
   mutate(dw_flam_sample = sample_wt * (dry_wt/fresh_wt),
          ww_flam_sample = sample_wt * (water_wt/fresh_wt)) %>% 
   mutate(excess_water = (ww_flam_sample - dw_flam_sample)) %>% 
@@ -78,18 +78,9 @@ mem_data_all <- read_csv(here("processed-data", "analysis 2.0", "sierra_flam_dat
   mutate(dw_flam_sample_scaled = scale(dw_flam_sample), 
          sample_wt_scaled = scale(sample_wt), 
          ww_flam_sample_scaled = scale(ww_flam_sample),
-         lfm_scaled = scale(lfm), 
+         rwc_scaled = scale(rwc), 
          excess_water_scaled = scale(excess_water)) %>% 
   filter(!year_month %in% c("2021_august"))
-```
-```{r}
-mem_data_all %>% 
-ggplot(aes( 
-           y = lfm_scaled, 
-           x = fd, 
-           color = spp)) +
-  geom_point()+
-  geom_smooth(method = "lm")
 ```
 
 ```{r}
@@ -114,71 +105,9 @@ Maxs and mins from the field data:
 
 ### All dates datasets
 
-```{r, message=FALSE, warning=FALSE, include=FALSE}
-# mem.adfa.subset <- mem_data_all  %>% 
-#   filter(spp == "ADFA") %>% 
-#   filter(ignition == "1")
-# 
-# mem.CEME.subset <- mem_data_all  %>% 
-#   filter(spp == "CEME")%>% 
-#   filter(ignition == "1")
-# 
-# mem.adfa.subset.allignitions <- mem_data_all  %>% 
-#   filter(spp == "ADFA")
-# 
-# mem.CEME.subset.allignitions <- mem_data_all %>% 
-#   filter(spp == "CEME")
-# 
-# mem.adfa.subset.limited <- mem.adfa.subset %>% 
-#   filter(lfm < adfa_max, lfm > adfa_min)
-# 
-# mem.CEME.subset <- mem_data_all %>% 
-#   filter(spp == "CEME")
-# 
-# mem.CEME.subset.limited <- mem.CEME.subset %>% 
-#   filter(lfm < ceme_max, lfm > ceme_min)
-```
-
 #------------------------------------
-# 2.0 Predicting flam metrics: fd, fd, FD, fd, Temp change, prop ignite. 
 
-## 2.0.1 fd: Figures of models
-
-```{r}
-fd_mpa_m1 <- lmer(fd ~ mpa + spp + year_month + (1 | individual), data =  mem_data_all)
-summary(fd_mpa_m1)
-
-#remove fixed effect of spp:
-#     see what names are associated: 
-term2coef(fd_mpa_m1, "spp")
-
-r1_1 <- remef(fd_mpa_m1 , fix = c("spparpa", "sppcade", "sppceco", "spppije", "sppquke"))
-summary(r1_1)
-head(r1_1)
-
-# remove fixed effect of 'Days' and the intercept
-#r1_2 <- remef(fm1, fix = "Days", keep.intercept = FALSE)
-```
-
-```{r}
-# (pp <- plot_model(mpa_mod_fig.mpa,type="pred",
-#        terms=c("mpa","year_month"),pred.type="re"))
-# 
-# (pp <- plot_model(mpa_mod_fig.mpa,type="pred",
-#        terms=c("mpa","spp"),pred.type="re"))
-```
-
-#### Check assumptions
-
-```{r}
-plot(fd_mpa_m1)
-#qqnorm(mpa_mod_fig.mpa, ~ranef(., level=2))
-#https://stats.stackexchange.com/questions/77891/checking-assumptions-lmer-lme-mixed-models-in-r for above code - gefdng an error right now though
-```
-
-# ---------------------------------
-# MODEL SELECTION 1
-What covariates to include?
+# MODEL SELECTION 
 
 ## Site, spp, year_month, sample_wt
 ```{r}
@@ -188,31 +117,21 @@ performance::multicollinearity(sw_mpa_mod_fig.mpa)
 ```
 
 ```{r}
-sw_max_model <- lmer(fd ~ spp + dw_flam_sample_scaled + ww_flam_sample_scaled +  mpa_scaled + lfm_scaled + excess_water_scaled + site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all)
+sw_max_model <- lmer(fd ~ spp + dw_flam_sample_scaled + ww_flam_sample_scaled +  mpa_scaled + rwc_scaled + excess_water_scaled + site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all)
 
 performance::multicollinearity(sw_max_model)
+
+#tidy_fd <- broom.mixed::tidy(sw_max_model)
 ```
 
 ```{r}
-sw_m1 <- lmer(fd ~ spp*mpa_scaled + spp*lfm_scaled +  site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all)
+sw_max_model_norwc <- lmer(fd ~ spp + dw_flam_sample_scaled +  ww_flam_sample_scaled +  mpa_scaled + excess_water_scaled + site +  year_month + sample_wt_scaled + (1 | individual), data = mem_data_all)
 
-performance::multicollinearity(sw_m1)
+performance::multicollinearity(sw_max_model_norwc)
 ```
 
 ```{r}
-sw_m2 <- lmer(fd ~ spp + mpa_scaled + lfm_scaled + site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all)
-
-performance::multicollinearity(sw_m2)
-```
-
-```{r}
-sw_max_model_nolfm <- lmer(fd ~ spp + dw_flam_sample_scaled +  ww_flam_sample_scaled +  mpa_scaled + excess_water_scaled + site +  year_month + sample_wt_scaled + (1 | individual), data = mem_data_all)
-
-performance::multicollinearity(sw_max_model_nolfm)
-```
-
-```{r}
-sw_max_model_nompa <- lmer(fd ~ spp + dw_flam_sample_scaled +  ww_flam_sample_scaled +  lfm+ excess_water_scaled + site +  year_month + sample_wt_scaled + (1 | individual), data = mem_data_all)
+sw_max_model_nompa <- lmer(fd ~ spp + dw_flam_sample_scaled +  ww_flam_sample_scaled +  rwc+ excess_water_scaled + site +  year_month + sample_wt_scaled + (1 | individual), data = mem_data_all)
 
 performance::multicollinearity(sw_max_model_nompa)
 ```
@@ -236,16 +155,15 @@ performance::multicollinearity(sw_m6.5)
 ```
 
 ```{r}
-sw_m7 <- lmer(fd ~ mpa_scaled + lfm_scaled+ spp + site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all)
-
+sw_m7 <- lmer(fd ~ mpa_scaled + rwc_scaled+ spp + site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all)
+AIC(sw_m7)
 performance::multicollinearity(sw_m7)
 ```
 
 ```{r}
-sw_m10 <- lmer(fd ~ lfm_scaled + spp + site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all)
-
+sw_m10 <- lmer(fd ~ rwc_scaled + spp + site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all)
+AIC(sw_m10)
 performance::multicollinearity(sw_m10)
-
 ```
 
 ```{r}
@@ -261,13 +179,13 @@ performance::multicollinearity(sw_m12)
 ```
 
 ```{r}
-sw_m12.5 <- lmer(fd ~ excess_water_scaled + mpa_scaled + lfm_scaled+ spp + site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all)
+sw_m12.5 <- lmer(fd ~ excess_water_scaled + mpa_scaled + rwc_scaled+ spp + site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all)
 
 performance::multicollinearity(sw_m12.5) ##High correlation! Don't use
 ```
 
 ```{r}
-sw_m13 <- lmer(fd ~ excess_water_scaled + lfm_scaled+ spp + site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all)
+sw_m13 <- lmer(fd ~ excess_water_scaled + rwc_scaled+ spp + site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all)
 
 performance::multicollinearity(sw_m13) ##High correlation! Don't use
 ```
@@ -286,8 +204,6 @@ performance::multicollinearity(sw_m15)
 
 ```{r}
 tab_model(sw_mpa_mod_fig.mpa, 
-          sw_m1, 
-          sw_m2,
           sw_m11, 
           sw_m7, 
           sw_m10,
@@ -308,7 +224,7 @@ tab_model(sw_mpa_mod_fig.mpa,
                          # 'spp Effect (C. megacarpus)',
                           'Water Potential x spp Effect
                           (interaction)',
-                          'LFM (%)',
+                          'rwc (%)',
                           'Water Weight (g)', 
                           'Dry Weight (g)',
                           'Site Effect (Site 1)',
@@ -316,8 +232,6 @@ tab_model(sw_mpa_mod_fig.mpa,
                           'Excess Water x spp Effect
                           (interaction)'),
          dv.labels = c("mpa_spp", 
-                       "sw_m1", 
-                       "sw_m2",
                        "sw_m11", 
                        "sw_m7", 
                        #"m10",
@@ -333,45 +247,7 @@ tab_model(sw_mpa_mod_fig.mpa,
          title = "models with no collinearity; site + spp + year_month + sample wt",
   string.p = "P-Value", 
   p.style = "stars",
-  file = here('figures', 'MEM_figures','site_yearmonth_samplewt_fd.html')) # saving _html into figures folder
-```
-#####fd top models
-```{r}
-tab_model(sw_m11, sw_m12.5, sw_m13, sw_m7,
-          show.reflvl = TRUE, 
-          digits = 3, 
-          show.aic = TRUE, 
-          show.ci = FALSE,
-          show.icc = FALSE, 
-          pred.labels = c('Intercept', 
-                          'Water Potential (scaled)', 
-                         # 'spp Effect (C. megacarpus)',
-                          'Water Potential x spp Effect
-                          (interaction)',
-                          'LFM (%)',
-                          'Water Weight (g)', 
-                          'Dry Weight (g)',
-                          'Site Effect (Site 1)',
-                          'Excess Water (scaled)',
-                          'Excess Water x spp Effect
-                          (interaction)'),
-         dv.labels = c(#"mpa_spp", 
-                       "sw_m11", 
-                       #"m7", 
-                       #"m10",
-                      # "m10",
-                       #"m3", 
-                       #"m6", 
-                       #"m6.5", 
-                      # "m12",
-                       "sw_m12.5", 
-                       "sw_m13", 
-                       "sw_m7"),
-         string.pred = "Coeffcient", 
-         title = "models with no collinearity; site + spp + year_month + sample wt",
-  string.p = "P-Value", 
-  p.style = "stars",
-  file = here('figures', 'MEM_figures','site_yearmonth_samplewt_topAIC_fd.html')) # saving _html into figures folder
+  file = here('figures', 'MEM_figures','site_yearmonth_samplewt_fd_rwc.html')) # saving _html into figures folder
 ```
 
 ## Site, spp, year_month
@@ -387,37 +263,25 @@ performance::multicollinearity(mpa_mod_fig.mpa)
 ```
 
 ```{r}
-max_model <- lmer(fd ~ spp + dw_flam_sample_scaled +  ww_flam_sample_scaled +  mpa_scaled + lfm_scaled+ excess_water_scaled + site + year_month + (1 | individual), data = mem_data_all)
+max_model <- lmer(fd ~ spp + dw_flam_sample_scaled +  ww_flam_sample_scaled +  mpa_scaled + rwc_scaled+ excess_water_scaled + site + year_month + (1 | individual), data = mem_data_all)
 
 performance::multicollinearity(max_model)
 ```
-```{r}
-m1 <- lmer(fd ~ spp +  mpa_scaled + lfm_scaled+ excess_water_scaled + site + year_month + (1 | individual), data = mem_data_all)
-
-performance::multicollinearity(m1)
-```
 
 ```{r}
-m2 <- lmer(fd ~ spp * mpa_scaled + spp* lfm_scaled  + site + year_month + (1 | individual), data = mem_data_all)
-
-performance::multicollinearity(m2)
-```
-
-
-```{r}
-max_model_noww <- lmer(fd ~ spp + dw_flam_sample_scaled +  mpa_scaled + lfm_scaled+ excess_water_scaled + site + year_month + (1 | individual), data = mem_data_all)
+max_model_noww <- lmer(fd ~ spp + dw_flam_sample_scaled +  mpa_scaled + rwc_scaled + excess_water_scaled + site + year_month + (1 | individual), data = mem_data_all)
 
 performance::multicollinearity(max_model_noww)
 ```
 
 ```{r}
-max_model_nolfm <- lmer(fd ~ spp + dw_flam_sample_scaled +  ww_flam_sample_scaled +  mpa_scaled + excess_water_scaled + site +  year_month + (1 | individual), data = mem_data_all)
+max_model_norwc <- lmer(fd ~ spp + dw_flam_sample_scaled +  ww_flam_sample_scaled +  mpa_scaled + excess_water_scaled + site +  year_month + (1 | individual), data = mem_data_all)
 
-performance::multicollinearity(max_model_nolfm)
+performance::multicollinearity(max_model_norwc)
 ```
 
 ```{r}
-max_model_nompa <- lmer(fd ~ spp + dw_flam_sample_scaled +  ww_flam_sample_scaled +  lfm+ excess_water_scaled + site +  year_month + (1 | individual), data = mem_data_all)
+max_model_nompa <- lmer(fd ~ spp + dw_flam_sample_scaled +  ww_flam_sample_scaled +  rwc_scaled + excess_water_scaled + site +  year_month + (1 | individual), data = mem_data_all)
 
 performance::multicollinearity(max_model_nompa)
 ```
@@ -445,13 +309,13 @@ performance::multicollinearity(m6.5)
 ```
 
 ```{r}
-m7 <- lmer(fd ~ mpa_scaled + lfm_scaled+ spp + site + year_month + (1 | individual), data = mem_data_all)
+m7 <- lmer(fd ~ mpa_scaled + rwc_scaled+ spp + site + year_month + (1 | individual), data = mem_data_all)
 
 performance::multicollinearity(m7)
 ```
 
 ```{r}
-m10 <- lmer(fd ~ lfm_scaled + spp + site + year_month + (1 | individual), data = mem_data_all)
+m10 <- lmer(fd ~ rwc_scaled + spp + site + year_month + (1 | individual), data = mem_data_all)
 
 qqnorm(resid(m10))
 r <- resid(m10)
@@ -459,7 +323,6 @@ plot(fitted(m10), r)
 
 performance::multicollinearity(m10)
 ```
-
 
 ```{r}
 m11 <- lmer(fd ~ mpa_scaled*spp + site + year_month + (1 | individual), data = mem_data_all)
@@ -474,19 +337,19 @@ performance::multicollinearity(m12)
 ```
 
 ```{r}
-m12.5 <- lmer(fd ~ dw_flam_sample_scaled +  mpa_scaled + lfm_scaled+ spp + site + year_month + (1 | individual), data = mem_data_all)
+m12.5 <- lmer(fd ~ dw_flam_sample_scaled +  mpa_scaled + rwc_scaled+ spp + site + year_month + (1 | individual), data = mem_data_all)
 
 qqnorm(resid(m12.5))
 r <- resid(m12.5)
 plot(fitted(m12.5), r)
 
-performance::multicollinearity(m12.5) ##High correlation! Don't use
+performance::multicollinearity(m12.5) 
 ```
 
 ```{r}
-m13 <- lmer(fd ~ excess_water_scaled + lfm_scaled+ spp + site + year_month + (1 | individual), data = mem_data_all)
+m13 <- lmer(fd ~ excess_water_scaled + rwc_scaled+ spp + site + year_month + (1 | individual), data = mem_data_all)
 
-performance::multicollinearity(m13) ##High correlation! Don't use
+performance::multicollinearity(m13)
 ```
 
 ```{r}
@@ -502,7 +365,7 @@ performance::multicollinearity(m15)
 ```
 
 ```{r}
-tab_model(mpa_mod_fig.mpa, m1, m2, m11, m7, m10, m3, m6, m6.5, m12, m15, m10, m13, m14,max_model_noww,
+tab_model(mpa_mod_fig.mpa, m11, m7, m10, m3, m6, m6.5, m12, m15, m10, m13, m14, max_model_noww,
           show.reflvl = TRUE, 
           digits = 3, 
           show.aic = TRUE, 
@@ -513,7 +376,7 @@ tab_model(mpa_mod_fig.mpa, m1, m2, m11, m7, m10, m3, m6, m6.5, m12, m15, m10, m1
                           'spp Effect (C. megacarpus)',
                           'Water Potential x spp Effect
                           (interaction)',
-                          'LFM (%)',
+                          'rwc (%)',
                           'Water Weight (g)', 
                           'Dry Weight (g)',
                           'Site Effect (Site 1)',
@@ -521,10 +384,7 @@ tab_model(mpa_mod_fig.mpa, m1, m2, m11, m7, m10, m3, m6, m6.5, m12, m15, m10, m1
                           'Excess Water x spp Effect
                           (interaction)'),
          dv.labels = c("mpa_spp", 
-                       "m1", 
-                       "m2",
                        "m11", 
-                       "m7", 
                        "m7",
                        "m10",
                        "m3", 
@@ -541,13 +401,13 @@ tab_model(mpa_mod_fig.mpa, m1, m2, m11, m7, m10, m3, m6, m6.5, m12, m15, m10, m1
         # caption = "site, spp, year_month",
   string.p = "P-Value", 
   p.style = "stars",
-  file = here('figures', 'MEM_figures','site_yearmonth_fd.html')) # saving _fd.html into figures folder
+  file = here('figures', 'MEM_figures','site_yearmonth_fd_rwc.html')) # saving _fd_rwc.html into figures folder
 ```
 ######fd top models: 
 
 The following models are the best models: 
 ```{r}
-tab_model(m1, m2,
+tab_model(max_model_noww, m15, m6, m13,
           show.reflvl = TRUE, 
           digits = 3, 
           show.aic = TRUE, 
@@ -558,36 +418,35 @@ tab_model(m1, m2,
                           'spp Effect (C. megacarpus)',
                           'Water Potential x spp Effect
                           (interaction)',
-                          'LFM (%)',
-                          'Water Weight (g)', 
+                          'rwc (%)',
+                          'Water Weight (g)',
                           'Dry Weight (g)',
                           'Site Effect (Site 1)',
                           'Excess Water (scaled)',
                           'Excess Water x spp Effect
                           (interaction)'),
-         dv.labels = c("m7", 
-                       "m11", 
-                       "m12.5",
+         dv.labels = c("max_noww", 
+                       "m15", 
+                       "m6",
                        "m13"),
          string.pred = "Coeffcient", 
          title = "BEST models with no collinearity; site, spp, year_month",
         # caption = "site, spp, year_month",
   string.p = "P-Value", 
   p.style = "stars",
-  file = here('figures', 'MEM_figures','site_yearmonth_topAIC_fd.html')) # saving _fd.html into figures folder
+  file = here('figures', 'MEM_figures','site_yearmonth_topAIC_fd_rwc.html')) # saving _fd_rwc.html into figures folder
 ```
 
 #fd best model in table: 
 ```{r}
-tab_model(m2, sw_m1,
+tab_model(sw_m11, sw_m12.5, max_model_noww,
           show.reflvl = TRUE, 
           digits = 3, 
           show.aic = TRUE, 
           show.ci = FALSE,
           show.icc = FALSE, 
           pred.labels = c('Intercept', 
-                          'MPa (scaled)', 
-                         # 'Dry weight (scaled)',
+                          'MPa (scaled)',
                           'A. patula',
                           "C. decurrens", 
                           "C. cordulatus", 
@@ -601,17 +460,17 @@ tab_model(m2, sw_m1,
                           "MPa x P. jeffryii", 
                           "MPa x Q. kelloggii",
                           'Excess Water (scaled)',
-                          'LFM (scaled)',
+                          'rwc (scaled)',
                           "Sample weight (scaled"),
-         dv.labels = c("sw_m1", 
-                       #"m11", 
-                       "m2"),
+         dv.labels = c("sw_m11", 
+                       "sw_m12.5",
+                       "max_noww"),
          string.pred = "Coeffcient", 
          title = "BEST models with no collinearity; site, spp, year_month",
         # caption = "site, spp, year_month",
   string.p = "P-Value", 
   p.style = "stars",
-  file = here('figures', 'MEM_figures','fd_topAIC_fd.html')) # saving
+  file = here('figures', 'MEM_figures','fd_topAIC_fd_rwc.html')) # saving
 ```
 
 

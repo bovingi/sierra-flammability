@@ -125,6 +125,12 @@ performance::multicollinearity(sw_max_model)
 ```
 
 ```{r}
+sw_max_model_noww <- lmer(tti ~ spp + dw_flam_sample_scaled +  mpa_scaled + rwc_scaled + excess_water_scaled + site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all)
+
+performance::multicollinearity(sw_max_model_noww)
+```
+
+```{r}
 sw_max_model_norwc <- lmer(tti ~ spp + dw_flam_sample_scaled +  ww_flam_sample_scaled +  mpa_scaled + excess_water_scaled + site +  year_month + sample_wt_scaled + (1 | individual), data = mem_data_all)
 
 performance::multicollinearity(sw_max_model_norwc)
@@ -163,8 +169,7 @@ performance::multicollinearity(sw_m7)
 ```{r}
 sw_m10 <- lmer(tti ~ rwc_scaled + spp + site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all)
 AIC(sw_m10)
-performanace::multicollinearity(sw_m10)
-
+performance::multicollinearity(sw_m10)
 ```
 
 ```{r}
@@ -270,7 +275,7 @@ performance::multicollinearity(max_model)
 ```
 
 ```{r}
-max_model_noww <- lmer(tti ~ spp + dw_flam_sample_scaled +  mpa_scaled + rwc_scaled+ excess_water_scaled + site + year_month + (1 | individual), data = mem_data_all)
+max_model_noww <- lmer(tti ~ spp + dw_flam_sample_scaled +  mpa_scaled + rwc_scaled + excess_water_scaled + site + year_month + (1 | individual), data = mem_data_all)
 
 performance::multicollinearity(max_model_noww)
 ```
@@ -282,7 +287,7 @@ performance::multicollinearity(max_model_norwc)
 ```
 
 ```{r}
-max_model_nompa <- lmer(tti ~ spp + dw_flam_sample_scaled +  ww_flam_sample_scaled +  rwc+ excess_water_scaled + site +  year_month + (1 | individual), data = mem_data_all)
+max_model_nompa <- lmer(tti ~ spp + dw_flam_sample_scaled +  ww_flam_sample_scaled +  rwc_scaled + excess_water_scaled + site +  year_month + (1 | individual), data = mem_data_all)
 
 performance::multicollinearity(max_model_nompa)
 ```
@@ -344,13 +349,13 @@ qqnorm(resid(m12.5))
 r <- resid(m12.5)
 plot(fitted(m12.5), r)
 
-performance::multicollinearity(m12.5) ##High correlation! Don't use
+performance::multicollinearity(m12.5) 
 ```
 
 ```{r}
 m13 <- lmer(tti ~ excess_water_scaled + rwc_scaled+ spp + site + year_month + (1 | individual), data = mem_data_all)
 
-performance::multicollinearity(m13) ##High correlation! Don't use
+performance::multicollinearity(m13)
 ```
 
 ```{r}
@@ -366,7 +371,7 @@ performance::multicollinearity(m15)
 ```
 
 ```{r}
-tab_model(mpa_mod_fig.mpa, m11, m7, m10, m3, m6, m6.5, m12, m15, m10, m13, m14,max_model_noww,
+tab_model(mpa_mod_fig.mpa, m11, m7, m10, m3, m6, m6.5, m12, m15, m10, m13, m14, max_model_noww,
           show.reflvl = TRUE, 
           digits = 3, 
           show.aic = TRUE, 
@@ -386,8 +391,7 @@ tab_model(mpa_mod_fig.mpa, m11, m7, m10, m3, m6, m6.5, m12, m15, m10, m13, m14,m
                           (interaction)'),
          dv.labels = c("mpa_spp", 
                        "m11", 
-                       "m7", 
-                      # "m7",
+                       "m7",
                        "m10",
                        "m3", 
                        "m6", 
@@ -409,7 +413,7 @@ tab_model(mpa_mod_fig.mpa, m11, m7, m10, m3, m6, m6.5, m12, m15, m10, m13, m14,m
 
 The following models are the best models: 
 ```{r}
-tab_model(m7, m11, m12.5, m13,
+tab_model(max_model_noww, m11, m7, mpa_mod_fig.mpa,
           show.reflvl = TRUE, 
           digits = 3, 
           show.aic = TRUE, 
@@ -427,10 +431,10 @@ tab_model(m7, m11, m12.5, m13,
                           'Excess Water (scaled)',
                           'Excess Water x spp Effect
                           (interaction)'),
-         dv.labels = c("m7", 
+         dv.labels = c("max_noww", 
                        "m11", 
-                       "m12.5",
-                       "m13"),
+                       "m7",
+                       "mpa_spp"),
          string.pred = "Coeffcient", 
          title = "BEST models with no collinearity; site, spp, year_month",
         # caption = "site, spp, year_month",
@@ -441,7 +445,7 @@ tab_model(m7, m11, m12.5, m13,
 
 #TTI best model in table: 
 ```{r}
-tab_model(m11, sw_m12.5,
+tab_model(sw_m11, sw_m12.5,
           show.reflvl = TRUE, 
           digits = 3, 
           show.aic = TRUE, 
@@ -464,8 +468,7 @@ tab_model(m11, sw_m12.5,
                           'Excess Water (scaled)',
                           'rwc (scaled)',
                           "Sample weight (scaled"),
-         dv.labels = c("sw_m11", 
-                       #"m11", 
+         dv.labels = c("sw_m11",
                        "sw_m12.5"),
          string.pred = "Coeffcient", 
          title = "BEST models with no collinearity; site, spp, year_month",
