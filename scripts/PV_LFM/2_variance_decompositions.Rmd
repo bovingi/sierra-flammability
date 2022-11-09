@@ -1,0 +1,77 @@
+---
+title: "PV Curves"
+author: "Indra Boving"
+date: "11/8/2022"
+output: html_document
+---
+
+# Section 1: Pressure Volume Curves
+
+```{r}
+pv_all_df <- read_csv(here("processed-data", "allcurves_clean.csv"), show_col_types = FALSE) %>% 
+  mutate(sample = as.factor(sample)) %>% 
+  mutate(month = as.factor(month)) %>% 
+  mutate(date = date(date), 
+         individual = unique_id) %>% 
+  clean_names() %>% 
+  group_by(spp) %>% 
+  mutate(plant = unique_identifier(individual)) 
+```
+
+Variance decomposition: 
+
+Variance decomp. of max LFM (int of LFM at 0 mpa), look at prop variance due to spp, time, rest resid. 
+
+to do it, a few possible ways: 
+
+#### Way 1: 
+fit lmer(maxLFM ~ 1|spp + 1|time)
+Will tell you relative and total variance, will sum to >1
+```{r}
+
+```
+
+OR
+#### Way 2: 
+do it with fixed effects, which will sum to 1
+lm(maxLFM ~ spp * time)
+lm(maxLFM ~ spp)
+lm(maxLFM ~ time)
+
+R^2 full = R^2 spp + R^2 time + R^2 spp * time)
+```{r}
+
+```
+
+OR (other method):
+#### Way 3: 
+psi ~ spp * year * LFM
+(LFM + spp + year + LFM:spp + LFM:year + spp:year + LFM:spp:year)
+Drop each component and look R^2, and build back up to model 
+```{r}
+
+```
+# Section 2: Flam curve phys data
+
+```{r}
+flam_curve_phys_all_raw <- read_csv(here("processed-data", "analysis 2.0", "flam_curve_phys_all.csv"), show_col_types = FALSE)
+
+flam_curve_predict_df <- flam_curve_phys_all_raw %>% 
+  mutate(water_potential = -1*pos_mpa, 
+         swc = swc_sat, 
+         month = as.factor(month)) %>% 
+  group_by(spp) %>% 
+  mutate(plant = unique_identifier(individual)) %>% 
+  select(spp, swc, lfm, mpa, month, tlp, water_potential, po, individual, plant)
+```
+
+# Section 3:
+
+```{r}
+field_data_all <- read_csv(here("processed-data", "analysis 2.0", "field_data_2020_2021.csv"), show_col_types = FALSE) %>% 
+  mutate(tlp = mean_tlp_spp, 
+         po = mean_po_date) %>% 
+  select(-mpa, -water_potential) %>% 
+  mutate(water_potential = midday)
+```
+

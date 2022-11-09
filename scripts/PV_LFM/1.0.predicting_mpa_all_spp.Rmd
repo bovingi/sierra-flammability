@@ -163,6 +163,7 @@ For fall PV curves, the mean TLP = `r round(mean(fall_tlp,2))`, sd = `r round(me
 
 ```{r, echo=FALSE, message=FALSE, results='hide'}
 pv_fall %>% 
+  filter(unique_id== "2020_9_ADFA_1") %>% 
   ggplot(aes(y = water_potential, 
              x = lfm, 
              color = as.factor(date))
@@ -243,10 +244,38 @@ ggplot(data = all_above_tlp, aes(y = water_potential,
                                  shape = as.factor(date))) +
   geom_jitter(alpha = .6, size = 1) +
   geom_smooth(method = "lm", se = FALSE, size = .5, alpha = .5) +
-labs(y = "Mpa", x = "LFM (%)")
+labs(y = "Mpa", x = "LFM (%)") +
+  facet_wrap(~spp, scales = "free")
   #theme_light()
 ```
 Looks like maybe date really matters for CECO? Weird... 
+
+
+Variance decomp. of max LFM (int of LFM at 0 mpa), look at prop variance due to spp, time, rest resid. 
+
+to do it: 
+fit lmer(maxLFM ~ 1|spp + 1|time)
+Will tell you relative and total variance, will sum to >1
+
+OR
+
+do it with fixed effects, which will sum to 1
+lm(maxLFM ~ spp * time)
+lm(maxLFM ~ spp)
+lm(maxLFM ~ time)
+
+R^2 full = R^2 spp + R^2 time + R^2 spp * time)
+
+
+OR (other method):
+
+psi ~ spp * year * LFM
+(LFM + spp + year + LFM:spp + LFM:year + spp:year + LFM:spp:year)
+Drop each component and look R^2, and build back up to model 
+
+
+
+alpha = resid
 
 ```{r}
 fit_above_all <- lm(water_potential ~ lfm + spp, all_above_tlp)
