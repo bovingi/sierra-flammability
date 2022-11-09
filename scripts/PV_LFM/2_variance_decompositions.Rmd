@@ -39,6 +39,7 @@ lm(maxLFM ~ spp)
 lm(maxLFM ~ time)
 
 R^2 full = R^2 spp + R^2 time + R^2 spp * time)
+
 ```{r}
 
 ```
@@ -48,6 +49,7 @@ OR (other method):
 psi ~ spp * year * LFM
 (LFM + spp + year + LFM:spp + LFM:year + spp:year + LFM:spp:year)
 Drop each component and look R^2, and build back up to model 
+
 ```{r}
 
 ```
