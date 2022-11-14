@@ -4,19 +4,73 @@ author: "Indra Boving"
 date: "11/8/2022"
 output: html_document
 ---
+# Setup
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
 
+library(ggplot2)
+library(purrr) #for visualizing all variables in one big plot
+library(naniar) #for dealing with NAs nicely 
+library(tidyverse)
+library(ggpubr)
+library(cowplot)
+library(GGally) #for corr plots
+require(kimisc) # has the nlist function to create a named list
+library(strengejacke)
+library(sjPlot) # table functions
+library(here)
+library(effects) #for plofhng model effects
+library(sjstats) #use for r2 functions
+library("broom.mixed")
+library(MuMIn)
+library(modelsummary)
+library(nlme)
+library(MetBrewer)
+library(remef)
+library(kableExtra)
+library(janitor)
+library(lubridate)
+
+filter = dplyr::filter
+mutate = dplyr::mutate
+select = dplyr::select
+here = here::here
+```
 # Section 1: Pressure Volume Curves
 
 ```{r}
-pv_all_df <- read_csv(here("processed-data", "allcurves_clean.csv"), show_col_types = FALSE) %>% 
+pv_all_df <- read_csv(here("processed-data", "allcurves_clean.csv"), show_col_types = FALSE) %>%
   mutate(sample = as.factor(sample)) %>% 
   mutate(month = as.factor(month)) %>% 
-  mutate(date = date(date), 
+  mutate(date = ymd(date), 
          individual = unique_id) %>% 
   clean_names() %>% 
   group_by(spp) %>% 
-  mutate(plant = unique_identifier(individual)) 
+  mutate(plant = udpipe::unique_identifier(individual), 
+         fresh_weight_saturated = as.numeric(fresh_weight_saturated)) %>% 
+  group_by(spp, plant) %>% 
+  mutate(maxLFM = ((fresh_weight_saturated - dry_weight)/dry_weight)*100)
 ```
+
+#PV
+
+####PV plot
+```{r}
+pv_plot <- pv_all_df %>% 
+  filter(!spp %in% c("ADFA", "CEME")) %>% 
+  ggplot(aes(x = -1*water_potential, 
+             y = lfm, 
+             color = spp)) +
+  geom_point(alpha = .5) +
+  color_many +
+  theme(legend.position = "none", 
+        axis.title.x = element_text("")) +
+  labs(title = "PV Curves", 
+       x = "", 
+       y = "LFM")
+pv_plot
+```
+
 
 Variance decomposition: 
 
@@ -24,15 +78,19 @@ Variance decomp. of max LFM (int of LFM at 0 mpa), look at prop variance due to 
 
 to do it, a few possible ways: 
 
-#### Way 1: 
+Way 1: 
 fit lmer(maxLFM ~ 1|spp + 1|time)
 Will tell you relative and total variance, will sum to >1
 ```{r}
-
+# m1 <- lmer(swc ~ (1|spp) + (1|month), data = pv_all_df)
+# m1
+# 
+# r.squaredGLMM(m1)
 ```
 
 OR
-#### Way 2: 
+#####Max LFM
+Way 2: 
 do it with fixed effects, which will sum to 1
 lm(maxLFM ~ spp * time)
 lm(maxLFM ~ spp)
@@ -41,8 +99,116 @@ lm(maxLFM ~ time)
 R^2 full = R^2 spp + R^2 time + R^2 spp * time)
 
 ```{r}
+m1 <- lmer(maxLFM ~ spp * year + (1|plant), data = pv_all_df)
+m2 <- lmer(maxLFM ~ spp + (1|plant), data = pv_all_df)
+m3 <- lmer(maxLFM ~ year + (1|plant), data = pv_all_df)
 
+#try using r.squaredGLMM:
+mods_list <- list(m1, m2, m3)
+
+r2 <- lapply(mods_list, r.squaredGLMM)
+r2
+
+r2m <- c(r2[[1]][1], r2[[2]][1], r2[[3]][1]) #vector of r2s
+mods <- c("m1", "m2", "m3")
+
+mod_all_df1 <-  data.frame(mods, r2m)
+
+mod_all_df <- mod_all_df1 %>% 
+  pivot_wider(names_from = mods, 
+              values_from = r2m) %>% 
+  mutate(
+    #other_effects =  m3 - week_effect - mpa_effect,
+    time_effect = m1 - m2, #week + mpa mod - mpa mod
+         spp_effect = m1 - m3, #week + mpa mod - week mod
+         time_spp_effect = m1, #week + mpa mod 
+    other_effects =  m1 - time_effect - spp_effect,
+         ) #full minus the effects of mpa and week alone
+mod_all_df
+
+#for plotting (maybe?)
+mod_all_long <- mod_all_df %>% 
+  select(time_effect, spp_effect, time_spp_effect, other_effects) %>% 
+  pivot_longer(cols = c(time_effect, spp_effect, time_spp_effect, other_effects), 
+    names_to = "effect") %>% 
+  distinct() %>% 
+  mutate(analysis = case_when(
+    effect %in% c("time_effect", "spp_effect", "other_effects") ~ "PV Curve", 
+    effect %in% c("time_spp_effect") ~ "Full Mod.", 
+    TRUE ~ as.character(effect)), 
+    decomp = "After Leafout")
+mod_all_long
+
+mod_all_long %>% 
+  filter(analysis == "PV Curve") %>% 
+  ggplot(aes(x = analysis, 
+             y = value, 
+         fill = effect)) +
+  geom_col(stat = "identity") +
+ # geom_text(aes(label = value)) +
+  color_many +
+  labs(y = "R squared", 
+       x = "Predictor") +
+  color_fill
 ```
+
+####JustLFM
+```{r}
+m1 <- lmer(lfm ~ spp * year + (1|plant), data = pv_all_df)
+m2 <- lmer(lfm ~ spp + (1|plant), data = pv_all_df)
+m3 <- lmer(lfm ~ year + (1|plant), data = pv_all_df)
+m4 <- lmer(lfm ~ water_potential + (1|plant), data = pv_all_df)
+
+#try using r.squaredGLMM:
+mods_list <- list(m1, m2, m3, m4)
+
+r2 <- lapply(mods_list, r.squaredGLMM)
+r2
+
+r2m <- c(r2[[1]][1], r2[[2]][1], r2[[3]][1], r2[[4]][1]) #vector of r2s
+mods <- c("m1", "m2", "m3", "m4")
+
+mod_all_df1 <-  data.frame(mods, r2m)
+
+mod_all_df <- mod_all_df1 %>% 
+  pivot_wider(names_from = mods, 
+              values_from = r2m) %>% 
+  mutate(
+    #other_effects =  m3 - week_effect - mpa_effect,
+    time_effect = m1 - m2 - m4, #week + mpa mod - mpa mod
+         spp_effect = m1 - m3 - m4, #week + mpa mod - week mod
+         time_spp_effect = m1, #week + mpa mod 
+    mpa_effect = m1 - m2 - m3,
+    other_effects =  m1 - time_effect - spp_effect - mpa_effect,
+         ) #full minus the effects of mpa and week alone
+mod_all_df
+
+#for plotting (maybe?)
+mod_all_long_lfm <- mod_all_df %>% 
+  select(time_effect, spp_effect, time_spp_effect, other_effects, mpa_effect) %>% 
+  pivot_longer(cols = c(time_effect, spp_effect, time_spp_effect, other_effects, mpa_effect), 
+    names_to = "effect") %>% 
+  distinct() %>% 
+  mutate(analysis = case_when(
+    effect %in% c("time_effect", "spp_effect", "other_effects", "mpa_effect") ~ "PV Curve", 
+    effect %in% c("time_spp_effect") ~ "Full Mod.", 
+    TRUE ~ as.character(effect)), 
+    decomp = "After Leafout")
+mod_all_long_lfm
+
+mod_all_long_lfm %>% 
+  filter(analysis == "PV Curve") %>% 
+  ggplot(aes(x = analysis, 
+             y = value, 
+         fill = effect)) +
+  geom_col(stat = "identity") +
+ # geom_text(aes(label = value)) +
+  color_many +
+  labs(y = "R squared", 
+       x = "Predictor") +
+  color_fill
+```
+
 
 OR (other method):
 #### Way 3: 
@@ -53,27 +219,415 @@ Drop each component and look R^2, and build back up to model
 ```{r}
 
 ```
+
 # Section 2: Flam curve phys data
 
 ```{r}
 flam_curve_phys_all_raw <- read_csv(here("processed-data", "analysis 2.0", "flam_curve_phys_all.csv"), show_col_types = FALSE)
 
-flam_curve_predict_df <- flam_curve_phys_all_raw %>% 
+flam_curve_df <- flam_curve_phys_all_raw %>% 
   mutate(water_potential = -1*pos_mpa, 
          swc = swc_sat, 
          month = as.factor(month)) %>% 
   group_by(spp) %>% 
-  mutate(plant = unique_identifier(individual)) %>% 
-  select(spp, swc, lfm, mpa, month, tlp, water_potential, po, individual, plant)
+  mutate(plant = udpipe::unique_identifier(individual), 
+         maxLFM = gww_gdw_saturated * 100) 
+#%>% 
+ # select(spp, swc, lfm, mpa, month, tlp, water_potential, po, individual, plant)
 ```
 
-# Section 3:
+
+#####Flam plot
+```{r}
+flam_plot <- flam_curve_df %>% 
+  filter(lfm < 300, 
+         lfm > 50) %>% 
+  filter(!spp %in% c("ADFA", "CEME")) %>% 
+  ggplot(aes(y = lfm, 
+             x = -1*water_potential, 
+             color = spp)) +
+  geom_point(alpha = .5) +
+ # geom_smooth(method = "lm", se = F) +
+  color_many +
+  theme(legend.position = "none")+
+  labs(title = "Flam", 
+       x = "Water Potential", 
+       y = "LFM")
+flam_plot
+```
+
+####MaxLFM
+```{r}
+m1 <- lmer(maxLFM ~ spp * year_month + (1|plant), data = flam_curve_df)
+m2 <- lmer(maxLFM ~ spp + (1|plant), data = flam_curve_df)
+m3 <- lmer(maxLFM ~ year_month + (1|plant), data = flam_curve_df)
+
+#try using r.squaredGLMM:
+mods_list <- list(m1, m2, m3)
+
+r2 <- lapply(mods_list, r.squaredGLMM)
+r2
+
+r2m <- c(r2[[1]][1], r2[[2]][1], r2[[3]][1]) #vector of r2s
+mods <- c("m1", "m2", "m3")
+
+mod_all_df1 <-  data.frame(mods, r2m)
+
+mod_all_df <- mod_all_df1 %>% 
+  pivot_wider(names_from = mods, 
+              values_from = r2m) %>% 
+  mutate(
+    #other_effects =  m3 - week_effect - mpa_effect,
+    time_effect = m1 - m2, #week + mpa mod - mpa mod
+         spp_effect = m1 - m3, #week + mpa mod - week mod
+         time_spp_effect = m1, #week + mpa mod 
+    other_effects =  m1 - time_effect - spp_effect,
+         ) #full minus the effects of mpa and week alone
+mod_all_df
+
+#for plotting (maybe?)
+mod_all_long_flam <- mod_all_df %>% 
+  select(time_effect, spp_effect, time_spp_effect, other_effects) %>% 
+  pivot_longer(cols = c(time_effect, spp_effect, time_spp_effect, other_effects), 
+    names_to = "effect") %>% 
+  distinct() %>% 
+  mutate(analysis = case_when(
+    effect %in% c("time_effect", "spp_effect", "other_effects") ~ "Flam Curve", 
+    effect %in% c("time_spp_effect") ~ "Full Mod.", 
+    TRUE ~ as.character(effect)), 
+    decomp = "After Leafout")
+mod_all_long_flam
+
+mod_all_long_flam %>% 
+  filter(analysis == "Flam Curve") %>% 
+  ggplot(aes(x = analysis, 
+             y = value, 
+         fill = effect)) +
+  geom_col(stat = "identity") +
+ # geom_text(aes(label = value)) +
+  color_many +
+  labs(y = "R squared", 
+       x = "Predictor") +
+  color_fill
+```
+
+###Just LFM
+```{r}
+m1 <- lmer(lfm ~ spp * year_month + (1|plant), data = flam_curve_df)
+m2 <- lmer(lfm ~ spp + (1|plant), data = flam_curve_df)
+m3 <- lmer(lfm ~ year_month + (1|plant), data = flam_curve_df)
+m4 <- lmer(lfm ~ water_potential + (1|plant), data = flam_curve_df)
+
+#try using r.squaredGLMM:
+mods_list <- list(m1, m2, m3, m4)
+
+r2 <- lapply(mods_list, r.squaredGLMM)
+r2
+
+r2m <- c(r2[[1]][1], r2[[2]][1], r2[[3]][1], r2[[4]][1]) #vector of r2s
+mods <- c("m1", "m2", "m3", "m4")
+
+mod_all_df1 <-  data.frame(mods, r2m)
+
+mod_all_df <- mod_all_df1 %>% 
+  pivot_wider(names_from = mods, 
+              values_from = r2m) %>% 
+  mutate(
+    #other_effects =  m3 - week_effect - mpa_effect,
+    time_effect = m1 - m2 - m4, #week + mpa mod - mpa mod
+         spp_effect = m1 - m3 - m4, #week + mpa mod - week mod
+         time_spp_effect = m1, #week + mpa mod 
+    mpa_effect= m1 - m2 - m3,
+    other_effects =  m1 - time_effect - spp_effect - mpa_effect
+         ) #full minus the effects of mpa and week alone
+mod_all_df
+
+#for plotting (maybe?)
+mod_all_long_flam_lfm <- mod_all_df %>% 
+  select(time_effect, spp_effect, time_spp_effect, other_effects, mpa_effect) %>% 
+  pivot_longer(cols = c(time_effect, spp_effect, time_spp_effect, other_effects, mpa_effect), 
+    names_to = "effect") %>% 
+  distinct() %>% 
+  mutate(analysis = case_when(
+    effect %in% c("time_effect", "spp_effect", "other_effects", "mpa_effect") ~ "Flam Curve", 
+    effect %in% c("time_spp_effect") ~ "Full Mod.", 
+    TRUE ~ as.character(effect)), 
+    decomp = "After Leafout")
+mod_all_long_flam_lfm
+
+mod_all_long_flam_lfm %>% 
+  filter(analysis == "Flam Curve") %>% 
+  ggplot(aes(x = analysis, 
+             y = value, 
+         fill = effect)) +
+  geom_col(stat = "identity") +
+ # geom_text(aes(label = value)) +
+  color_many +
+  labs(y = "R squared", 
+       x = "Predictor") +
+  color_fill
+```
+
+
+# Section 3: Field data
 
 ```{r}
 field_data_all <- read_csv(here("processed-data", "analysis 2.0", "field_data_2020_2021.csv"), show_col_types = FALSE) %>% 
   mutate(tlp = mean_tlp_spp, 
          po = mean_po_date) %>% 
-  select(-mpa, -water_potential) %>% 
-  mutate(water_potential = midday)
+ # select(-mpa, -water_potential) %>% 
+  mutate(water_potential = midday, 
+         plant = udpipe::unique_identifier(unique_id)) %>% 
+ # group_by(spp, plant) %>% 
+  mutate(maxLFM = wettest_lfm)
 ```
 
+#####field plot
+
+```{r}
+field_plot <- field_data_all %>% 
+  filter(lfm < 300, 
+         lfm > 50) %>% 
+  ggplot(aes(y = lfm, 
+             x = -1*water_potential, 
+             color = spp)) +
+  geom_point(alpha = .5) +
+ # geom_smooth(method = "lm", se = F) +
+  color_many +
+  theme(legend.position = "none") +
+  labs(title = "Field", 
+       x = "", 
+       y = "LFM")
+field_plot
+```
+m1 <- lmer(lfm ~ water_potential*spp * month + (1|plant), data = field_data_all)
+m2 <- lmer(lfm ~ spp + (1|plant), data = field_data_all)
+m3 <- lmer(lfm ~ month + (1|plant), data = field_data_all)
+m4 <- lmer(lfm ~ water_potential + (1|plant), data = field_data_all)
+
+#try using r.squaredGLMM:
+mods_list <- list(m1, m2, m3, m4)
+
+r2 <- lapply(mods_list, r.squaredGLMM)
+r2
+
+r2m <- c(r2[[1]][1], r2[[2]][1], r2[[3]][1], r2[[4]][1]) #vector of r2s
+mods <- c("m1", "m2", "m3", "m4")
+
+mod_all_df1 <-  data.frame(mods, r2m)
+
+mod_all_df <- mod_all_df1 %>% 
+  pivot_wider(names_from = mods, 
+              values_from = r2m) %>% 
+  mutate(
+    #other_effects =  m3 - week_effect - mpa_effect,
+    time_effect = m1 - m2, #week + mpa mod - mpa mod
+         spp_effect = m1 - m3, #week + mpa mod - week mod
+         time_spp_effect = m1, #week + mpa mod 
+        mpa_effect = m1 - m4,
+    other_effects =  m1 - time_effect - spp_effect - mpa_effect,
+         ) #full minus the effects of mpa and week alone
+mod_all_df
+
+#for plotting (maybe?)
+mod_all_long_field_lfm <- mod_all_df %>% 
+  select(time_effect, spp_effect, time_spp_effect, other_effects, mpa_effect) %>% 
+  pivot_longer(cols = c(time_effect, spp_effect, time_spp_effect, other_effects, mpa_effect), 
+    names_to = "effect") %>% 
+  distinct() %>% 
+  mutate(analysis = case_when(
+    effect %in% c("time_effect", "spp_effect", "other_effects", "mpa_effect") ~ "Field", 
+    effect %in% c("time_spp_effect") ~ "Full Mod.", 
+    TRUE ~ as.character(effect)), 
+    decomp = "After Leafout") 
+
+mod_all_long_field_lfm
+
+mod_all_long_field_lfm %>% 
+  filter(analysis == "Field") %>% 
+  ggplot(aes(x = analysis, 
+             y = value, 
+         fill = effect)) +
+  geom_col(stat = "identity") +
+ # geom_text(aes(label = value)) +
+  color_many +
+  labs(y = "R squared", 
+       x = "Predictor") +
+  color_fill +
+  ylim(0, 1)
+#####MaxLFM
+```{r}
+m1 <- lmer(maxLFM ~ spp * month + (1|plant), data = field_data_all)
+m2 <- lmer(maxLFM ~ spp + (1|plant), data = field_data_all)
+m3 <- lmer(maxLFM ~ month + (1|plant), data = field_data_all)
+
+#try using r.squaredGLMM:
+mods_list <- list(m1, m2, m3)
+
+r2 <- lapply(mods_list, r.squaredGLMM)
+r2
+
+r2m <- c(r2[[1]][1], r2[[2]][1], r2[[3]][1]) #vector of r2s
+mods <- c("m1", "m2", "m3")
+
+mod_all_df1 <-  data.frame(mods, r2m)
+
+mod_all_df <- mod_all_df1 %>% 
+  pivot_wider(names_from = mods, 
+              values_from = r2m) %>% 
+  mutate(
+    #other_effects =  m3 - week_effect - mpa_effect,
+    time_effect = m1 - m2, #week + mpa mod - mpa mod
+         spp_effect = m1 - m3, #week + mpa mod - week mod
+         time_spp_effect = m1, #week + mpa mod 
+    other_effects =  m1 - time_effect - spp_effect,
+         ) #full minus the effects of mpa and week alone
+mod_all_df
+
+#for plotting (maybe?)
+mod_all_long_field <- mod_all_df %>% 
+  select(time_effect, spp_effect, time_spp_effect, other_effects) %>% 
+  pivot_longer(cols = c(time_effect, spp_effect, time_spp_effect, other_effects), 
+    names_to = "effect") %>% 
+  distinct() %>% 
+  mutate(analysis = case_when(
+    effect %in% c("time_effect", "spp_effect", "other_effects") ~ "Field", 
+    effect %in% c("time_spp_effect") ~ "Full Mod.", 
+    TRUE ~ as.character(effect)), 
+    decomp = "After Leafout")
+mod_all_long_field
+
+mod_all_long_field %>% 
+  filter(analysis == "Field") %>% 
+  ggplot(aes(x = analysis, 
+             y = value, 
+         fill = effect)) +
+  geom_col(stat = "identity") +
+ # geom_text(aes(label = value)) +
+  color_many +
+  labs(y = "R squared", 
+       x = "Predictor") +
+  color_fill
+```
+#####Just LFM:
+
+```{r}
+m1 <- lmer(lfm ~ water_potential*spp * month + (1|plant), data = field_data_all)
+m2 <- lmer(lfm ~ spp + (1|plant), data = field_data_all)
+m3 <- lmer(lfm ~ month + (1|plant), data = field_data_all)
+m4 <- lmer(lfm ~ water_potential + (1|plant), data = field_data_all)
+
+#try using r.squaredGLMM:
+mods_list <- list(m1, m2, m3, m4)
+
+r2 <- lapply(mods_list, r.squaredGLMM)
+r2
+
+r2m <- c(r2[[1]][1], r2[[2]][1], r2[[3]][1], r2[[4]][1]) #vector of r2s
+mods <- c("m1", "m2", "m3", "m4")
+
+mod_all_df1 <-  data.frame(mods, r2m)
+
+mod_all_df <- mod_all_df1 %>% 
+  pivot_wider(names_from = mods, 
+              values_from = r2m) %>% 
+  mutate(
+    #other_effects =  m3 - week_effect - mpa_effect,
+    time_effect = m1 - m2 -m4, #week + mpa mod - mpa mod
+         spp_effect = m1 - m3 - m4, #week + mpa mod - week mod
+         time_spp_effect = m1, #week + mpa mod 
+        mpa_effect = m1 - m3 - m2,
+    other_effects =  m1 - time_effect - spp_effect - mpa_effect,
+         ) #full minus the effects of mpa and week alone
+mod_all_df
+
+#for plotting (maybe?)
+mod_all_long_field_lfm <- mod_all_df %>% 
+  select(time_effect, spp_effect, time_spp_effect, other_effects, mpa_effect) %>% 
+  pivot_longer(cols = c(time_effect, spp_effect, time_spp_effect, other_effects, mpa_effect), 
+    names_to = "effect") %>% 
+  distinct() %>% 
+  mutate(analysis = case_when(
+    effect %in% c("time_effect", "spp_effect", "other_effects", "mpa_effect") ~ "Field", 
+    effect %in% c("time_spp_effect") ~ "Full Mod.", 
+    TRUE ~ as.character(effect)), 
+    decomp = "After Leafout") 
+
+mod_all_long_field_lfm
+
+mod_all_long_field_lfm %>% 
+  filter(analysis == "Field") %>% 
+  ggplot(aes(x = analysis, 
+             y = value, 
+         fill = effect)) +
+  geom_col(stat = "identity") +
+ # geom_text(aes(label = value)) +
+  color_many +
+  labs(y = "R squared", 
+       x = "Predictor") +
+  color_fill +
+  ylim(0, 1)
+```
+
+#Combine to compare: 
+
+```{r}
+var_decomp_df <- bind_rows(mod_all_long_field,mod_all_long_flam, mod_all_long)
+
+var_decomp_df %>% 
+  filter(analysis %in% c("PV Curve", "Flam Curve", "Field")) %>% 
+  ggplot(aes(x = analysis, 
+             y = value, 
+         fill = effect)) +
+  geom_col(stat = "identity") +
+ # geom_text(aes(label = value)) +
+  color_many +
+  labs(y = "R squared", 
+       x = "Predictor", 
+       title = "LFMmax") +
+  color_fill
+```
+```{r}
+var_decomp_df_lfm <- bind_rows(mod_all_long_field_lfm, mod_all_long_flam_lfm, mod_all_long_lfm)
+
+var_decomp_df_lfm %>% 
+  filter(analysis %in% c("PV Curve", "Flam Curve", "Field")) %>% 
+  ggplot(aes(x = analysis, 
+             y = value, 
+         fill = effect)) +
+  geom_col(stat = "identity") +
+ # geom_text(aes(label = value)) +
+  color_many +
+  labs(y = "R squared", 
+       x = "Predictor", 
+       title ="LFM") +
+  color_fill
+```
+
+```{r}
+field_plot_leg <- field_data_all %>% 
+  filter(lfm < 300, 
+         lfm > 50) %>% 
+  ggplot(aes(y = lfm, 
+             x = -1*water_potential, 
+             color = spp)) +
+  geom_point(alpha = .5) +
+  labs(coloe = "Species") +
+ # geom_smooth(method = "lm", se = F) +
+  color_many 
+legend <- cowplot::get_legend(field_plot_leg)
+```
+
+```{r, fig.height=6, fig.width=5}
+#Mpas:
+plots <- cowplot::plot_grid(field_plot, pv_plot, flam_plot,
+          ncol = 1, 
+         nrow = 3
+          )
+plots_legend <- cowplot::plot_grid(plots, legend, rel_widths = c(5, 1))
+plots_legend
+
+#ggsave(plot=plots_legend, bg = "white" , here::here("figures", "mpa_flam_metrics_unscaled"), device="jpg")
+
+ggsave(plot=plots_legend, bg = "white" , here::here("figures", "flam_pv_field"), device="jpg")
+```
