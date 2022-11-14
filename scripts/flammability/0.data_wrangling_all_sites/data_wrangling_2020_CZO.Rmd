@@ -44,7 +44,7 @@ First, deal with values that don't make sense due to missingness (for example, i
 raw.data.czo <- raw.data.czo %>% 
   mutate(water.wt = fresh.wt - dry.wt) %>% 
   mutate(ros = ttms/sample.length) 
-str(raw.data.czo)
+#str(raw.data.czo)
 
 data.with.na.czo <- raw.data.czo %>% 
   replace_with_na(replace = list(temp.max = c(0, 0.0))) %>% #for missing temp maxs, make NA
@@ -265,8 +265,6 @@ data <- data %>%
   ungroup() %>% #ungroup - this will stop issues in the future (we can always regroup again)
   group_by(bins20lfm = cut(lfm.NAs.imputed, breaks= seq(0, 400, by = 20))) %>% #create 20 LFM segments, indicate these in new column called "bins20lfm"
   ungroup() 
-
-str(data)
 ```
 
 #Visualize missing weights and temps:
@@ -404,7 +402,6 @@ ignite.only.hp <- data %>%
 What does outlierKD think of them? 
 ```{r}
 outlierKD2(ignite_only_hp, tti)
-
 ```
 
 ```{r}
