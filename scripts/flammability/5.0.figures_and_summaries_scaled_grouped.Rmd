@@ -27,6 +27,8 @@ library(MuMIn)
 library(modelsummary)
 library(nlme)
 library(MetBrewer)
+#devtools::install_github("an-bui/calecopal")
+library(calecopal)
 library(remef)
 library(kableExtra)
 
@@ -34,6 +36,8 @@ filter = dplyr::filter
 mutate = dplyr::mutate
 select = dplyr::select
 here = here::here
+
+source(here::here("scripts", "scripts_functions", "figure_info_sierra_flammability.R"))
 ```
 
 #------------------------------------
@@ -55,11 +59,48 @@ mem_data_all <- read_csv(here("processed-data", "analysis 2.0", "sierra_flam_dat
          ww_flam_sample_scaled = scale(ww_flam_sample),
          lfm_scaled = scale(lfm), 
          excess_water_scaled = scale(excess_water)) %>% 
+  mutate(Species = case_when(
+    spp == "arpa" ~ "A. patula", 
+    spp == "abco" ~ "A. concolor",
+    spp == "cade" ~ "C. decurrens",
+    spp == "ceco" ~ "C. cordulatus",
+    spp == "pije" ~ "P. jeffreyi",
+    spp == "quke" ~ "Q. kelloggii"
+  )) %>% 
   filter(!year_month %in% c("2021_august")) %>% 
   drop_na(mpa_scaled, lfm_scaled, sample_wt_scaled)
 #%>% 
   #filter(!spp %in% c("ceco"))
 ```
+## Specifying significance
+```{r}
+mem_data_all <- mem_data_all %>% 
+  mutate(tti.sig = case_when(
+    spp == "arpa" ~ "No", spp == "abco" ~ "No", spp == "cade" ~ "No", spp == "ceco" ~ "No", 
+    spp == "pije" ~ "No", spp == "quke" ~ "No")) %>% 
+  mutate(fh.mpa.sig = case_when(
+    spp == "arpa" ~ "Yes", spp == "abco" ~ "Yes", spp == "cade" ~ "No", spp == "ceco" ~ "Yes", 
+    spp == "pije" ~ "No", spp == "quke" ~ "Yes")) %>% 
+  mutate(fh.lfm.sig = case_when(
+    spp == "arpa" ~ "Yes", spp == "abco" ~ "Yes", spp == "cade" ~ "No", spp == "ceco" ~ "Yes", 
+    spp == "pije" ~ "No", spp == "quke" ~ "No")) %>% 
+  mutate(fd.sig = case_when(
+    spp == "arpa" ~ "Yes", spp == "abco" ~ "No", spp == "cade" ~ "No", spp == "ceco" ~ "No", 
+    spp == "pije" ~ "No", spp == "quke" ~ "No")) %>% 
+  mutate(gd.sig = case_when(
+    spp == "arpa" ~ "No", spp == "abco" ~ "No", spp == "cade" ~ "No", spp == "ceco" ~ "Yes", 
+    spp == "pije" ~ "No", spp == "quke" ~ "Yes")) %>% 
+  mutate(prop.ig.mpa.sig = case_when(
+    spp == "arpa" ~ "Yes", spp == "abco" ~ "No", spp == "cade" ~ "No", spp == "ceco" ~ "No", 
+    spp == "pije" ~ "No", spp == "quke" ~ "No")) %>% 
+  mutate(prop.ig.lfm.sig = case_when(
+    spp == "arpa" ~ "Yes", spp == "abco" ~ "No", spp == "cade" ~ "No", spp == "ceco" ~ "No", 
+    spp == "pije" ~ "No", spp == "quke" ~ "Yes")) %>% 
+  mutate(temp.change.sig = case_when(
+    spp == "arpa" ~ "No", spp == "abco" ~ "No", spp == "cade" ~ "No", spp == "ceco" ~ "No", 
+    spp == "pije" ~ "No", spp == "quke" ~ "No"))
+```
+
 
 #2. Remeff figures of each flam metric
 
@@ -85,6 +126,20 @@ mem_data_all <- read_csv(here("processed-data", "analysis 2.0", "sierra_flam_dat
 #prop_ignite_mod_noints <- lmer(prop_ignite ~ spp + mpa_scaled + lfm_scaled  + site + year_month + (1 | individual), data = mem_data_all)
 ```
 
+```{r}
+a <- c(12,20,22,21,1,2,5,6,0.2,12,3,25)
+b <- c(1,5,9,22,10,16,0.2,9,20,3,3,12.5)
+c <- c(rep(c("abco", "ceco", "cade", "pije"), 3))
+d <- c(rep(c('y', '0', '0', '0'), 3))
+test.df <- data.frame(a,b,c,d)
+
+ggplot(test.df, aes(x = a, y = b, group = c)) +
+  geom_point(aes(color = c)) +
+  geom_smooth(method = 'lm', se = F, aes(linetype = d, color = c)) +
+  theme_bw()
+```
+
+
 #TTI
 
 Lets just do TTI first: 
@@ -102,10 +157,10 @@ mem_data_all_r$r_tti <- r_tti
 tti_plot <- mem_data_all_r %>% 
   ggplot(aes(y = tti, 
              x = mpa_scaled, 
-             color = spp)) +
-  geom_point(alpha= .6)+
-  geom_smooth(method = "lm", se = F) + 
-  color_many  + theme(legend.position = "none",                                   axis.text = element_text(size = 14), axis.title = element_text(size = 22))+
+             group = spp)) +
+  geom_point(alpha= .6, aes(color = spp))+
+  geom_smooth(method = "lm", se = F, aes(color = spp, lty = tti.sig)) + 
+  color_many  + theme(legend.position = "none",                                   axis.text = element_text(size = 14), axis.title = element_text(size = 22, face = 'bold'))+
   labs(x = "", 
        y = "Time to Ignition (sec)") 
    
@@ -114,10 +169,10 @@ tti_plot
 tti_plot_r <- mem_data_all_r %>% 
   ggplot(aes(y = r_tti, 
              x = mpa_scaled, 
-             color = spp)) +
-  geom_point(alpha= .6)+
-  geom_smooth(method = "lm", se = F) + 
-  color_many  + theme(legend.position = "none",                                   axis.text = element_text(size = 14), axis.title = element_text(size = 22))+
+             group = spp)) +
+  geom_point(alpha= .6, aes(color = spp))+
+  geom_smooth(method = "lm", se = F, aes(color = spp, lty = tti.sig)) + 
+  color_many  + theme(legend.position = "none",                                   axis.text = element_text(size = 14), axis.title = element_text(size = 22, face = 'bold'))+
   labs(x = "", 
        y = "Time to Ignition (sec)") 
 tti_plot_r
@@ -125,11 +180,11 @@ tti_plot_r
 tti_plot_lfm <- mem_data_all_r %>% 
   ggplot(aes(y = tti, 
              x = lfm_scaled, 
-             color = spp)) +
-  geom_point(alpha= .6)+
-  geom_smooth(method = "lm", se = F) + 
+             group = spp)) +
+  geom_point(alpha= .6, aes(color = spp))+
+  geom_smooth(method = "lm", se = F, aes(color = spp, lty = tti.sig)) + 
   color_many +theme(legend.position = "none", 
-                                 axis.text = element_text(size = 14), axis.title = element_text(size = 22))+
+axis.text = element_text(size = 14), axis.title = element_text(size = 22, face = 'bold'))+
   labs(x = "", 
        y = "Time to Ignition (sec)") 
    
@@ -138,10 +193,10 @@ tti_plot_lfm
 tti_plot_lfm_r <- mem_data_all_r %>% 
   ggplot(aes(y = r_tti, 
              x = lfm_scaled, 
-             color = spp)) +
-  geom_point(alpha= .6)+
-  geom_smooth(method = "lm", se = F) + 
-  color_many  + theme(legend.position = "none",                                   axis.text = element_text(size = 14), axis.title = element_text(size = 22))+
+             group = spp)) +
+  geom_point(alpha= .6, aes(color = spp))+
+  geom_smooth(method = "lm", se = F, aes(color = spp, lty = tti.sig)) + 
+  color_many  + theme(legend.position = "none",                                   axis.text = element_text(size = 14), axis.title = element_text(size = 22, face = 'bold'))+
   labs(x = "", 
        y = "Time to Ignition (sec)") 
 tti_plot_lfm_r
@@ -163,10 +218,10 @@ mem_data_all_r$r_fh <- r_fh
 fh_plot <- mem_data_all_r %>% 
   ggplot(aes(y = fh, 
              x = mpa_scaled, 
-             color = spp)) +
-  geom_point(alpha= .6)+
-  geom_smooth(method = "lm", se = F) + 
-  color_many  + theme(legend.position = "none",                                   axis.text = element_text(size = 14), axis.title = element_text(size = 22))+
+             group = spp)) +
+  geom_point(alpha= .6, aes(color = spp))+
+  geom_smooth(method = "lm", se = F, aes(color = spp, lty = fh.mpa.sig)) + 
+  color_many  + theme(legend.position = "none",                                   axis.text = element_text(size = 14), axis.title = element_text(size = 22, face = 'bold'))+
   labs(x = "", 
        y = "Flame Height (cm)") 
    
@@ -175,10 +230,10 @@ fh_plot
 fh_plot_r <- mem_data_all_r %>% 
   ggplot(aes(y = r_fh, 
              x = mpa_scaled, 
-             color = spp)) +
-  geom_point(alpha= .6)+
-  geom_smooth(method = "lm", se = F) + 
-  color_many  + theme(legend.position = "none",                                   axis.text = element_text(size = 14), axis.title = element_text(size = 22))+
+             group = spp)) +
+  geom_point(alpha= .6, aes(color = spp))+
+  geom_smooth(method = "lm", se = F, aes(color = spp, lty = fh.mpa.sig)) + 
+  color_many  + theme(legend.position = "none",                                   axis.text = element_text(size = 14), axis.title = element_text(size = 22, face = 'bold'))+
   labs(x = "", 
        y = "Flame Height (cm)") 
 fh_plot_r
@@ -186,10 +241,10 @@ fh_plot_r
 fh_plot_lfm <- mem_data_all_r %>% 
   ggplot(aes(y = fh, 
              x = lfm_scaled, 
-             color = spp)) +
-  geom_point(alpha= .6)+
-  geom_smooth(method = "lm", se = F) + 
-  color_many  + theme(legend.position = "none",                                   axis.text = element_text(size = 14), axis.title = element_text(size = 22))+
+             group = spp)) +
+  geom_point(alpha= .6, aes(color = spp))+
+  geom_smooth(method = "lm", se = F, aes(color = spp, lty = fh.lfm.sig)) + 
+  color_many  + theme(legend.position = "none",                                   axis.text = element_text(size = 14), axis.title = element_text(size = 22, face = 'bold'))+
   labs(x = "", 
        y = "Flame Height (cm)") 
    
@@ -198,10 +253,10 @@ fh_plot
 fh_plot_lfm_r <- mem_data_all_r %>% 
   ggplot(aes(y = r_fh, 
              x = lfm_scaled, 
-             color = spp)) +
-  geom_point(alpha= .6)+
-  geom_smooth(method = "lm", se = F) + 
-  color_many  + theme(legend.position = "none",                                   axis.text = element_text(size = 14), axis.title = element_text(size = 22))+
+             group = spp)) +
+  geom_point(alpha= .6, aes(color = spp))+
+  geom_smooth(method = "lm", se = F, aes(color = spp, lty = fh.lfm.sig)) + 
+  color_many  + theme(legend.position = "none",                                   axis.text = element_text(size = 14), axis.title = element_text(size = 22, face = 'bold'))+
   labs(x = "", 
        y = "Flame Height (cm)") 
 fh_plot_r
@@ -223,10 +278,10 @@ mem_data_all_r$r_gd <- r_gd
 gd_plot <- mem_data_all_r %>% 
   ggplot(aes(y = gd, 
              x = mpa_scaled, 
-             color = spp)) +
-  geom_point(alpha= .6)+
-  geom_smooth(method = "lm", se = F) + 
-  color_many  + theme(legend.position = "none",                                   axis.text = element_text(size = 14), axis.title = element_text(size = 22))+
+             group = spp)) +
+  geom_point(alpha= .6, aes(color = spp))+
+  geom_smooth(method = "lm", se = F, aes(color = spp, lty = gd.sig)) + 
+  color_many  + theme(legend.position = "none",                                   axis.text = element_text(size = 14), axis.title = element_text(size = 22, face = 'bold'))+
   labs(x = "", 
        y = "Glow Duration (sec)") 
    
@@ -235,10 +290,10 @@ gd_plot
 gd_plot_r <- mem_data_all_r %>% 
   ggplot(aes(y = r_gd, 
              x = mpa_scaled, 
-             color = spp)) +
-  geom_point(alpha= .6)+
-  geom_smooth(method = "lm", se = F) + 
-  color_many  + theme(legend.position = "none",                                   axis.text = element_text(size = 14), axis.title = element_text(size = 22))+
+             group = spp)) +
+  geom_point(alpha= .6, aes(color = spp))+
+  geom_smooth(method = "lm", se = F, aes(color = spp, lty = gd.sig)) + 
+  color_many  + theme(legend.position = "none",                                   axis.text = element_text(size = 14), axis.title = element_text(size = 22, face = 'bold'))+
   labs(x = "", 
        y = "Glow Duration (sec)") 
 gd_plot_r
@@ -246,10 +301,10 @@ gd_plot_r
 gd_plot_lfm <- mem_data_all_r %>% 
   ggplot(aes(y = gd, 
              x = lfm_scaled, 
-             color = spp)) +
-  geom_point(alpha= .6)+
-  geom_smooth(method = "lm", se = F) + 
-  color_many  + theme(legend.position = "none",                                   axis.text = element_text(size = 14), axis.title = element_text(size = 22))+
+             group = spp)) +
+  geom_point(alpha= .6, aes(color = spp))+
+  geom_smooth(method = "lm", se = F, aes(color = spp, lty = gd.sig)) + 
+  color_many  + theme(legend.position = "none",                                   axis.text = element_text(size = 14), axis.title = element_text(size = 22, face = 'bold'))+
   labs(x = "", 
        y = "Glow Duration (sec)") 
    
@@ -258,10 +313,10 @@ gd_plot
 gd_plot_lfm_r <- mem_data_all_r %>% 
   ggplot(aes(y = r_gd, 
              x = lfm_scaled, 
-             color = spp)) +
-  geom_point(alpha= .6)+
-  geom_smooth(method = "lm", se = F) + 
-  color_many  + theme(legend.position = "none",                                   axis.text = element_text(size = 14), axis.title = element_text(size = 22))+
+             group = spp)) +
+  geom_point(alpha= .6, aes(color = spp))+
+  geom_smooth(method = "lm", se = F, aes(color = spp, lty = gd.sig)) +
+  color_many  + theme(legend.position = "none",                                   axis.text = element_text(size = 14), axis.title = element_text(size = 22, face = 'bold'))+
   labs(x = "", 
        y = "Glow Duration (sec)") 
 gd_plot_r
@@ -284,10 +339,10 @@ mem_data_all_r$r_fd <- r_fd
 fd_plot <- mem_data_all_r %>% 
   ggplot(aes(y = fd, 
              x = mpa_scaled, 
-             color = spp)) +
-  geom_point(alpha= .6)+
-  geom_smooth(method = "lm", se = F) + 
-  color_many  + theme(legend.position = "none",                                   axis.text = element_text(size = 14), axis.title = element_text(size = 22))+
+             group = spp)) +
+  geom_point(alpha= .6, aes(color = spp))+
+  geom_smooth(method = "lm", se = F, aes(color = spp, lty = fd.sig)) + 
+  color_many  + theme(legend.position = "none",                                   axis.text = element_text(size = 14), axis.title = element_text(size = 22, face = 'bold'))+
   labs(x = "", 
        y = "Flame Duration (sec)") 
    
@@ -296,21 +351,21 @@ fd_plot
 fd_plot_r <- mem_data_all_r %>% 
   ggplot(aes(y = r_fd, 
              x = mpa_scaled, 
-             color = spp)) +
-  geom_point(alpha= .6)+
-  geom_smooth(method = "lm", se = F) + 
-  color_many  + theme(legend.position = "none",                                   axis.text = element_text(size = 14), axis.title = element_text(size = 22))+
-  labs(x = "MPa", 
+             group = spp)) +
+  geom_point(alpha= .6, aes(color = spp))+
+  geom_smooth(method = "lm", se = F, aes(color = spp, lty = fd.sig)) + 
+  color_many  + theme(legend.position = "none",                                   axis.text = element_text(size = 14), axis.title.x = element_text(size = 18, face = 'bold'), axis.title.y = element_text(size = 22, face = 'bold'))+
+  labs(x = "Water Potential (Scaled)", 
        y = "Flame Duration (sec)") 
 fd_plot_r
 
 fd_plot_lfm <- mem_data_all_r %>% 
   ggplot(aes(y = fd, 
              x = lfm_scaled, 
-             color = spp)) +
-  geom_point(alpha= .6)+
-  geom_smooth(method = "lm", se = F) + 
-  color_many  + theme(legend.position = "none",                                   axis.text = element_text(size = 14), axis.title = element_text(size = 22))+
+             group = spp)) +
+  geom_point(alpha= .6, aes(color = spp))+
+  geom_smooth(method = "lm", se = F, aes(color = spp, lty = fd.sig)) + 
+  color_many  + theme(legend.position = "none",                                   axis.text = element_text(size = 14), axis.title = element_text(size = 22, face = 'bold'))+
   labs(x = "", 
        y = "Flame Duration (sec)") 
 fd_plot
@@ -318,13 +373,13 @@ fd_plot
 fd_plot_lfm_r <- mem_data_all_r %>% 
   ggplot(aes(y = r_fd, 
              x = lfm_scaled, 
-             color = spp)) +
-  geom_point(alpha= .6)+
-  geom_smooth(method = "lm", se = F) + 
-  color_many  + theme(legend.position = "none",                                   axis.text = element_text(size = 14), axis.title = element_text(size = 22))+
-  labs(x = "LFM", 
+             group = spp)) +
+  geom_point(alpha= .6, aes(color = spp))+
+  geom_smooth(method = "lm", se = F, aes(color = spp, lty = fd.sig)) + 
+  color_many  + theme(legend.position = "none",                                   axis.text = element_text(size = 14), axis.title = element_text(size = 22, face = 'bold'))+
+  labs(x = "LFM (scaled)", 
        y = "Flame Duration (sec)") 
-fd_plot_r
+fd_plot_lfm_r
 
 #ggarrange(fd_plot, fd_plot_r, fd_plot_lfm, fd_plot_lfm_r, nrow = 2, ncol = 2)
 ```
@@ -351,10 +406,10 @@ mem_data_all_r$r_temp_change <- r_temp_change
 temp_change_plot <- mem_data_all_r %>% 
   ggplot(aes(y = temp_change, 
              x = mpa_scaled, 
-             color = spp)) +
-  geom_point(alpha= .6)+
-  geom_smooth(method = "lm", se = F) + 
-  color_many  +
+             group = spp)) +
+  geom_point(alpha= .6, aes(color = spp))+
+  geom_smooth(method = "lm", se = F, aes(color = spp, lty = temp.change.sig)) + 
+  color_many + theme(legend.position = "none",                                   axis.text = element_text(size = 14), axis.title = element_text(size = 22, face = 'bold'))+
   labs(x = "", 
        y = "Temp Change (C)") 
 temp_change_plot
@@ -362,10 +417,10 @@ temp_change_plot
 temp_change_plot_r <- mem_data_all_r %>% 
   ggplot(aes(y = r_temp_change, 
              x = mpa_scaled, 
-             color = spp)) +
-  geom_point(alpha= .6)+
-  geom_smooth(method = "lm", se = F) + 
-  color_many  + theme(legend.position = "none",                                   axis.text = element_text(size = 14), axis.title = element_text(size = 22))+
+             group = spp)) +
+  geom_point(alpha= .6, aes(color = spp))+
+  geom_smooth(method = "lm", se = F, aes(color = spp, lty = temp.change.sig)) + 
+  color_many  + theme(legend.position = "none",                                   axis.text = element_text(size = 14), axis.title = element_text(size = 22, face = 'bold'))+
   labs(x = "", 
        y = "Temp Change (C)") 
 temp_change_plot_r
@@ -373,10 +428,10 @@ temp_change_plot_r
 temp_change_plot_lfm <- mem_data_all_r %>% 
   ggplot(aes(y = temp_change, 
              x = lfm_scaled, 
-             color = spp)) +
-  geom_point(alpha= .6)+
-  geom_smooth(method = "lm", se = F) + 
-  color_many  + theme(legend.position = "none",                                   axis.text = element_text(size = 14), axis.title = element_text(size = 22))+
+             group = spp)) +
+  geom_point(alpha= .6, aes(color = spp))+
+  geom_smooth(method = "lm", se = F, aes(color = spp, lty = temp.change.sig)) + 
+  color_many  + theme(legend.position = "none",                                   axis.text = element_text(size = 14), axis.title = element_text(size = 22, face = 'bold'))+
   labs(x = "", 
        y = "Temp Change (C)") 
 temp_change_plot
@@ -384,10 +439,10 @@ temp_change_plot
 temp_change_plot_lfm_r <- mem_data_all_r %>% 
   ggplot(aes(y = r_temp_change, 
              x = lfm_scaled, 
-             color = spp)) +
-  geom_point(alpha= .6)+
-  geom_smooth(method = "lm", se = F) + 
-  color_many  + theme(legend.position = "none",                                   axis.text = element_text(size = 14), axis.title = element_text(size = 22))+
+             group = spp)) +
+  geom_point(alpha= .6, aes(color = spp))+
+  geom_smooth(method = "lm", se = F, aes(color = spp, lty = temp.change.sig)) + 
+  color_many  + theme(legend.position = "none",                                   axis.text = element_text(size = 14), axis.title = element_text(size = 22, face = 'bold'))+
   labs(x = "", 
        y = "Temp. Change (C)") 
 temp_change_plot_r
@@ -410,10 +465,10 @@ mem_data_all_r$r_prop_ignite <- r_prop_ignite
 prop_ignite_plot <- mem_data_all_r %>% 
   ggplot(aes(y = prop_ignite, 
              x = mpa_scaled, 
-             color = spp)) +
-  geom_point(alpha= .6)+
-  geom_smooth(method = "lm", se = F) + 
-  color_many +
+             group = spp)) +
+  geom_point(alpha= .6, aes(color = spp))+
+  geom_smooth(method = "lm", se = F, aes(color = spp, lty = prop.ig.mpa.sig)) + 
+  color_many + theme(legend.position = "none",                                   axis.text = element_text(size = 14), axis.title = element_text(size = 22, face = 'bold')) +
   labs(x = "", 
        y = "Proportion Ignited (%)") 
 prop_ignite_plot
@@ -421,10 +476,10 @@ prop_ignite_plot
 prop_ignite_plot_r <- mem_data_all_r %>% 
   ggplot(aes(y = r_prop_ignite, 
              x = mpa_scaled, 
-             color = spp)) +
-  geom_point(alpha= .6)+
-  geom_smooth(method = "lm", se = F) + 
-  color_many  + theme(legend.position = "none",                                   axis.text = element_text(size = 14), axis.title = element_text(size = 22))+
+             group = spp)) +
+  geom_point(alpha= .6, aes(color = spp))+
+  geom_smooth(method = "lm", se = F, aes(color = spp, lty = prop.ig.mpa.sig)) + 
+  color_many  + theme(legend.position = "none",                                   axis.text = element_text(size = 14), axis.title = element_text(size = 22, face = 'bold'))+
   labs(x = "", 
        y = "Proportion Ignited (%)") 
 prop_ignite_plot_r
@@ -432,10 +487,10 @@ prop_ignite_plot_r
 prop_ignite_plot_lfm <- mem_data_all_r %>% 
   ggplot(aes(y = prop_ignite, 
              x = lfm_scaled, 
-             color = spp)) +
-  geom_point(alpha= .6)+
-  geom_smooth(method = "lm", se = F) + 
-  color_many +
+             group = spp)) +
+  geom_point(alpha= .6, aes(color = spp))+
+  geom_smooth(method = "lm", se = F, aes(color = spp, lty = prop.ig.lfm.sig)) + 
+  color_many + theme(legend.position = "none",                                   axis.text = element_text(size = 14), axis.title = element_text(size = 22, face = 'bold')) +
   labs(x = "", 
        y = "Proportion Ignited (%)") 
 prop_ignite_plot
@@ -443,10 +498,10 @@ prop_ignite_plot
 prop_ignite_plot_lfm_r <- mem_data_all_r %>% 
   ggplot(aes(y = r_prop_ignite, 
              x = lfm_scaled, 
-             color = spp)) +
-  geom_point(alpha= .6)+
-  geom_smooth(method = "lm", se = F) + 
-  color_many  + theme(legend.position = "none",                                   axis.text = element_text(size = 14), axis.title = element_text(size = 22)) +
+             group = spp)) +
+  geom_point(alpha= .6, aes(color = spp))+
+  geom_smooth(method = "lm", se = F, aes(color = spp, lty = prop.ig.lfm.sig)) + 
+  color_many  + theme(legend.position = "none",                                   axis.text = element_text(size = 14), axis.title = element_text(size = 22, face = 'bold')) +
   labs(x = "", 
        y = "Proportion Ignited (%)") 
   
@@ -462,12 +517,15 @@ Now, putting all figures together, remeff only:
 
 ```{r}
 plot_legend <- mem_data_all %>% 
-  ggplot(aes(x = tti, y = mpa, color = spp)) +
-  geom_point() +
+  ggplot(aes(x = tti, y = mpa, group = Species)) +
+  geom_point(aes(color = Species), size = 2.2) +
+  geom_smooth(se = F, method = 'lm', aes(color = Species, lty = fh.mpa.sig)) +
   color_many  +
-  labs(color = "Species") +
-  theme(legend.text = element_text(size = 16), 
-        legend.title = element_text(size = 22))
+  labs(color = "Species", lty = "Significant?") +
+  theme(legend.text = element_text(size = 16, face = 'italic'), 
+        legend.title = element_text(size = 22, face = 'bold'),
+        legend.key = element_rect(fill = 'white')) +
+  guides(lty = guide_legend(override.aes = list(color = 'black')))
 
 legend <- cowplot::get_legend(plot_legend)
 ```
@@ -486,7 +544,7 @@ plots <- cowplot::plot_grid(prop_ignite_plot_r,
          # nrow = 2, 
           )
 plots
-plots_legend <- cowplot::plot_grid(plots, legend, rel_widths = c(5, .6))
+plots_legend <- cowplot::plot_grid(plots, legend, rel_widths = c(5, 1))
 plots_legend
 
 #ggsave(plot=plots_legend, bg = "white" , here::here("figures", "mpa_flam_metrics.jpeg"), device="jpg")
@@ -507,7 +565,7 @@ plots <- cowplot::plot_grid(prop_ignite_plot_lfm_r,
          # nrow = 2, 
           )
 plots
-plots_legend <- cowplot::plot_grid(plots, legend, rel_widths = c(5, .6))
+plots_legend <- cowplot::plot_grid(plots, legend, rel_widths = c(5, 1))
 plots_legend
 
 #ggsave(plot=plots_legend, bg = "white" , here::here("figures", "lfm_flam_metrics.jpeg"), device="jpg")

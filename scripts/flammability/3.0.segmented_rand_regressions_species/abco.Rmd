@@ -35,7 +35,7 @@ library(plotrix)
 filter = dplyr::filter
 here = here::here
 select = dplyr::select
-
+alpha = scales::alpha # To allow segplot function to run; it got stuck thinking 'alpha' was referring to psych::alpha
 # Function to plot mixed effects model segmented regressions:
 source(here::here("scripts", "scripts_functions", "plot_segmented_MEM_V2.R"))
 ```
@@ -341,7 +341,6 @@ u_mod_davies <- davies.test(u_mod_b)
 lfm_abco_thresholds_seg[1] <- summary(u_mod_b)$psi[2]
 lfm_abco_thresholds_seg[2] <- summary(u_mod_b)$psi[3]
 lfm_abco_thresholds_seg[3] <- u_mod_davies$p.value
-
 
 rsegplot.lfm(os_mod_b, abco_subset_seg_tti, max.x = abco_max_lfm, y.variable = 'tti', y.lab = "Time to Ignition (s)", tlp = mean_lfm_abco, tlp.lower = lwr_lfm_abco, tlp.upper = upr_lfm_abco)
 ```
@@ -941,7 +940,7 @@ ggsave(plot=gridExtra::tableGrob(abco_mpa), filename=here("figures", "segmented_
 # Top Model
 For this round of analyses, going to be using this mixed effects model:
 flam_metric ~ spp + lfm + mpa + site + year_month + sample_wt + (1 | individual)
-which (with the note that the numerical variables are scaled in the MEM selection) was selected in a linear mixed effects model selection process.
+which (with the note that the numerical variables are scaled in the MEM selection) was selected in a linear mixed effects model selection process. However, because the dataset was split by species prior for the segmented regressions, species cannot be included in the model.
 
 ### Holding Vectors
 This will be a df with all to collect results as we go: 

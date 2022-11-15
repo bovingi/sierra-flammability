@@ -926,7 +926,7 @@ pije_mpa <- bind_rows(pije_mpa_rand_summary_df, pije_mpa_summary_df) %>%
 # Top Model
 For this round of analyses, going to be using this mixed effects model:
 flam_metric ~ spp + lfm + mpa + site + year_month + sample_wt + (1 | individual)
-which (with the note that the numerical variables are scaled in the MEM selection) was selected in a linear mixed effects model selection process.
+which (with the note that the numerical variables are scaled in the MEM selection) was selected in a linear mixed effects model selection process. However, because the dataset was split by species prior for the segmented regressions, species cannot be included in the model.
 
 ### Holding Vectors
 This will be a df with all to collect results as we go: 
