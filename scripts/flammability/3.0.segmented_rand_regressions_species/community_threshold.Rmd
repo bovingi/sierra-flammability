@@ -1,0 +1,781 @@
+---
+title: "community-level (all species) segmented regressions"
+author: "Indra Boving & Joe Celebrezze"
+date: "4/15/2021"
+output: html_document
+---
+
+#Setup:
+```{r}
+knitr::opts_chunk$set(echo = TRUE)
+#lots of extra here, but oh well___ 
+library(ggplot2)
+library(gapminder)
+library(tidyverse)
+library(lme4)
+library(here)
+library(segmented)
+library(nlme)
+library(lubridate)
+library(plotrix)
+filter = dplyr::filter
+here = here::here
+select = dplyr::select
+
+# Function to plot mixed effects model segmented regressions:
+source(here::here("scripts", "scripts_functions", "plot_segmented_MEM_V2.R")) 
+# Since this is going to involve 6 species, I am going to have to slightly edit these functions
+```
+
+# Reading in Dataframe
+```{r}
+seg_data_subset <- read_csv(here("processed-data", "analysis 2.0", "sierra_flam_data_all.csv")) %>% 
+  mutate(id = individual)
+```
+
+# Visualization Functions
+For now, I am going to remove the TLP (wouldn't make a whole lot of sense with 6 different TLPs anyways)
+```{r}
+rsegplot.lfm <- function(model, dataframe, x.variable = 'lfm', y.variable, max.x,
+                         x.lab = 'Live Fuel Moisture (%)', y.lab = NULL, point.color = 'color') {
+  
+  p <- summary.segmented(model)$psi[2]
+  m <- slope(model, .coef = fixef(model))[[1]][[1]]
+  b <- intercept(model, .coef = fixef(model))[[1]][[1]]
+  m2 <- slope(model, .coef = fixef(model))[[1]][[2]]
+  b2 <- intercept(model, .coef = fixef(model))[[1]][[2]]
+  yvar <- dataframe[[y.variable]]
+  xvar <- dataframe[[x.variable]]
+  color <- dataframe[[point.color]]
+  confint <- confint.segmented(model, x.variable, .coef=fixef(model))
+  lower <- confint[2]
+  upper <- confint[3]
+  ymax <- max(yvar)
+  ymin <- min(yvar)
+  
+  wacky <- plot(xvar, yvar, xlim = c(0, max.x), ylim = c(ymin-0.05*ymin, ymax+0.05*ymax), 
+                xlab = x.lab, ylab = y.lab,
+                pch = 16, col = alpha(color, 0.8),
+                cex.lab = 1.3)
+  legend(180, ymax+0.04*ymax, legend = c("A. concolor", "A. patula", "C. decurrens", "C. cordulatus", "P. jeffreyi", "Q. kelloggii"), fill = c("#ee8577", "#ce4441", "#c969a1", "#ffbb44", "#393d3f", "#a8e0ff"))
+  polygon(x = c(lower, upper, upper, lower), y = c(ymax + 0.2*ymax, ymax +0.2*ymax, ymin - 30, ymin - 30), col = alpha('gray', 0.3), lty = 2)
+  for(z in 1:length(xvar)){
+    if(z < p){
+      segments(x0 = 0, x1 = p, y0 = b, y1 = m*((b2 - b)/(m - m2))+b, lwd = 3, col = "#9D0208")
+    }else{
+      segments(x0 = p, x1 = max.x, y0 = m2*((b - b2)/(m2 - m))+b2 , y1 = m2*max.x + b2, lwd = 3, col = "#9D0208")}}
+  return(wacky)
+}
+
+rsegplot.mpa <- function(model, dataframe, x.variable = 'mpa', y.variable, max.x,
+                         x.lab = 'Water Potential (MPa)', y.lab = NULL, point.color = 'color') {
+  
+  p <- summary.segmented(model)$psi[2]
+  m <- slope(model, .coef = fixef(model))[[1]][[1]]
+  b <- intercept(model, .coef = fixef(model))[[1]][[1]]
+  m2 <- slope(model, .coef = fixef(model))[[1]][[2]]
+  b2 <- intercept(model, .coef = fixef(model))[[1]][[2]]
+  yvar <- dataframe[[y.variable]]
+  xvar <- dataframe[[x.variable]]
+  color <- dataframe[[point.color]]
+  confint <- confint.segmented(model, x.variable, .coef=fixef(model))
+  lower <- confint[2]
+  upper <- confint[3]
+  ymax <- max(yvar)
+  ymin <- min(yvar)
+  
+  wacky <- plot(xvar, yvar, xlim = c(0, max.x), ylim = c(ymin-0.05*ymin, ymax+0.05*ymax), 
+                xlab = x.lab, ylab = y.lab,
+                pch = 16, col = alpha(color, 0.8),
+                cex.lab = 1.3)
+  legend(7.5, ymax+0.04*ymax, legend = c("A. concolor", "A. patula", "C. decurrens", "C. cordulatus", "P. jeffreyi", "Q. kelloggii"), fill = c("#ee8577", "#ce4441", "#c969a1", "#ffbb44", "#393d3f", "#a8e0ff"))
+  polygon(x = c(lower, upper, upper, lower), y = c(ymax + 0.2*ymax, ymax +0.2*ymax, ymin - 30, ymin - 30), col = alpha('gray', 0.3), lty = 2)
+  for(z in 1:length(xvar)){
+    if(z < p){
+      segments(x0 = 0, x1 = p, y0 = b, y1 = m*((b2 - b)/(m - m2))+b, lwd = 3, col = "#9D0208")
+    }else{
+      segments(x0 = p, x1 = max.x, y0 = m2*((b - b2)/(m2 - m))+b2 , y1 = m2*max.x + b2, lwd = 3, col = "#9D0208")}}
+  return(wacky)
+}
+```
+
+# Color by Species
+```{r}
+seg_data_subset$color <- "#ee8577"
+seg_data_subset$color[seg_data_subset$spp=='arpa']="#ce4441"
+seg_data_subset$color[seg_data_subset$spp=='cade']="#c969a1"
+seg_data_subset$color[seg_data_subset$spp=='ceco']="#ffbb44"
+seg_data_subset$color[seg_data_subset$spp=='pije']="#393d3f"
+seg_data_subset$color[seg_data_subset$spp=='quke']="#a8e0ff"
+```
+
+# Splitting by Species and by Sampling Date
+```{r} 
+seg_data_subset <- seg_data_subset %>% 
+  mutate_if(is.character, str_to_lower) %>% 
+  mutate(spp = str_trim(spp),
+         lfm_scaled = scale(lfm),
+    name = paste(spp,"_max", sep = ""), 
+    name_subset = paste(spp, "_subset_seg", sep = ""), #this is def working.
+    name_yearmonth = paste(spp, year_month, "subset_seg", sep = "_")) %>% 
+  drop_na(lfm, mpa, sample_wt) #Dropping NA values for LFM, mpa, sample_wt
+```
+
+# Maximums for LFM, MPa
+```{r}
+max_lfm <- max(seg_data_subset$lfm)
+max_mpa <- max(seg_data_subset$mpa)
+```
+
+# -------
+
+# Segmented Regressions
+
+We're just going to do a few metrics, to represent each of the axes: 
+
+Ignitability: TTI, Prop.ignite
+
+Combustibility: FH, Max Temp, Temp Change
+
+Sustainability: FD, 
+
+Consumability: GD
+
+Maybe: Max temp
+
+# LFM
+
+### Holding Vectors
+This will be a df with all to collect results as we go
+
+No random effects: 
+```{r}
+lfm_psi_tti <- c(rep(NaN, 1))
+lfm_psi_fh <- c(rep(NaN, 1))
+lfm_psi_fd <- c(rep(NaN, 1))
+lfm_psi_gd <- c(rep(NaN, 1))
+lfm_psi_fd <- c(rep(NaN, 1))
+lfm_psi_prop_ignite <- c(rep(NaN, 1))
+lfm_psi_temp_change <- c(rep(NaN, 1))
+
+lfm_st_err_tti <- c(rep(NaN, 1))
+lfm_st_err_fh <- c(rep(NaN, 1))
+lfm_st_err_fd <- c(rep(NaN, 1))
+lfm_st_err_gd <- c(rep(NaN, 1))
+lfm_st_err_fd <- c(rep(NaN, 1))
+lfm_st_err_prop_ignite <- c(rep(NaN, 1))
+lfm_st_err_temp_change <- c(rep(NaN, 1))
+
+lfm_p_value_tti <- c(rep(NaN, 1))
+lfm_p_value_fh <- c(rep(NaN, 1))
+lfm_p_value_fd <- c(rep(NaN, 1))
+lfm_p_value_gd <- c(rep(NaN, 1))
+lfm_p_value_fd <- c(rep(NaN, 1))
+lfm_p_value_prop_ignite <- c(rep(NaN, 1))
+lfm_p_value_temp_change <- c(rep(NaN, 1))
+
+lfm_thresholds_seg <- tibble::data_frame(lfm_psi_tti, lfm_st_err_tti, lfm_p_value_tti,
+                              lfm_psi_fh, lfm_st_err_fh, lfm_p_value_fh,
+                              lfm_psi_fd, lfm_st_err_fd,lfm_p_value_fd,
+                              lfm_psi_gd, lfm_st_err_gd, lfm_p_value_gd,
+                              lfm_psi_prop_ignite, lfm_st_err_prop_ignite, lfm_p_value_prop_ignite,
+                              lfm_psi_temp_change, lfm_st_err_temp_change, lfm_p_value_temp_change)
+```
+
+Random effects:
+```{r}
+lfm_psi_tti <- c(rep(NaN, 1))
+lfm_psi_fh <- c(rep(NaN, 1))
+lfm_psi_fd <- c(rep(NaN, 1))
+lfm_psi_gd <- c(rep(NaN, 1))
+lfm_psi_fd <- c(rep(NaN, 1))
+lfm_psi_prop_ignite <- c(rep(NaN, 1))
+lfm_psi_temp_change <- c(rep(NaN, 1))
+
+lfm_st_err_tti <- c(rep(NaN, 1))
+lfm_st_err_fh <- c(rep(NaN, 1))
+lfm_st_err_fd <- c(rep(NaN, 1))
+lfm_st_err_gd <- c(rep(NaN, 1))
+lfm_st_err_fd <- c(rep(NaN, 1))
+lfm_st_err_prop_ignite <- c(rep(NaN, 1))
+lfm_st_err_temp_change <- c(rep(NaN, 1))
+
+lfm_thresholds_rand_seg <- tibble::data_frame(lfm_psi_tti, lfm_st_err_tti,
+                              lfm_psi_fh, lfm_st_err_fh, 
+                              lfm_psi_fd, lfm_st_err_fd,
+                              lfm_psi_gd, lfm_st_err_gd,
+                              lfm_psi_prop_ignite, lfm_st_err_prop_ignite, 
+                              lfm_psi_temp_change, lfm_st_err_temp_change)
+```
+
+### Time to Ignition
+```{r}
+seg_data_tti <- seg_data_subset %>% 
+  drop_na(tti)
+
+#Segmented regression with random changepoints: 
+o_mod<-lme(tti~lfm*spp + mpa*spp + site + sample_wt + year_month, random=~1|id, data=seg_data_tti)
+os_mod_b<-segmented.default(o_mod, ~lfm, npsi=list(lfm=1))
+
+#summarizing results (note the '_coef' argument)
+summary.segmented(os_mod_b)
+
+#put into the df:
+lfm_thresholds_rand_seg[1] <- summary(os_mod_b)$psi[2]
+lfm_thresholds_rand_seg[2] <- summary(os_mod_b)$psi[3]
+
+# Segmented regression no random changepoints: 
+u_mod <- lm(tti~lfm + year_month, data = seg_data_tti)
+u_mod_b <- segmented(u_mod, ~lfm)
+summary.segmented(u_mod_b)
+
+u_mod_davies <- davies.test(u_mod_b)
+
+#put into the df:
+lfm_thresholds_seg[1] <- summary(u_mod_b)$psi[2]
+lfm_thresholds_seg[2] <- summary(u_mod_b)$psi[3]
+lfm_thresholds_seg[3] <- u_mod_davies$p.value
+
+rsegplot.lfm(os_mod_b, seg_data_tti, max.x = max_lfm, y.variable = 'tti', y.lab = "Time to Ignition (s)")
+```
+Combustibility Metrics:
+
+### Flame Height
+```{r}
+seg_data_fh <- seg_data_subset %>% 
+  drop_na(fh)
+
+#Segmented regression with random changepoints: 
+o_mod<-lme(fh~lfm*spp + mpa*spp + site + sample_wt + year_month, random=~1|id, data=seg_data_fh)
+os_mod_b<-segmented.default(o_mod, ~lfm, npsi=list(lfm=1))
+
+#summarizing results (note the '_coef' argument)
+summary.segmented(os_mod_b)
+
+#put into the df:
+lfm_thresholds_rand_seg[3] <- summary(os_mod_b)$psi[2]
+lfm_thresholds_rand_seg[4] <- summary(os_mod_b)$psi[3]
+
+# Segmented regression no random changepoints: 
+u_mod <- lm(fh~lfm + year_month, data = seg_data_fh)
+u_mod_b <- segmented(u_mod, ~lfm)
+summary.segmented(u_mod_b)
+
+u_mod_davies <- davies.test(u_mod_b)
+
+#put into the df:
+lfm_thresholds_seg[4] <- summary(u_mod_b)$psi[2]
+lfm_thresholds_seg[5] <- summary(u_mod_b)$psi[3]
+lfm_thresholds_seg[6] <- u_mod_davies$p.value
+
+rsegplot.lfm(os_mod_b, seg_data_fh, max.x = max_lfm, y.variable = 'fh', y.lab = "Flame Height (cm)")
+```
+
+Sustainability Metrics:
+### Flame Duration
+```{r}
+seg_data_fd <- seg_data_subset %>% 
+  drop_na(fd)
+
+#Segmented regression with random changepoints: 
+o_mod<-lme(fd~lfm*spp + mpa*spp + site + sample_wt + year_month, random=~1|id, data=seg_data_fd)
+os_mod_b<-segmented.default(o_mod, ~lfm, npsi=list(lfm=1))
+
+#summarizing results (note the '_coef' argument)
+summary.segmented(os_mod_b)
+
+#put into the df:
+lfm_thresholds_rand_seg[5] <- summary(os_mod_b)$psi[2]
+lfm_thresholds_rand_seg[6] <- summary(os_mod_b)$psi[3]
+
+# Segmented regression no random changepoints: 
+u_mod <- lm(fd~lfm + year_month, data = seg_data_fd)
+u_mod_b <- segmented(u_mod, ~lfm)
+summary.segmented(u_mod_b)
+
+u_mod_davies <- davies.test(u_mod_b)
+
+#put into the df:
+lfm_thresholds_seg[7] <- summary(u_mod_b)$psi[2]
+lfm_thresholds_seg[8] <- summary(u_mod_b)$psi[3]
+lfm_thresholds_seg[9] <- u_mod_davies$p.value
+
+rsegplot.lfm(os_mod_b, seg_data_fd, max.x = max_lfm, y.variable = 'fd', y.lab = "Flame Duration (s)")
+```
+
+### Glow Duration
+```{r}
+seg_data_gd <- seg_data_subset %>% 
+  drop_na(gd)
+
+#Segmented regression with random changepoints: 
+o_mod<-lme(gd~lfm*spp + mpa*spp + site + sample_wt + year_month, random=~1|id, data=seg_data_gd)
+os_mod_b<-segmented.default(o_mod, ~lfm, npsi=list(lfm=1))
+
+#summarizing results (note the '_coef' argument)
+summary.segmented(os_mod_b)
+
+#put into the df:
+lfm_thresholds_rand_seg[7] <- summary(os_mod_b)$psi[2]
+lfm_thresholds_rand_seg[8] <- summary(os_mod_b)$psi[3]
+
+# Segmented regression no random changepoints: 
+u_mod <- lm(gd~lfm + year_month, data = seg_data_gd)
+u_mod_b <- segmented(u_mod, ~lfm)
+summary.segmented(u_mod_b)
+
+u_mod_davies <- davies.test(u_mod_b)
+
+#put into the df:
+lfm_thresholds_seg[10] <- summary(u_mod_b)$psi[2]
+lfm_thresholds_seg[11] <- summary(u_mod_b)$psi[3]
+lfm_thresholds_seg[12] <- u_mod_davies$p.value
+
+rsegplot.lfm(os_mod_b, seg_data_gd, max.x = max_lfm, y.variable = 'gd', y.lab = "Glow Duration (s)")
+```
+
+
+### Prop. Ignite (5%)
+```{r}
+seg_data_prop_ignite <- seg_data_subset %>% 
+  drop_na(prop_ignite)
+
+#Segmented regression with random changepoints: 
+o_mod<-lme(prop_ignite~lfm*spp + mpa*spp + site + sample_wt + year_month, random=~1|id, data=seg_data_prop_ignite)
+os_mod_b<-segmented.default(o_mod, ~lfm, npsi=list(lfm=1))
+
+#summarizing results (note the '_coef' argument)
+summary.segmented(os_mod_b)
+
+#put into the df:
+lfm_thresholds_rand_seg[9] <- summary(os_mod_b)$psi[2]
+lfm_thresholds_rand_seg[10] <- summary(os_mod_b)$psi[3]
+
+# Segmented regression no random changepoints: 
+u_mod <- lm(prop_ignite~lfm + year_month, data = seg_data_prop_ignite)
+u_mod_b <- segmented(u_mod, ~lfm)
+summary.segmented(u_mod_b)
+
+u_mod_davies <- davies.test(u_mod_b)
+
+#put into the df:
+lfm_thresholds_seg[13] <- summary(u_mod_b)$psi[2]
+lfm_thresholds_seg[14] <- summary(u_mod_b)$psi[3]
+lfm_thresholds_seg[15] <- u_mod_davies$p.value
+
+rsegplot.lfm(os_mod_b, seg_data_prop_ignite, max.x = max_lfm, y.variable = 'prop_ignite', y.lab = "Proportion Ignited (%)")
+```
+
+### Temp Change
+```{r}
+seg_data_temp_change <- seg_data_subset %>% 
+  drop_na(temp_change)
+
+#Segmented regression with random changepoints: 
+o_mod<-lme(temp_change~lfm*spp + mpa*spp + site + sample_wt + year_month, random=~1|id, data=seg_data_temp_change)
+os_mod_b<-segmented.default(o_mod, ~lfm, npsi=list(lfm=1))
+
+#summarizing results (note the '_coef' argument)
+summary.segmented(os_mod_b)
+
+#put into the df:
+lfm_thresholds_rand_seg[11] <- summary(os_mod_b)$psi[2]
+lfm_thresholds_rand_seg[12] <- summary(os_mod_b)$psi[3]
+
+# Segmented regression no random changepoints: 
+u_mod <- lm(temp_change~lfm + year_month, data = seg_data_temp_change)
+u_mod_b <- segmented(u_mod, ~lfm)
+summary.segmented(u_mod_b)
+
+u_mod_davies <- davies.test(u_mod_b)
+
+#put into the df:
+lfm_thresholds_seg[16] <- summary(u_mod_b)$psi[2]
+lfm_thresholds_seg[17] <- summary(u_mod_b)$psi[3]
+lfm_thresholds_seg[18] <- u_mod_davies$p.value
+
+rsegplot.lfm(os_mod_b, seg_data_temp_change, max.x = max_lfm, y.variable = 'temp_change', y.lab = "Temperature Change (C)")
+```
+
+# LFM: Final Table
+```{r}
+#No random effects: 
+lfm_no_rand_summary_df <- lfm_thresholds_seg %>% 
+  pivot_longer(everything(), 
+               names_to = "flam_metric", 
+              values_to = "value") %>% 
+  group_by(flam_metric) %>% 
+   summarise(value = mean(value)) %>% 
+             #sd_bootstrap = sd(value)) %>% 
+  mutate(across('flam_metric', str_replace, 'lfm_', ''),
+         across('flam_metric', str_replace_all, '_', ' '), 
+         statistic = case_when(
+           grepl("p value", flam_metric) ~ "p value",
+            grepl("psi", flam_metric) ~"psi",
+            grepl("st err", flam_metric) ~"st err")) %>% 
+  mutate(across('flam_metric', str_replace, 'p value|st err|psi', ''), 
+         analysis = "segmented") %>% 
+  arrange(flam_metric, statistic, value, analysis)
+         
+lfm_no_rand_summary_df
+
+#with random effects: 
+lfm_rand_summary_df <- lfm_thresholds_rand_seg %>% 
+  pivot_longer(everything(), 
+               names_to = "flam_metric", 
+              values_to = "value") %>% 
+  group_by(flam_metric) %>% 
+   summarise(value = mean(value)) %>% 
+             #sd_bootstrap = sd(value)) %>% 
+  mutate(across('flam_metric', str_replace, 'lfm_', ''),
+         across('flam_metric', str_replace_all, '_', ' '), 
+         statistic = case_when(
+           grepl("p value", flam_metric) ~ "p value",
+            grepl("psi", flam_metric) ~"psi",
+            grepl("st err", flam_metric) ~"st err")) %>% 
+  mutate(across('flam_metric', str_replace, 'p value|st err|psi', ''), 
+         analysis = "random") %>% 
+  arrange(flam_metric, statistic, value, analysis)
+         
+lfm_rand_summary_df
+
+lfm_summary_df <- bind_rows(lfm_rand_summary_df, lfm_no_rand_summary_df) %>% 
+  mutate(water_variable = "lfm") 
+```
+# -------
+# Segmented Regressions
+
+We're just going to do a few metrics, to represent each of the axes: 
+
+Ignitability: TTI, Prop.ignite
+
+Combustibility: FH, Max Temp, Temp Change
+
+Sustainability: FD, 
+
+Consumability: GD
+
+Maybe: Max temp
+
+# Water Potential
+
+### Holding Vectors
+This will be a df with all to collect results as we go
+
+No random effects: 
+```{r}
+mpa_psi_tti <- c(rep(NaN, 1))
+mpa_psi_fh <- c(rep(NaN, 1))
+mpa_psi_fd <- c(rep(NaN, 1))
+mpa_psi_gd <- c(rep(NaN, 1))
+mpa_psi_fd <- c(rep(NaN, 1))
+mpa_psi_prop_ignite <- c(rep(NaN, 1))
+mpa_psi_temp_change <- c(rep(NaN, 1))
+
+mpa_st_err_tti <- c(rep(NaN, 1))
+mpa_st_err_fh <- c(rep(NaN, 1))
+mpa_st_err_fd <- c(rep(NaN, 1))
+mpa_st_err_gd <- c(rep(NaN, 1))
+mpa_st_err_fd <- c(rep(NaN, 1))
+mpa_st_err_prop_ignite <- c(rep(NaN, 1))
+mpa_st_err_temp_change <- c(rep(NaN, 1))
+
+mpa_p_value_tti <- c(rep(NaN, 1))
+mpa_p_value_fh <- c(rep(NaN, 1))
+mpa_p_value_fd <- c(rep(NaN, 1))
+mpa_p_value_gd <- c(rep(NaN, 1))
+mpa_p_value_fd <- c(rep(NaN, 1))
+mpa_p_value_prop_ignite <- c(rep(NaN, 1))
+mpa_p_value_temp_change <- c(rep(NaN, 1))
+
+mpa_thresholds_seg <- tibble::data_frame(mpa_psi_tti, mpa_st_err_tti, mpa_p_value_tti,
+                              mpa_psi_fh, mpa_st_err_fh, mpa_p_value_fh,
+                              mpa_psi_fd, mpa_st_err_fd,mpa_p_value_fd,
+                              mpa_psi_gd, mpa_st_err_gd, mpa_p_value_gd,
+                              mpa_psi_prop_ignite, mpa_st_err_prop_ignite, mpa_p_value_prop_ignite,
+                              mpa_psi_temp_change, mpa_st_err_temp_change, mpa_p_value_temp_change)
+```
+
+Random effects:
+```{r}
+mpa_psi_tti <- c(rep(NaN, 1))
+mpa_psi_fh <- c(rep(NaN, 1))
+mpa_psi_fd <- c(rep(NaN, 1))
+mpa_psi_gd <- c(rep(NaN, 1))
+mpa_psi_fd <- c(rep(NaN, 1))
+mpa_psi_prop_ignite <- c(rep(NaN, 1))
+mpa_psi_temp_change <- c(rep(NaN, 1))
+
+mpa_st_err_tti <- c(rep(NaN, 1))
+mpa_st_err_fh <- c(rep(NaN, 1))
+mpa_st_err_fd <- c(rep(NaN, 1))
+mpa_st_err_gd <- c(rep(NaN, 1))
+mpa_st_err_fd <- c(rep(NaN, 1))
+mpa_st_err_prop_ignite <- c(rep(NaN, 1))
+mpa_st_err_temp_change <- c(rep(NaN, 1))
+
+mpa_thresholds_rand_seg <- tibble::data_frame(mpa_psi_tti, mpa_st_err_tti,
+                              mpa_psi_fh, mpa_st_err_fh, 
+                              mpa_psi_fd, mpa_st_err_fd,
+                              mpa_psi_gd, mpa_st_err_gd,
+                              mpa_psi_prop_ignite, mpa_st_err_prop_ignite, 
+                              mpa_psi_temp_change, mpa_st_err_temp_change)
+```
+
+### Time to Ignition
+```{r}
+seg_data_tti <- seg_data_subset %>% 
+  drop_na(tti)
+
+#Segmented regression with random changepoints: 
+o_mod<-lme(tti~lfm*spp + mpa*spp + site + sample_wt + year_month, random=~1|id, data=seg_data_tti)
+os_mod_b<-segmented.default(o_mod, ~mpa, npsi=list(mpa=1))
+
+#summarizing results (note the '_coef' argument)
+summary.segmented(os_mod_b)
+
+#put into the df:
+mpa_thresholds_rand_seg[1] <- summary(os_mod_b)$psi[2]
+mpa_thresholds_rand_seg[2] <- summary(os_mod_b)$psi[3]
+
+# Segmented regression no random changepoints: 
+u_mod <- lm(tti~mpa + year_month, data = seg_data_tti)
+u_mod_b <- segmented(u_mod, ~mpa)
+summary.segmented(u_mod_b)
+
+u_mod_davies <- davies.test(u_mod_b)
+
+#put into the df:
+mpa_thresholds_seg[1] <- summary(u_mod_b)$psi[2]
+mpa_thresholds_seg[2] <- summary(u_mod_b)$psi[3]
+mpa_thresholds_seg[3] <- u_mod_davies$p.value
+
+rsegplot.mpa(os_mod_b, seg_data_tti, max.x = max_mpa, y.variable = 'tti', y.lab = "Time to Ignition (s)")
+```
+Combustibility Metrics:
+
+### Flame Height
+```{r}
+seg_data_fh <- seg_data_subset %>% 
+  drop_na(fh)
+
+#Segmented regression with random changepoints: 
+o_mod<-lme(fh~lfm*spp + mpa*spp + site + sample_wt + year_month, random=~1|id, data=seg_data_fh)
+os_mod_b<-segmented.default(o_mod, ~mpa, npsi=list(mpa=1))
+
+#summarizing results (note the '_coef' argument)
+summary.segmented(os_mod_b)
+
+#put into the df:
+mpa_thresholds_rand_seg[3] <- summary(os_mod_b)$psi[2]
+mpa_thresholds_rand_seg[4] <- summary(os_mod_b)$psi[3]
+
+# Segmented regression no random changepoints: 
+u_mod <- lm(fh~mpa + year_month, data = seg_data_fh)
+u_mod_b <- segmented(u_mod, ~mpa)
+summary.segmented(u_mod_b)
+
+u_mod_davies <- davies.test(u_mod_b)
+
+#put into the df:
+mpa_thresholds_seg[4] <- summary(u_mod_b)$psi[2]
+mpa_thresholds_seg[5] <- summary(u_mod_b)$psi[3]
+mpa_thresholds_seg[6] <- u_mod_davies$p.value
+
+rsegplot.mpa(os_mod_b, seg_data_fh, max.x = max_mpa, y.variable = 'fh', y.lab = "Flame Height (cm)")
+```
+
+Sustainability Metrics:
+### Flame Duration
+```{r}
+seg_data_fd <- seg_data_subset %>% 
+  drop_na(fd)
+
+#Segmented regression with random changepoints: 
+o_mod<-lme(fd~lfm*spp + mpa*spp + site + sample_wt + year_month, random=~1|id, data=seg_data_fd)
+os_mod_b<-segmented.default(o_mod, ~mpa, npsi=list(mpa=1))
+
+#summarizing results (note the '_coef' argument)
+summary.segmented(os_mod_b)
+
+#put into the df:
+mpa_thresholds_rand_seg[5] <- summary(os_mod_b)$psi[2]
+mpa_thresholds_rand_seg[6] <- summary(os_mod_b)$psi[3]
+
+# Segmented regression no random changepoints: 
+u_mod <- lm(fd~mpa + year_month, data = seg_data_fd)
+u_mod_b <- segmented(u_mod, ~mpa)
+summary.segmented(u_mod_b)
+
+u_mod_davies <- davies.test(u_mod_b)
+
+#put into the df:
+mpa_thresholds_seg[7] <- summary(u_mod_b)$psi[2]
+mpa_thresholds_seg[8] <- summary(u_mod_b)$psi[3]
+mpa_thresholds_seg[9] <- u_mod_davies$p.value
+
+rsegplot.mpa(os_mod_b, seg_data_fd, max.x = max_mpa, y.variable = 'fd', y.lab = "Flame Duration (s)")
+```
+
+### Glow Duration
+```{r}
+seg_data_gd <- seg_data_subset %>% 
+  drop_na(gd)
+
+#Segmented regression with random changepoints: 
+o_mod<-lme(gd~lfm*spp + mpa*spp + site + sample_wt + year_month, random=~1|id, data=seg_data_gd)
+os_mod_b<-segmented.default(o_mod, ~mpa, npsi=list(mpa=1))
+
+#summarizing results (note the '_coef' argument)
+summary.segmented(os_mod_b)
+
+#put into the df:
+mpa_thresholds_rand_seg[7] <- summary(os_mod_b)$psi[2]
+mpa_thresholds_rand_seg[8] <- summary(os_mod_b)$psi[3]
+
+# Segmented regression no random changepoints: 
+u_mod <- lm(gd~mpa + year_month, data = seg_data_gd)
+u_mod_b <- segmented(u_mod, ~mpa)
+summary.segmented(u_mod_b)
+
+u_mod_davies <- davies.test(u_mod_b)
+
+#put into the df:
+mpa_thresholds_seg[10] <- summary(u_mod_b)$psi[2]
+mpa_thresholds_seg[11] <- summary(u_mod_b)$psi[3]
+mpa_thresholds_seg[12] <- u_mod_davies$p.value
+
+rsegplot.mpa(os_mod_b, seg_data_gd, max.x = max_mpa, y.variable = 'gd', y.lab = "Glow Duration (s)")
+```
+
+
+### Prop. Ignite (5%)
+```{r}
+seg_data_prop_ignite <- seg_data_subset %>% 
+  drop_na(prop_ignite)
+
+#Segmented regression with random changepoints: 
+o_mod<-lme(prop_ignite~lfm*spp + mpa*spp + site + sample_wt + year_month, random=~1|id, data=seg_data_prop_ignite)
+os_mod_b<-segmented.default(o_mod, ~mpa, npsi=list(mpa=1))
+
+#summarizing results (note the '_coef' argument)
+summary.segmented(os_mod_b)
+
+#put into the df:
+mpa_thresholds_rand_seg[9] <- summary(os_mod_b)$psi[2]
+mpa_thresholds_rand_seg[10] <- summary(os_mod_b)$psi[3]
+
+# Segmented regression no random changepoints: 
+u_mod <- lm(prop_ignite~mpa + year_month, data = seg_data_prop_ignite)
+u_mod_b <- segmented(u_mod, ~mpa)
+summary.segmented(u_mod_b)
+
+u_mod_davies <- davies.test(u_mod_b)
+
+#put into the df:
+mpa_thresholds_seg[13] <- summary(u_mod_b)$psi[2]
+mpa_thresholds_seg[14] <- summary(u_mod_b)$psi[3]
+mpa_thresholds_seg[15] <- u_mod_davies$p.value
+
+rsegplot.mpa(os_mod_b, seg_data_prop_ignite, max.x = max_mpa, y.variable = 'prop_ignite', y.lab = "Proportion Ignited (%)")
+```
+
+### Temp Change
+```{r}
+seg_data_temp_change <- seg_data_subset %>% 
+  drop_na(temp_change)
+
+#Segmented regression with random changepoints: 
+o_mod<-lme(temp_change~lfm*spp + mpa*spp + site + sample_wt + year_month, random=~1|id, data=seg_data_temp_change)
+os_mod_b<-segmented.default(o_mod, ~mpa, npsi=list(mpa=1))
+
+#summarizing results (note the '_coef' argument)
+summary.segmented(os_mod_b)
+
+#put into the df:
+mpa_thresholds_rand_seg[11] <- summary(os_mod_b)$psi[2]
+mpa_thresholds_rand_seg[12] <- summary(os_mod_b)$psi[3]
+
+# Segmented regression no random changepoints: 
+u_mod <- lm(temp_change~mpa + year_month, data = seg_data_temp_change)
+u_mod_b <- segmented(u_mod, ~mpa)
+summary.segmented(u_mod_b)
+
+u_mod_davies <- davies.test(u_mod_b)
+
+#put into the df:
+mpa_thresholds_seg[16] <- summary(u_mod_b)$psi[2]
+mpa_thresholds_seg[17] <- summary(u_mod_b)$psi[3]
+mpa_thresholds_seg[18] <- u_mod_davies$p.value
+
+rsegplot.mpa(os_mod_b, seg_data_temp_change, max.x = max_mpa, y.variable = 'temp_change', y.lab = "Temperature Change (C)")
+```
+
+# MPa: Final Table
+```{r}
+#No random effects: 
+mpa_no_rand_summary_df <- mpa_thresholds_seg %>% 
+  pivot_longer(everything(), 
+               names_to = "flam_metric", 
+              values_to = "value") %>% 
+  group_by(flam_metric) %>% 
+   summarise(value = mean(value)) %>% 
+             #sd_bootstrap = sd(value)) %>% 
+  mutate(across('flam_metric', str_replace, 'mpa_', ''),
+         across('flam_metric', str_replace_all, '_', ' '), 
+         statistic = case_when(
+           grepl("p value", flam_metric) ~ "p value",
+            grepl("psi", flam_metric) ~"psi",
+            grepl("st err", flam_metric) ~"st err")) %>% 
+  mutate(across('flam_metric', str_replace, 'p value|st err|psi', ''), 
+         analysis = "segmented") %>% 
+  arrange(flam_metric, statistic, value, analysis)
+         
+mpa_no_rand_summary_df
+
+#with random effects: 
+mpa_rand_summary_df <- mpa_thresholds_rand_seg %>% 
+  pivot_longer(everything(), 
+               names_to = "flam_metric", 
+              values_to = "value") %>% 
+  group_by(flam_metric) %>% 
+   summarise(value = mean(value)) %>% 
+             #sd_bootstrap = sd(value)) %>% 
+  mutate(across('flam_metric', str_replace, 'mpa_', ''),
+         across('flam_metric', str_replace_all, '_', ' '), 
+         statistic = case_when(
+           grepl("p value", flam_metric) ~ "p value",
+            grepl("psi", flam_metric) ~"psi",
+            grepl("st err", flam_metric) ~"st err")) %>% 
+  mutate(across('flam_metric', str_replace, 'p value|st err|psi', ''), 
+         analysis = "random") %>% 
+  arrange(flam_metric, statistic, value, analysis)
+         
+mpa_rand_summary_df
+
+mpa_summary_df <- bind_rows(mpa_rand_summary_df, mpa_no_rand_summary_df) %>% 
+  mutate(water_variable = "mpa") 
+```
+
+# -------
+
+# Summary DF
+```{r}
+all_segmented <- bind_rows(lfm_summary_df, mpa_summary_df)
+
+all_segmented_wide <- all_segmented %>% 
+  mutate(across('statistic', str_replace, ' ', '_')) %>% 
+  pivot_wider(names_from = statistic, 
+              values_from = value)
+```
+
+# Visualize 
+```{r}
+all_segmented_wide %>%
+  ggplot(aes(
+    y = psi, 
+    x = flam_metric,
+    color = analysis)) +
+  geom_point() +
+  facet_wrap(~water_variable, scales = "free")
+```
