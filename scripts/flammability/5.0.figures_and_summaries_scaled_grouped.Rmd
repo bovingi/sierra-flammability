@@ -676,3 +676,198 @@ spp_estimates
 ggsave(plot=spp_estimates, bg = "white" , here::here("figures", "spp_estimates_flam_metrics_withceco.jpeg"), device="jpg")
 ```
 
+# 4. Effect Size Plots
+For these plots, focusing on TTI, FH, GD, Prop Ignition
+
+## MEM Table
+To pull the effect sizes from
+```{r}
+tab_model(tti_mod, fh_mod, gd_mod, prop_ignite_mod,
+          show.reflvl = TRUE, 
+          digits = 3, 
+          show.aic = TRUE, 
+          show.ci = FALSE,
+          show.icc = FALSE, 
+         string.pred = "Coeffcient", 
+        dv.labels = c("Time to Ignition", "Flame Height","Glow Duration", "Proportion  Ignited"),
+         title = "Effect Size Plots: MEM Table",
+  string.p = "P-Value", 
+  p.style = "stars")
+```
+
+  ---------------------------------------------------------------------------------------
+ | NOTE: For standard error, should we do +/-0.5*standard error  or +/- standard error ? |
+  ---------------------------------------------------------------------------------------
+
+## TTI
+Gathering effect size from above table and standard error from the summary of the mixed effects model
+```{r}
+summary(tti_mod)
+
+species <- c("A. concolor", "A. patula", "C. decurrens", "P. jeffreyi", "Q. kelloggii")
+tti.ES.lfm <- c(5.611, 6.794, 1.552, -0.898,-2.845) # Following this order: ABCO,  ARPA, CADE, PIJE, QUKE (no CECO)
+tti.SE.lfm <- c(3.0378, 4.6098, 5.3613, 4.3614, 7.6662)
+tti.sig.lfm <- c('No', 'No', 'No', 'No', 'No')
+tti.ES.mpa <- c(-3.335,9.860,9.076, -0.390, 1.751) 
+tti.SE.mpa <- c(2.8881, 4.1848, 5.1628, 4.1256, 7.5027)
+tti.sig.mpa <- c('No', 'Yes', 'No', 'No', 'No')
+tti.ES.df <- data.frame(species, tti.ES.lfm, tti.SE.lfm, tti.sig.lfm, tti.ES.mpa, tti.SE.mpa, tti.sig.mpa)
+
+tti.ES.lfm.plot <- ggplot(data = tti.ES.df, aes(x = species, y = tti.ES.lfm, 
+                                                color = species, shape = tti.sig.lfm)) +
+  labs(y = 'LFM x Species Effect Size on TTI', color = 'Species', shape = 'Significant?') +
+  geom_point(size = 5) +
+  geom_linerange(aes(ymin = tti.ES.lfm - 0.5*tti.SE.lfm, ymax = tti.ES.lfm + 0.5*tti.SE.lfm)) +
+  theme_bw() +
+  scale_color_manual(values = c('black', '#BD282F', '#FDD358', '#87B37A', '#5D5D81')) +
+  scale_shape_manual(values = c(16, 10)) +
+  theme(axis.title.x = element_blank(), axis.text.x = element_blank(),
+        axis.title.y = element_text(face = 'bold', size = 14), 
+        axis.text.y = element_text(size = 12),
+        legend.title = element_text(face = 'bold', size = 14),
+        legend.text = element_text(face = 'italic'),
+        panel.grid.major.x = element_blank(), axis.ticks.x = element_blank())
+tti.ES.lfm.plot
+  
+tti.ES.mpa.plot <- ggplot(data = tti.ES.df, aes(x = species, y = tti.ES.mpa, 
+                                                color = species, shape = tti.sig.mpa)) +
+  labs(y = 'MPa x Species Effect Size on TTI', color = 'Species', shape = 'Significant?') +
+  geom_point(size = 5, cex = 5) +
+  geom_linerange(aes(ymin = tti.ES.mpa - 0.5*tti.SE.mpa, ymax = tti.ES.mpa + 0.5*tti.SE.mpa)) +
+  theme_bw() +
+  scale_color_manual(values = c('black', '#BD282F', '#FDD358', '#87B37A', '#5D5D81')) +
+  scale_shape_manual(values = c(16, 10)) +
+  theme(axis.title.x = element_blank(), axis.text.x = element_blank(),
+        axis.title.y = element_text(face = 'bold', size = 14), 
+        axis.text.y = element_text(size = 12),
+        legend.title = element_text(face = 'bold', size = 14),
+        legend.text = element_text(face = 'italic'),
+        panel.grid.major.x = element_blank(), axis.ticks.x = element_blank())
+tti.ES.mpa.plot
+```
+
+## FH
+For now, just getting the effect sizes in until we decide on what metric to use to show variance
+```{r}
+summary(fh_mod)
+
+fh.ES.lfm <- c(-1.857, 3.107, -2.255, 0.407,-0.005) # Following this order: ABCO,  ARPA, CADE, PIJE, QUKE (no CECO)
+fh.SE.lfm <- c(0.8147, 1.2257, 1.4422, 1.1660, 2.0679)
+fh.sig.lfm <- c('Yes', 'Yes', 'No', 'No', 'No')
+fh.ES.mpa <- c(-2.126,3.702,0.273, 1.153, 1.978) 
+fh.SE.mpa <- c(0.7819, 1.1283, 1.3925, 1.1130, 2.0264)
+fh.sig.mpa <- c('Yes', 'Yes', 'No', 'No', 'No')
+fh.ES.df <- data.frame(species, fh.ES.lfm, fh.SE.lfm, fh.sig.lfm, fh.ES.mpa, fh.SE.mpa, fh.sig.mpa)
+
+fh.ES.lfm.plot <- ggplot(data = fh.ES.df, aes(x = species, y = fh.ES.lfm, 
+                                                color = species, shape = fh.sig.lfm)) +
+  labs(y = 'LFM x Species Effect Size on FH', color = 'Species', shape = 'Significant?') +
+  geom_point(size = 5) +
+  geom_linerange(aes(ymin =fh.ES.lfm - 0.5*fh.SE.lfm, ymax = fh.ES.lfm + 0.5*fh.SE.lfm)) +
+  theme_bw() +
+  scale_color_manual(values = c('black', '#BD282F', '#FDD358', '#87B37A', '#5D5D81')) +
+  scale_shape_manual(values = c(16, 10)) +
+  theme(axis.title.x = element_blank(), axis.text.x = element_blank(),
+        axis.title.y = element_text(face = 'bold', size = 14), 
+        axis.text.y = element_text(size = 12),
+        legend.title = element_text(face = 'bold', size = 14),
+        legend.text = element_text(face = 'italic'),
+        panel.grid.major.x = element_blank(), axis.ticks.x = element_blank())
+fh.ES.lfm.plot
+  
+fh.ES.mpa.plot <- ggplot(data = fh.ES.df, aes(x = species, y = fh.ES.mpa, 
+                                                color = species, shape = fh.sig.mpa)) +
+  labs(y = 'MPa x Species Effect Size on FH', color = 'Species', shape = 'Significant?') +
+  geom_point(size = 5, cex = 5) +
+  geom_linerange(aes(ymin = fh.ES.mpa - 0.5*fh.SE.mpa, ymax = fh.ES.mpa + 0.5*fh.SE.mpa)) +
+  theme_bw() +
+  scale_color_manual(values = c('black', '#BD282F', '#FDD358', '#87B37A', '#5D5D81')) +
+  scale_shape_manual(values = c(16, 10)) +
+  theme(axis.title.x = element_blank(), axis.text.x = element_blank(),
+        axis.title.y = element_text(face = 'bold', size = 14), 
+        axis.text.y = element_text(size = 12),
+        legend.title = element_text(face = 'bold', size = 14),
+        legend.text = element_text(face = 'italic'),
+        panel.grid.major.x = element_blank(), axis.ticks.x = element_blank())
+fh.ES.mpa.plot
+```
+
+## GD
+For now, just getting the effect sizes in until we decide on what metric to use to show variance
+```{r}
+gd.ES.lfm <- c(11.623, -12.034, 2.005, -12.020, -66.120) # Following this order: ABCO,  ARPA, CADE, PIJE, QUKE (no CECO)
+gd.sig.lfm <- c('No', 'No', 'No', 'No', 'Yes')
+gd.ES.mpa <- c(16.461, -14.780, -1.010, -11.924, -53.761)
+gd.sig.mpa <- c('Yes', 'No', 'No', 'No', 'Yes')
+gd.ES.df <- data.frame(species, gd.ES.lfm, gd.sig.lfm, gd.ES.mpa, gd.sig.mpa)
+
+gd.ES.lfm.plot <- ggplot(data = gd.ES.df, aes(x = species, y = gd.ES.lfm, 
+                                                color = species, shape = gd.sig.lfm)) +
+  labs(y = 'LFM x Species Effect Size on GD', color = 'Species', shape = 'Significant?') +
+  geom_point(size = 5) +
+  theme_bw() +
+  scale_color_manual(values = c('black', '#BD282F', '#FDD358', '#87B37A', '#5D5D81')) +
+  scale_shape_manual(values = c(16, 10)) +
+  theme(axis.title.x = element_blank(), axis.text.x = element_blank(),
+        axis.title.y = element_text(face = 'bold', size = 14), 
+        axis.text.y = element_text(size = 12),
+        legend.title = element_text(face = 'bold', size = 14),
+        legend.text = element_text(face = 'italic'),
+        panel.grid.major.x = element_blank(), axis.ticks.x = element_blank())
+gd.ES.lfm.plot
+  
+gd.ES.mpa.plot <- ggplot(data = gd.ES.df, aes(x = species, y = gd.ES.mpa, 
+                                                color = species, shape = gd.sig.mpa)) +
+  labs(y = 'MPa x Species Effect Size on GD', color = 'Species', shape = 'Significant?') +
+  geom_point(size = 5, cex = 5) +
+  theme_bw() +
+  scale_color_manual(values = c('black', '#BD282F', '#FDD358', '#87B37A', '#5D5D81')) +
+  scale_shape_manual(values = c(16, 10)) +
+  theme(axis.title.x = element_blank(), axis.text.x = element_blank(),
+        axis.title.y = element_text(face = 'bold', size = 14), 
+        axis.text.y = element_text(size = 12),
+        legend.title = element_text(face = 'bold', size = 14),
+        legend.text = element_text(face = 'italic'),
+        panel.grid.major.x = element_blank(), axis.ticks.x = element_blank())
+gd.ES.mpa.plot
+```
+
+## Prop. Ignite
+For now, just getting the effect sizes in until we decide on what metric to use to show variance
+```{r}
+prop_ignite.ES.lfm <- c(0.023, -5.152, 1.020, -0.135, -12.584) # Following this order: ABCO,  ARPA, CADE, PIJE, QUKE (no CECO)
+prop_ignite.sig.lfm <- c('No', 'Yes', 'No', 'No', 'Yes')
+prop_ignite.ES.mpa <- c(-0.354, -7.942, 1.386, 0.253, -3.041)
+prop_ignite.sig.mpa <- c('No', 'Yes', 'No', 'No', 'No')
+prop_ignite.ES.df <- data.frame(species, prop_ignite.ES.lfm, prop_ignite.sig.lfm, prop_ignite.ES.mpa, prop_ignite.sig.mpa)
+
+prop_ignite.ES.lfm.plot <- ggplot(data = prop_ignite.ES.df, aes(x = species, y = prop_ignite.ES.lfm, 
+                                                color = species, shape = prop_ignite.sig.lfm)) +
+  labs(y = 'LFM x Species Effect Size on Ignition Rate', color = 'Species', shape = 'Significant?') +
+  geom_point(size = 5) +
+  theme_bw() +
+  scale_color_manual(values = c('black', '#BD282F', '#FDD358', '#87B37A', '#5D5D81')) +
+  scale_shape_manual(values = c(16, 10)) +
+  theme(axis.title.x = element_blank(), axis.text.x = element_blank(),
+        axis.title.y = element_text(face = 'bold', size = 14), 
+        axis.text.y = element_text(size = 12),
+        legend.title = element_text(face = 'bold', size = 14),
+        legend.text = element_text(face = 'italic'),
+        panel.grid.major.x = element_blank(), axis.ticks.x = element_blank())
+prop_ignite.ES.lfm.plot
+  
+prop_ignite.ES.mpa.plot <- ggplot(data = prop_ignite.ES.df, aes(x = species, y = prop_ignite.ES.mpa, 
+                                                color = species, shape = prop_ignite.sig.mpa)) +
+  labs(y = 'MPa x Species Effect Size on Ignition Rate', color = 'Species', shape = 'Significant?') +
+  geom_point(size = 5, cex = 5) +
+  theme_bw() +
+  scale_color_manual(values = c('black', '#BD282F', '#FDD358', '#87B37A', '#5D5D81')) +
+  scale_shape_manual(values = c(16, 10)) +
+  theme(axis.title.x = element_blank(), axis.text.x = element_blank(),
+        axis.title.y = element_text(face = 'bold', size = 14), 
+        axis.text.y = element_text(size = 12),
+        legend.title = element_text(face = 'bold', size = 14),
+        legend.text = element_text(face = 'italic'),
+        panel.grid.major.x = element_blank(), axis.ticks.x = element_blank())
+prop_ignite.ES.mpa.plot
+```
