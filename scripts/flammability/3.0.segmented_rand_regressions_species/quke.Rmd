@@ -195,7 +195,7 @@ corrplot::corrplot.mixed(quke_cor, order = 'AOE')
 
 # -------
 
-#Segmented regressions: 
+# Segmented Regressions
 
 We're just going to do a few metrics, to represent each of the axes: 
 
