@@ -16,7 +16,7 @@ library(ggpubr)
 library(cowplot)
 library(GGally) #for corr plots
 require(kimisc) # has the nlist function to create a named list
-library(strengejacke)
+#library(strengejacke)
 library(sjPlot) # table functions
 library(here)
 library(effects) #for plofhng model effects
@@ -67,7 +67,9 @@ pv_plot <- pv_all_df %>%
         axis.title.x = element_text("")) +
   labs(title = "PV Curves", 
        x = "", 
-       y = "LFM")
+       y = "LFM") +
+  xlim(0, 10) +
+  theme(plot.margin = unit(c(.2, .5, -.5, .25), "cm")) #margin(t = 0, r = 0, b = 0, l = 0, unit = "pt")
 pv_plot
 ```
 
@@ -118,22 +120,22 @@ mod_all_df <- mod_all_df1 %>%
   pivot_wider(names_from = mods, 
               values_from = r2m) %>% 
   mutate(
-    #other_effects =  m3 - week_effect - mpa_effect,
+    #spp_AND_time_effects =  m3 - week_effect - mpa_effect,
     time_effect = m1 - m2, #week + mpa mod - mpa mod
          spp_effect = m1 - m3, #week + mpa mod - week mod
          time_spp_effect = m1, #week + mpa mod 
-    other_effects =  m1 - time_effect - spp_effect,
+    spp_AND_time_effects =  m1 - m2 - m3,
          ) #full minus the effects of mpa and week alone
 mod_all_df
 
 #for plotting (maybe?)
 mod_all_long <- mod_all_df %>% 
-  select(time_effect, spp_effect, time_spp_effect, other_effects) %>% 
-  pivot_longer(cols = c(time_effect, spp_effect, time_spp_effect, other_effects), 
+  select(time_effect, spp_effect, time_spp_effect, spp_AND_time_effects) %>% 
+  pivot_longer(cols = c(time_effect, spp_effect, time_spp_effect, spp_AND_time_effects), 
     names_to = "effect") %>% 
   distinct() %>% 
   mutate(analysis = case_when(
-    effect %in% c("time_effect", "spp_effect", "other_effects") ~ "PV Curve", 
+    effect %in% c("time_effect", "spp_effect", "spp_AND_time_effects") ~ "PV Curve", 
     effect %in% c("time_spp_effect") ~ "Full Mod.", 
     TRUE ~ as.character(effect)), 
     decomp = "After Leafout")
@@ -174,23 +176,23 @@ mod_all_df <- mod_all_df1 %>%
   pivot_wider(names_from = mods, 
               values_from = r2m) %>% 
   mutate(
-    #other_effects =  m3 - week_effect - mpa_effect,
+    #spp_AND_time_effects =  m3 - week_effect - mpa_effect,
     time_effect = m1 - m2 - m4, #week + mpa mod - mpa mod
          spp_effect = m1 - m3 - m4, #week + mpa mod - week mod
          time_spp_effect = m1, #week + mpa mod 
     mpa_effect = m1 - m2 - m3,
-    other_effects =  m1 - time_effect - spp_effect - mpa_effect,
+    spp_AND_time_effects =  m1 - time_effect - spp_effect - mpa_effect,
          ) #full minus the effects of mpa and week alone
 mod_all_df
 
 #for plotting (maybe?)
 mod_all_long_lfm <- mod_all_df %>% 
-  select(time_effect, spp_effect, time_spp_effect, other_effects, mpa_effect) %>% 
-  pivot_longer(cols = c(time_effect, spp_effect, time_spp_effect, other_effects, mpa_effect), 
+  select(time_effect, spp_effect, time_spp_effect, spp_AND_time_effects, mpa_effect) %>% 
+  pivot_longer(cols = c(time_effect, spp_effect, time_spp_effect, spp_AND_time_effects, mpa_effect), 
     names_to = "effect") %>% 
   distinct() %>% 
   mutate(analysis = case_when(
-    effect %in% c("time_effect", "spp_effect", "other_effects", "mpa_effect") ~ "PV Curve", 
+    effect %in% c("time_effect", "spp_effect", "spp_AND_time_effects", "mpa_effect") ~ "PV Curve", 
     effect %in% c("time_spp_effect") ~ "Full Mod.", 
     TRUE ~ as.character(effect)), 
     decomp = "After Leafout")
@@ -252,7 +254,9 @@ flam_plot <- flam_curve_df %>%
   theme(legend.position = "none")+
   labs(title = "Flam", 
        x = "Water Potential", 
-       y = "LFM")
+       y = "LFM")+
+  theme(plot.margin = unit(c(.2, .5, .3, .25), "cm")) +
+  xlim(0,10)
 flam_plot
 ```
 
@@ -277,22 +281,22 @@ mod_all_df <- mod_all_df1 %>%
   pivot_wider(names_from = mods, 
               values_from = r2m) %>% 
   mutate(
-    #other_effects =  m3 - week_effect - mpa_effect,
+    #spp_AND_time_effects =  m3 - week_effect - mpa_effect,
     time_effect = m1 - m2, #week + mpa mod - mpa mod
          spp_effect = m1 - m3, #week + mpa mod - week mod
          time_spp_effect = m1, #week + mpa mod 
-    other_effects =  m1 - time_effect - spp_effect,
+    spp_AND_time_effects =  m1 - time_effect - spp_effect,
          ) #full minus the effects of mpa and week alone
 mod_all_df
 
 #for plotting (maybe?)
 mod_all_long_flam <- mod_all_df %>% 
-  select(time_effect, spp_effect, time_spp_effect, other_effects) %>% 
-  pivot_longer(cols = c(time_effect, spp_effect, time_spp_effect, other_effects), 
+  select(time_effect, spp_effect, time_spp_effect, spp_AND_time_effects) %>% 
+  pivot_longer(cols = c(time_effect, spp_effect, time_spp_effect, spp_AND_time_effects), 
     names_to = "effect") %>% 
   distinct() %>% 
   mutate(analysis = case_when(
-    effect %in% c("time_effect", "spp_effect", "other_effects") ~ "Flam Curve", 
+    effect %in% c("time_effect", "spp_effect", "spp_AND_time_effects") ~ "Flam Curve", 
     effect %in% c("time_spp_effect") ~ "Full Mod.", 
     TRUE ~ as.character(effect)), 
     decomp = "After Leafout")
@@ -313,8 +317,11 @@ mod_all_long_flam %>%
 
 ###Just LFM
 ```{r}
-m1 <- lmer(lfm ~ spp * year_month + (1|plant), data = flam_curve_df)
+m1 <- lmer(lfm ~ spp + water_potential + year_month + (1|plant), data = flam_curve_df)
+
 m2 <- lmer(lfm ~ spp + (1|plant), data = flam_curve_df)
+m2.5 = lmer(lfm ~ spp + water_potential + (1|plant, data = flam_curve_df))
+
 m3 <- lmer(lfm ~ year_month + (1|plant), data = flam_curve_df)
 m4 <- lmer(lfm ~ water_potential + (1|plant), data = flam_curve_df)
 
@@ -333,23 +340,23 @@ mod_all_df <- mod_all_df1 %>%
   pivot_wider(names_from = mods, 
               values_from = r2m) %>% 
   mutate(
-    #other_effects =  m3 - week_effect - mpa_effect,
-    time_effect = m1 - m2 - m4, #week + mpa mod - mpa mod
-         spp_effect = m1 - m3 - m4, #week + mpa mod - week mod
+    #spp_AND_time_effects =  m3 - week_effect - mpa_effect,
+    time_effect = m1 - (m2 - m4), #week + mpa mod - mpa mod
+         spp_effect = m1 - (m3 - m4), #week + mpa mod - week mod
          time_spp_effect = m1, #week + mpa mod 
-    mpa_effect= m1 - m2 - m3,
-    other_effects =  m1 - time_effect - spp_effect - mpa_effect
+    mpa_effect= m1 - (m2 - m3),
+    spp_AND_time_effects =  m1 - time_effect - spp_effect - mpa_effect
          ) #full minus the effects of mpa and week alone
 mod_all_df
 
 #for plotting (maybe?)
 mod_all_long_flam_lfm <- mod_all_df %>% 
-  select(time_effect, spp_effect, time_spp_effect, other_effects, mpa_effect) %>% 
-  pivot_longer(cols = c(time_effect, spp_effect, time_spp_effect, other_effects, mpa_effect), 
+  select(time_effect, spp_effect, time_spp_effect, spp_AND_time_effects, mpa_effect) %>% 
+  pivot_longer(cols = c(time_effect, spp_effect, time_spp_effect, spp_AND_time_effects, mpa_effect), 
     names_to = "effect") %>% 
   distinct() %>% 
   mutate(analysis = case_when(
-    effect %in% c("time_effect", "spp_effect", "other_effects", "mpa_effect") ~ "Flam Curve", 
+    effect %in% c("time_effect", "spp_effect", "spp_AND_time_effects", "mpa_effect") ~ "Flam Curve", 
     effect %in% c("time_spp_effect") ~ "Full Mod.", 
     TRUE ~ as.character(effect)), 
     decomp = "After Leafout")
@@ -397,7 +404,9 @@ field_plot <- field_data_all %>%
   theme(legend.position = "none") +
   labs(title = "Field", 
        x = "", 
-       y = "LFM")
+       y = "LFM") +
+  theme(plot.margin = unit(c(.2, .5, -.5, .25), "cm")) +
+  xlim(0,10)
 field_plot
 ```
 m1 <- lmer(lfm ~ water_potential*spp * month + (1|plant), data = field_data_all)
@@ -420,23 +429,23 @@ mod_all_df <- mod_all_df1 %>%
   pivot_wider(names_from = mods, 
               values_from = r2m) %>% 
   mutate(
-    #other_effects =  m3 - week_effect - mpa_effect,
+    #spp_AND_time_effects =  m3 - week_effect - mpa_effect,
     time_effect = m1 - m2, #week + mpa mod - mpa mod
          spp_effect = m1 - m3, #week + mpa mod - week mod
          time_spp_effect = m1, #week + mpa mod 
         mpa_effect = m1 - m4,
-    other_effects =  m1 - time_effect - spp_effect - mpa_effect,
+    spp_AND_time_effects =  m1 - time_effect - spp_effect - mpa_effect,
          ) #full minus the effects of mpa and week alone
 mod_all_df
 
 #for plotting (maybe?)
 mod_all_long_field_lfm <- mod_all_df %>% 
-  select(time_effect, spp_effect, time_spp_effect, other_effects, mpa_effect) %>% 
-  pivot_longer(cols = c(time_effect, spp_effect, time_spp_effect, other_effects, mpa_effect), 
+  select(time_effect, spp_effect, time_spp_effect, spp_AND_time_effects, mpa_effect) %>% 
+  pivot_longer(cols = c(time_effect, spp_effect, time_spp_effect, spp_AND_time_effects, mpa_effect), 
     names_to = "effect") %>% 
   distinct() %>% 
   mutate(analysis = case_when(
-    effect %in% c("time_effect", "spp_effect", "other_effects", "mpa_effect") ~ "Field", 
+    effect %in% c("time_effect", "spp_effect", "spp_AND_time_effects", "mpa_effect") ~ "Field", 
     effect %in% c("time_spp_effect") ~ "Full Mod.", 
     TRUE ~ as.character(effect)), 
     decomp = "After Leafout") 
@@ -457,7 +466,7 @@ mod_all_long_field_lfm %>%
   ylim(0, 1)
 #####MaxLFM
 ```{r}
-m1 <- lmer(maxLFM ~ spp * month + (1|plant), data = field_data_all)
+m1 <- lmer(maxLFM ~ spp + month + (1|plant), data = field_data_all)
 m2 <- lmer(maxLFM ~ spp + (1|plant), data = field_data_all)
 m3 <- lmer(maxLFM ~ month + (1|plant), data = field_data_all)
 
@@ -476,22 +485,22 @@ mod_all_df <- mod_all_df1 %>%
   pivot_wider(names_from = mods, 
               values_from = r2m) %>% 
   mutate(
-    #other_effects =  m3 - week_effect - mpa_effect,
+    #spp_AND_time_effects =  m3 - week_effect - mpa_effect,
     time_effect = m1 - m2, #week + mpa mod - mpa mod
          spp_effect = m1 - m3, #week + mpa mod - week mod
          time_spp_effect = m1, #week + mpa mod 
-    other_effects =  m1 - time_effect - spp_effect,
+    spp_AND_time_effects =  m1 - (time_effect - spp_effect),
          ) #full minus the effects of mpa and week alone
 mod_all_df
 
 #for plotting (maybe?)
 mod_all_long_field <- mod_all_df %>% 
-  select(time_effect, spp_effect, time_spp_effect, other_effects) %>% 
-  pivot_longer(cols = c(time_effect, spp_effect, time_spp_effect, other_effects), 
+  select(time_effect, spp_effect, time_spp_effect, spp_AND_time_effects) %>% 
+  pivot_longer(cols = c(time_effect, spp_effect, time_spp_effect, spp_AND_time_effects), 
     names_to = "effect") %>% 
   distinct() %>% 
   mutate(analysis = case_when(
-    effect %in% c("time_effect", "spp_effect", "other_effects") ~ "Field", 
+    effect %in% c("time_effect", "spp_effect", "spp_AND_time_effects") ~ "Field", 
     effect %in% c("time_spp_effect") ~ "Full Mod.", 
     TRUE ~ as.character(effect)), 
     decomp = "After Leafout")
@@ -532,23 +541,23 @@ mod_all_df <- mod_all_df1 %>%
   pivot_wider(names_from = mods, 
               values_from = r2m) %>% 
   mutate(
-    #other_effects =  m3 - week_effect - mpa_effect,
+    #spp_AND_time_effects =  m3 - week_effect - mpa_effect,
     time_effect = m1 - m2 -m4, #week + mpa mod - mpa mod
          spp_effect = m1 - m3 - m4, #week + mpa mod - week mod
          time_spp_effect = m1, #week + mpa mod 
         mpa_effect = m1 - m3 - m2,
-    other_effects =  m1 - time_effect - spp_effect - mpa_effect,
+    spp_AND_time_effects =  m1 - time_effect - spp_effect - mpa_effect,
          ) #full minus the effects of mpa and week alone
 mod_all_df
 
 #for plotting (maybe?)
 mod_all_long_field_lfm <- mod_all_df %>% 
-  select(time_effect, spp_effect, time_spp_effect, other_effects, mpa_effect) %>% 
-  pivot_longer(cols = c(time_effect, spp_effect, time_spp_effect, other_effects, mpa_effect), 
+  select(time_effect, spp_effect, time_spp_effect, spp_AND_time_effects, mpa_effect) %>% 
+  pivot_longer(cols = c(time_effect, spp_effect, time_spp_effect, spp_AND_time_effects, mpa_effect), 
     names_to = "effect") %>% 
   distinct() %>% 
   mutate(analysis = case_when(
-    effect %in% c("time_effect", "spp_effect", "other_effects", "mpa_effect") ~ "Field", 
+    effect %in% c("time_effect", "spp_effect", "spp_AND_time_effects", "mpa_effect") ~ "Field", 
     effect %in% c("time_spp_effect") ~ "Full Mod.", 
     TRUE ~ as.character(effect)), 
     decomp = "After Leafout") 
@@ -624,7 +633,7 @@ plots <- cowplot::plot_grid(field_plot, pv_plot, flam_plot,
           ncol = 1, 
          nrow = 3
           )
-plots_legend <- cowplot::plot_grid(plots, legend, rel_widths = c(5, 1))
+plots_legend <- cowplot::plot_grid(plots, legend, rel_widths = c(5, 1), rel_heights = c(-.1, -0.1, -.1))
 plots_legend
 
 #ggsave(plot=plots_legend, bg = "white" , here::here("figures", "mpa_flam_metrics_unscaled"), device="jpg")
