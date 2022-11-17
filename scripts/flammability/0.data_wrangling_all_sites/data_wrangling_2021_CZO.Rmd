@@ -516,10 +516,13 @@ Mirroring Max's PCA dataset (Mac_PCA_DATE_Rmd)
 
 ```{r}
 str(ignite_only_hp)
-hp_ignite_only_pca <- ignite_only_hp %>%
+
+data_no_ignite <- data %>%
+  filter(ignition != "1")
+
+hp_ignite_only_pca <-bind_rows(ignite_only_hp, data_no_ignite) %>%
   mutate(mpa = mpa * -1) %>%
   relocate("hydration")
-
 
 write_csv(x = hp_ignite_only_pca, (here("processed-data", "analysis 2.0", "czo_2021_flam_data_all.csv")))
 ```
