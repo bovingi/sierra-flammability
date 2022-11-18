@@ -69,6 +69,7 @@ pv_plot <- pv_all_df %>%
        x = "", 
        y = "LFM") +
   xlim(0, 10) +
+  annotate(geom = "text", x = 10, y = 460, label = 'b', fontface = 'bold', size = 10) +
   theme(plot.margin = unit(c(.2, .5, -.5, .25), "cm")) #margin(t = 0, r = 0, b = 0, l = 0, unit = "pt")
 pv_plot
 ```
@@ -256,7 +257,8 @@ flam_plot <- flam_curve_df %>%
        x = "Water Potential", 
        y = "LFM")+
   theme(plot.margin = unit(c(.2, .5, .3, .25), "cm")) +
-  xlim(0,10)
+  xlim(0,10) +
+  annotate(geom = "text", x = 10, y = 225, label = 'c', fontface = 'bold', size = 10)
 flam_plot
 ```
 
@@ -320,7 +322,7 @@ mod_all_long_flam %>%
 m1 <- lmer(lfm ~ spp + water_potential + year_month + (1|plant), data = flam_curve_df)
 
 m2 <- lmer(lfm ~ spp + (1|plant), data = flam_curve_df)
-m2.5 = lmer(lfm ~ spp + water_potential + (1|plant, data = flam_curve_df))
+m2.5 = lmer(lfm ~ spp + water_potential + (1|plant), data = flam_curve_df)
 
 m3 <- lmer(lfm ~ year_month + (1|plant), data = flam_curve_df)
 m4 <- lmer(lfm ~ water_potential + (1|plant), data = flam_curve_df)
@@ -406,7 +408,8 @@ field_plot <- field_data_all %>%
        x = "", 
        y = "LFM") +
   theme(plot.margin = unit(c(.2, .5, -.5, .25), "cm")) +
-  xlim(0,10)
+  xlim(0,10)+
+  annotate(geom = "text", x = 10, y = 300, label = 'a', fontface = 'bold', size = 10)
 field_plot
 ```
 m1 <- lmer(lfm ~ water_potential*spp * month + (1|plant), data = field_data_all)
@@ -613,6 +616,7 @@ var_decomp_df_lfm %>%
   color_fill
 ```
 
+#Scatterplots
 ```{r}
 field_plot_leg <- field_data_all %>% 
   filter(lfm < 300, 
@@ -640,3 +644,69 @@ plots_legend
 
 ggsave(plot=plots_legend, bg = "white" , here::here("figures", "flam_pv_field"), device="jpg")
 ```
+#-------------
+
+#Separate species: 
+
+####field_data_all
+```{r}
+field_data_all <- field_data_all %>% 
+  drop_na(spp)
+for (i in unique(field_data_all$spp)) {
+  
+ df <- field_data_all %>% 
+   drop_na(spp, lfm, water_potential) %>% 
+  filter(spp == i) 
+ 
+m1 <- lmer(lfm ~ water_potential + month + (1|plant), data =df)
+m2 <- lmer(lfm ~ water_potential + (1|plant), data =df)
+m3 <- lmer(maxLFM ~ month + (1|plant), data =df)
+
+#try using r.squaredGLMM:
+mods_list <- list(m1, m2, m3)
+
+r2 <- lapply(mods_list, r.squaredGLMM)
+r2
+
+r2m <- c(r2[[1]][1], r2[[2]][1], r2[[3]][1]) #vector of r2s
+mods <- c("m1", "m2", "m3")
+
+mod_all_df1 <-  data.frame(mods, r2m)
+
+p <- mod_all_df1 %>% 
+  pivot_wider(names_from = mods, 
+              values_from = r2m) %>% 
+  mutate(
+    #spp_AND_time_effects =  m3 - week_effect - mpa_effect,
+    time_effect = m1 - m2, #week + mpa mod - mpa mod
+         mpa_effect = m1 - m3, #week + mpa mod - week mod
+         time_mpa_effect = m1, #week + mpa mod 
+    mpa_AND_time_effects =  m1 - (time_effect - mpa_effect),
+         ) %>% #full minus the effects of mpa and week alone  
+  select(time_effect, mpa_effect, time_mpa_effect, mpa_AND_time_effects) %>% 
+  pivot_longer(cols = c(time_effect, mpa_effect, time_mpa_effect, mpa_AND_time_effects), 
+    names_to = "effect") %>% 
+  distinct() %>% 
+  mutate(analysis = case_when(
+    effect %in% c("time_effect", "mpa_effect", "mpa_AND_time_effects") ~ "Field", 
+    effect %in% c("time_mpa_effect") ~ "Full Mod.", 
+    TRUE ~ as.character(effect)), 
+    decomp = "After Leafout") %>% 
+  filter(analysis == "Field") %>% 
+  ggplot(aes(x = analysis, 
+             y = value, 
+         fill = effect)) +
+  geom_col(stat = "identity") +
+ # geom_text(aes(label = value)) +
+  color_many +
+  labs(y = "R squared", 
+       x = "Predictor") +
+  color_fill +
+    labs(title = i)
+p
+  
+  if (!is.null(p)) plot(p)
+  
+}
+```
+
