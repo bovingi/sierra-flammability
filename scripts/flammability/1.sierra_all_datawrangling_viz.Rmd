@@ -57,7 +57,8 @@ flam_czo_2021_raw <- read_csv(here("processed-data", "analysis 2.0", "czo_2021_f
   mutate(location = "czo", 
          lower_temp_max = surface_temp_max_within_5_secs_of_flame_end, 
          sample_length = as.double(sample_length)) %>% 
-  select( -gr, -lfm, -fh_old, -surface_temp_max_within_5_secs_of_flame_end, -total)
+  select( -gr, -lfm, -fh_old, -surface_temp_max_within_5_secs_of_flame_end, -total) %>% 
+  mutate(ignition = as.numeric(ignition))
 
 unique(flam_czo_2021_raw$ignition_num)
 

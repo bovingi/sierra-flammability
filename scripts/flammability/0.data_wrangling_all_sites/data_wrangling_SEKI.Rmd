@@ -3147,7 +3147,7 @@ ignite.only.seki.PIJE.hp %>%
   mutate(gti = as.numeric(gti)) 
 
 ignite.only.seki.PIJE.hp <- ignite.only.seki.PIJE.hp %>%
-  mutate(fh_nas_imputed = fh_ %>% )
+  mutate(fh_nas_imputed = fh) %>% 
   group_by(year.month) %>% 
   group_by(spp) %>% #this makes us take the median of based on the species, the model, and the lfm bins (of 10 lfm) the missing value is in. Preserves species differences, and lfm impact. 
   impute_median_at(c("ttfg", "ttms", "gd", "gti", "fd", "pfg","temp.max", "start.temp", "ros", "ignition.temp", "temp.change", "prop.ignite", "fh_nas_imputed", "ros", "tti")) #since fh may have gone out of top of frame for some larger flame height trials, use existing information to impute those values (BUT doesn't really matter since so few fh's are actually missing)
@@ -4128,7 +4128,7 @@ data.seki.epi <- rbind(
 
 #compiled dataset - all dates, all species: 
 
-seki.data.all <- rbind(data.seki.epi, data.seki.hp)
+seki.data.all <- bind_rows(data.seki.epi, data.seki.hp)
 
 write_csv(seki.data.all, here("processed-data", "analysis 2.0", "seki_flam_data_all.csv"))
 ```
