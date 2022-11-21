@@ -29,7 +29,6 @@ library(nlme)
 library(MetBrewer)
 #devtools::install_github("an-bui/calecopal")
 #library(calecopal)
-install.packages("remef")
 #devtools::install_github("hohenstein/remef")
 library(remef)
 
@@ -165,7 +164,10 @@ tti_plot_lfm_r <- mem_data_all_r %>%
              group = spp)) +
   geom_point(alpha= .45, aes(color = Species))+
   geom_smooth(method = "lm", se = F, aes(color = Species, lty = tti.sig), alpha = .7) + 
-  color_many2  + theme(legend.position = "none",                                   axis.text = element_text(size = 14), axis.title = element_text(size = 22, face = 'bold'))+
+  color_many2  + theme(legend.position = "none",
+                       axis.text.y = element_text(size = 13),
+                       axis.title = element_text(size = 16, face = 'bold'),
+                       axis.text.x = element_blank(), axis.ticks.x = element_blank()) +
   labs(x = "", 
        y = "Time to Ignition") +
   annotate(geom = "text", x = -2.6, y = 320, label = 'a', fontface = 'bold', size = 10)
@@ -226,10 +228,13 @@ fh_plot_lfm_r <- mem_data_all_r %>%
              group = spp)) +
   geom_point(alpha= .45, aes(color = Species))+
   geom_smooth(method = "lm", se = F, aes(color = Species, lty = fh.lfm.sig), alpha = .7) + 
-  color_many2  + theme(legend.position = "none",                                   axis.text = element_text(size = 14), axis.title = element_text(size = 22, face = 'bold'))+
+  color_many2  + theme(legend.position = "none",
+                       axis.text = element_text(size = 13),
+                       axis.title = element_text(size = 16, face = 'bold'),
+                       axis.text.x = element_blank(), axis.ticks.x = element_blank())+
   labs(x = "", 
        y = "Flame Height") +
-  annotate(geom = "text", x = -2.6, y = 57, label = 'b', fontface = 'bold', size = 10)
+  annotate(geom = "text", x = -2.6, y = 57, label = 'd', fontface = 'bold', size = 10)
 fh_plot_lfm_r
 
 #ggarrange(fh_plot, fh_plot_r, fh_plot_lfm, fh_plot_lfm_r, nrow = 2, ncol = 2)
@@ -286,10 +291,12 @@ gd_plot_lfm_r <- mem_data_all_r %>%
              group = spp)) +
   geom_point(alpha= .45, aes(color = Species))+
   geom_smooth(method = "lm", se = F, aes(color = Species, lty = gd.sig), alpha = .7) +
-  color_many2  + theme(legend.position = "none",                                   axis.text = element_text(size = 14), axis.title = element_text(size = 22, face = 'bold'))+
-  labs(x = "", 
+  color_many2  + theme(legend.position = "none",
+                       axis.text = element_text(size = 13),
+                       axis.title = element_text(size = 16, face = 'bold'))+
+  labs(x = "LFM", 
        y = "Glow Duration") +
-  annotate(geom = "text", x = -2.6, y = 450, label = 'c', fontface = 'bold', size = 10)
+  annotate(geom = "text", x = -2.6, y = 450, label = 'g', fontface = 'bold', size = 10)
 gd_plot_lfm_r
 
 #ggarrange(gd_plot, gd_plot_r, gd_plot_lfm, gd_plot_lfm_r, nrow = 2, ncol = 2)
@@ -494,7 +501,10 @@ prop_ignite_plot_lfm_r
 
 #ggarrange(prop_ignite_plot, prop_ignite_plot_r, prop_ignite_plot_lfm, prop_ignite_plot_lfm_r, nrow = 2, ncol = 2)
 ```
+
+
 ####Prop ignite but boxplots: 
+
 #HERE
 
 11/17/2022 --> releveling is not working, and I can't figure out why....???
@@ -536,50 +546,49 @@ mem_data_prop_ignite_r <- mem_data_prop_ignite_r %>%
                                                 "(60,70]", 
                                          #"[60,70]",
                                          "(70,80]", "(80,90]", "(90,100]", "(100,110]",
-                                                "(110,120]", "(120,130]", "(130,140]", "(150,160]","(160,170]",
-                                                "(170,180]", "(180,190]", "(190,200]", "(230,240]")) %>% 
+                                                "(110,120]", "(120,130]", "(130,140]", "(150,160]","(160,170]", "(170,180]", "(180,190]", "(190,200]", "(230,240]")) %>% 
   arrange() %>% 
-  mutate(hydration = case_when(
-    lfm < 150 ~ 'dry', 
-    lfm > 150 ~ 'wet', 
-    TRUE ~ 'something'
-  ))
+   mutate(hydration = case_when(
+     lfm < 150 ~ 'dry', 
+     lfm > 150 ~ 'wet', 
+     TRUE ~ 'something'
+   ))
 
 
 mem_data_prop_ignite_r %>% 
- # filter(spp == "quke") %>% 
+  #filter(spp == "quke") %>% 
   ggplot(aes(y = r_prop_ignite_lfm, 
              x = bin_relevel))+
-  facet_wrap(~spp, scales = "free") +
-  geom_boxplot() 
+   facet_wrap(~spp, scales = "free") +
+   geom_boxplot() 
 
-df <- mem_data_prop_ignite_r %>% 
-  filter(lfm < 100) %>% 
-   mutate(ignition2 = case_when(
-    ignition == "M" ~ 0, 
-    ignition == "1 and M" ~ 1, 
-    ignition == "1" ~ 1, 
-    ignition == "2" ~ 1, 
-    TRUE ~ as.numeric(ignition))) %>% 
-  group_by(spp) %>% #group by year, model, spp, group column
-  add_tally %>% 
-  mutate(total = sum(ignition, na.rm = T), 
-         prop_ignite_dry = paste0(round(100 * total/n)), 
-         prop_ignite_dry = as.numeric(prop_ignite_dry)) %>% 
- # mutate(prop_dry = ) %>% 
-  mutate(spp_props = forcats::fct_relevel(spp, 
-                                          "ceco", 
-                                          "quke",
-                                          "arpa", 
-                                          "pije", 
-                                          "cade", 
-                                          "abco")) 
-df%>% 
-  ggplot(aes(y = prop_ignite_dry, 
-             x = spp_props, 
-             fill = hydration)) +
-  geom_boxplot(alpha = .5) +
-  color_fill
+ df <- mem_data_prop_ignite_r %>% 
+   filter(lfm < 100) %>% 
+    mutate(ignition2 = case_when(
+     ignition == "M" ~ 0, 
+     ignition == "1 and M" ~ 1, 
+     ignition == "1" ~ 1, 
+     ignition == "2" ~ 1, 
+     TRUE ~ as.numeric(ignition))) %>% 
+   group_by(spp) %>% #group by year, model, spp, group column
+   add_tally %>% 
+   mutate(total = sum(ignition, na.rm = T), 
+          prop_ignite_dry = paste0(round(100 * total/n)), 
+          prop_ignite_dry = as.numeric(prop_ignite_dry)) %>% 
+  # mutate(prop_dry = ) %>% 
+   mutate(spp_props = forcats::fct_relevel(spp, 
+                                           "ceco", 
+                                           "quke",
+                                           "arpa", 
+                                           "pije", 
+                                           "cade", 
+                                           "abco")) 
+ df%>% 
+   ggplot(aes(y = prop_ignite_dry, 
+              x = spp_props, 
+              fill = hydration)) +
+   geom_boxplot(alpha = .5) +
+   color_fill
 ```
 
 
@@ -715,7 +724,7 @@ ggsave(plot=spp_estimates, bg = "white" , here::here("figures", "spp_estimates_f
 For these plots, focusing on TTI, FH, GD, Prop Ignition
 
 ## MEM Table
-To pull the effect sizes from
+To pull the effect sizes from:
 ```{r}
 tab_model(tti_mod, fh_mod, gd_mod, prop_ignite_mod,
           show.reflvl = TRUE, 
@@ -750,39 +759,53 @@ tti.ES.df <- data.frame(species, tti.ES.lfm, tti.SE.lfm, tti.sig.lfm, tti.ES.mpa
 
 tti.ES.lfm.plot <- ggplot(data = tti.ES.df, aes(x = species, y = tti.ES.lfm, 
                                                 color = species, shape = tti.sig.lfm)) +
-  labs(y = 'LFM x Species Effect Size on TTI', color = 'Species', shape = 'Significant?') +
+  labs(color = 'Species', shape = 'Significant?', title = 'LFM') +
   geom_point(size = 5) +
   geom_linerange(aes(ymin = tti.ES.lfm - 0.5*tti.SE.lfm, ymax = tti.ES.lfm + 0.5*tti.SE.lfm)) +
+  geom_abline(intercept = 0, slope = 0, color = 'black', alpha = 0.5, size = 0.3) +
   theme_bw() +
+  scale_y_continuous(limits = c(-12.5, 12.5), breaks = c(-10,-5, 0, 5, 10)) +
   scale_color_manual(values = c('black', '#BD282F', '#FDD358', '#87B37A', '#5D5D81')) +
   scale_shape_manual(values = c(16, 10)) +
+  annotate(geom = "text", x = 0.9, y = 11, label = 'b', fontface = 'bold', size = 10) +
   theme(axis.title.x = element_blank(), axis.text.x = element_blank(),
-        axis.title.y = element_text(face = 'bold', size = 14), 
-        axis.text.y = element_text(size = 12),
+        axis.title.y = element_blank(), 
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
         legend.title = element_text(face = 'bold', size = 14),
         legend.text = element_text(face = 'italic'),
-        panel.grid.major.x = element_blank(), axis.ticks.x = element_blank())
+        panel.grid = element_blank(), axis.ticks.x = element_blank(),
+        plot.title = element_text(hjust = 0.5, face = 'bold', size = 14),
+        legend.position = 'none') # Hash out if you want legends for individual panels. Added this line of code to all plots to arrange them nicely.
 tti.ES.lfm.plot
   
-tti.ES.mpa.plot <- ggplot(data = tti.ES.df, aes(x = species, y = tti.ES.mpa, 
+tti.ES.mpa.plot <- ggplot(data = tti.ES.df, aes(x = species, y = tti.ES.mpa,
                                                 color = species, shape = tti.sig.mpa)) +
-  labs(y = 'MPa x Species Effect Size on TTI', color = 'Species', shape = 'Significant?') +
+  labs(y = '', color = 'Species', shape = 'Significant?', title = 'Water Potential') +
+  scale_y_continuous(limits = c(-12.5, 12.5), breaks = c(-10,-5, 0, 5, 10),
+                     sec.axis = sec_axis(trans = ~.*1, 
+                     name = ' ')) +
   geom_point(size = 5, cex = 5) +
   geom_linerange(aes(ymin = tti.ES.mpa - 0.5*tti.SE.mpa, ymax = tti.ES.mpa + 0.5*tti.SE.mpa)) +
+  geom_abline(intercept = 0, slope = 0, color = 'black', alpha = 0.5, size = 0.3) +
   theme_bw() +
   scale_color_manual(values = c('black', '#BD282F', '#FDD358', '#87B37A', '#5D5D81')) +
   scale_shape_manual(values = c(16, 10)) +
+  annotate(geom = "text", x = 0.9, y = 11, label = 'c', fontface = 'bold', size = 10) +
   theme(axis.title.x = element_blank(), axis.text.x = element_blank(),
-        axis.title.y = element_text(face = 'bold', size = 14), 
-        axis.text.y = element_text(size = 12),
+        axis.ticks.y.left = element_blank(), 
+        axis.text.y.left = element_blank(),
+        axis.title.y.right = element_text(face = 'bold', size = 14),
+        axis.text.y.right = element_text(size = 12),
         legend.title = element_text(face = 'bold', size = 14),
-        legend.text = element_text(face = 'italic'),
-        panel.grid.major.x = element_blank(), axis.ticks.x = element_blank())
+        legend.text = element_text(face = 'italic',),
+        panel.grid = element_blank(), axis.ticks.x = element_blank(),
+        plot.title = element_text(hjust = 0.5, face = 'bold', size = 14),
+        legend.position = 'none') # Hash out if you want legends for individual panels. Added this line of code to all plots to arrange them nicely.
 tti.ES.mpa.plot
 ```
 
 ## FH
-For now, just getting the effect sizes in until we decide on what metric to use to show variance
 ```{r}
 summary(fh_mod)
 
@@ -796,113 +819,223 @@ fh.ES.df <- data.frame(species, fh.ES.lfm, fh.SE.lfm, fh.sig.lfm, fh.ES.mpa, fh.
 
 fh.ES.lfm.plot <- ggplot(data = fh.ES.df, aes(x = species, y = fh.ES.lfm, 
                                                 color = species, shape = fh.sig.lfm)) +
-  labs(y = 'LFM x Species Effect Size on FH', color = 'Species', shape = 'Significant?') +
+  labs(color = 'Species', shape = 'Significant?') +
   geom_point(size = 5) +
-  geom_linerange(aes(ymin =fh.ES.lfm - 0.5*fh.SE.lfm, ymax = fh.ES.lfm + 0.5*fh.SE.lfm)) +
+  geom_linerange(aes(ymin = fh.ES.lfm - 0.5*fh.SE.lfm, ymax = fh.ES.lfm + 0.5*fh.SE.lfm)) +
+  geom_abline(intercept = 0, slope = 0, color = 'black', alpha = 0.5, size = 0.3) +
   theme_bw() +
+  scale_y_continuous(limits = c(-4.5, 4.5), breaks = c(-4,-2, 0, 2, 4)) +
   scale_color_manual(values = c('black', '#BD282F', '#FDD358', '#87B37A', '#5D5D81')) +
   scale_shape_manual(values = c(16, 10)) +
+  annotate(geom = "text", x = 0.9, y = 4, label = 'e', fontface = 'bold', size = 10) +
   theme(axis.title.x = element_blank(), axis.text.x = element_blank(),
-        axis.title.y = element_text(face = 'bold', size = 14), 
-        axis.text.y = element_text(size = 12),
+        axis.title.y = element_blank(), 
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
         legend.title = element_text(face = 'bold', size = 14),
         legend.text = element_text(face = 'italic'),
-        panel.grid.major.x = element_blank(), axis.ticks.x = element_blank())
+        panel.grid = element_blank(), axis.ticks.x = element_blank(),
+        legend.position = 'none')
 fh.ES.lfm.plot
   
-fh.ES.mpa.plot <- ggplot(data = fh.ES.df, aes(x = species, y = fh.ES.mpa, 
+fh.ES.mpa.plot <- ggplot(data = fh.ES.df, aes(x = species, y = fh.ES.mpa,
                                                 color = species, shape = fh.sig.mpa)) +
-  labs(y = 'MPa x Species Effect Size on FH', color = 'Species', shape = 'Significant?') +
+  labs(y = '', color = 'Species', shape = 'Significant?') +
+  scale_y_continuous(limits = c(-4.5, 4.5), breaks = c(-4,-2, 0, 2, 4),
+                     sec.axis = sec_axis(trans = ~.*1, 
+                     name = 'Hydration x Species Effect Size',
+                     breaks = c(-4,-2, 0, 2, 4),
+                     labels = c(-4.0,-2.0, 0, 2.0, 4.0))) +
   geom_point(size = 5, cex = 5) +
   geom_linerange(aes(ymin = fh.ES.mpa - 0.5*fh.SE.mpa, ymax = fh.ES.mpa + 0.5*fh.SE.mpa)) +
+  geom_abline(intercept = 0, slope = 0, color = 'black', alpha = 0.5, size = 0.3) +
   theme_bw() +
   scale_color_manual(values = c('black', '#BD282F', '#FDD358', '#87B37A', '#5D5D81')) +
   scale_shape_manual(values = c(16, 10)) +
+  annotate(geom = "text", x = 0.9, y = 4, label = 'f', fontface = 'bold', size = 10) +
   theme(axis.title.x = element_blank(), axis.text.x = element_blank(),
-        axis.title.y = element_text(face = 'bold', size = 14), 
-        axis.text.y = element_text(size = 12),
+        axis.ticks.y.left = element_blank(), 
+        axis.text.y.left = element_blank(),
+        axis.title.y.right = element_text(face = 'bold', size = 14),
+        axis.text.y.right = element_text(size = 12),
         legend.title = element_text(face = 'bold', size = 14),
-        legend.text = element_text(face = 'italic'),
-        panel.grid.major.x = element_blank(), axis.ticks.x = element_blank())
+        legend.text = element_text(face = 'italic',),
+        panel.grid = element_blank(), axis.ticks.x = element_blank(),
+        legend.position = 'none')
 fh.ES.mpa.plot
 ```
 
 ## GD
 For now, just getting the effect sizes in until we decide on what metric to use to show variance
 ```{r}
+summary(gd_mod)
+
 gd.ES.lfm <- c(11.623, -12.034, 2.005, -12.020, -66.120) # Following this order: ABCO,  ARPA, CADE, PIJE, QUKE (no CECO)
 gd.sig.lfm <- c('No', 'No', 'No', 'No', 'Yes')
+gd.SE.lfm <- c(8.163, 11.799, 14.544, 11.419, 21.231)
 gd.ES.mpa <- c(16.461, -14.780, -1.010, -11.924, -53.761)
 gd.sig.mpa <- c('Yes', 'No', 'No', 'No', 'Yes')
-gd.ES.df <- data.frame(species, gd.ES.lfm, gd.sig.lfm, gd.ES.mpa, gd.sig.mpa)
+gd.SE.mpa <- c(8.246, 11.692, 14.276, 11.483, 20.943)
+gd.ES.df <- data.frame(species, gd.ES.lfm, gd.sig.lfm, gd.SE.lfm, gd.ES.mpa, gd.sig.mpa, gd.SE.mpa)
 
 gd.ES.lfm.plot <- ggplot(data = gd.ES.df, aes(x = species, y = gd.ES.lfm, 
                                                 color = species, shape = gd.sig.lfm)) +
-  labs(y = 'LFM x Species Effect Size on GD', color = 'Species', shape = 'Significant?') +
+  labs(color = 'Species', shape = 'Significant?') +
   geom_point(size = 5) +
+  geom_linerange(aes(ymin = gd.ES.lfm - 0.5*gd.SE.lfm, ymax = gd.ES.lfm + 0.5*gd.SE.lfm)) +
+  geom_abline(intercept = 0, slope = 0, color = 'black', alpha = 0.5, size = 0.3) +
   theme_bw() +
+  scale_y_continuous(limits = c(-80, 40), breaks = c(-75,-50, -25, 0, 25)) +
   scale_color_manual(values = c('black', '#BD282F', '#FDD358', '#87B37A', '#5D5D81')) +
   scale_shape_manual(values = c(16, 10)) +
+  annotate(geom = "text", x = 0.9, y = 33, label = 'h', fontface = 'bold', size = 10) +
   theme(axis.title.x = element_blank(), axis.text.x = element_blank(),
-        axis.title.y = element_text(face = 'bold', size = 14), 
-        axis.text.y = element_text(size = 12),
+        axis.title.y = element_blank(), 
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
         legend.title = element_text(face = 'bold', size = 14),
         legend.text = element_text(face = 'italic'),
-        panel.grid.major.x = element_blank(), axis.ticks.x = element_blank())
+        panel.grid = element_blank(), axis.ticks.x = element_blank(),
+        legend.position = 'none')
 gd.ES.lfm.plot
   
-gd.ES.mpa.plot <- ggplot(data = gd.ES.df, aes(x = species, y = gd.ES.mpa, 
+gd.ES.mpa.plot <- ggplot(data = gd.ES.df, aes(x = species, y = gd.ES.mpa,
                                                 color = species, shape = gd.sig.mpa)) +
-  labs(y = 'MPa x Species Effect Size on GD', color = 'Species', shape = 'Significant?') +
+  labs(y = '', color = 'Species', shape = 'Significant?') +
+  scale_y_continuous(limits = c(-80, 40), breaks = c(-75, -50, -25, 0, 25),
+                     sec.axis = sec_axis(trans = ~.*1, 
+                     name = ' ',
+                     breaks = c(-75, -50, -25, 0, 25),
+                     labels = c(-75, -50, -25, 0, 25))) +
   geom_point(size = 5, cex = 5) +
+  geom_linerange(aes(ymin = gd.ES.mpa - 0.5*gd.SE.mpa, ymax = gd.ES.mpa + 0.5*gd.SE.mpa)) +
+  geom_abline(intercept = 0, slope = 0, color = 'black', alpha = 0.5, size = 0.3) +
   theme_bw() +
   scale_color_manual(values = c('black', '#BD282F', '#FDD358', '#87B37A', '#5D5D81')) +
   scale_shape_manual(values = c(16, 10)) +
+  annotate(geom = "text", x = 0.9, y = 33, label = 'i', fontface = 'bold', size = 10) +
   theme(axis.title.x = element_blank(), axis.text.x = element_blank(),
-        axis.title.y = element_text(face = 'bold', size = 14), 
-        axis.text.y = element_text(size = 12),
+        axis.ticks.y.left = element_blank(), 
+        axis.text.y.left = element_blank(),
+        axis.title.y.right = element_text(face = 'bold', size = 14),
+        axis.text.y.right = element_text(size = 12),
         legend.title = element_text(face = 'bold', size = 14),
-        legend.text = element_text(face = 'italic'),
-        panel.grid.major.x = element_blank(), axis.ticks.x = element_blank())
+        legend.text = element_text(face = 'italic',),
+        panel.grid = element_blank(), axis.ticks.x = element_blank(),
+        legend.position = 'none')
 gd.ES.mpa.plot
 ```
 
 ## Prop. Ignite
-For now, just getting the effect sizes in until we decide on what metric to use to show variance
 ```{r}
+summary(prop_ignite_mod)
+
 prop_ignite.ES.lfm <- c(0.023, -5.152, 1.020, -0.135, -12.584) # Following this order: ABCO,  ARPA, CADE, PIJE, QUKE (no CECO)
 prop_ignite.sig.lfm <- c('No', 'Yes', 'No', 'No', 'Yes')
+prop_ignite.SE.lfm <- c(1.1996, 1.8206, 2.1238, 1.7219, 3.1043)
 prop_ignite.ES.mpa <- c(-0.354, -7.942, 1.386, 0.253, -3.041)
 prop_ignite.sig.mpa <- c('No', 'Yes', 'No', 'No', 'No')
-prop_ignite.ES.df <- data.frame(species, prop_ignite.ES.lfm, prop_ignite.sig.lfm, prop_ignite.ES.mpa, prop_ignite.sig.mpa)
+prop_ignite.SE.mpa <- c(1.1519, 1.6624, 2.0509, 1.6437, 3.0430)
+prop_ignite.ES.df <- data.frame(species, prop_ignite.ES.lfm, prop_ignite.sig.lfm, prop_ignite.SE.lfm, prop_ignite.ES.mpa, prop_ignite.sig.mpa, prop_ignite.SE.mpa)
 
 prop_ignite.ES.lfm.plot <- ggplot(data = prop_ignite.ES.df, aes(x = species, y = prop_ignite.ES.lfm, 
                                                 color = species, shape = prop_ignite.sig.lfm)) +
-  labs(y = 'LFM x Species Effect Size on Ignition Rate', color = 'Species', shape = 'Significant?') +
+  labs(color = 'Species', shape = 'Significant?') +
   geom_point(size = 5) +
+  geom_linerange(aes(ymin = prop_ignite.ES.lfm - 0.5*prop_ignite.SE.lfm, ymax = prop_ignite.ES.lfm + 0.5*prop_ignite.SE.lfm)) +
+  geom_abline(intercept = 0, slope = 0, color = 'black', alpha = 0.5, size = 0.3) +
   theme_bw() +
+  scale_y_continuous(limits = c(-16, 6), breaks = c(-15,-10, -5, 0, 5)) +
   scale_color_manual(values = c('black', '#BD282F', '#FDD358', '#87B37A', '#5D5D81')) +
   scale_shape_manual(values = c(16, 10)) +
   theme(axis.title.x = element_blank(), axis.text.x = element_blank(),
-        axis.title.y = element_text(face = 'bold', size = 14), 
-        axis.text.y = element_text(size = 12),
+        axis.title.y = element_blank(), 
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
         legend.title = element_text(face = 'bold', size = 14),
         legend.text = element_text(face = 'italic'),
-        panel.grid.major.x = element_blank(), axis.ticks.x = element_blank())
+        panel.grid = element_blank(), axis.ticks.x = element_blank(),
+        legend.position = 'none')
 prop_ignite.ES.lfm.plot
   
-prop_ignite.ES.mpa.plot <- ggplot(data = prop_ignite.ES.df, aes(x = species, y = prop_ignite.ES.mpa, 
+prop_ignite.ES.mpa.plot <- ggplot(data = prop_ignite.ES.df, aes(x = species, y = prop_ignite.ES.mpa,
                                                 color = species, shape = prop_ignite.sig.mpa)) +
-  labs(y = 'MPa x Species Effect Size on Ignition Rate', color = 'Species', shape = 'Significant?') +
+  labs(y = '', color = 'Species', shape = 'Significant?') +
+  scale_y_continuous(limits = c(-16, 6), breaks = c(-15,-10, -5, 0, 5),
+                     sec.axis = sec_axis(trans = ~.*1, 
+                     name = 'Species x Hydration Effect Size on Ignition Rate',
+                     breaks = c(-15,-10, -5, 0, 5),
+                     labels = c(-15,-10, -5, 0, 5))) +
   geom_point(size = 5, cex = 5) +
+  geom_linerange(aes(ymin = prop_ignite.ES.mpa - 0.5*prop_ignite.SE.mpa, ymax = prop_ignite.ES.mpa + 0.5*prop_ignite.SE.mpa)) +
+  geom_abline(intercept = 0, slope = 0, color = 'black', alpha = 0.5, size = 0.3) +
   theme_bw() +
   scale_color_manual(values = c('black', '#BD282F', '#FDD358', '#87B37A', '#5D5D81')) +
   scale_shape_manual(values = c(16, 10)) +
   theme(axis.title.x = element_blank(), axis.text.x = element_blank(),
-        axis.title.y = element_text(face = 'bold', size = 14), 
-        axis.text.y = element_text(size = 12),
+        axis.ticks.y.left = element_blank(), 
+        axis.text.y.left = element_blank(),
+        axis.title.y.right = element_text(face = 'bold', size = 14),
+        axis.text.y.right = element_text(size = 12),
         legend.title = element_text(face = 'bold', size = 14),
-        legend.text = element_text(face = 'italic'),
-        panel.grid.major.x = element_blank(), axis.ticks.x = element_blank())
+        legend.text = element_text(face = 'italic',),
+        panel.grid = element_blank(), axis.ticks.x = element_blank(),
+        legend.position = 'none')
 prop_ignite.ES.mpa.plot
 ```
+
+# 5. Main Figure
+Arranging effect size plots and scatterplots into one figure
+
+For now, focusing on TTI, FH, GD until we figure out how we hope to incorporate prop_ignite 
+
+Set up:
+```{r}
+blank_plot <- ggplot(data = prop_ignite.ES.df, aes(x = species, y = prop_ignite.ES.mpa)) +
+  geom_point(color = 'white') +
+  theme_void()
+
+plot_legend2 <- mem_data_all_r %>% 
+  ggplot(aes(x = tti, y = mpa, group = Species)) +
+  geom_point(aes(color = Species, shape = fh.mpa.sig), size = 2.2) +
+  geom_smooth(se = F, method = 'lm', aes(color = Species, lty = fh.mpa.sig)) +
+  color_many2  +
+  labs(color = "Species", lty = "Significant?", 
+       shape = "Significant? ") +
+  scale_shape_manual(values = c(16, 10)) +
+  theme(legend.text = element_text(size = 13, face = 'italic'), 
+        legend.title = element_text(size = 14, face = 'bold'),
+        legend.key = element_rect(fill = 'white')) +
+  guides(lty = guide_legend(override.aes = list(color = 'black')))
+
+main_legend <- cowplot::get_legend(plot_legend2)
+```
+
+Arranging:
+Note: I had to do some wacky things with blank plots to get the final product to look okay. I still think we could improve it, but I felt like this was passable for now.
+```{r}
+scatterplots <- cowplot::plot_grid(blank_plot, tti_plot_lfm_r, fh_plot_lfm_r, gd_plot_lfm_r,
+                                   ncol = 1, rel_heights = c(0.9, 10, 10, 10))
+
+ES.plots <- cowplot::plot_grid(tti.ES.lfm.plot, tti.ES.mpa.plot,
+                              blank_plot, blank_plot,
+                              fh.ES.lfm.plot, fh.ES.mpa.plot,
+                              blank_plot, blank_plot,
+                              gd.ES.lfm.plot, gd.ES.mpa.plot,
+                              blank_plot, blank_plot,
+                              axis = "tblr",
+                              ncol = 2, nrow = 6,
+                              rel_widths = c(6,7),
+                              rel_heights = c(11.2, 0.985, 10.2, 0.9, 9.8, 1.6))
+
+main_figure_no_legend <- cowplot::plot_grid(scatterplots, ES.plots, ncol = 2, rel_widths = c(10,13))
+main_figure_no_legend
+
+main_figure <- cowplot::plot_grid(main_figure_no_legend, main_legend, ncol = 2, rel_widths = c(5,1))
+main_figure
+
+ggsave(plot = main_figure, bg = 'white', 
+       here("figures", "species.x.hydration.effect.and.scatterplots.jpg"),
+       width = 15, height = 8)
+```
+
