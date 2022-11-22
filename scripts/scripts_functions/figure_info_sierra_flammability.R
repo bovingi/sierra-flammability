@@ -12,6 +12,7 @@ ggplot <- function(...) { ggplot2::ggplot(...) +
 }
 
 color_many2 <- scale_color_manual(values = c('black', '#BD282F', '#EE8739', '#FDD358', '#87B37A', '#5D5D81'))
+
 color_many <- scale_color_manual(values = met.brewer("Tam", 6, direction = -1, type = "discrete")) 
 
 color_two <- scale_color_manual(values = met.brewer("Tam", 4 ,direction = -1)) 

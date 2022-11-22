@@ -33,91 +33,34 @@ library(RColorBrewer)
 This dataset has field-collected LFM and Mpa data, and LFM at TLP and MPa at TLP from PV Curves
 
 ```{r, pretty colors, include = FALSE}
-Morgenstern = list(c("#7c668c", "#b08ba5", "#dfbbc8", "#ffc680", "#ffb178", "#db8872", "#a56457"), c("darkpurp", "medpurp", "lightpurp", "yellow", "golden", "orange", "darkorange"), colorblind=TRUE)
-
-my_colors_3 <- MetBrewer::met.brewer("Morgenstern", n = 3)
-
-morg_diverge <- list(c("#7c668c",  "#db8872", "#ffc680","#a56457"), colorblind=TRUE)
-
-th <- theme(panel.background = element_rect(fill='white', colour='black'), # Make background white and border black
-          panel.grid.major = element_blank(),  # Hide major gridlines
-          panel.grid.minor = element_blank())
+# Morgenstern = list(c("#7c668c", "#b08ba5", "#dfbbc8", "#ffc680", "#ffb178", "#db8872", "#a56457"), c("darkpurp", "medpurp", "lightpurp", "yellow", "golden", "orange", "darkorange"), colorblind=TRUE)
+# 
+# my_colors_3 <- MetBrewer::met.brewer("Morgenstern", n = 3)
+# 
+# morg_diverge <- list(c("#7c668c",  "#db8872", "#ffc680","#a56457"), colorblind=TRUE)
+# 
+# th <- theme(panel.background = element_rect(fill='white', colour='black'), # Make background white and border black
+#           panel.grid.major = element_blank(),  # Hide major gridlines
+#           panel.grid.minor = element_blank())
 ```
 #-----------------------------------------------
 #Data 
 
 ###Field Data
+From 0_water_content_all.Rmd
+
 ```{r}
-field_data_all <- readr::read_csv(here::here("processed-data", "compiled-datasets", "SEKI", "field_data_2020_2021.csv")) %>% 
-  clean_names() %>% 
-  filter(spp %in% c("ABCO", "CADE","PIJE","ARPA", "CECO", "QUKE")) 
-
- field_data_all$date <- lubridate::ymd(field_data_all$date) #wont work as part of a pipe for some reason.. 
-
- field_data_df<- field_data_all %>% 
-   mutate(month = month(date), 
-          year = year(date)) %>% 
-   mutate(age = case_when(
-     age == "New" ~ "new", 
-     age == "Old" ~ "old", 
-     age == "new" ~ "new", 
-     age == "old" ~ "old", 
-     age == "both" ~ "both",
-     TRUE ~ as.character(age)
-   )) %>% 
-   mutate(spp = fct_relevel(spp, "ABCO","PIJE","CADE","CECO", "ARPA","QUKE"))  %>% 
-  mutate(strategy = case_when( #based on slope of predawn~midday line
-    spp == "ABCO" ~ "Isohydric", 
-    spp == "PIJE" ~ "Isohydric", 
-     spp == "CADE" ~ "Isohydric", 
-    spp == "CECO" ~ "Anisohydric", 
-    spp == "ARPA" ~ "Anisohydric", 
-    spp == "QUKE" ~ "Anisohydric"
-  )) %>% 
-   mutate(strategy_binary = case_when( #based on slope of predawn~midday line
-    spp == "ABCO" ~ "1", 
-    spp == "ARPA" ~ "2", 
-    spp == "CADE" ~ "1", 
-    spp == "CECO" ~ "2", 
-    spp == "PIJE" ~ "1", 
-    spp == "QUKE" ~ "2"
-  )) %>% 
-   mutate(spp = fct_relevel(spp, "ABCO","PIJE","CADE","CECO", "ARPA","QUKE"))  %>% 
-   mutate(Species = case_when(
-     spp == "ABCO" ~ "A. concolor",
-    spp == "PIJE" ~ "P. jeffreyi", 
-    spp == "CADE" ~ "C. decurrens", 
-    spp == "CECO" ~ "C. cordulatus", 
-    spp == "ARPA" ~ "A. patula", 
-    spp == "QUKE" ~ "Q. kelloggii"
-    )) %>% 
-  mutate(type = case_when(
-    spp == "PIJE" ~ "tree", 
-    spp == "QUKE" ~ "tree", 
-    spp == "CECO" ~ "shrub", 
-    spp == "ARPA" ~ "shrub", 
-    spp == "ABCO" ~ "tree", 
-    spp == "CADE" ~ "tree"
-  ))
+field_data_all <- read_csv(here("processed-data", "analysis 2.0","field_data_2020_2021.csv"), show_col_types = FALSE)
 ```
+
 ###Phenology Data
 
 ```{r}
-pheno_df <- read_csv(here("processed-data", "compiled-datasets", "phenology_czo_2021.csv")) %>% 
+pheno_df <- read_csv(here("processed-data", "compiled-datasets", "phenology_czo_2021.csv"), show_col_types = FALSE) %>% 
   select(-observation_id, -observation_time, -observation_date, -raw_abundance_value) %>% 
    mutate(spp = fct_relevel(code, "ABCO","PIJE","CADE","ARPA", "CECO", "QUKE"))  
-head(pheno_df)
 ```
 
-###TLP values
-
-```{r}
-# mean_tlp_allspp <- field_data_all %>% 
-#   select(mean_tlp) %>% 
-#   drop_na() %>% 
-#   summarise(mean(mean_tlp)) %>% 
-#   pull()
-```
 #-----------------------------------------------
 # Hydroscapes! 
 Based on Hartmann 2020
@@ -145,7 +88,7 @@ p1 <- field_data_df %>%
               color = "#7c668c", 
               size = 1, se = FALSE)+
   ggpubr::stat_regline_equation(size = 4) +
-  geom_hline(aes(yintercept = mean_tlp), size = 1, 
+  geom_hline(aes(yintercept = mean_tlp_spp), size = 1, 
              color = "#db8872", 
              linetype = "dotted")+
   th +
@@ -178,8 +121,8 @@ p2 <- field_data_df %>%
   geom_abline(size = 1) +
   geom_smooth(method = "lm", color = "#7c668c", size = 1, se = FALSE) +
   ggpubr::stat_regline_equation(size = 4) +
-  geom_hline(aes(yintercept = mean_tlp), 
-             size = 1, 
+  geom_hline(aes(yintercept = mean_tlp_spp), 
+             linewidth = 1, 
              color = "#db8872", 
              linetype = "dotted")+
   th +
@@ -218,22 +161,29 @@ grid.arrange(arrangeGrob(plot,
 
 
 ```{r}
-field_data_df %>% 
- filter(age == "old") %>% #filtering to 'old' so that we dont have duplicate MPa datapoints
-  #filter(site == 1) %>% 
-  #filter(month < 10) %>% 
-  ggplot(aes(y = midday, x = lfm,
-            # shape = as.factor(site)
-             )) +
-  geom_point(size = .5, aes(color = as.factor(date))) +
-  facet_wrap(~spp) +
- #annotate("text", x= -1, y= -5, aes(label=strategy), size = 3) +
-  geom_abline(size = .5) +
-  geom_smooth(method = "lm", color = "maroon", size = .5, se = FALSE) +
-  #geom_smooth(method = "lm", aes(color = site), size = .5, se = FALSE) +
-  ggpubr::stat_regline_equation(size = 3) +
-  geom_hline(aes(yintercept = mean_tlp), size = .5, color = "olivedrab", type = "dashed")+
-  th
+field_data_df %>%
+  filter(age == "old") %>% #filtering to 'old' so that we dont have duplicate MPa datapoints
+  #filter(site == 1) %>%
+  #filter(month < 10) %>%
+  ggplot(aes(y = midday, x = lfm)) +
+             geom_point(size = .5, aes(color = week(date))) +
+               facet_wrap( ~ spp) +
+               #annotate("text", x= -1, y= -5, aes(label=strategy), size = 3) +
+               geom_abline(size = .5) +
+               geom_smooth(
+                 method = "lm",
+                 color = "maroon",
+                 size = .5,
+                 se = FALSE
+               ) +
+               #geom_smooth(method = "lm", aes(color = site), size = .5, se = FALSE) +
+               ggpubr::stat_regline_equation(size = 3) +
+               geom_hline(
+                 aes(yintercept = mean_tlp_spp),
+                 size = .5,
+                 color = "olivedrab",
+                 type = "dashed"
+               ) 
 ```
 
 ```{r}
@@ -251,7 +201,7 @@ field_data_df %>%
   geom_smooth(method = "lm", color = "maroon", size = .5, se = FALSE) +
   #geom_smooth(method = "lm", aes(color = site), size = .5, se = FALSE) +
    ggpubr::stat_regline_equation(size = 3) +
-  geom_hline(aes(yintercept = mean_tlp), size = .5, color = "olivedrab", type = "dashed")+
+  geom_hline(aes(yintercept = mean_tlp_spp), size = .5, color = "olivedrab", type = "dashed")+
   th
 ```
 
@@ -280,7 +230,7 @@ p1 <- field_data_df %>%
               color = "#7c668c", 
               size = 1, se = FALSE)+
   ggpubr::stat_regline_equation(size = 4) +
-  geom_hline(aes(yintercept = mean_tlp), size = 1, 
+  geom_hline(aes(yintercept = mean_tlp_spp), size = 1, 
              color = "#db8872", 
              linetype = "dotted")+
   th +
@@ -312,7 +262,7 @@ p2 <- field_data_df %>%
   geom_abline(size = 1) +
   geom_smooth(method = "lm", color = "#7c668c", size = 1, se = FALSE) +
   ggpubr::stat_regline_equation(size = 4) +
-  geom_hline(aes(yintercept = mean_tlp), 
+  geom_hline(aes(yintercept = mean_tlp_spp), 
              size = 1, 
              color = "#db8872", 
              linetype = "dotted")+
@@ -328,7 +278,7 @@ p2 <- field_data_df %>%
         strip.text = element_text(face = "italic", size = 12))
 p2
 
-?element_text
+#?element_text
 
 plot <- cowplot::plot_grid(p1, p2,
           nrow = 2,
@@ -354,41 +304,46 @@ grid.arrange(arrangeGrob(plot,
 
 
 ```{r}
-# mean_tlp <- field_data_all %>% 
+# mean_tlp_spp <- field_data_all %>% 
 #   select(tlp) %>% 
 #   drop_na() %>% 
 #   summarise(mean(tlp)) %>% 
 #   pull()
 
 field_data_df %>%
-  ggplot(aes(x = midday, y = lfm, color = month, shape = spp)) +
+  filter(age == "new") %>% 
+  ggplot(aes(
+    x = midday,
+    y = lfm,
+    color = month,
+    shape = spp
+  )) +
   geom_point(size = 1) +
-  geom_vline(aes(xintercept = mean_tlp), size = .5, color = "olivedrab", linetype = "dotted") +
-  #stat_smooth(aes(x = LFM, y = predawn, colour = Date, linetype = "Linear Fit"), method = "lm") 
-  xlim(-5,0) + 
-  labs( y = "Live Fuel Moisture", 
-        x = "Midday (-MPa)", 
-        color = "Month", 
-        shape = "Species") +
-  ylim(50,300) +
-  #facet_wrap(~age)+
-  #ggtitle("Outliers removed (outlierKD)") +
-  #scale_color_gradient(low = "darkblue", high = "goldenrod") +
-  scale_color_gradient(low = "maroon", high = "goldenrod") +
- # scale_color_continuous(values = c(low = "goldenrod", high = "lightblue"))
-  th
+  geom_vline(
+    aes(xintercept = mean_tlp_spp),
+    size = .5,
+    color = "olivedrab",
+    linetype = "dotted"
+  ) +
+  #stat_smooth(aes(x = LFM, y = predawn, colour = Date, linetype = "Linear Fit"), method = "lm")
+  xlim(-5, 0) +
+  labs(
+    y = "Live Fuel Moisture",
+    x = "Midday (-MPa)",
+    color = "Month",
+    shape = "Species"
+  ) +
+  ylim(50, 300) +
+  facet_wrap(~ year)
 ```
 
 
 ```{r}
-discrete_palettes <- list(
-  c("maroon","goldenrod"))
-  
 field_data_all %>%
   ggplot(aes(x = midday, y = lfm, color = age, shape = spp)) +
   geom_point(size = 1) +
   #stat_smooth(aes(x = LFM, y = predawn, colour = Date, linetype = "Linear Fit"), method = "lm") +
-  #geom_vline(aes(xintercept = mean_tlp_allspp, size = .5, color = "olivedrab"))+
+  #geom_vline(aes(xintercept = mean_tlp_spp_allspp, size = .5, color = "olivedrab"))+
   xlim(-5,0) + 
   labs( y = "Live Fuel Moisture", 
         x = "Midday (-MPa)", 
@@ -406,25 +361,38 @@ field_data_all %>%
 #### LFM by MPa (species)
 ```{r}
 field_data_df %>%
-  mutate(spp = fct_relevel(spp, "ABCO","PIJE","CADE","CECO", "ARPA","QUKE"))  %>% 
-  mutate(month = month(date, label = TRUE, abbr = TRUE)) %>% 
-  ggplot(aes(x = midday, y = lfm, color = as.factor(month))) +
+  mutate(spp = fct_relevel(spp, "ABCO", "PIJE", "CADE", "CECO", "ARPA", "QUKE"))  %>%
+  mutate(month = month(date, label = TRUE, abbr = TRUE)) %>%
+  ggplot(aes(
+    x = midday,
+    y = lfm,
+    color = as.factor(month),
+    shape = location
+  )) +
   geom_point(size = 0.8, alpha = .6) +
-  geom_vline(aes(xintercept = mean_tlp), size = 1, color = "black", linetype = "dotted") +
-  #stat_smooth(aes(x = LFM, y = predawn, colour = Date, linetype = "Linear Fit"), method = "lm") 
-  xlim(-5,0) + 
-  labs( y = "Live Fuel Moisture", 
-        x = "Midday Water Potential (MPa)", 
-        color = "Month", 
-        shape = "Species") +
-  ylim(50,300) +
-  facet_wrap(~spp, labeller = labeller(spp = spp.labs)) +
-  scale_color_brewer(palette="YlOrRd") +
-  theme(strip.text = element_text(face = "italic"), 
-        axis.title = element_text(face = "bold"),
-        legend.title = element_text(face = "bold"),
-        strip.background = element_rect(fill = "gray90")) +
-  th
+  geom_vline(
+    aes(xintercept = mean_tlp_spp),
+    size = 1,
+    color = "black",
+    linetype = "dotted"
+  ) +
+  #stat_smooth(aes(x = LFM, y = predawn, colour = Date, linetype = "Linear Fit"), method = "lm")
+  xlim(-5, 0) +
+  labs(
+    y = "Live Fuel Moisture",
+    x = "Midday Water Potential (MPa)",
+    color = "Month",
+    shape = "Species"
+  ) +
+  ylim(50, 300) +
+  facet_wrap( ~ spp, labeller = labeller(spp = spp.labs)) +
+  scale_color_brewer(palette = "YlOrRd") +
+  theme(
+    strip.text = element_text(face = "italic"),
+    axis.title = element_text(face = "bold"),
+    legend.title = element_text(face = "bold"),
+    strip.background = element_rect(fill = "gray90")
+  ) 
   #scale_color_gradientn(colors=met.brewer("Morgenstern"))
 ```
 ####LFM by MPa (date)
@@ -446,7 +414,7 @@ field_data_df %>%
              color = as.factor(month), 
              shape = age)) +
   geom_point(size = 1, alpha = .7) +
-  geom_vline(aes(xintercept = mean_tlp), size = .5, alpha = .6,
+  geom_vline(aes(xintercept = mean_tlp_spp), size = .5, alpha = .6,
              color = "black", linetype = "dotted") +
   #stat_smooth(aes(x = LFM, y = predawn, colour = Date, linetype = "Linear Fit"), method = "lm") 
   xlim(-5,0) + 
@@ -456,7 +424,41 @@ field_data_df %>%
         shape = "Age") +
   ylim(50,300) +
   facet_wrap(~strategy) +
-  scale_color_manual(values=met.brewer("Morgenstern")) +
+  color_all +
+ # scale_color_manual(values=met.brewer("Morgenstern")) +
+  #scale_color_gradientn(colors=met.brewer("Morgenstern")) +
+  th
+```
+```{r}
+field_data_df %>%
+   mutate(spp = fct_relevel(spp, "ABCO","PIJE","CADE","CECO", "ARPA","QUKE"))  %>% 
+   mutate(Species = fct_relevel(Species,
+                              "A. concolor",
+                              "P. jeffreyi",
+                              "C. decurrens",
+                              "C. cordulatus",
+                              "A. patula", 
+                              "Q. kelloggii"
+    )) %>% 
+  filter(age != "both") %>% 
+  mutate(month = month(date, label = TRUE, abbr = TRUE)) %>% 
+  ggplot(aes(x = predawn, 
+             y = lfm, 
+             color = as.factor(month), 
+             shape = age)) +
+  geom_point(size = 1, alpha = .7) +
+  geom_vline(aes(xintercept = mean_tlp_spp), size = .5, alpha = .6,
+             color = "black", linetype = "dotted") +
+  #stat_smooth(aes(x = LFM, y = predawn, colour = Date, linetype = "Linear Fit"), method = "lm") 
+  xlim(-5,0) + 
+  labs( y = "Live Fuel Moisture", 
+        x = "Predawn (-MPa)", 
+        color = "Month", 
+        shape = "Age") +
+  ylim(50,300) +
+  facet_wrap(~strategy) +
+  color_all +
+ # scale_color_manual(values=met.brewer("Morgenstern")) +
   #scale_color_gradientn(colors=met.brewer("Morgenstern")) +
   th
 ```
@@ -481,7 +483,7 @@ field_data_df %>%
              #color = as.factor(month), 
              color = age)) +
   geom_point(size = 1, alpha = .7) +
-  geom_vline(aes(xintercept = mean(mean_tlp)), size = .5, alpha = .6,
+  geom_vline(aes(xintercept = mean(mean_tlp_spp)), size = .5, alpha = .6,
              color = "black", linetype = "dotted") +
   #stat_smooth(aes(x = LFM, y = predawn, colour = Date, linetype = "Linear Fit"), method = "lm") 
   xlim(-5,0) + 
@@ -501,7 +503,7 @@ field_data_df %>%
 field_data_all %>%
   ggplot(aes(x = midday, y = lfm, color = month, shape = spp)) +
   geom_point(size = 1) +
-  geom_vline(aes(xintercept = mean_tlp), size = .5, 
+  geom_vline(aes(xintercept = mean_tlp_spp), size = .5, 
              color = "olivedrab", 
              linetype = "dotted"
              ) +
@@ -524,7 +526,7 @@ field_data_all %>%
 field_data_all %>%
   ggplot(aes(x = midday, y = lfm, color = month, shape = age)) +
   geom_point(size = 1, alpha = .5) +
-  geom_vline(aes(xintercept = mean_tlp), size = .5, 
+  geom_vline(aes(xintercept = mean_tlp_spp), size = .5, 
              color = "olivedrab", 
              linetype = "dotted"
              ) +
@@ -814,7 +816,7 @@ field_data_2021_longer %>%
         axis.text.x = element_text(angle = 30, hjust = 1, size = 10), 
         #legend.position = "none"
         ) +
-  #geom_hline(yintercept = mean_tlp_spp, linetype = "dotted", color = "olivedrab") +
+  #geom_hline(yintercept = mean_tlp_spp_spp, linetype = "dotted", color = "olivedrab") +
   labs( y ="Predawn (MPa)", 
         x = "Date", 
         #color = "Phenophase", 
@@ -850,7 +852,7 @@ field_data_df %>%
         strip.text = element_text(face = "italic"),
         legend.position = "none"
         ) +
-  #geom_hline(yintercept = field_data_df$mean_tlp, linetype = "dotted", color = "olivedrab") +
+  #geom_hline(yintercept = field_data_df$mean_tlp_spp, linetype = "dotted", color = "olivedrab") +
   labs( y ="Predawn (MPa)", 
         x = "Date", 
         #color = "Phenophase", 
@@ -886,7 +888,7 @@ field_data_df %>%
         strip.text = element_text(face = "italic"),
         legend.position = "none"
         ) +
-  #geom_hline(yintercept = field_data_df$mean_tlp, linetype = "dotted", color = "olivedrab") +
+  #geom_hline(yintercept = field_data_df$mean_tlp_spp, linetype = "dotted", color = "olivedrab") +
   labs( y ="Midday (MPa)", 
         x = "Date", 
         #color = "Phenophase", 

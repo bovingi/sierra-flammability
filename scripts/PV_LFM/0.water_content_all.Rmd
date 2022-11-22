@@ -563,7 +563,51 @@ field_data_all_pv <- merge(tlp_summary_spp_lfm, field_data_all_tlps,
   filter(!spp %in% c("ADFA", "CEME")) %>% #add in mean LFM at TLP for each spp
   select(-lf_mtlp, -bottle, -n)
 
-field_data_all <- field_data_all_pv 
+field_data_all <- field_data_all_pv %>% 
+   mutate(month = month(date), 
+          year = year(date)) %>% 
+   mutate(age = case_when(
+     age == "New" ~ "new", 
+     age == "Old" ~ "old", 
+     age == "new" ~ "new", 
+     age == "old" ~ "old", 
+     age == "both" ~ "both",
+     TRUE ~ as.character(age)
+   )) %>% 
+   mutate(spp = fct_relevel(spp, "ABCO","PIJE","CADE","CECO", "ARPA","QUKE"))  %>% 
+  mutate(strategy = case_when( #based on slope of predawn~midday line
+    spp == "ABCO" ~ "Isohydric", 
+    spp == "PIJE" ~ "Isohydric", 
+     spp == "CADE" ~ "Isohydric", 
+    spp == "CECO" ~ "Anisohydric", 
+    spp == "ARPA" ~ "Anisohydric", 
+    spp == "QUKE" ~ "Anisohydric"
+  )) %>% 
+   mutate(strategy_binary = case_when( #based on slope of predawn~midday line
+    spp == "ABCO" ~ "1", 
+    spp == "ARPA" ~ "2", 
+    spp == "CADE" ~ "1", 
+    spp == "CECO" ~ "2", 
+    spp == "PIJE" ~ "1", 
+    spp == "QUKE" ~ "2"
+  )) %>% 
+   mutate(spp = fct_relevel(spp, "ABCO","PIJE","CADE","CECO", "ARPA","QUKE"))  %>% 
+   mutate(Species = case_when(
+     spp == "ABCO" ~ "A. concolor",
+    spp == "PIJE" ~ "P. jeffreyi", 
+    spp == "CADE" ~ "C. decurrens", 
+    spp == "CECO" ~ "C. cordulatus", 
+    spp == "ARPA" ~ "A. patula", 
+    spp == "QUKE" ~ "Q. kelloggii"
+    )) %>% 
+  mutate(type = case_when(
+    spp == "PIJE" ~ "tree", 
+    spp == "QUKE" ~ "tree", 
+    spp == "CECO" ~ "shrub", 
+    spp == "ARPA" ~ "shrub", 
+    spp == "ABCO" ~ "tree", 
+    spp == "CADE" ~ "tree"
+  ))
 ```
 
 We probably also want to get swc to be the extrapolated value, so....

@@ -12,7 +12,7 @@ options(knitr.duplicate.label = "allow")
 library(here)
 library(janitor)
 library(tidyverse)
-library(plotly)
+#library(plotly)
 library(DT)
 library(broom)
 library(lubridate)
@@ -906,11 +906,80 @@ ggplot(predict_df_above, aes(x = lfm, y = fit)) +
        title = "Complex: Predicted (lightblue) vs. observed (black) LFM and Mpa for points ABOVE the TLP ")
 ```
 
-#HERE Oct. 2021
 #### 3.2.5 Complex model - don't distinguish between above and below: 
 
+Model built with PV curves, test data is field
 ```{r}
 complex_model_all <- lm(formula = water_potential ~ lfm + swc + po + 1, data = pv_all)
+
+predict_all <- predict(complex_model_all, newdata = field_data_all, se_fit = TRUE, interval = "confidence") #make prediction
+
+# Bind to the data to make it actually useful:
+
+predict_df_all <- data.frame(field_data_all, predict_all)
+
+predict_df_all %>% 
+  ggplot(aes(y = water_potential, x = fit)) +
+  geom_point() +
+  geom_abline(method = lm) +
+  geom_abline(color = "red") +
+  ylim(0, -3) +
+  xlim(0, -3) +
+  labs(title = "Complex: Actual vs. predicted water potential", 
+       y = "Actual Mpa", 
+       x = "Predicted Mpa") 
+
+ggplot(predict_df_all, aes(x = lfm, y = fit), color = 
+                              "pink") +
+  geom_point(data = field_data_all, aes(x = lfm, 
+                                        y = water_potential), 
+             color = "pink", alpha = 0.7) +
+  geom_point(color = "lightblue", alpha = 0.7) +
+ # facet_wrap(~St) +
+  labs(x = "LFM (%)", 
+       y = "Water Potential (Mpa)", 
+       title = "Complex: Predicted (lightblue) vs. observed (black) LFM and Mpa")
+
+```
+
+```{r}
+complex_model_all <- lm(formula = -1/water_potential ~ lfm + swc + po + 1, data = pv_all)
+
+predict_all <- predict(complex_model_all, newdata = field_data_all, se_fit = TRUE, interval = "confidence") #make prediction
+
+# Bind to the data to make it actually useful:
+
+predict_df_all <- data.frame(field_data_all, predict_all)
+
+predict_df_all %>% 
+  ggplot(aes(y = water_potential, x = -1/fit)) +
+  geom_point() +
+  geom_abline(method = lm) +
+  geom_abline(color = "red") +
+  ylim(0, -3) +
+  xlim(0, -3) +
+  labs(title = "Complex: Actual vs. predicted water potential", 
+       y = "Actual Mpa", 
+       x = "Predicted Mpa") 
+
+ggplot(predict_df_all, aes(x = lfm, y = -1/fit), color = 
+                              "pink") +
+  geom_point(data = field_data_all, aes(x = lfm, 
+                                        y = water_potential), 
+             color = "pink", 
+             alpha = 0.7) +
+  geom_point(color = "lightblue", alpha = 0.7) +
+ # facet_wrap(~St) +
+  labs(x = "LFM (%)", 
+       y = "Water Potential (Mpa)", 
+       title = "Complex: Predicted (lightblue) vs. observed (pink) LFM and Mpa")
+
+```
+
+#HERE 
+Model built with flam curves, test data is field
+```{r}
+complex_model_all <- lm(formula = water_potential ~ lfm + swc + po + 1, data = flam_curve_predict_df)
 
 predict_all <- predict(complex_model_all, newdata = field_data_all, se_fit = TRUE, interval = "confidence") #make prediction
 
