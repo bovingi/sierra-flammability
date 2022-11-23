@@ -85,6 +85,8 @@ mem_data_all_raw <- read_csv(here("processed-data", "analysis 2.0", "sierra_flam
 
 mem_data_all <- mem_data_all_raw %>% 
   filter(spp != "ceco")
+
+field_data_all <- read_csv(here("processed-data", "analysis 2.0","field_data_2020_2021.csv"))
 ```
 ## Specifying significance
 ```{r}
@@ -663,6 +665,7 @@ prop_ignite_plot_lfm_r
 The below code seems to work for proportion ignited, and also shows some interesting trends (angios are igniting less often):
 
 ```{r, warning=FALSE}
+
 df <- mem_data_all_raw %>% 
    mutate(hydration = case_when(
      lfm <= 100 ~ 'dry', 
@@ -697,12 +700,7 @@ df <- mem_data_all_raw %>%
           prop_ignite_all = paste0(round(100 * total_all/nn)), 
           prop_ignite_all = as.numeric(prop_ignite_all))
  
- unique(df$spp)
- unique(df$spp_props)
- 
-  
- unique( mem_data_all$spp)
- 
+
  df %>% 
    ggplot(aes(y = prop_ignite, 
               x = spp_props, 
@@ -712,18 +710,22 @@ df <- mem_data_all_raw %>%
    color_fill +
    labs(y = "Proportion Ignited", 
         x = "Species", 
-        fill = "Hydration")
+        fill = "Hydration") 
  
   df %>% 
+   # group_by(spp) %>% 
+   # add_tally() %>% 
    ggplot(aes(y = prop_ignite_all, 
               x = spp_props, 
               #fill = hydration
               )) +
    geom_boxplot(alpha = .5) +
+    facet_wrap(~`F.Group`, scales = "free_x"
+               ) +
    color_fill +
    labs(y = "Proportion Ignited", 
         x = "Species", 
-        fill = "Hydration")
+        fill = "Hydration") 
 ```
 
 

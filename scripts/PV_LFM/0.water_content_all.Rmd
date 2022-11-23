@@ -607,7 +607,15 @@ field_data_all <- field_data_all_pv %>%
     spp == "ARPA" ~ "shrub", 
     spp == "ABCO" ~ "tree", 
     spp == "CADE" ~ "tree"
-  ))
+  )) %>% 
+  mutate(F.Group = case_when(
+    spp == "arpa" ~ "Angiosperm", 
+    spp == "abco" ~ "Gymnosperm",
+    spp == "cade" ~ "Gymnosperm",
+    spp == "ceco" ~ "Angiosperm",
+    spp == "pije" ~ "Gymnosperm",
+    spp == "quke" ~ "Angiosperm"
+  )) 
 ```
 
 We probably also want to get swc to be the extrapolated value, so....
@@ -637,12 +645,13 @@ We need the extrapolated saturated water content so that we can determine the re
 
 NOTE: This isn't working -- 'subscript out of bounds error'; not sure why? 
 
+
 ```{r, warning= FALSE}
 #get the extrapolated saturated water content:
-swc_field_data_all <- field_data_all %>% 
-  filter(water_potential > mean_tlp_spp) %>% #for points above the tlp (estimated to be around ~2)
-  #group_by(spp) %>% 
-  summarise(swc_sat = lm(formula = gww_gdw ~ (-1 * water_potential))$coefficients[["(Intercept)"]]) 
+# swc_field_data_all <- field_data_all %>% 
+#   filter(water_potential > mean_tlp_spp) %>% #for points above the tlp (estimated to be around ~2)
+#   #group_by(spp) %>% 
+#   summarise(swc_sat = lm(formula = gww_gdw ~ (-1 * water_potential))$coefficients[["(Intercept)"]]) 
 
 # try.broom <- flam_curve_phys_all %>%
 #   filter(mpa > -2) %>%
@@ -661,6 +670,8 @@ swc_field_data_all <- field_data_all %>%
 # flam_curve_phys_all <- merge(flam_curve_phys_all, swc_all, by="unique_id", all = T) %>%
 #   mutate(rwc_new = 100 * (gww_gdw/swc_sat))
 ```
+
+#Write CSV
 
 ```{r}
 field_data_all %>%
