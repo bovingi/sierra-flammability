@@ -88,6 +88,7 @@ mem_data_all <- mem_data_all_raw %>%
 
 field_data_all <- read_csv(here("processed-data", "analysis 2.0","field_data_2020_2021.csv"))
 ```
+
 ## Specifying significance
 ```{r}
 mem_data_all <- mem_data_all %>% 
@@ -115,6 +116,56 @@ mem_data_all <- mem_data_all %>%
   mutate(temp.change.sig = case_when(
     spp == "arpa" ~ "No", spp == "abco" ~ "No", spp == "cade" ~ "No", spp == "ceco" ~ "No", 
     spp == "pije" ~ "No", spp == "quke" ~ "No"))
+```
+
+## Pre- & Post- TLP
+```{r}
+# PV Data
+pv_summary_df_timing <- read_csv(here("processed-data", "pv_summary_df_timing.csv"), show_col_types = FALSE) %>% 
+   filter(timing == "fall") %>% 
+  mutate_if(is.character, str_to_lower) %>% 
+  #mutate_at(spp, str_to_lower) %>% 
+  mutate(spp = str_trim(spp),
+    name = paste(spp,"_pv", sep = ""), 
+    mean_tlp = -1*mean_tlp, 
+    lwr = -1*lwr, 
+    upr = -1*upr) %>% 
+  filter(!spp %in% c("adfa", "ceme"))
+
+pv_summary_df_timing %>% 
+  group_split(spp) %>%
+   setNames(unique(pv_summary_df_timing$name)) %>%
+  list2env(envir = globalenv())
+
+mem_data_all_raw <- mem_data_all_raw %>% 
+  mutate(pre.post.tlp = case_when(
+    spp == 'abco' & mpa > abco_pv$mean_tlp ~ 'post',
+    spp == 'abco' & mpa < abco_pv$mean_tlp ~ 'pre',
+    spp == 'arpa' & mpa > arpa_pv$mean_tlp ~ 'post',
+    spp == 'arpa' & mpa < arpa_pv$mean_tlp ~ 'pre',
+    spp == 'cade' & mpa > cade_pv$mean_tlp ~ 'post',
+    spp == 'cade' & mpa < cade_pv$mean_tlp ~ 'pre',
+    spp == 'pije' & mpa > pije_pv$mean_tlp ~ 'post',
+    spp == 'pije' & mpa < pije_pv$mean_tlp ~ 'pre',
+    spp == 'ceco' & mpa > ceco_pv$mean_tlp ~ 'post',
+    spp == 'ceco' & mpa < ceco_pv$mean_tlp ~ 'pre',
+    spp == 'quke' & mpa > quke_pv$mean_tlp ~ 'post',
+    spp == 'quke' & mpa < quke_pv$mean_tlp ~ 'pre'
+  )) %>% 
+  mutate(pre.post.tlp.lfm = case_when(
+    spp == 'abco' & lfm > abco_pv$mean_lfm ~ 'pre',
+    spp == 'abco' & lfm < abco_pv$mean_lfm ~ 'post',
+    spp == 'arpa' & lfm > arpa_pv$mean_lfm ~ 'pre',
+    spp == 'arpa' & lfm < arpa_pv$mean_lfm ~ 'post',
+    spp == 'cade' & lfm > cade_pv$mean_lfm ~ 'pre',
+    spp == 'cade' & lfm < cade_pv$mean_lfm ~ 'post',
+    spp == 'pije' & lfm > pije_pv$mean_lfm ~ 'pre',
+    spp == 'pije' & lfm < pije_pv$mean_lfm ~ 'post',
+    spp == 'ceco' & lfm > ceco_pv$mean_lfm ~ 'pre',
+    spp == 'ceco' & lfm < ceco_pv$mean_lfm ~ 'post',
+    spp == 'quke' & lfm > quke_pv$mean_lfm ~ 'pre',
+    spp == 'quke' & lfm < quke_pv$mean_lfm ~ 'post'
+  ))
 ```
 
 
@@ -606,7 +657,7 @@ prop_ignite_plot_lfm_r
 ```
 
 
-####Prop ignite but boxplots: 
+####  Boxplots
 
 ```{r}
 # prop_ignite_mod <- lmer(prop_ignite ~ spp*mpa_scaled + spp*lfm_scaled + sample_wt_scaled + site + year_month + (1 | individual), data = mem_data_all_r)
@@ -728,6 +779,30 @@ df <- mem_data_all_raw %>%
         fill = "Hydration") 
 ```
 
+##### Pre- vs. Post-TLP
+```{r}
+df %>% 
+   ggplot(aes(y = prop_ignite, 
+              x = spp_props, 
+              fill = factor(pre.post.tlp, level = c('pre', 'post')))) +
+   geom_boxplot(alpha = .5) +
+   facet_wrap(~`F.Group`, scales = "free") +
+   color_fill +
+   labs(y = "Proportion Ignited", 
+        x = "Species", 
+        fill = "Pre- or Post-TLP")
+
+df %>% 
+   ggplot(aes(y = prop_ignite, 
+              x = spp_props, 
+              fill = factor(pre.post.tlp.lfm, level = c('pre', 'post')))) +
+   geom_boxplot(alpha = .5) +
+   facet_wrap(~`F.Group`, scales = "free") +
+   color_fill +
+   labs(y = "Proportion Ignited", 
+        x = "Species", 
+        fill = "Pre- or Post-TLP (Split by LFM)")
+```
 
 It looks like it doesnt make a huge difference if we use remef or not, so we'll go ahead and use it.
 Now, putting all figures together, remef only: 
