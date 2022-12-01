@@ -28,6 +28,8 @@ library(ggbeeswarm)
 library(wesanderson)
 library(MetBrewer)
 library(RColorBrewer)
+
+source(here::here("scripts", "scripts_functions", "figure_info_sierra_flammability.R")) #color and theme info is here
 ```
 #Setup
 This dataset has field-collected LFM and Mpa data, and LFM at TLP and MPa at TLP from PV Curves
@@ -359,29 +361,43 @@ field_data_all %>%
 
 #### LFM by MPa (species)
 ```{r}
+field_data_all <- field_data_all %>% 
+  mutate(Age = case_when(
+    age == 'new' ~ 'New',
+    age == 'old' ~ 'Old'
+  ))
+
 field_data_all %>%
+  filter(month < 10) %>% #removing post-rain values (October sample collection)
   mutate(spp = fct_relevel(spp, "ABCO", "PIJE", "CADE", "CECO", "ARPA", "QUKE"))  %>%
   mutate(month = month(date, label = TRUE, abbr = TRUE)) %>%
   ggplot(aes(
     x = midday,
     y = lfm,
-    color = as.factor(month),
-    shape = age
+    shape = Age
   )) +
-  geom_point(size = 0.8, alpha = .6) +
+  geom_point(size = 1.4, alpha = .65, aes(color = as.factor(month))) +
+  geom_smooth(se = F, method = 'lm', size = 0.5, alpha = .6, color = 'black', aes(lty = Age), show_guide = F) +
   geom_vline(
-    aes(xintercept = mean_tlp_spp),
-    size = 1,
-    color = "black",
-    linetype = "dotted"
+    aes(xintercept = mean_tlp_spp, lty = Species),
+    size = 0.7,
+    color = 'black',
+    alpha = .6,
+    show_guide = F
+  ) +
+  geom_hline(
+    aes(yintercept = mean_lfm_fall_spp, lty = Species),
+    size = 0.7,
+    color = 'black',
+    alpha = .6,
+    show_guide = F
   ) +
   #stat_smooth(aes(x = LFM, y = predawn, colour = Date, linetype = "Linear Fit"), method = "lm")
   xlim(-5, 0) +
   labs(
     y = "Live Fuel Moisture",
     x = "Midday Water Potential (MPa)",
-    color = "Month",
-    shape = "Species"
+    color = "Month"
   ) +
   ylim(50, 300) +
   facet_wrap( ~ spp, labeller = labeller(spp = spp.labs)) +
