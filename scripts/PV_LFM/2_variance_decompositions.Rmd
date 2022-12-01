@@ -39,8 +39,9 @@ here = here::here
 ```
 # Section 1: Pressure Volume Curves
 
-```{r}
+```{r,warning=FALSE}
 pv_all_df <- read_csv(here("processed-data", "allcurves_clean.csv"), show_col_types = FALSE) %>%
+  filter(!spp %in% c("ADFA", "CEME")) %>% 
   mutate(sample = as.factor(sample)) %>% 
   mutate(month = as.factor(month)) %>% 
   mutate(date = ymd(date), 
@@ -50,7 +51,48 @@ pv_all_df <- read_csv(here("processed-data", "allcurves_clean.csv"), show_col_ty
   mutate(plant = udpipe::unique_identifier(individual), 
          fresh_weight_saturated = as.numeric(fresh_weight_saturated)) %>% 
   group_by(spp, plant) %>% 
-  mutate(maxLFM = ((fresh_weight_saturated - dry_weight)/dry_weight)*100)
+  mutate(maxLFM = ((fresh_weight_saturated - dry_weight)/dry_weight)*100) %>% 
+   mutate(spp = fct_relevel(spp, "ABCO","PIJE","CADE","CECO", "ARPA","QUKE")) %>% 
+  mutate(strategy = case_when( #based on slope of predawn~midday line
+    spp == "ABCO" ~ "Isohydric", 
+    spp == "PIJE" ~ "Isohydric", 
+     spp == "CADE" ~ "Isohydric", 
+    spp == "CECO" ~ "Anisohydric", 
+    spp == "ARPA" ~ "Anisohydric", 
+    spp == "QUKE" ~ "Anisohydric"
+  )) %>% 
+   mutate(strategy_binary = case_when( #based on slope of predawn~midday line
+    spp == "ABCO" ~ "1", 
+    spp == "ARPA" ~ "2", 
+    spp == "CADE" ~ "1", 
+    spp == "CECO" ~ "2", 
+    spp == "PIJE" ~ "1", 
+    spp == "QUKE" ~ "2"
+  )) %>% 
+   mutate(Species = case_when(
+     spp == "ABCO" ~ "A. concolor",
+    spp == "PIJE" ~ "P. jeffreyi", 
+    spp == "CADE" ~ "C. decurrens", 
+    spp == "CECO" ~ "C. cordulatus", 
+    spp == "ARPA" ~ "A. patula", 
+    spp == "QUKE" ~ "Q. kelloggii"
+    )) %>% 
+  mutate(type = case_when(
+    spp == "PIJE" ~ "tree", 
+    spp == "QUKE" ~ "tree", 
+    spp == "CECO" ~ "shrub", 
+    spp == "ARPA" ~ "shrub", 
+    spp == "ABCO" ~ "tree", 
+    spp == "CADE" ~ "tree"
+  )) %>% 
+  mutate(F.Group = case_when(
+    spp == "ARPA" ~ "Angiosperm", 
+    spp == "ABCO" ~ "Gymnosperm",
+    spp == "CADE" ~ "Gymnosperm",
+    spp == "CECO" ~ "Angiosperm",
+    spp == "PIJE" ~ "Gymnosperm",
+    spp == "QUKE" ~ "Angiosperm"
+  )) 
 ```
 
 ####PV plot
@@ -78,6 +120,7 @@ pv_plot <- pv_all_df %>%
     fontface = 'bold',
     size = 10
   ) +
+  facet_wrap(~F.Group)+
   theme(plot.margin = unit(c(.2, .5,-.5, .25), "cm")) #margin(t = 0, r = 0, b = 0, l = 0, unit = "pt")
 pv_plot
 ```
@@ -376,16 +419,57 @@ mod_all_long_lfm %>%
 
 # Section 2: Flam curve phys data
 
-```{r}
+```{r, warning=FALSE}
 flam_curve_phys_all_raw <- read_csv(here("processed-data", "analysis 2.0", "flam_curve_phys_all.csv"), show_col_types = FALSE)
 
 flam_curve_df <- flam_curve_phys_all_raw %>% 
+   filter(!spp %in% c("ADFA", "CEME")) %>% 
   mutate(water_potential = -1*pos_mpa, 
          swc = swc_sat, 
          month = as.factor(month)) %>% 
   group_by(spp) %>% 
   mutate(plant = udpipe::unique_identifier(individual), 
-         maxLFM = gww_gdw_saturated * 100) 
+         maxLFM = gww_gdw_saturated * 100) %>% 
+  mutate(strategy = case_when( #based on slope of predawn~midday line
+    spp == "ABCO" ~ "Isohydric", 
+    spp == "PIJE" ~ "Isohydric", 
+     spp == "CADE" ~ "Isohydric", 
+    spp == "CECO" ~ "Anisohydric", 
+    spp == "ARPA" ~ "Anisohydric", 
+    spp == "QUKE" ~ "Anisohydric"
+  )) %>% 
+   mutate(strategy_binary = case_when( #based on slope of predawn~midday line
+    spp == "ABCO" ~ "1", 
+    spp == "ARPA" ~ "2", 
+    spp == "CADE" ~ "1", 
+    spp == "CECO" ~ "2", 
+    spp == "PIJE" ~ "1", 
+    spp == "QUKE" ~ "2"
+  )) %>% 
+   mutate(Species = case_when(
+     spp == "ABCO" ~ "A. concolor",
+    spp == "PIJE" ~ "P. jeffreyi", 
+    spp == "CADE" ~ "C. decurrens", 
+    spp == "CECO" ~ "C. cordulatus", 
+    spp == "ARPA" ~ "A. patula", 
+    spp == "QUKE" ~ "Q. kelloggii"
+    )) %>% 
+  mutate(type = case_when(
+    spp == "PIJE" ~ "tree", 
+    spp == "QUKE" ~ "tree", 
+    spp == "CECO" ~ "shrub", 
+    spp == "ARPA" ~ "shrub", 
+    spp == "ABCO" ~ "tree", 
+    spp == "CADE" ~ "tree"
+  )) %>% 
+  mutate(F.Group = case_when(
+    spp == "ARPA" ~ "Angiosperm", 
+    spp == "ABCO" ~ "Gymnosperm",
+    spp == "CADE" ~ "Gymnosperm",
+    spp == "CECO" ~ "Angiosperm",
+    spp == "PIJE" ~ "Gymnosperm",
+    spp == "QUKE" ~ "Angiosperm"
+  )) 
 #%>% 
  # select(spp, swc, lfm, mpa, month, tlp, water_potential, po, individual, plant)
 ```
@@ -409,7 +493,8 @@ flam_plot <- flam_curve_df %>%
        y = "LFM")+
   theme(plot.margin = unit(c(.2, .5, .3, .25), "cm")) +
   xlim(0,10) +
-  annotate(geom = "text", x = 10, y = 225, label = 'c', fontface = 'bold', size = 10)
+  annotate(geom = "text", x = 10, y = 225, label = 'c', fontface = 'bold', size = 10)+
+  facet_wrap(~F.Group)
 flam_plot
 ```
 
@@ -642,7 +727,47 @@ field_data_all <- read_csv(here("processed-data", "analysis 2.0", "field_data_20
   mutate(water_potential = midday, 
          plant = udpipe::unique_identifier(unique_id)) %>% 
  # group_by(spp, plant) %>% 
-  mutate(maxLFM = wettest_lfm)
+  mutate(maxLFM = wettest_lfm)  %>% 
+  mutate(strategy = case_when( #based on slope of predawn~midday line
+    spp == "ABCO" ~ "Isohydric", 
+    spp == "PIJE" ~ "Isohydric", 
+     spp == "CADE" ~ "Isohydric", 
+    spp == "CECO" ~ "Anisohydric", 
+    spp == "ARPA" ~ "Anisohydric", 
+    spp == "QUKE" ~ "Anisohydric"
+  )) %>% 
+   mutate(strategy_binary = case_when( #based on slope of predawn~midday line
+    spp == "ABCO" ~ "1", 
+    spp == "ARPA" ~ "2", 
+    spp == "CADE" ~ "1", 
+    spp == "CECO" ~ "2", 
+    spp == "PIJE" ~ "1", 
+    spp == "QUKE" ~ "2"
+  )) %>% 
+   mutate(Species = case_when(
+     spp == "ABCO" ~ "A. concolor",
+    spp == "PIJE" ~ "P. jeffreyi", 
+    spp == "CADE" ~ "C. decurrens", 
+    spp == "CECO" ~ "C. cordulatus", 
+    spp == "ARPA" ~ "A. patula", 
+    spp == "QUKE" ~ "Q. kelloggii"
+    )) %>% 
+  mutate(type = case_when(
+    spp == "PIJE" ~ "tree", 
+    spp == "QUKE" ~ "tree", 
+    spp == "CECO" ~ "shrub", 
+    spp == "ARPA" ~ "shrub", 
+    spp == "ABCO" ~ "tree", 
+    spp == "CADE" ~ "tree"
+  )) %>% 
+  mutate(F.Group = case_when(
+    spp == "ARPA" ~ "Angiosperm", 
+    spp == "ABCO" ~ "Gymnosperm",
+    spp == "CADE" ~ "Gymnosperm",
+    spp == "CECO" ~ "Angiosperm",
+    spp == "PIJE" ~ "Gymnosperm",
+    spp == "QUKE" ~ "Angiosperm"
+  )) 
 ```
 
 #####field plot
@@ -654,7 +779,8 @@ field_plot <- field_data_all %>%
   ggplot(aes(y = lfm, 
              x = -1*water_potential, 
              color = spp)) +
-  geom_point(alpha = .5) +
+  geom_point(alpha = .5)+
+  facet_wrap(~F.Group) +
  # geom_smooth(method = "lm", se = F) +
   color_many +
   theme(legend.position = "none") +
@@ -663,7 +789,7 @@ field_plot <- field_data_all %>%
        y = "LFM") +
   theme(plot.margin = unit(c(.2, .5, -.5, .25), "cm")) +
   xlim(0,10)+
-  annotate(geom = "text", x = 10, y = 300, label = 'a', fontface = 'bold', size = 10)
+  annotate(geom = "text", x = 10, y = 300, label = 'a', fontface = 'bold', size = 10) 
 field_plot
 ```
 m1 <- lmer(lfm ~ water_potential*spp * month + (1|plant), data = field_data_all)
@@ -897,7 +1023,8 @@ plots_legend
 
 #ggsave(plot=plots_legend, bg = "white" , here::here("figures", "mpa_flam_metrics_unscaled"), device="jpg")
 
-ggsave(plot=plots_legend, bg = "white" , here::here("figures", "flam_pv_field"), device="jpg")
+#ggsave(plot=plots_legend, bg = "white" , here::here("figures", "flam_pv_field"), device="jpg")
+ggsave(plot=plots_legend, bg = "white" , here::here("figures", "flam_pv_field_fgroups"), device="jpg")
 ```
 #-------------
 

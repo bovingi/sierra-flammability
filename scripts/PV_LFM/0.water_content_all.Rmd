@@ -429,7 +429,8 @@ flam_curve_phys_all %>%
 ```
 
 New dataset with calculated RWC: 
-###Phys dataset write out
+
+###Write .csv
 ```{r}
 flam_curve_phys_all %>% 
   write_csv(here("processed-data", "analysis 2.0", "flam_curve_phys_all.csv"))
@@ -675,8 +676,41 @@ NOTE: This isn't working -- 'subscript out of bounds error'; not sure why?
 
 ```{r}
 field_data_all %>%
+  mutate(age = case_when(
+    age %in% c("O", "both") ~ "old", 
+    age %in% c("N") ~ "new",
+    TRUE ~ as.character(age)
+  )) %>% 
 write_csv(here("processed-data", "analysis 2.0","field_data_2020_2021.csv"))
 ```
+#--------------------------
+
+#Combine all dfs: 
+
+#HERE: Dec 1. 2022. WIP.
+
+```{r}
+
+tmp_field_data_all <- field_data_all %>% 
+  mutate(analysis = "field", 
+         site = as.character(site)) %>% 
+  select(spp, age, pod, site, date, type, 
+         location, month, lfm, mpa, lfm_tlp, mpa_tlp, Species,
+         predawn, midday, analysis) 
+  
+
+tmp_flam_curve_phys_all <- flam_curve_phys_all %>%  
+  mutate(analysis = "flamcurve", 
+         site = as.character(site)) %>% 
+  select(spp, rwc, lfm, mpa, site, mpatlp, analysis)
+
+tmp_flam_field <- bind_rows(tmp_field_data_all, 
+                            tmp_flam_curve_phys_all)
+
+tmp_pv_allcurves_data_clean <- pv_allcurves_data_clean %>%  
+  mutate(analysis = "pv") 
+```
+
 #--------------------------
 
 #Section 4: Stems v. leaves
