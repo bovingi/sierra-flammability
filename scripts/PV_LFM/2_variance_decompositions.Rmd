@@ -1042,7 +1042,7 @@ for (i in unique(field_data_all$spp)) {
  
 m1 <- lmer(lfm ~ water_potential + location + (1|plant), data =df)
 m2 <- lmer(lfm ~ water_potential + (1|plant), data =df)
-m3 <- lmer(maxLFM ~ location + (1|plant), data =df)
+m3 <- lmer(lfm ~ location + (1|plant), data =df)
 
 #try using r.squaredGLMM:
 mods_list <- list(m1, m2, m3)
