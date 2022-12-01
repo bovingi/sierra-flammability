@@ -51,7 +51,7 @@ From 0_water_content_all.Rmd
 
 ```{r}
 field_data_all <- read_csv(here("processed-data", "analysis 2.0","field_data_2020_2021.csv"), show_col_types = FALSE) %>% 
-  drop_na(spp) 
+  drop_na(spp)
 ```
 
 ###Phenology Data
@@ -528,9 +528,7 @@ field_data_all %>%
   facet_wrap(~spp)+
   #ggtitle("Outliers removed (outlierKD)") +
   #scale_color_gradient(low = "darkblue", high = "goldenrod") +
-  scale_color_gradient(low = "maroon", high = "goldenrod") +
- # scale_color_continuous(values = c(low = "goldenrod", high = "lightblue"))
-  th
+  scale_color_gradient(low = "maroon", high = "goldenrod") 
 ```
 
 #LFM x PD

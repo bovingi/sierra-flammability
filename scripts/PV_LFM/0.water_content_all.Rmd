@@ -449,7 +449,16 @@ field_data_2021_raw <- read.csv(here("raw-data", "CZO_alldata_compiled.csv")) %>
   select(-spp_1) %>% 
   mutate(lfm_tlp = lf_mtlp, 
          age = new_old) %>% 
-  select(-new_old)
+  select(-new_old) %>% 
+  mutate(age_new = case_when(
+    age %in% c("O") & spp %in% c("QUKE", "CECO") ~ "new",
+    age %in% c("N") & spp %in% c("QUKE", "CECO") ~ "old", 
+    age %in% c("old") & spp %in% c("QUKE", "CECO") ~ "new",
+    age %in% c("new") & spp %in% c("QUKE", "CECO") ~ "old", 
+    age %in% c("O") ~ "old", 
+    age %in% c("N") ~ "new", 
+    TRUE ~ as.character(age))
+  )
 
 field_data_2021 <- field_data_2021_raw %>% 
  # select(bottle_number:location) %>% 
@@ -487,7 +496,16 @@ Saturated content here is the wettest LFM observed during the field season/100.
 ```{r, message = FALSE}
 #LFM data: 
 field_data_2020_lfm_raw <- read_csv(here("raw-data", "LFM_Sierra_AllDates.csv"), show_col_types = FALSE) %>% 
-  clean_names()
+  clean_names()  %>% 
+  mutate(age_new = case_when(
+    #age %in% c("O") & spp %in% c("QUKE", "CECO") ~ "new",
+   # age %in% c("N") & spp %in% c("QUKE", "CECO") ~ "old", 
+   # age %in% c("old") & spp %in% c("QUKE", "CECO") ~ "new",
+  #  age %in% c("new") & spp %in% c("QUKE", "CECO") ~ "old", 
+    age %in% c("O", "old", "Old") ~ "old", 
+    age %in% c("N", "new", "New") ~ "new", 
+    TRUE ~ as.character(age))
+  )
 
 field_data_2020_lfm <- field_data_2020_lfm_raw %>% 
  # select(bottle_number:location) %>% 
@@ -677,9 +695,9 @@ NOTE: This isn't working -- 'subscript out of bounds error'; not sure why?
 ```{r}
 field_data_all %>%
   mutate(age = case_when(
-    age %in% c("O", "both") ~ "old", 
-    age %in% c("N") ~ "new",
-    TRUE ~ as.character(age)
+    age_new %in% c("O", "both") ~ "old", 
+    age_new %in% c("N") ~ "new",
+    TRUE ~ as.character(age_new)
   )) %>% 
 write_csv(here("processed-data", "analysis 2.0","field_data_2020_2021.csv"))
 ```
