@@ -13,4 +13,4 @@ plot_facet_flam <- function(data, x, y, color_var, facet_var) {
 }
 
 #Example: 
-plot_facet_flam(plot_mpa_df, mpa, value, year_month, flam_metric)
+#plot_facet_flam(plot_mpa_df, mpa, value, year_month, flam_metric)

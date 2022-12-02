@@ -20,6 +20,7 @@ library(lubridate)
 library(plotrix)
 filter = dplyr::filter 
 here = here::here
+select = dplyr::select
 library(janitor)
 #source(here("source-code", "source-segmented_lme_R"))
 library(naniar)
@@ -28,10 +29,9 @@ source(here::here("scripts", "scripts_functions", "plot_facet_flam.R"))
 source(here::here("scripts", "scripts_functions", "figure_info_sierra_flammability.R"))
 ```
 
-#Data Wrangling: 
+# Data Wrangling: 
 
-
-####Flammability: 
+#### Flammability: 
 
 ```{r}
 flam_seki_raw <- read_csv(here("processed-data", "analysis 2.0", "seki_flam_data_all.csv")) %>% 
@@ -73,13 +73,14 @@ flam_sierra_raw_no2021 <- bind_rows(flam_seki_raw, flam_czo_2020_raw) %>%
        ignition_num = as.numeric(ignition), 
        prop_new_lfm = NA_real_
   ) %>% 
-  select(-precip_2month, -x1, -video_notes_57, -video_notes_58, -gr, -lfm,
+  rename(notes_flam = video_notes_57) %>% 
+  select(-precip_2month, -x1, -gr, -lfm, -video_notes_58,
          -temp_max_higher, - temp_max, -start_temp, -ignition_temp_higher, - ignition_temp)
 
 flam_sierra_df_noswc <- bind_rows(flam_sierra_raw_no2021, flam_czo_2021_raw) %>% 
   mutate(lfm = lfm_n_as_imputed) %>% 
   select(-lfm_n_as_imputed) %>% 
-    mutate_if(is.character, str_to_lower) %>% 
+  mutate_if(is.character, str_to_lower) %>% 
    mutate(id = row_number(), 
           gww_gdw = water_wt/dry_wt, 
           pos_mpa = mpa, 
