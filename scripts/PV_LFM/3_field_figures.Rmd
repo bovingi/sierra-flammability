@@ -413,6 +413,7 @@ field_data_all %>%
 ####LFM by MPa (date)
 ```{r}
 field_data_all %>%
+   filter(month < 10) %>%  #removing post-rain values (October sample collection)
    mutate(spp = fct_relevel(spp, "ABCO","PIJE","CADE","CECO", "ARPA","QUKE"))  %>% 
    mutate(Species = fct_relevel(Species,
                               "A. concolor",
@@ -425,12 +426,14 @@ field_data_all %>%
   filter(age != "both") %>% 
   mutate(month = month(date, label = TRUE, abbr = TRUE)) %>% 
   ggplot(aes(x = midday, 
-             y = lfm, 
-             color = as.factor(month), 
-             shape = age)) +
-  geom_point(size = 1, alpha = .7) +
-  geom_vline(aes(xintercept = mean_tlp_spp), size = .5, alpha = .6,
-             color = "black", linetype = "dotted") +
+             y = lfm)) +
+  geom_point(size = 1.1, alpha = .7, aes(color = as.factor(month), shape = Age)) +
+  #geom_smooth(se = F, method = 'lm', aes(lty = Species),
+              #size = .7, alpha = .7, color = 'black') +
+  geom_vline(aes(xintercept = mean_tlp_spp, lty = Species), size = .5, alpha = .6,
+             color = "darkgreen", show.legend = F) +
+  #geom_hline(aes(yintercept = mean_lfm_fall_spp, lty = Species),
+             #size = .5, color = 'darkgreen', alpha = .6, show_guide = F) +
   #stat_smooth(aes(x = LFM, y = predawn, colour = Date, linetype = "Linear Fit"), method = "lm") 
   xlim(-5,0) + 
   labs( y = "Live Fuel Moisture", 
@@ -439,8 +442,18 @@ field_data_all %>%
         shape = "Age") +
   ylim(50,300) +
   facet_wrap(~strategy) +
-  color_all 
+  color_all +
+  theme(
+    strip.text = element_text(face = "bold"),
+    axis.title = element_text(face = "bold"),
+    legend.title = element_text(face = "bold"),
+    strip.background = element_rect(fill = "gray90")
+  ) 
+
+ggsave(here('figures', 'lfm.x.mpa.fx.group.split.jpg'), height = 8, width = 11)
 ```
+
+
 ```{r}
 field_data_all %>%
    mutate(spp = fct_relevel(spp, "ABCO","PIJE","CADE","CECO", "ARPA","QUKE"))  %>% 
