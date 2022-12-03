@@ -105,24 +105,57 @@ Visualize to make sure everything makes sense:
 
 ```{r, warning = F}
 pv_allcurves_data_clean%>% 
+  filter(timing == "fall", 
+         year != 2016) %>% 
 ggplot(aes(y = neg_mpa, x = rwd, color = spp)) + 
   geom_jitter(alpha = .5, size = 1) +
   labs(title = "Pressure Volume Curves",
          y = "-1/Mpa", 
        x = "Relative Water Deficit (%)") +
-  color_all
+  color_all +
+  facet_wrap(~year)
 ```
 
 Visualize LFM and Mpa ("Pressure Moisture Curves"):
 
 ```{r, warning = F}
-pv_allcurves_data_clean %>% 
-ggplot(aes(y = neg_mpa, x = lfm, color = spp)) + 
+pv_allcurves_data_clean %>%
+  filter(timing == "fall",
+         year != 2016) %>%
+  ggplot(aes(y = neg_mpa, x = lfm, color = spp)
+  ) +
   geom_jitter(alpha = .5, size = 1) +
-  labs(title = "Pressure Moisture Curves", 
-       y = "-1/Mpa", 
+  labs(title = "Pressure Moisture Curves",
+       y = "-1/Mpa",
        x = "Live Fuel Moisture (%)") +
-  facet_wrap(~spp, scales = "free") + color_all
+  facet_wrap( ~ year, scales = "free") +
+  color_all
+```
+
+Summaries: 
+```{r}
+table <- pv_allcurves_data_clean %>% 
+  filter(timing == "fall", year != 2016) %>% 
+  drop_na(swc) %>% 
+  group_by(spp, year) %>% 
+  summarise(lfm = mean(lfm_at_tlp), 
+            #sd_lfm = sd(lfm_at_tlp),
+            tlp = mean(tlp), 
+            #sd_tlp = sd(tlp),
+            rwc_tlp = mean(rwc_at_tlp), 
+            #sd_rwc = sd(rwc_tlp),
+            po = mean(po), 
+           # sd_po = sd(po),
+            swc = mean(fresh_weight_saturated), 
+            #sd_swc = sd(swc)
+            )
+table
+
+#kableExtra::kable(table)
+
+datatable(table)
+
+#ggsave(table_pretty, here("figures", "PV_summaries_year"), device = "jpeg")
 ```
 
 Non-transformed Mpa:
@@ -224,7 +257,8 @@ tlp_summary_timing <- pv_allcurves_data_clean %>%
             mean_po_month =mean(po),sd_month=sd(po))
 
 pv_summary_spp <- pv_allcurves_data_clean %>%
-  filter(timing == "fall") %>% 
+  filter(timing == "fall", 
+         year == 2021) %>% 
   group_by(spp) %>% 
   summarise(n=n(), mean_tlp_fall_spp=mean(tlp),sd_fall_spp=sd(tlp), 
              mean_po_fall_spp=mean(po),sd_fall_spp=sd(po))
@@ -237,7 +271,8 @@ tlp_summary_timing_lfm <- pv_allcurves_data_clean %>%
   summarise(n=n(), mean_lfm_timing=mean(lfm),sd_lfm_timing=sd(lfm))
 
 tlp_summary_spp_lfm <- pv_allcurves_data_clean %>%
-  filter(timing == "fall") %>% 
+  filter(timing == "fall", 
+         year == 2021) %>% 
   group_by(spp) %>% 
   summarise(n=n(), mean_lfm_fall_spp=mean(lfm),sd_lfm_fall_spp=sd(lfm))
 ```

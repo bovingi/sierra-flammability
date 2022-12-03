@@ -26,7 +26,13 @@ select = dplyr::select
 source(here::here("scripts", "scripts_functions", "plot_segmented_MEM_V2.R"))
 ```
 
-# Data: 
+# PV data: 
+
+```{r}
+
+```
+
+# Field data: 
 
 ```{r}
 field_data_all <- read_csv(here("processed-data", "analysis 2.0", "field_data_2020_2021.csv"), show_col_types = FALSE) %>% 
