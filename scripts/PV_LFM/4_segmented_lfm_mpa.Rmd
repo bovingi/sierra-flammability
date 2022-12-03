@@ -282,7 +282,8 @@ seg_psi_gymno_df <- seg_psi_gymno_df %>%
 seg_psi_norand_gymno_df <- seg_psi_norand_gymno_df %>% 
   mutate(lwr = lfm_psi - (lfm_se/2), 
          upr = lfm_psi + (lfm_se/2)) %>% 
-  mutate(F.Group = "Gymnosperm")
+  mutate(F.Group = "Gymnosperm") %>% 
+  distinct()
 
 
 ggplot(aes(y = mpa, 
@@ -290,12 +291,12 @@ ggplot(aes(y = mpa,
            color = spp), 
            data = field_segment_gymno_df) +
   geom_point()+
-  geom_ribbon(aes(xmin = seg_psi_gymno_df$lwr, 
-                  xmax = seg_psi_gymno_df$upr), 
+  geom_ribbon(aes(xmin = seg_psi_norand_gymno_df$lwr, 
+                  xmax = seg_psi_norand_gymno_df$upr), 
               fill = "grey80", 
               color = "grey80")  +
    geom_vline(xintercept  = seg_psi_norand_gymno_df$lfm_psi, color = "red") +
-  geom_vline(xintercept  = seg_psi_gymno_df$lfm_psi, linetype = "dotted") +
+  geom_vline(xintercept  = seg_psi_norand_gymno_df$lfm_psi, linetype = "dotted") +
   geom_vline(xintercept  = field_segment_gymno_df$lfm_tlp, colour = "blue") 
 ```
 
@@ -317,13 +318,22 @@ ggplot(aes(y = mpa,
            color = spp), 
            data = field_data_all) +
   geom_point()+
-  geom_ribbon(aes(xmin = seg_psi_gymno_df$lwr, 
-                  xmax = seg_psi_gymno_df$upr), 
+  #gymnos
+  geom_ribbon(aes(xmin = seg_psi_norand_gymno_df$lwr, 
+                  xmax = seg_psi_norand_gymno_df$upr), 
               fill = "grey80", 
               color = "grey80")  +
    geom_vline(xintercept  = seg_psi_norand_gymno_df$lfm_psi, color = "red") +
-  geom_vline(xintercept  = seg_psi_gymno_df$lfm_psi, linetype = "dotted") +
-  geom_vline(xintercept  = field_segment_gymno_df$lfm_tlp, colour = "blue") +
+  geom_vline(xintercept  = seg_psi_norand_gymno_df$lfm_psi, linetype = "dotted") +
+  #angios
+  geom_vline(xintercept  = field_data_all$lfm_tlp, colour = "blue") +
+  geom_ribbon(aes(xmin = seg_psi_angio_df$lwr, 
+                  xmax = seg_psi_angio_df$upr), 
+              fill = "grey", 
+              color = "grey")  +
+   geom_vline(xintercept  = seg_psi_norand_angio_df$lfm_psi, color = "pink") +
+  geom_vline(xintercept  = seg_psi_norand_angio_df$lfm_psi, linetype = "dotted") +
+  geom_vline(xintercept  = field_data_all$lfm_tlp, colour = "blue") +
   facet_wrap(~F.Group)
 ```
 
