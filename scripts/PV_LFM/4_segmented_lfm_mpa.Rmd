@@ -1,0 +1,329 @@
+---
+title: "4_segmented_lfm_mpa"
+author: "Indra Boving"
+date: "2022-12-02"
+output: html_document
+---
+
+# Setup
+```{r}
+knitr::opts_chunk$set(echo = TRUE)
+#lots of extra here, but oh well___ 
+library(ggplot2)
+library(gapminder)
+library(tidyverse)
+library(lme4)
+library(here)
+library(segmented)
+library(nlme)
+library(lubridate)
+library(plotrix)
+filter = dplyr::filter
+here = here::here
+select = dplyr::select
+
+# Function to plot mixed effects model segmented regressions:
+source(here::here("scripts", "scripts_functions", "plot_segmented_MEM_V2.R"))
+```
+
+# Data: 
+
+```{r}
+field_data_all <- read_csv(here("processed-data", "analysis 2.0", "field_data_2020_2021.csv"), show_col_types = FALSE) %>% 
+  mutate(tlp = mean_tlp_spp, 
+         po = mean_po_date) %>% 
+ # select(-mpa, -water_potential) %>% 
+  mutate(water_potential = midday, 
+         plant = udpipe::unique_identifier(unique_id)) %>% 
+ # group_by(spp, plant) %>% 
+  mutate(maxLFM = wettest_lfm)  %>% 
+  mutate(strategy = case_when( #based on slope of predawn~midday line
+    spp == "ABCO" ~ "Isohydric", 
+    spp == "PIJE" ~ "Isohydric", 
+     spp == "CADE" ~ "Isohydric", 
+    spp == "CECO" ~ "Anisohydric", 
+    spp == "ARPA" ~ "Anisohydric", 
+    spp == "QUKE" ~ "Anisohydric"
+  )) %>% 
+   mutate(strategy_binary = case_when( #based on slope of predawn~midday line
+    spp == "ABCO" ~ "1", 
+    spp == "ARPA" ~ "2", 
+    spp == "CADE" ~ "1", 
+    spp == "CECO" ~ "2", 
+    spp == "PIJE" ~ "1", 
+    spp == "QUKE" ~ "2"
+  )) %>% 
+   mutate(Species = case_when(
+     spp == "ABCO" ~ "A. concolor",
+    spp == "PIJE" ~ "P. jeffreyi", 
+    spp == "CADE" ~ "C. decurrens", 
+    spp == "CECO" ~ "C. cordulatus", 
+    spp == "ARPA" ~ "A. patula", 
+    spp == "QUKE" ~ "Q. kelloggii"
+    )) %>% 
+  mutate(type = case_when(
+    spp == "PIJE" ~ "tree", 
+    spp == "QUKE" ~ "tree", 
+    spp == "CECO" ~ "shrub", 
+    spp == "ARPA" ~ "shrub", 
+    spp == "ABCO" ~ "tree", 
+    spp == "CADE" ~ "tree"
+  )) %>% 
+  mutate(F.Group = case_when(
+    spp == "ARPA" ~ "Angiosperm", 
+    spp == "ABCO" ~ "Gymnosperm",
+    spp == "CADE" ~ "Gymnosperm",
+    spp == "CECO" ~ "Angiosperm",
+    spp == "PIJE" ~ "Gymnosperm",
+    spp == "QUKE" ~ "Angiosperm"
+  )) %>% 
+  filter(lfm < 300)
+```
+
+```{r}
+lfm_psi <- c(rep(NaN, 4))
+lfm_se <- c(rep(NaN, 4))
+seg_psi_df <- tibble::data_frame(lfm_psi, lfm_se)
+
+
+lfm_psi <- c(rep(NaN, 4))
+lfm_se <- c(rep(NaN, 4))
+lfm_p <- c(rep(NaN, 4))
+seg_psi_norand_df <- tibble::data_frame(lfm_psi, lfm_se, lfm_p)
+
+#With random
+field_segment_df <- field_data_all %>% 
+  drop_na(mpa, lfm) %>% 
+  mutate(id = unique_id)
+
+o_mod<-lme(mpa~lfm + spp + doy, random=~1|id, data=field_segment_df)
+
+os_mod<-segmented.default(o_mod, ~lfm, npsi=list(lfm=1))
+#summarizing results (note the '_coef' argument)
+summary.segmented(os_mod)
+
+#put into the df:
+seg_psi_df[1] <- summary(os_mod)$psi[2]
+seg_psi_df[2] <- summary(os_mod)$psi[3]
+
+#No random
+u_mod <- lm(mpa~lfm + spp + doy, data = field_segment_df)
+u_mod_b <- segmented(u_mod, ~lfm)
+summary.segmented(u_mod_b)
+
+u_mod_davies <- davies.test(u_mod_b)
+
+#put into the df:
+seg_psi_norand_df[1] <- summary(u_mod_b)$psi[2]
+seg_psi_norand_df[2] <- summary(u_mod_b)$psi[3]
+seg_psi_norand_df[3] <- u_mod_davies$p.value
+
+
+#Set up SE grey areas: 
+
+seg_psi_df <- seg_psi_df %>% 
+  mutate(lwr = lfm_psi - (lfm_se/2), 
+         upr = lfm_psi + (lfm_se/2)) %>% 
+  distinct()
+
+seg_psi_norand_df <- seg_psi_norand_df %>% 
+  mutate(lwr = lfm_psi - (lfm_se/2), 
+         upr = lfm_psi + (lfm_se/2))
+
+
+ggplot(aes(y = mpa, 
+           x = lfm, 
+           color = spp), 
+           data = field_data_all) +
+  geom_point()+
+  geom_ribbon(aes(xmin = seg_psi_df$lwr, 
+                  xmax = seg_psi_df$upr), 
+              fill = "grey80", 
+              color = "grey80")  +
+   geom_vline(xintercept  = seg_psi_norand_df$lfm_psi, color = "red") +
+  geom_vline(xintercept  = seg_psi_df$lfm_psi, linetype = "dotted") +
+  geom_vline(xintercept  = field_data_all$lfm_tlp, colour = "blue") 
+```
+
+#With functional groups: 
+
+Angiosperms: 
+
+```{r}
+#Data
+field_segment_angio_df <- field_data_all %>% 
+  filter(F.Group == "Angiosperm") %>% 
+  drop_na(mpa, lfm) %>% 
+  mutate(id = unique_id)
+
+
+
+#Blank dfs
+lfm_psi <- c(rep(NaN, 4))
+lfm_se <- c(rep(NaN, 4))
+seg_psi_angio_df <- tibble::data_frame(lfm_psi, lfm_se)
+
+
+lfm_psi <- c(rep(NaN, 4))
+lfm_se <- c(rep(NaN, 4))
+lfm_p <- c(rep(NaN, 4))
+seg_psi_norand_angio_df <- tibble::data_frame(lfm_psi, lfm_se, lfm_p)
+
+
+#With random
+
+o_mod_angio<-lme(mpa~lfm + spp + doy, random=~1|id, data=field_segment_angio_df)
+
+os_mod_angio<-segmented.default(o_mod_angio, ~lfm, npsi=list(lfm=1))
+#summarizing results (note the '_coef' argument)
+summary.segmented(os_mod_angio)
+
+#put into the df:
+seg_psi_angio_df[1] <- summary(os_mod_angio)$psi[2]
+seg_psi_angio_df[2] <- summary(os_mod_angio)$psi[3]
+
+#No random
+u_mod_angio <- lm(mpa~lfm + spp + doy, data = field_segment_angio_df)
+u_mod_angio_b <- segmented(u_mod_angio, ~lfm)
+summary.segmented(u_mod_angio_b)
+
+u_mod_angio_davies <- davies.test(u_mod_angio_b)
+
+#put into the df:
+seg_psi_norand_angio_df[1] <- summary(u_mod_angio_b)$psi[2]
+seg_psi_norand_angio_df[2] <- summary(u_mod_angio_b)$psi[3]
+seg_psi_norand_angio_df[3] <- u_mod_angio_davies$p.value
+
+
+#Set up SE grey areas: 
+
+seg_psi_angio_df <- seg_psi_angio_df %>% 
+  mutate(lwr = lfm_psi - (lfm_se/2), 
+         upr = lfm_psi + (lfm_se/2)) %>% 
+  distinct() %>% 
+  mutate(F.Group = "Angiosperm")
+
+seg_psi_norand_angio_df <- seg_psi_norand_angio_df %>% 
+  mutate(lwr = lfm_psi - (lfm_se/2), 
+         upr = lfm_psi + (lfm_se/2)) %>% 
+  mutate(F.Group = "Angiosperm")
+
+
+ggplot(aes(y = mpa, 
+           x = lfm, 
+           color = spp), 
+           data = field_segment_angio_df) +
+  geom_point()+
+  geom_ribbon(aes(xmin = seg_psi_angio_df$lwr, 
+                  xmax = seg_psi_angio_df$upr), 
+              fill = "grey80", 
+              color = "grey80")  +
+   geom_vline(xintercept  = seg_psi_norand_angio_df$lfm_psi, color = "red") +
+  geom_vline(xintercept  = seg_psi_angio_df$lfm_psi, linetype = "dotted") +
+  geom_vline(xintercept  = field_segment_angio_df$lfm_tlp, colour = "blue") 
+```
+
+Angiosperms: 
+
+```{r}
+#Data
+field_segment_gymno_df <- field_data_all %>% 
+  filter(F.Group == "Gymnosperm") %>% 
+  drop_na(mpa, lfm) %>% 
+  mutate(id = unique_id)
+
+
+
+#Blank dfs
+lfm_psi <- c(rep(NaN, 4))
+lfm_se <- c(rep(NaN, 4))
+seg_psi_gymno_df <- tibble::data_frame(lfm_psi, lfm_se)
+
+
+lfm_psi <- c(rep(NaN, 4))
+lfm_se <- c(rep(NaN, 4))
+lfm_p <- c(rep(NaN, 4))
+seg_psi_norand_gymno_df <- tibble::data_frame(lfm_psi, lfm_se, lfm_p)
+
+
+#With random
+
+o_mod_gymno<-lme(mpa~lfm + spp + doy, random=~1|id, data=field_segment_gymno_df)
+
+os_mod_gymno<-segmented.default(o_mod_gymno, ~lfm, npsi=list(lfm=1))
+#summarizing results (note the '_coef' argument)
+summary.segmented(os_mod_gymno)
+
+#put into the df:
+seg_psi_gymno_df[1] <- summary(os_mod_gymno)$psi[2]
+seg_psi_gymno_df[2] <- summary(os_mod_gymno)$psi[3]
+
+#No random
+u_mod_gymno <- lm(mpa~lfm + spp + doy, data = field_segment_gymno_df)
+u_mod_gymno_b <- segmented(u_mod_gymno, ~lfm)
+summary.segmented(u_mod_gymno_b)
+
+u_mod_gymno_davies <- davies.test(u_mod_gymno_b)
+
+#put into the df:
+seg_psi_norand_gymno_df[1] <- summary(u_mod_gymno_b)$psi[2]
+seg_psi_norand_gymno_df[2] <- summary(u_mod_gymno_b)$psi[3]
+seg_psi_norand_gymno_df[3] <- u_mod_gymno_davies$p.value
+
+
+#Set up SE grey areas: 
+
+seg_psi_gymno_df <- seg_psi_gymno_df %>% 
+  mutate(lwr = lfm_psi - (lfm_se/2), 
+         upr = lfm_psi + (lfm_se/2)) %>% 
+  distinct() %>% 
+  mutate(F.Group = "Gymnosperm")
+
+seg_psi_norand_gymno_df <- seg_psi_norand_gymno_df %>% 
+  mutate(lwr = lfm_psi - (lfm_se/2), 
+         upr = lfm_psi + (lfm_se/2)) %>% 
+  mutate(F.Group = "Gymnosperm")
+
+
+ggplot(aes(y = mpa, 
+           x = lfm, 
+           color = spp), 
+           data = field_segment_gymno_df) +
+  geom_point()+
+  geom_ribbon(aes(xmin = seg_psi_gymno_df$lwr, 
+                  xmax = seg_psi_gymno_df$upr), 
+              fill = "grey80", 
+              color = "grey80")  +
+   geom_vline(xintercept  = seg_psi_norand_gymno_df$lfm_psi, color = "red") +
+  geom_vline(xintercept  = seg_psi_gymno_df$lfm_psi, linetype = "dotted") +
+  geom_vline(xintercept  = field_segment_gymno_df$lfm_tlp, colour = "blue") 
+```
+
+
+Combine angio and gymno back together: 
+```{r}
+seg_psi_fgroups_df <- bind_rows(seg_psi_angio_df, seg_psi_gymno_df
+                                ) %>% 
+  distinct()
+
+seg_psi_norand_fgroups_df <- bind_rows(seg_psi_norand_angio_df, seg_psi_norand_gymno_df) %>% 
+  distinct()
+
+
+#Visualize:
+
+ggplot(aes(y = mpa, 
+           x = lfm, 
+           color = spp), 
+           data = field_data_all) +
+  geom_point()+
+  geom_ribbon(aes(xmin = seg_psi_gymno_df$lwr, 
+                  xmax = seg_psi_gymno_df$upr), 
+              fill = "grey80", 
+              color = "grey80")  +
+   geom_vline(xintercept  = seg_psi_norand_gymno_df$lfm_psi, color = "red") +
+  geom_vline(xintercept  = seg_psi_gymno_df$lfm_psi, linetype = "dotted") +
+  geom_vline(xintercept  = field_segment_gymno_df$lfm_tlp, colour = "blue") +
+  facet_wrap(~F.Group)
+```
+
