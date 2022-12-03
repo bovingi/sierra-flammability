@@ -27,12 +27,28 @@ source(here::here("scripts", "scripts_functions", "plot_segmented_MEM_V2.R"))
 ```
 
 # PV data: 
-
 ```{r}
-
+# pv_segs <- read_csv(here("processed-data", "analysis 2.0", "all_pv_curves_clean_v2.csv")) %>% 
+#   filter(timing == "fall", year != 2016) %>% 
+#   drop_na(swc) %>% 
+#   group_by(spp, year) %>% 
+#   summarise(lfm = mean(lfm_at_tlp), 
+#             #sd_lfm = sd(lfm_at_tlp),
+#             tlp = mean(tlp), 
+#             #sd_tlp = sd(tlp),
+#             rwc_tlp = mean(rwc_at_tlp), 
+#             #sd_rwc = sd(rwc_tlp),
+#             po = mean(po), 
+#            # sd_po = sd(po),
+#             swc = mean(fresh_weight_saturated), 
+#             #sd_swc = sd(swc)
+#             )
+# pv_segs
 ```
 
 # Field data: 
+
+Note: PV summaries (ie mean_lfm_fall_spp, mean_tlp_spp) are from 2021 fall ONLY (weird values with CECO)
 
 ```{r}
 field_data_all <- read_csv(here("processed-data", "analysis 2.0", "field_data_2020_2021.csv"), show_col_types = FALSE) %>% 
@@ -84,7 +100,14 @@ field_data_all <- read_csv(here("processed-data", "analysis 2.0", "field_data_20
     spp == "QUKE" ~ "Angiosperm"
   )) %>% 
   filter(lfm < 300)
+
+field_data_angio <- field_data_all %>% 
+  filter(strategy_binary == 2)
+  
+field_data_gymno <- field_data_all %>% 
+  filter(strategy_binary == 1)
 ```
+
 
 ```{r}
 lfm_psi <- c(rep(NaN, 4))
@@ -148,7 +171,9 @@ ggplot(aes(y = mpa,
               color = "grey80")  +
    geom_vline(xintercept  = seg_psi_norand_df$lfm_psi, color = "red") +
   geom_vline(xintercept  = seg_psi_df$lfm_psi, linetype = "dotted") +
-  geom_vline(xintercept  = field_data_all$lfm_tlp, colour = "blue") 
+  geom_vline(xintercept  = field_data_angio$mean_lfm_fall_spp, colour = "blue") +
+  geom_vline(xintercept  = field_data_gymno$mean_lfm_fall_spp, colour = "purple") +
+  labs(title = "Segments are all spp.")
 ```
 
 #With functional groups: 
@@ -161,8 +186,6 @@ field_segment_angio_df <- field_data_all %>%
   filter(F.Group == "Angiosperm") %>% 
   drop_na(mpa, lfm) %>% 
   mutate(id = unique_id)
-
-
 
 #Blank dfs
 lfm_psi <- c(rep(NaN, 4))
@@ -226,7 +249,8 @@ ggplot(aes(y = mpa,
               color = "grey80")  +
    geom_vline(xintercept  = seg_psi_norand_angio_df$lfm_psi, color = "red") +
   geom_vline(xintercept  = seg_psi_angio_df$lfm_psi, linetype = "dotted") +
-  geom_vline(xintercept  = field_segment_angio_df$lfm_tlp, colour = "blue") 
+  geom_vline(xintercept  = field_data_angio$mean_lfm_fall_spp, colour = "blue") +
+  labs(title = "Angiosperms")
 ```
 
 Angiosperms: 
@@ -303,7 +327,11 @@ ggplot(aes(y = mpa,
               color = "grey80")  +
    geom_vline(xintercept  = seg_psi_norand_gymno_df$lfm_psi, color = "red") +
   geom_vline(xintercept  = seg_psi_norand_gymno_df$lfm_psi, linetype = "dotted") +
-  geom_vline(xintercept  = field_segment_gymno_df$lfm_tlp, colour = "blue") 
+  geom_vline(xintercept  = field_segment_gymno_df$mean_lfm_fall_spp, 
+             #aes(color = field_segment_gymno_df$spp)
+            # color = c("blue", "purple", "pink")
+             ) +
+  labs(title = "Gymnosperms")
 ```
 
 
