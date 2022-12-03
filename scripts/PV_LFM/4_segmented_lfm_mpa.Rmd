@@ -99,13 +99,34 @@ field_data_all <- read_csv(here("processed-data", "analysis 2.0", "field_data_20
     spp == "PIJE" ~ "Gymnosperm",
     spp == "QUKE" ~ "Angiosperm"
   )) %>% 
-  filter(lfm < 300)
+  filter(lfm < 300, 
+         lfm > 70) %>% 
+  mutate(upr_lfm = mean_lfm_fall_spp + (sd_lfm_fall_spp/2), 
+         lwr_lfm = mean_lfm_fall_spp - (sd_lfm_fall_spp/2))
 
 field_data_angio <- field_data_all %>% 
   filter(strategy_binary == 2)
   
 field_data_gymno <- field_data_all %>% 
   filter(strategy_binary == 1)
+
+abco <- field_data_all %>% 
+  filter(spp == "ABCO")
+
+pije <- field_data_all %>% 
+  filter(spp == "PIJE")
+
+cade <- field_data_all %>% 
+  filter(spp == "CADE")
+
+quke  <- field_data_all %>% 
+  filter(spp == "QUKE")
+
+arpa <- field_data_all %>% 
+  filter(spp == "ARPA")
+
+ceco <- field_data_all %>% 
+  filter(spp == "CECO")
 ```
 
 
@@ -141,6 +162,7 @@ u_mod_b <- segmented(u_mod, ~lfm)
 summary.segmented(u_mod_b)
 
 u_mod_davies <- davies.test(u_mod_b)
+u_mod_davies
 
 #put into the df:
 seg_psi_norand_df[1] <- summary(u_mod_b)$psi[2]
@@ -185,7 +207,9 @@ Angiosperms:
 field_segment_angio_df <- field_data_all %>% 
   filter(F.Group == "Angiosperm") %>% 
   drop_na(mpa, lfm) %>% 
-  mutate(id = unique_id)
+  mutate(id = unique_id) 
+ # filter(lfm > 80, 
+       #  lfm < 150)
 
 #Blank dfs
 lfm_psi <- c(rep(NaN, 4))
@@ -213,11 +237,12 @@ seg_psi_angio_df[2] <- summary(os_mod_angio)$psi[3]
 
 #No random
 u_mod_angio <- lm(mpa~lfm + spp + doy, data = field_segment_angio_df)
-u_mod_angio_b <- segmented(u_mod_angio, ~lfm)
+u_mod_angio_b <- segmented(u_mod_angio, ~lfm, psi = 111)
 summary.segmented(u_mod_angio_b)
+u_mod_angio_b$psi
 
 u_mod_angio_davies <- davies.test(u_mod_angio_b)
-
+u_mod_angio_davies
 #put into the df:
 seg_psi_norand_angio_df[1] <- summary(u_mod_angio_b)$psi[2]
 seg_psi_norand_angio_df[2] <- summary(u_mod_angio_b)$psi[3]
@@ -238,6 +263,7 @@ seg_psi_norand_angio_df <- seg_psi_norand_angio_df %>%
   mutate(F.Group = "Angiosperm")
 
 
+
 ggplot(aes(y = mpa, 
            x = lfm, 
            color = spp), 
@@ -249,11 +275,24 @@ ggplot(aes(y = mpa,
               color = "grey80")  +
    geom_vline(xintercept  = seg_psi_norand_angio_df$lfm_psi, color = "red") +
   geom_vline(xintercept  = seg_psi_angio_df$lfm_psi, linetype = "dotted") +
-  geom_vline(xintercept  = field_data_angio$mean_lfm_fall_spp, colour = "blue") +
+  geom_vline(xintercept  = arpa$mean_lfm_fall_spp, colour = "red") +
+    geom_vline(xintercept  = ceco$mean_lfm_fall_spp, colour = "green") +
+   # geom_vline(xintercept  = abco$mean_lfm_fall_spp, colour = "green") +
+    geom_vline(xintercept  = quke$mean_lfm_fall_spp, colour = "blue") +
+  geom_vline(xintercept  = 145, colour = "pink") +
+  # geom_ribbon(aes(xmin = arpa$lwr_lfm, 
+  #                 xmax = arpa$upr_lfm),
+  #             color = "red", alpha = .3, inherit.aes = FALSE) +
+ # geom_ribbon(aes(xmin = field_data_angio$lwr_lfm, 
+              #     xmax = field_data_angio$upr_lfm, 
+              #     group = spp,
+              #     fill = spp), 
+              # fill = "grey80", 
+              # color = "grey80")  +
   labs(title = "Angiosperms")
 ```
 
-Angiosperms: 
+Gymnosperms: 
 
 ```{r}
 #Data
@@ -294,6 +333,7 @@ u_mod_gymno_b <- segmented(u_mod_gymno, ~lfm)
 summary.segmented(u_mod_gymno_b)
 
 u_mod_gymno_davies <- davies.test(u_mod_gymno_b)
+u_mod_gymno_davies
 
 #put into the df:
 seg_psi_norand_gymno_df[1] <- summary(u_mod_gymno_b)$psi[2]
@@ -331,6 +371,11 @@ ggplot(aes(y = mpa,
              #aes(color = field_segment_gymno_df$spp)
             # color = c("blue", "purple", "pink")
              ) +
+   geom_vline(xintercept  = abco$mean_lfm_fall_spp, colour = "red") +
+    geom_vline(xintercept  = cade$mean_lfm_fall_spp, colour = "green") +
+   # geom_vline(xintercept  = abco$mean_lfm_fall_spp, colour = "green") +
+    geom_vline(xintercept  = pije$mean_lfm_fall_spp, colour = "blue") +
+  geom_vline(xintercept  = 102, colour = "pink") +
   labs(title = "Gymnosperms")
 ```
 
