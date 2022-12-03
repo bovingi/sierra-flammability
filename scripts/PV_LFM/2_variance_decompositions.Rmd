@@ -1055,40 +1055,57 @@ mods <- c("m1", "m2", "m3")
 
 mod_all_df1 <-  data.frame(mods, r2m)
 
-p <- mod_all_df1 %>% 
-  pivot_wider(names_from = mods, 
-              values_from = r2m) %>% 
+p <- mod_all_df1 %>%
+  pivot_wider(names_from = mods,
+              values_from = r2m) %>%
   mutate(
     #spp_AND_time_effects =  m3 - week_effect - mpa_effect,
-    time_effect = m1 - m2, #week + mpa mod - mpa mod
-         mpa_effect = m1 - m3, #week + mpa mod - week mod
-         time_mpa_effect = m1, #week + mpa mod 
+    time_effect = m1 - m2,
+    #week + mpa mod - mpa mod
+    mpa_effect = m1 - m3,
+    #week + mpa mod - week mod
+    time_mpa_effect = m1,
+    #week + mpa mod
     mpa_AND_time_effects =  m1 - (time_effect - mpa_effect),
-         ) %>% #full minus the effects of mpa and week alone  
-  select(time_effect, mpa_effect, time_mpa_effect, mpa_AND_time_effects) %>% 
-  pivot_longer(cols = c(time_effect, mpa_effect, time_mpa_effect, mpa_AND_time_effects), 
-    names_to = "effect") %>% 
-  distinct() %>% 
-  mutate(analysis = case_when(
-    effect %in% c("time_effect", "mpa_effect", "mpa_AND_time_effects") ~ "Field", 
-    effect %in% c("time_mpa_effect") ~ "Full Mod.", 
-    TRUE ~ as.character(effect)), 
-    decomp = "After Leafout") %>% 
-  filter(analysis == "Field") %>% 
-  ggplot(aes(x = analysis, 
-             y = value, 
-         fill = effect)) +
+  ) %>% #full minus the effects of mpa and week alone
+  select(time_effect,
+         mpa_effect,
+         time_mpa_effect,
+         mpa_AND_time_effects) %>%
+  pivot_longer(
+    cols = c(
+      time_effect,
+      mpa_effect,
+      time_mpa_effect,
+      mpa_AND_time_effects
+    ),
+    names_to = "effect"
+  ) %>%
+  distinct() %>%
+  mutate(
+    analysis = case_when(
+      effect %in% c("time_effect", "mpa_effect", "mpa_AND_time_effects") ~ "Field",
+      effect %in% c("time_mpa_effect") ~ "Full Mod.",
+      TRUE ~ as.character(effect)
+    ),
+    decomp = "After Leafout"
+  ) %>%
+  filter(analysis == "Field") %>%
+  ggplot(aes(x = analysis,
+             y = value,
+             fill = effect)) +
   geom_col(stat = "identity") +
- # geom_text(aes(label = value)) +
+  # geom_text(aes(label = value)) +
   color_many +
-  labs(y = "R squared", 
+  labs(y = "R squared",
        x = "Predictor") +
   color_fill +
-    labs(title = i)
+  labs(title = i)
 p
-  
-  if (!is.null(p)) plot(p)
-  
+
+if (!is.null(p))
+  plot(p)
+
 }
 ```
 ####flam_curve_df
