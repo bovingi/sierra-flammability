@@ -64,6 +64,55 @@ pheno_df <- read_csv(here("processed-data", "compiled-datasets", "phenology_czo_
    mutate(spp = fct_relevel(code, "ABCO","PIJE","CADE","ARPA", "CECO", "QUKE"))  
 ```
 
+###PV Summaries
+```{r}
+pv_summaries <- read_csv(here("raw-data", "PV_sierra_summaries.csv")) %>% 
+  clean_names() %>% 
+   mutate(spp = fct_relevel(species, "ABCO","PIJE","CADE","CECO", "ARPA","QUKE"))  %>% 
+  mutate(strategy = case_when( #based on slope of predawn~midday line
+    spp == "ABCO" ~ "Isohydric", 
+    spp == "PIJE" ~ "Isohydric", 
+     spp == "CADE" ~ "Isohydric", 
+    spp == "CECO" ~ "Anisohydric", 
+    spp == "ARPA" ~ "Anisohydric", 
+    spp == "QUKE" ~ "Anisohydric"
+  )) %>% 
+   mutate(strategy_binary = case_when( #based on slope of predawn~midday line
+    spp == "ABCO" ~ "1", 
+    spp == "ARPA" ~ "2", 
+    spp == "CADE" ~ "1", 
+    spp == "CECO" ~ "2", 
+    spp == "PIJE" ~ "1", 
+    spp == "QUKE" ~ "2"
+  )) %>% 
+   mutate(spp = fct_relevel(spp, "ABCO","PIJE","CADE","CECO", "ARPA","QUKE"))  %>% 
+   mutate(Species = case_when(
+     spp == "ABCO" ~ "A. concolor",
+    spp == "PIJE" ~ "P. jeffreyi", 
+    spp == "CADE" ~ "C. decurrens", 
+    spp == "CECO" ~ "C. cordulatus", 
+    spp == "ARPA" ~ "A. patula", 
+    spp == "QUKE" ~ "Q. kelloggii"
+    )) %>% 
+  mutate(type = case_when(
+    spp == "PIJE" ~ "tree", 
+    spp == "QUKE" ~ "tree", 
+    spp == "CECO" ~ "shrub", 
+    spp == "ARPA" ~ "shrub", 
+    spp == "ABCO" ~ "tree", 
+    spp == "CADE" ~ "tree"
+  )) %>% 
+  mutate(F.Group = case_when(
+    spp == "ARPA" ~ "Angiosperm", 
+    spp == "ABCO" ~ "Gymnosperm",
+    spp == "CADE" ~ "Gymnosperm",
+    spp == "CECO" ~ "Angiosperm",
+    spp == "PIJE" ~ "Gymnosperm",
+    spp == "QUKE" ~ "Angiosperm"
+  )) %>% 
+  mutate(date = lubridate::mdy(date), 
+         year = year(date))
+```
 #-----------------------------------------------
 # Hydroscapes! 
 Based on Hartmann 2020
@@ -411,8 +460,23 @@ field_data_all %>%
   #scale_color_gradientn(colors=met.brewer("Morgenstern"))
 ```
 ####LFM by MPa (date)
+
+##HERE
+
+
 ```{r}
-field_data_all %>%
+#ribbon values: 
+mpa_summs <- pv_summaries %>% 
+  filter(!(spp %in% c("CECO") & year %in% c(2020))) %>% 
+  group_by(F.Group) %>% 
+  mutate(mean_tlp = mean(ytlp_m_pa), 
+         sd_tlp = sd(ytlp_m_pa), 
+         mpa_lwr = mean_tlp - (sd_tlp/2), 
+         mpa_upr = mean_tlp + (sd_tlp/2)) %>% 
+  select(spp, year, mean_tlp, mpa_lwr, mpa_upr)
+
+#df:
+fig_df <- field_data_all %>%
    filter(month < 10) %>%  #removing post-rain values (October sample collection)
    mutate(spp = fct_relevel(spp, "ABCO","PIJE","CADE","CECO", "ARPA","QUKE"))  %>% 
    mutate(Species = fct_relevel(Species,
@@ -424,14 +488,29 @@ field_data_all %>%
                               "Q. kelloggii"
     )) %>% 
   filter(age != "both") %>% 
-  mutate(month = month(date, label = TRUE, abbr = TRUE)) %>% 
-  ggplot(aes(x = midday, 
-             y = lfm)) +
-  geom_point(size = 1.1, alpha = .7, aes(color = as.factor(month), shape = Age)) +
+  mutate(month = month(date, label = TRUE, abbr = TRUE)) 
+
+#plot:
+ggplot() +
+  geom_point(aes(x = midday, 
+             y = lfm, 
+             color = as.factor(month), 
+             shape = Age), 
+             size = 1.1, alpha = .7, 
+             data = fig_df) +
   #geom_smooth(se = F, method = 'lm', aes(lty = Species),
               #size = .7, alpha = .7, color = 'black') +
-  geom_vline(aes(xintercept = mean_tlp_spp, lty = Species), size = .5, alpha = .6,
+  geom_vline(aes(xintercept = mean(fig_df$mean_tlp_spp), 
+                 #lty = Species
+                 ),  size = .5, alpha = .6,
              color = "darkgreen", show.legend = F) +
+  tidypaleo::geom_ribbonh(#data = mpa_summs, 
+                  aes(xmin = 2, 
+                        #mean(mpa_summs$mpa_lwr), 
+                  xmax = 3, 
+                  x = 2.5),
+                    #mean(mpa_summs$mpa_upr)), 
+              color = "grey") +
   #geom_hline(aes(yintercept = mean_lfm_fall_spp, lty = Species),
              #size = .5, color = 'darkgreen', alpha = .6, show_guide = F) +
   #stat_smooth(aes(x = LFM, y = predawn, colour = Date, linetype = "Linear Fit"), method = "lm") 
