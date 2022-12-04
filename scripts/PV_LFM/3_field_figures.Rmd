@@ -52,7 +52,7 @@ This dataset has field-collected LFM and Mpa data, and LFM at TLP and MPa at TLP
 From 0_water_content_all.Rmd
 
 ```{r}
-field_data_all <- read_csv(here("processed-data", "analysis 2.0","field_data_2020_2021.csv"), show_col_types = FALSE) %>% 
+field_data_all_3 <- read_csv(here("processed-data", "analysis 2.0","field_data_2020_2021.csv"), show_col_types = FALSE) %>% 
   drop_na(spp)
 ```
 
@@ -118,7 +118,7 @@ pv_summaries <- read_csv(here("raw-data", "PV_sierra_summaries.csv")) %>%
 Based on Hartmann 2020
 
 ```{r}
-p1 <- field_data_all %>% 
+p1 <- field_data_all_3 %>% 
  filter(age == "new", strategy == "Isohydric") %>% #filtering to 'old' so that we dont have duplicate MPa datapoints
   #filter(site == 1) %>% 
 
@@ -154,7 +154,7 @@ p1 <- field_data_all %>%
   coord_equal()
 p1
 
-p2 <- field_data_all %>% 
+p2 <- field_data_all_3 %>% 
  filter(age == "new", strategy == "Anisohydric") %>% #filtering to 'old' so that we dont have duplicate MPa datapoints
   #filter(site == 1) %>% 
    mutate(Species = fct_relevel(spp,
@@ -212,7 +212,7 @@ grid.arrange(arrangeGrob(plot,
 
 
 ```{r}
-field_data_all %>%
+field_data_all_3 %>%
   filter(age == "old") %>% #filtering to 'old' so that we dont have duplicate MPa datapoints
   #filter(site == 1) %>%
   #filter(month < 10) %>%
@@ -238,7 +238,7 @@ field_data_all %>%
 ```
 
 ```{r}
-field_data_all %>% 
+field_data_all_3 %>% 
  filter(age == "old") %>% #filtering to 'old' so that we dont have duplicate MPa datapoints
   #filter(site == 1) %>% 
   #filter(month < 10) %>% 
@@ -261,7 +261,7 @@ field_data_all %>%
 spp.labs <- c(" Abies concolor","Pinus jeffreyi","Calocedrus decurrens","Ceanothus cordulatus","Arctostaphylos patula","Quercus kelloggii")
 names(spp.labs) <- c("ABCO","PIJE","CADE","CECO", "ARPA","QUKE")
 
-p1 <- field_data_all %>% 
+p1 <- field_data_all_3 %>% 
  filter(age == "new",
         strategy == "Isohydric",
         month > 7
@@ -294,7 +294,7 @@ p1 <- field_data_all %>%
   scale_x_continuous(labels = NULL, breaks = NULL) 
 p1
 
-p2 <- field_data_all %>% 
+p2 <- field_data_all_3 %>% 
  filter(age == "new", 
         strategy == "Anisohydric", 
          month > 7
@@ -354,13 +354,13 @@ grid.arrange(arrangeGrob(plot,
 
 
 ```{r}
-# mean_tlp_spp <- field_data_all %>% 
+# mean_tlp_spp <- field_data_all_3 %>% 
 #   select(tlp) %>% 
 #   drop_na() %>% 
 #   summarise(mean(tlp)) %>% 
 #   pull()
 
-field_data_all %>%
+field_data_all_3 %>%
   #filter(age == "new") %>% 
   ggplot(aes(
     x = midday,
@@ -389,7 +389,7 @@ field_data_all %>%
 
 
 ```{r}
-field_data_all %>%
+field_data_all_3 %>%
   ggplot(aes(x = midday, y = lfm, color = age, shape = spp)) +
   geom_point(size = 1) +
   #stat_smooth(aes(x = LFM, y = predawn, colour = Date, linetype = "Linear Fit"), method = "lm") +
@@ -410,13 +410,13 @@ field_data_all %>%
 
 #### LFM by MPa (species)
 ```{r}
-field_data_all <- field_data_all %>% 
+field_data_all_3 <- field_data_all_3 %>% 
   mutate(Age = case_when(
     age == 'new' ~ 'New',
     age == 'old' ~ 'Old'
   ))
 
-field_data_all %>%
+field_data_all_3 %>%
   filter(month < 10) %>% #removing post-rain values (October sample collection)
   mutate(spp = fct_relevel(spp, "ABCO", "PIJE", "CADE", "CECO", "ARPA", "QUKE"))  %>%
   mutate(month = month(date, label = TRUE, abbr = TRUE)) %>%
@@ -475,8 +475,19 @@ mpa_summs <- pv_summaries %>%
          mpa_upr = mean_tlp + (sd_tlp/2)) %>% 
   select(spp, year, mean_tlp, mpa_lwr, mpa_upr)
 
+unique(mpa_summs$mean_tlp)
+
+angio <- mpa_summs %>% 
+  filter(F.Group == "Angiosperm")
+
+gymno <- mpa_summs %>% 
+  filter(F.Group == "Gymnosperm")
+```
+
+
+```{r}
 #df:
-fig_df <- field_data_all %>%
+fig_df <- field_data_all_3 %>%
    filter(month < 10) %>%  #removing post-rain values (October sample collection)
    mutate(spp = fct_relevel(spp, "ABCO","PIJE","CADE","CECO", "ARPA","QUKE"))  %>% 
    mutate(Species = fct_relevel(Species,
@@ -487,54 +498,105 @@ fig_df <- field_data_all %>%
                               "A. patula", 
                               "Q. kelloggii"
     )) %>% 
-  filter(age != "both") %>% 
+  filter(age != "both", 
+         age == "new") %>% 
   mutate(month = month(date, label = TRUE, abbr = TRUE)) 
 
 #plot:
 ggplot() +
-  geom_point(aes(x = midday, 
-             y = lfm, 
-             color = as.factor(month), 
-             shape = Age), 
-             size = 1.1, alpha = .7, 
-             data = fig_df) +
+  geom_point(
+    aes(
+      x = midday,
+      y = lfm,
+      color = as.factor(month),
+      shape = Age
+    ),
+    size = 1.1,
+    alpha = .7,
+    data = fig_df
+  ) +
   #geom_smooth(se = F, method = 'lm', aes(lty = Species),
-              #size = .7, alpha = .7, color = 'black') +
-  geom_vline(aes(xintercept = mean(fig_df$mean_tlp_spp), 
-                 #lty = Species
-                 ),  size = .5, alpha = .6,
-             color = "darkgreen", show.legend = F) +
-  tidypaleo::geom_ribbonh(#data = mpa_summs, 
-                  aes(xmin = 2, 
-                        #mean(mpa_summs$mpa_lwr), 
-                  xmax = 3, 
-                  x = 2.5),
-                    #mean(mpa_summs$mpa_upr)), 
-              color = "grey") +
-  #geom_hline(aes(yintercept = mean_lfm_fall_spp, lty = Species),
-             #size = .5, color = 'darkgreen', alpha = .6, show_guide = F) +
-  #stat_smooth(aes(x = LFM, y = predawn, colour = Date, linetype = "Linear Fit"), method = "lm") 
-  xlim(-5,0) + 
-  labs( y = "Live Fuel Moisture", 
-        x = "Midday (-MPa)", 
-        color = "Month", 
-        shape = "Age") +
-  ylim(50,300) +
-  facet_wrap(~strategy) +
+  #size = .7, alpha = .7, color = 'black') +
+  geom_vline( #TLP line
+    data = mpa_summs,
+    aes(xintercept = mean_tlp,
+        lty = F.Group),
+    size = 1,
+    alpha = .6,
+    color = "purple",
+    show.legend = F
+  ) +
+  geom_vline( #lower SD
+    data = mpa_summs,
+    aes(xintercept = mpa_summs$mpa_lwr,
+        lty = F.Group, ),
+    #inherit.aes = F,
+    size = .5,
+    alpha = .6,
+    color = "darkgreen",
+    show.legend = F
+  ) +
+  geom_vline( #Upr SD
+    data = mpa_summs,
+    aes(xintercept = mpa_summs$mpa_upr,
+        lty = F.Group, ),
+    #inherit.aes = F,
+    size = .5,
+    alpha = .6,
+    color = "darkblue",
+    show.legend = F
+  ) +
+  ggplot2::geom_ribbon( #Segmented estimate
+    aes(
+      y = fig_df$midday,
+      x = fig_df$lfm,
+      ymin = seg_psi_df$lwr,
+      ymax = seg_psi_df$upr
+    ),
+    fill = "grey80",
+    color = "grey80"
+  )  +
+  geom_hline(yintercept  = seg_psi_df$lfm_psi, linetype = "dotted") +
+    geom_vline(xintercept  = -2.86 , linetype = "dotted", color = "pink") +
+  # geom_ribbon(aes(xmin = angio$mpa_lwr,
+  #                 xmax = angio$mpa_upr,
+  #                 x = angio$mpa_upr),
+  #             fill = "grey80",
+  #             color = "grey80")  +
+  # geom_rect(
+  #                 xmin = -3,
+  #                 xmax = -2,
+  #                ymin = 50,
+  #                ymax = 300,
+  #
+#                   #mean(mpa_summs$mpa_upr)),
+#             color = "grey") +
+#geom_hline(aes(yintercept = mean_lfm_fall_spp, lty = Species),
+#size = .5, color = 'darkgreen', alpha = .6, show_guide = F) +
+#stat_smooth(aes(x = LFM, y = predawn, colour = Date, linetype = "Linear Fit"), method = "lm")
+xlim(-5, 0) +
+  labs(
+    y = "Live Fuel Moisture",
+    x = "Midday (-MPa)",
+    color = "Month",
+    shape = "Age"
+  ) +
+  ylim(50, 300) +
+  # facet_wrap(~strategy) +
   color_all +
   theme(
     strip.text = element_text(face = "bold"),
     axis.title = element_text(face = "bold"),
     legend.title = element_text(face = "bold"),
     strip.background = element_rect(fill = "gray90")
-  ) 
+  )
 
 ggsave(here('figures', 'lfm.x.mpa.fx.group.split.jpg'), height = 8, width = 11)
 ```
 
 
 ```{r}
-field_data_all %>%
+field_data_all_3 %>%
    mutate(spp = fct_relevel(spp, "ABCO","PIJE","CADE","CECO", "ARPA","QUKE"))  %>% 
    mutate(Species = fct_relevel(Species,
                               "A. concolor",
@@ -567,7 +629,7 @@ field_data_all %>%
 ```{r}
 
 
-field_data_all %>%
+field_data_all_3 %>%
    mutate(spp = fct_relevel(spp, "ABCO","PIJE","CADE","CECO", "ARPA","QUKE"))  %>% 
    mutate(Species = fct_relevel(Species,
                               "A. concolor",
@@ -599,7 +661,7 @@ field_data_all %>%
 
 #-----------------------------------------------
 ```{r}
-field_data_all %>%
+field_data_all_3 %>%
   ggplot(aes(x = midday, y = lfm, color = month, shape = spp)) +
   geom_point(size = 1) +
   geom_vline(aes(xintercept = mean_tlp_spp), size = .5, 
@@ -620,7 +682,7 @@ field_data_all %>%
 ```
 
 ```{r}
-field_data_all %>%
+field_data_all_3 %>%
   ggplot(aes(x = midday, y = lfm, color = month, shape = age)) +
   geom_point(size = 1, alpha = .5) +
   geom_vline(aes(xintercept = mean_tlp_spp), size = .5, 
@@ -642,7 +704,7 @@ field_data_all %>%
 #LFM x PD
 
 ```{r}
-field_data_all %>%
+field_data_all_3 %>%
 ggplot(aes(x = predawn, y = lfm, color = date)) +
   geom_point(size = 1) +
   #stat_smooth(aes(x = LFM, y = predawn, colour = Date, linetype = "Linear Fit"), method = "lm") +
@@ -655,7 +717,7 @@ ggplot(aes(x = predawn, y = lfm, color = date)) +
 ```
 
 ```{r}
-field_data_all %>%
+field_data_all_3 %>%
 ggplot(aes(x = predawn, y = lfm, color = month, shape = age)) +
   geom_point(size = 1) +
   #stat_smooth(aes(x = LFM, y = predawn, colour = Date, linetype = "Linear Fit"), method = "lm") +
@@ -673,7 +735,7 @@ ggplot(aes(x = predawn, y = lfm, color = month, shape = age)) +
 
 ####Setup:
 ```{r}
-field_data_2021 <- field_data_all %>%
+field_data_2021 <- field_data_all_3 %>%
  # filter(spp == "ABCO") %>%
   filter(year == 2021) %>% 
   filter(age != "both") %>% 
@@ -778,7 +840,7 @@ pheno_df %>%
 
 
 ```{r}
-field_data_all %>%
+field_data_all_3 %>%
   filter(spp == "ABCO") %>%
   #filter(time == "midday") %>%
   ggplot(aes(fill = lfm, y = lfm,  x = as.factor(date), color = age)) + 
@@ -795,7 +857,7 @@ field_data_all %>%
 ```
 
 ```{r}
-field_data_all %>%
+field_data_all_3 %>%
   filter(spp == "ABCO") %>%
   #filter(time == "midday") %>%
   ggplot(aes(fill = lfm, y = lfm,  x = as.factor(date), color = age)) + 
@@ -811,7 +873,7 @@ field_data_all %>%
 ```
 
 ```{r}
-field_data_all %>%
+field_data_all_3 %>%
   filter(spp == "ABCO") %>%
   #filter(time == "midday") %>%
   ggplot(aes(fill = lfm, y = midday,  x = as.factor(date))) + 
@@ -827,7 +889,7 @@ field_data_all %>%
 ```
 
 ```{r}
-field_data_all %>%
+field_data_all_3 %>%
   filter(spp == "ABCO") %>%
   #filter(time == "midday") %>%
   ggplot(aes(fill = lfm, y = predawn,  x = as.factor(date))) + 
@@ -842,7 +904,7 @@ field_data_all %>%
   ggtitle("Abies concolor") 
 ```
 ```{r}
-field_data_all %>%
+field_data_all_3 %>%
   filter(spp == "ABCO") %>%
   #filter(time == "midday") %>%
   ggplot(aes(color = lfm, y = predawn,  x = as.factor(date))) + 
@@ -928,7 +990,7 @@ field_data_2021_longer %>%
 
 #Predawn over time
 ```{r}
-field_data_all %>% 
+field_data_all_3 %>% 
   filter(age != "both") %>% 
   filter(year == 2021) %>% 
   ggplot() + 
@@ -947,7 +1009,7 @@ field_data_all %>%
         strip.text = element_text(face = "italic"),
         legend.position = "none"
         ) +
-  #geom_hline(yintercept = field_data_all$mean_tlp_spp, linetype = "dotted", color = "olivedrab") +
+  #geom_hline(yintercept = field_data_all_3$mean_tlp_spp, linetype = "dotted", color = "olivedrab") +
   labs( y ="Predawn (MPa)", 
         x = "Date", 
         #color = "Phenophase", 
@@ -964,7 +1026,7 @@ field_data_all %>%
 
 #Midday over time
 ```{r}
-field_data_all %>% 
+field_data_all_3 %>% 
   filter(age != "both") %>% 
   filter(year == 2021) %>% 
   ggplot() + 
@@ -983,7 +1045,7 @@ field_data_all %>%
         strip.text = element_text(face = "italic"),
         legend.position = "none"
         ) +
-  #geom_hline(yintercept = field_data_all$mean_tlp_spp, linetype = "dotted", color = "olivedrab") +
+  #geom_hline(yintercept = field_data_all_3$mean_tlp_spp, linetype = "dotted", color = "olivedrab") +
   labs( y ="Midday (MPa)", 
         x = "Date", 
         #color = "Phenophase", 
@@ -1030,7 +1092,7 @@ stems_leaves_2021 %>%
 
 Organize data:
 ```{r}
-data.xpp <- field_data_all %>% 
+data.xpp <- field_data_all_3 %>% 
   select(spp, age, site, pod, lfm, date, predawn, midday, type, doy, location, LFMtlp, Mpatlp) %>% #filter out super high LFM (check that this is ok? Necessary?)
   mutate(lfm.outliers.out = lfm) #add a column that we can use to take out outliers
 

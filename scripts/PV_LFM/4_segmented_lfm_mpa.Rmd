@@ -51,7 +51,7 @@ source(here::here("scripts", "scripts_functions", "plot_segmented_MEM_V2.R"))
 Note: PV summaries (ie mean_lfm_fall_spp, mean_tlp_spp) are from 2021 fall ONLY (weird values with CECO)
 
 ```{r}
-field_data_all <- read_csv(here("processed-data", "analysis 2.0", "field_data_2020_2021.csv"), show_col_types = FALSE) %>% 
+field_data_all_4 <- read_csv(here("processed-data", "analysis 2.0", "field_data_2020_2021.csv"), show_col_types = FALSE) %>% 
   mutate(tlp = mean_tlp_spp, 
          po = mean_po_date) %>% 
  # select(-mpa, -water_potential) %>% 
@@ -100,32 +100,33 @@ field_data_all <- read_csv(here("processed-data", "analysis 2.0", "field_data_20
     spp == "QUKE" ~ "Angiosperm"
   )) %>% 
   filter(lfm < 300, 
-         lfm > 70) %>% 
+         lfm > 70, 
+         age == "new") %>% 
   mutate(upr_lfm = mean_lfm_fall_spp + (sd_lfm_fall_spp/2), 
          lwr_lfm = mean_lfm_fall_spp - (sd_lfm_fall_spp/2))
 
-field_data_angio <- field_data_all %>% 
+field_data_angio <- field_data_all_4 %>% 
   filter(strategy_binary == 2)
   
-field_data_gymno <- field_data_all %>% 
+field_data_gymno <- field_data_all_4 %>% 
   filter(strategy_binary == 1)
 
-abco <- field_data_all %>% 
+abco <- field_data_all_4 %>% 
   filter(spp == "ABCO")
 
-pije <- field_data_all %>% 
+pije <- field_data_all_4 %>% 
   filter(spp == "PIJE")
 
-cade <- field_data_all %>% 
+cade <- field_data_all_4 %>% 
   filter(spp == "CADE")
 
-quke  <- field_data_all %>% 
+quke  <- field_data_all_4 %>% 
   filter(spp == "QUKE")
 
-arpa <- field_data_all %>% 
+arpa <- field_data_all_4 %>% 
   filter(spp == "ARPA")
 
-ceco <- field_data_all %>% 
+ceco <- field_data_all_4 %>% 
   filter(spp == "CECO")
 ```
 
@@ -142,7 +143,7 @@ lfm_p <- c(rep(NaN, 4))
 seg_psi_norand_df <- tibble::data_frame(lfm_psi, lfm_se, lfm_p)
 
 #With random
-field_segment_df <- field_data_all %>% 
+field_segment_df <- field_data_all_4 %>% 
   drop_na(mpa, lfm) %>% 
   mutate(id = unique_id)
 
@@ -185,7 +186,7 @@ seg_psi_norand_df <- seg_psi_norand_df %>%
 ggplot(aes(y = mpa, 
            x = lfm, 
            color = spp), 
-           data = field_data_all) +
+           data = field_data_all_4) +
   geom_point()+
   geom_ribbon(aes(xmin = seg_psi_df$lwr, 
                   xmax = seg_psi_df$upr), 
@@ -198,13 +199,42 @@ ggplot(aes(y = mpa,
   labs(title = "Segments are all spp.")
 ```
 
+```{r}
+fied_data_above <- field_data_all_4 %>% 
+  filter(lfm > seg_psi_norand_df$lfm_psi)
+
+mod_all <- lm(water_potential~lfm, data = field_data_above)
+
+lfm_psi <- seg_psi_norand_df %>% 
+  mutate(lfm = lfm_psi) %>% 
+  as_data_frame() %>% 
+  distinct()
+
+mpa_seg <- predict(mod_all, lfm_psi)
+mpa_seg
+
+#below
+fied_data_below <- field_data_all_4 %>% 
+  filter(lfm < seg_psi_norand_df$lfm_psi)
+
+mod_all <- lm(water_potential~lfm, data = field_data_below)
+
+lfm_psi <- seg_psi_norand_df %>% 
+  mutate(lfm = lfm_psi) %>% 
+  as_data_frame() %>% 
+  distinct()
+
+mpa_seg <- predict(mod_all, lfm_psi)
+mpa_seg
+```
+
 #With functional groups: 
 
 Angiosperms: 
 
 ```{r}
 #Data
-field_segment_angio_df <- field_data_all %>% 
+field_segment_angio_df <- field_data_all_4 %>% 
   filter(F.Group == "Angiosperm") %>% 
   drop_na(mpa, lfm) %>% 
   mutate(id = unique_id) 
@@ -296,7 +326,7 @@ Gymnosperms:
 
 ```{r}
 #Data
-field_segment_gymno_df <- field_data_all %>% 
+field_segment_gymno_df <- field_data_all_4 %>% 
   filter(F.Group == "Gymnosperm") %>% 
   drop_na(mpa, lfm) %>% 
   mutate(id = unique_id)
@@ -395,7 +425,7 @@ seg_psi_norand_fgroups_df <- bind_rows(seg_psi_norand_angio_df, seg_psi_norand_g
 ggplot(aes(y = mpa, 
            x = lfm, 
            color = spp), 
-           data = field_data_all) +
+           data = field_data_all_4) +
   geom_point()+
   #gymnos
   geom_ribbon(aes(xmin = seg_psi_norand_gymno_df$lwr, 
@@ -405,14 +435,14 @@ ggplot(aes(y = mpa,
    geom_vline(xintercept  = seg_psi_norand_gymno_df$lfm_psi, color = "red") +
   geom_vline(xintercept  = seg_psi_norand_gymno_df$lfm_psi, linetype = "dotted") +
   #angios
-  geom_vline(xintercept  = field_data_all$lfm_tlp, colour = "blue") +
+  geom_vline(xintercept  = field_data_all_4$lfm_tlp, colour = "blue") +
   geom_ribbon(aes(xmin = seg_psi_angio_df$lwr, 
                   xmax = seg_psi_angio_df$upr), 
               fill = "grey", 
               color = "grey")  +
    geom_vline(xintercept  = seg_psi_norand_angio_df$lfm_psi, color = "pink") +
   geom_vline(xintercept  = seg_psi_norand_angio_df$lfm_psi, linetype = "dotted") +
-  geom_vline(xintercept  = field_data_all$lfm_tlp, colour = "blue") +
+  geom_vline(xintercept  = field_data_all_4$lfm_tlp, colour = "blue") +
   facet_wrap(~F.Group)
 ```
 
