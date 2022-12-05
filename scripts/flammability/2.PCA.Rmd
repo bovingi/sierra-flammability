@@ -15,12 +15,19 @@ knitr::opts_chunk$set(echo = TRUE)
 Necessary packages:
 ```{r}
 library(here)
-here = here::here
 library(tidyverse)
 library(kableExtra)
+library(ggbiplot)
 library(sjPlot)
 library(ggpubr)
+library(remef)
+library(lme4)
+
+here = here::here
 rename = dplyr::rename
+select = dplyr::select
+
+source(here::here("scripts", "scripts_functions", "figure_info_sierra_flammability.R")) #color and theme info is here
 ```
 
 # 1.1. PCA Figure
@@ -31,10 +38,18 @@ Plot setup:
 sierra_flamdata_pca_all <- read_csv(here("processed-data", "analysis 2.0", "sierra_flam_data_all.csv"), show_col_types = FALSE) 
 
 sierra_flamdata_pca <- sierra_flamdata_pca_all %>% 
-  filter(ignition == 1, 
+  filter(ignition == 1 
         # ignition_num == 1
          ) %>% 
-   select("fh", "ttfg", "tti", "fd", "gd", "gti", "pfg","temp_change", "hydration", "spp", "year_month", "sample") %>% 
+  mutate(F.Group = case_when(
+    spp == "arpa" ~ "Angiosperm", 
+    spp == "abco" ~ "Gymnosperm",
+    spp == "cade" ~ "Gymnosperm",
+    spp == "ceco" ~ "Angiosperm",
+    spp == "pije" ~ "Gymnosperm",
+    spp == "quke" ~ "Angiosperm"
+  )) %>% 
+   select("fh", "ttfg", "tti", "fd", "gd", "gti", "pfg","temp_change", "hydration", "spp", "year_month", "sample", "F.Group") %>% 
   na.omit(c("fh", "ttfg", "tti", "fd", "gd", "gti", "pfg","temp_change", "hydration", "spp", "year_month", "sample"))
 
  # filter(year == 2020)
@@ -52,9 +67,9 @@ figure_epi_pca_quant <- (sierra_flamdata_pca[, c("fh", "ttfg", "tti", "fd", "gd"
           ) %>% 
   na.omit()
 
-figure_epi_pca_cat <-  (sierra_flamdata_pca[, c("fh", "ttfg", "tti", "fd", "gd", "gti", "pfg","temp_change", "hydration", "spp", "year_month", "sample")]) %>% 
+figure_epi_pca_cat <-  (sierra_flamdata_pca[, c("fh", "ttfg", "tti", "fd", "gd", "gti", "pfg","temp_change", "hydration", "spp", "year_month", "sample", "F.Group")]) %>% 
   na.omit() %>% 
-  select(hydration, spp, year_month, sample) %>% 
+  select(hydration, spp, year_month, sample, F.Group) %>% 
   transmute("Hydration" = hydration, 
             spp = spp,
             "Species" = spp,
@@ -66,7 +81,7 @@ figure_epi_pca_cat <-  (sierra_flamdata_pca[, c("fh", "ttfg", "tti", "fd", "gd",
                           scale = TRUE, 
                           retx=TRUE)
   
-figure_epi_pca <- (sierra_flamdata_pca[, c("fh", "ttfg", "tti", "fd", "gd", "gti", "pfg","temp_change", "hydration", "spp", "year_month", "sample")]) %>% 
+figure_epi_pca <- (sierra_flamdata_pca[, c("fh", "ttfg", "tti", "fd", "gd", "gti", "pfg","temp_change", "hydration", "spp", "year_month", "sample", "F.Group")]) %>% 
   na.omit() 
 ```
 
@@ -207,11 +222,10 @@ x_flam <-predict(pcobj)  ### generate scores for each row in sierra_flamdata_pca
 
 pca_flam_data <- as_data_frame(x_flam) 
 
-sierra_flamdata_pca <- sierra
 all_data_pca <- bind_cols(sierra_flamdata_pca, pca_flam_data)
 
 # #because we wants instances where they didn't ignite for the logistic regression: 
-sierra_flamdata_pca_noignitions <- sierra_flamdata_pca %>%
+sierra_flamdata_pca_noignitions <- sierra_flamdata_pca_all %>%
  # mutate(LFM = lfm_NAs_imputed) %>%
   #filter(year == 2020) %>%
  # filter(model == "EPI") %>%
@@ -254,6 +268,133 @@ sjPlot::tab_pca(pcobj,
   string.cpov = "Cumulative Proportion") 
 
 ```
+
+#---
+
+# 2. Interspecific differences
+
+## Setup
+```{r}
+sierra_flamdata_pca_noceco <- sierra_flamdata_pca_all %>% 
+  filter(ignition == 1
+         ) %>% 
+  mutate(F.Group = case_when(
+    spp == "arpa" ~ "Angiosperm", 
+    spp == "abco" ~ "Gymnosperm",
+    spp == "cade" ~ "Gymnosperm",
+    spp == "ceco" ~ "Angiosperm",
+    spp == "pije" ~ "Gymnosperm",
+    spp == "quke" ~ "Angiosperm"
+  )) %>% 
+  filter(spp != "ceco") %>% 
+   select("fh", "ttfg", "tti", "fd", "gd", "gti", "pfg","temp_change", "hydration", "spp", "year_month", "sample", "F.Group", "mpa", "lfm_outliers_out", "site", "individual", "sample_wt") %>% 
+  na.omit(c("fh", "ttfg", "tti", "fd", "gd", "gti", "pfg","temp_change", "hydration", "spp", "year_month", "sample"))
+  
+figure_epi_pca_quant_spp <- (sierra_flamdata_pca_noceco[, c("fh", "ttfg", "tti", "fd", "gd", "gti", "pfg","temp_change")]) %>%  
+  mutate(tti = tti*-1) %>% 
+  transmute( "Flame Duration" = fd,
+           "Flame Height" = fh,
+           "Post-flame Glow" = pfg,
+           "Ignitability" = tti,
+           "Glow Duration" = gd,
+           "Glow to Ignition" = gti,
+           "Time to First Glow" = ttfg, 
+           "Temp Change" = temp_change
+          ) %>% 
+  na.omit()
+
+figure_epi_pca_cat_spp <-  (sierra_flamdata_pca_noceco[, c("fh", "ttfg", "tti", "fd", "gd", "gti", "pfg","temp_change", "hydration", "spp", "year_month", "sample", "F.Group")]) %>% 
+  na.omit() %>% 
+  select(hydration, spp, year_month, sample, F.Group) %>% 
+  transmute("Hydration" = hydration, 
+            spp = spp,
+            "Species" = spp,
+            "Timing" = year_month, 
+            "Sample" = sample) 
+  
+figure_prcomp_spp <- prcomp(na.omit(figure_epi_pca_quant_spp), 
+                          center = TRUE, 
+                          scale = TRUE)
+  
+figure_epi_pca_spp <- (sierra_flamdata_pca_noceco[, c("fh", "ttfg", "tti", "fd", "gd", "gti", "pfg","temp_change", "hydration", "spp", "year_month", "sample", "F.Group")]) %>% 
+  na.omit() 
+```
+
+## Visualization
+```{r}
+ggbiplot(figure_prcomp_spp,
+         groups = figure_epi_pca_spp$F.Group,
+         ellipse = TRUE, circle = FALSE, varname.size = 4, alpha = 0.5) +
+  theme_bw() + 
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        aspect.ratio = 1/1,
+        axis.title = element_text(face = 'bold'),
+        legend.title = element_text(face = 'bold')) +
+  labs(color = 'Functional Group')
+```
+
+## Principal Components vs. LFM
+
+### PC1
+```{r}
+# Putting principal components into dataset
+spp_pc_flam <-predict(figure_prcomp_spp) 
+pca_flam_data_spp <- as_data_frame(spp_pc_flam) 
+spp_data_pca <- bind_cols(sierra_flamdata_pca_noceco, pca_flam_data_spp)
+
+# MEM and REMEF
+pc1_mod <- lmer(PC1 ~ spp*mpa + spp*lfm_outliers_out + site + year_month + sample_wt + (1 | individual), data = spp_data_pca)
+r_pc1_lfm <- remef(pc1_mod, fix = c("mpa", "sample_wt", "site"), ran = list(individual = c("(Intercept)"))) # Using Remef for plots with LFM
+spp_data_pca$r_pc1_lfm <- r_pc1_lfm
+
+# PC1 vs. LFM visualization
+pc1_vs_lfm_r <- spp_data_pca %>%
+  ggplot(aes(y = r_pc1_lfm, 
+             x = lfm_outliers_out, 
+             group = F.Group)) +
+  geom_point(alpha= .4, aes(color = F.Group))+
+  geom_smooth(method = "lm", se = F, aes(color = F.Group), alpha = .75) + 
+  scale_color_manual(values = c('#FDD358', 'black')) +
+  theme(axis.text.y = element_text(size = 13),
+        axis.title = element_text(size = 16, face = 'bold')) +
+        #axis.text.x = element_blank(), axis.ticks.x = element_blank()) +
+  labs(x = "Live Fuel Moisture (%)", 
+       y = "PC1",
+       color = "Functional Group") +
+  annotate('text', x = 35, y = -4.5, label = 'More Combustible, \nMore Sustainable', size = 3) +
+  geom_segment(aes(x = 35, xend = 35, y = -4.2, yend = -2.8), arrow = arrow(length = unit(1/2, 'picas')), size = 0.35, alpha = 0.85) +
+  annotate('text', x = 35, y = -2.5, label = 'More Ignitable', size = 3)
+pc1_vs_lfm_r
+```
+
+### PC2
+```{r}
+# MEM and REMEF
+pc2_mod <- lmer(PC2 ~ spp*mpa + spp*lfm_outliers_out + site + year_month + sample_wt + (1 | individual), data = spp_data_pca)
+r_pc2_lfm <- remef(pc2_mod, fix = c("mpa", "sample_wt", "site"), ran = list(individual = c("(Intercept)"))) # Using Remef for plots with LFM
+spp_data_pca$r_pc2_lfm <- r_pc2_lfm
+
+# PC2 vs. LFM visualization
+pc2_vs_lfm_r <- spp_data_pca %>%
+  ggplot(aes(y = r_pc2_lfm, 
+             x = lfm_outliers_out, 
+             group = F.Group)) +
+  geom_point(alpha= .4, aes(color = F.Group))+
+  geom_smooth(method = "lm", se = F, aes(color = F.Group), alpha = .75) + 
+  scale_color_manual(values = c('#FDD358', 'black')) +
+  theme(axis.text.y = element_text(size = 13),
+        axis.title = element_text(size = 16, face = 'bold'),
+        axis.text.x = element_blank(), axis.ticks.x = element_blank()) +
+  labs(x = "Live Fuel Moisture (%)", 
+       y = "PC2",
+       color = "Functional Group") +
+  annotate('text', x = 35, y = 4.5, label = 'More Consumable', size = 3) +
+  geom_segment(aes(x = 35, xend = 35, y = 2.8, yend = 4.2), arrow = arrow(length = unit(1/2, 'picas')), size = 0.35, alpha = 0.85)
+pc2_vs_lfm_r
+```
+
+
+
 #---
 
 #STOPPED HERE, Oct. 22, 2022
