@@ -446,3 +446,133 @@ ggplot(aes(y = mpa,
   facet_wrap(~F.Group)
 ```
 
+#MPa: 
+```{r}
+mpa_psi <- c(rep(NaN, 4))
+mpa_se <- c(rep(NaN, 4))
+seg_psi_df <- tibble::data_frame(mpa_psi, mpa_se)
+
+
+mpa_psi <- c(rep(NaN, 4))
+mpa_se <- c(rep(NaN, 4))
+mpa_p <- c(rep(NaN, 4))
+seg_psi_norand_df <- tibble::data_frame(mpa_psi, mpa_se, mpa_p)
+
+#With random
+field_segment_df <- field_data_all_4 %>% 
+  drop_na(mpa, lfm) %>% 
+  mutate(id = unique_id)
+
+o_mod<-lme(lfm ~ mpa + spp + doy, random=~1|id, data=field_segment_df)
+
+os_mod<-segmented.default(o_mod, ~mpa, npsi=list(lfm=1))
+#summarizing results (note the '_coef' argument)
+summary.segmented(os_mod)
+
+#put into the df:
+seg_psi_df[1] <- summary(os_mod)$psi[2]
+seg_psi_df[2] <- summary(os_mod)$psi[3]
+
+#No random
+u_mod <- lm(lfm~mpa+ spp + doy, data = field_segment_df)
+u_mod_b <- segmented(u_mod, ~mpa)
+summary.segmented(u_mod_b)
+
+u_mod_davies <- davies.test(u_mod_b)
+u_mod_davies
+
+#put into the df:
+seg_psi_norand_df[1] <- summary(u_mod_b)$psi[2]
+seg_psi_norand_df[2] <- summary(u_mod_b)$psi[3]
+seg_psi_norand_df[3] <- u_mod_davies$p.value
+
+
+#Set up SE grey areas: 
+
+seg_psi_df <- seg_psi_df %>% 
+  mutate(lwr = mpa_psi - (mpa_se/2), 
+         upr = mpa_psi + (mpa_se/2)) %>% 
+  distinct()
+
+seg_psi_norand_df <- seg_psi_norand_df %>% 
+  mutate(lwr = mpa_psi - (mpa_se/2), 
+         upr = mpa_psi + (mpa_se/2)) %>% 
+  distinct()
+
+mean_tlp <- field_data_all_4 %>% 
+  drop_na(mean_tlp_spp) %>% 
+ # filter(year == 2021, timing == "fall") %>% 
+  mutate(mean_tlp_all = mean(mean_tlp_spp)) %>% 
+  select(mean_tlp_all) %>% 
+  distinct() %>% 
+  pull()
+mean_tlp
+
+sd_tlp <- field_data_all_4 %>% 
+  drop_na(mean_tlp_spp) %>% 
+ # filter(year == 2021, timing == "fall") %>% 
+  mutate(sd_tlp_all = sd(mean_tlp_spp)) %>% 
+  select(sd_tlp_all) %>% 
+  distinct() %>% 
+  pull()
+sd_tlp
+
+upr_tlp <- mean(mean_tlp + (sd_tlp/2))
+upr_tlp
+lwr_tlp <- mean(mean_tlp - (sd_tlp/2))
+
+ggplot(aes(x = mpa, 
+           y = lfm, 
+           color = spp), 
+           data = field_data_all_4) +
+  geom_point()+
+  geom_ribbon(aes(xmin = seg_psi_norand_df$lwr, 
+                  xmax = seg_psi_norand_df$upr), 
+              fill = "red", 
+              color = "red", 
+              alpha = .5)  +
+   geom_vline(xintercept  = seg_psi_norand_df$mpa_psi, color = "red", size = 2) +
+  geom_vline(xintercept  = seg_psi_norand_df$mpa_psi, linetype = "dotted") +
+  #geom_vline(xintercept  = field_data_angio$mean_tlp_spp, colour = "blue") +
+ # geom_vline(xintercept  = field_data_gymno$mean_tlp_spp, colour = "purple") +
+  geom_vline(xintercept  = mean_tlp, colour = "green", size = 2) +
+  geom_ribbon(aes(xmin = lwr_tlp, 
+                  xmax = upr_tlp), 
+              fill = "green", 
+              color = "green", 
+              alpha = .5)  +
+  labs(title = "Segments are all spp.")
+```
+
+
+```{r}
+field_data_all %>%
+   mutate(spp = fct_relevel(spp, "ABCO","PIJE","CADE","CECO", "ARPA","QUKE"))  %>% 
+   mutate(Species = fct_relevel(Species,
+                              "A. concolor",
+                              "P. jeffreyi",
+                              "C. decurrens",
+                              "C. cordulatus",
+                              "A. patula", 
+                              "Q. kelloggii"
+    )) %>% 
+  filter(age != "both") %>% 
+  mutate(month = month(date, label = TRUE, abbr = TRUE)) %>% 
+  ggplot(aes(x = midday, 
+             y = lfm, 
+             color = as.factor(month), 
+             shape = age)) +
+  geom_point(size = 1, alpha = .7) +
+  geom_vline(aes(xintercept = mean_tlp_spp), size = .5, alpha = .6,
+             color = "black", linetype = "dotted") +
+   geom_vline(xintercept  = seg_psi_norand_df$mpa_psi, color = "red", size = 2) +
+  #stat_smooth(aes(x = LFM, y = predawn, colour = Date, linetype = "Linear Fit"), method = "lm") 
+  xlim(-5,0) + 
+  labs( y = "Live Fuel Moisture", 
+        x = "Midday (-MPa)", 
+        color = "Month", 
+        shape = "Age") +
+  ylim(50,300) +
+  facet_wrap(~strategy) +
+  color_all
+```

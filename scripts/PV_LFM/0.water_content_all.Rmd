@@ -486,10 +486,10 @@ field_data_2021_raw <- read.csv(here("raw-data", "CZO_alldata_compiled.csv")) %>
          age = new_old) %>% 
   select(-new_old) %>% 
   mutate(age_new = case_when(
-    age %in% c("O") & spp %in% c("QUKE", "CECO") ~ "new",
-    age %in% c("N") & spp %in% c("QUKE", "CECO") ~ "old", 
-    age %in% c("old") & spp %in% c("QUKE", "CECO") ~ "new",
-    age %in% c("new") & spp %in% c("QUKE", "CECO") ~ "old", 
+    age %in% c("O") & spp %in% c("QUKE") ~ "new",
+    age %in% c("N") & spp %in% c("QUKE") ~ "new", 
+    age %in% c("old") & spp %in% c("QUKE") ~ "new",
+    age %in% c("new") & spp %in% c("QUKE") ~ "new", 
     age %in% c("O") ~ "old", 
     age %in% c("N") ~ "new", 
     TRUE ~ as.character(age))
@@ -614,8 +614,8 @@ field_data_all_pv <- merge(merge(tlp_summary_timing, tlp_summary_timing_lfm, by 
 field_data_all_pv <- merge(tlp_summary_spp_lfm, field_data_all_tlps, 
                            #by = "spp", 
                            all = T) %>% 
-  filter(!spp %in% c("ADFA", "CEME")) %>% #add in mean LFM at TLP for each spp
-  select(-lf_mtlp, -bottle, -n)
+  filter(!spp %in% c("ADFA", "CEME"))# %>% #add in mean LFM at TLP for each spp
+ # select(-lf_mtlp, -bottle, -n)
 
 field_data_all <- field_data_all_pv %>% 
    mutate(month = month(date), 
@@ -663,12 +663,12 @@ field_data_all <- field_data_all_pv %>%
     spp == "CADE" ~ "tree"
   )) %>% 
   mutate(F.Group = case_when(
-    spp == "arpa" ~ "Angiosperm", 
-    spp == "abco" ~ "Gymnosperm",
-    spp == "cade" ~ "Gymnosperm",
-    spp == "ceco" ~ "Angiosperm",
-    spp == "pije" ~ "Gymnosperm",
-    spp == "quke" ~ "Angiosperm"
+    spp == "ARPA" ~ "Angiosperm", 
+    spp == "ABCO" ~ "Gymnosperm",
+    spp == "CADE" ~ "Gymnosperm",
+    spp == "CECO" ~ "Angiosperm",
+    spp == "PIJE" ~ "Gymnosperm",
+    spp == "QUKE" ~ "Angiosperm"
   )) 
 ```
 
@@ -744,24 +744,24 @@ write_csv(here("processed-data", "analysis 2.0","field_data_2020_2021.csv"))
 
 ```{r}
 
-tmp_field_data_all <- field_data_all %>% 
-  mutate(analysis = "field", 
-         site = as.character(site)) %>% 
-  select(spp, age, pod, site, date, type, 
-         location, month, lfm, mpa, lfm_tlp, mpa_tlp, Species,
-         predawn, midday, analysis) 
-  
-
-tmp_flam_curve_phys_all <- flam_curve_phys_all %>%  
-  mutate(analysis = "flamcurve", 
-         site = as.character(site)) %>% 
-  select(spp, rwc, lfm, mpa, site, mpatlp, analysis)
-
-tmp_flam_field <- bind_rows(tmp_field_data_all, 
-                            tmp_flam_curve_phys_all)
-
-tmp_pv_allcurves_data_clean <- pv_allcurves_data_clean %>%  
-  mutate(analysis = "pv") 
+# tmp_field_data_all <- field_data_all %>% 
+#   mutate(analysis = "field", 
+#          site = as.character(site)) %>% 
+#   select(spp, age, pod, site, date, type, 
+#          location, month, lfm, mpa, lfm_tlp, mpa_tlp, Species,
+#          predawn, midday, analysis) 
+#   
+# 
+# tmp_flam_curve_phys_all <- flam_curve_phys_all %>%  
+#   mutate(analysis = "flamcurve", 
+#          site = as.character(site)) %>% 
+#   select(spp, rwc, lfm, mpa, site, mpatlp, analysis)
+# 
+# tmp_flam_field <- bind_rows(tmp_field_data_all, 
+#                             tmp_flam_curve_phys_all)
+# 
+# tmp_pv_allcurves_data_clean <- pv_allcurves_data_clean %>%  
+#   mutate(analysis = "pv") 
 ```
 
 #--------------------------
