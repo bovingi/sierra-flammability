@@ -460,10 +460,6 @@ field_data_all_3 %>%
   #scale_color_gradientn(colors=met.brewer("Morgenstern"))
 ```
 ####LFM by MPa (date)
-
-##HERE
-
-
 ```{r}
 #ribbon values: 
 mpa_summs <- pv_summaries %>% 
@@ -482,10 +478,7 @@ angio <- mpa_summs %>%
 
 gymno <- mpa_summs %>% 
   filter(F.Group == "Gymnosperm")
-```
 
-
-```{r}
 #df:
 fig_df <- field_data_all_3 %>%
    filter(month < 10) %>%  #removing post-rain values (October sample collection)
@@ -644,8 +637,6 @@ ggsave(here('figures', 'lfm_midday_tlplines_group.jpg'), height = 8, width = 11)
 
 ####LFM by MPa (age)
 ```{r}
-
-
 field_data_all_3 %>%
    mutate(spp = fct_relevel(spp, "ABCO","PIJE","CADE","CECO", "ARPA","QUKE"))  %>% 
    mutate(Species = fct_relevel(Species,
@@ -726,7 +717,7 @@ field_data_all_3 %>%
 pheno_df_leaves <- pheno_df %>% 
   filter(category %in% c("Leaves", "Needles"), 
          phenophase_status == "Yes") %>% 
-  mutate(line_position = case_when(
+  mutate(lfm = case_when(
     phenophase_name == "Young leaves" ~ 60, 
     phenophase_name == "Young needles" ~ 55, 
     phenophase_name == "Breaking leaf buds" ~ 40,
@@ -799,40 +790,52 @@ pheno_fig <- pheno_df %>%
   filter(#category %in% c("Leaves", "Needles"), 
          phenophase_status == "Yes") %>% 
   mutate(lfm = case_when(
-    phenophase_name == "Young leaves" ~ 3, 
-    phenophase_name == "Young needles" ~ 3, 
-    phenophase_name == "Breaking leaf buds" ~ 1,
-    phenophase_name == "Breaking needle buds" ~ 1,
-    phenophase_name == "Emerging needles" ~ 2, 
-    phenophase_name == "Increasing leaf size" ~ 2, 
-    phenophase_name == "Leaves" ~ 4, 
-    phenophase_name == "Colored leaves" ~ 5,
+    phenophase_name == "Young leaves" ~ 30, 
+    phenophase_name == "Young needles" ~ 30, 
+    phenophase_name == "Breaking leaf buds" ~ 10,
+    phenophase_name == "Breaking needle buds" ~ 10,
+    phenophase_name == "Emerging needles" ~ 20, 
+    phenophase_name == "Increasing leaf size" ~ 20, 
+    phenophase_name == "Leaves" ~ 40, 
+    phenophase_name == "Colored leaves" ~ 50,
     #phenophase_name == "Flowers or flower buds" ~ 75, 
    # phenophase_name == "Open flowers" ~ 76,
-    phenophase_name == "Pollen cones" ~ 6,
-    phenophase_name == "Pollen release" ~ 7, 
+    phenophase_name == "Pollen cones" ~ 60,
+    phenophase_name == "Pollen release" ~ 70, 
    # phenophase_name == "Fruits" ~ 78, 
    # phenophase_name == "Open pollen cones" ~ 86,
    # phenophase_name == "Unripe seed cones" ~ 90,
    # phenophase_name == "Recent fruit of seed drop" ~95,
-    phenophase_name == "Ripe fruits" ~ 8,
+    phenophase_name == "Ripe fruits" ~ 80,
   #  phenophase_name == "Ripe seed codes" ~ 91
+  TRUE ~ NA_real_
   )) %>% 
   mutate(week = week(date)) %>% 
-  select(phenophase_name, lfm, date, week)
+  select(phenophase_name, lfm, date, week, spp) %>% 
+  drop_na(lfm) %>% mutate(Species = case_when(
+     spp == "ABCO" ~ "A. concolor",
+    spp == "PIJE" ~ "P. jeffreyi", 
+    spp == "CADE" ~ "C. decurrens", 
+    spp == "CECO" ~ "C. cordulatus", 
+    spp == "ARPA" ~ "A. patula", 
+    spp == "QUKE" ~ "Q. kelloggii"
+    )) 
   
 field_data_2021_fig <- field_data_all_3 %>% 
   select(age, year, date, lfm, Species, spp)
 
-field_data_fig_2 <- bind_rows(field_data_2021_fig, pheno_fig)
+field_data_fig_2 <- bind_rows(field_data_2021_fig, pheno_fig) %>% 
+  mutate(year = year(date), 
+         doy = day(date))
 field_data_fig_2
 ```
 
+#***LFM and phenology plot: 
 ```{r}
-field_data_2021 <- field_data_all_3 %>%
+field_data_2021 <- field_data_fig_2 %>%
   filter(year == 2021,
          age != "both") %>% 
-  select(date, lfm, spp, Species, age) %>% 
+ # select(date, lfm, spp, Species, age) %>% 
   mutate(week = week(date)) %>% 
     mutate(age_new = case_when(
     age %in% c("new") & 
@@ -865,13 +868,6 @@ field_data_2021 <- field_data_all_3 %>%
   )
   )
 
-  
-field_data_2021_fig <- field_data_2021 %>% 
-  select(age, date, lfm, Species, spp, age_labs, week)
-
-field_data_fig_2 <- bind_rows(field_data_2021_fig, pheno_fig)
-field_data_fig_2
-
 ####Plot:
 
 field_data_2021 %>%
@@ -882,6 +878,7 @@ field_data_2021 %>%
   geom_boxplot(aes(
     y = lfm,
     x = cut(date, breaks = "week"),
+    #x = week,
    # x = as.numeric(week),
     #x = week,
     #color = age
@@ -890,56 +887,51 @@ field_data_2021 %>%
   data = field_data_2021) +
   geom_hline(aes(yintercept  = mean_lfm_fall_spp), field_data_all_3,
              linetype = "dotted") +
- # geom_vline(aes(xintercept = as.double(start_phase)), pheno_df_leaves, 
-            # linetype = "dotted") +
-     geom_vline(xintercept=as.numeric(pheno_df_leaves$start_phase),
-                linetype=4, colour="black") +
+  # geom_line(aes(y = lfm, 
+  #               #x = cut(date, breaks = "week"),
+  #                x = week,
+  #               color = phenophase_name),
+  #           alpha = 1, 
+  #           data  = field_data_fig_2,
+  #           size = 4,
+  #           position=position_dodge(w=1)) +
   facet_wrap( ~ spp, 
               labeller = labeller(spp = spp.labs), 
               scales = "free"
               ) +
-  theme(
-    axis.ticks.x = element_blank(),
+  theme(axis.ticks.x = element_blank(),
     #axis.title.x = element_blank(),
     axis.text.x = element_text(
       angle = 30,
       hjust = 1,
-      size = 10
-    ),
+      size = 10),
     axis.title = element_text(face = "bold"),
     legend.title = element_text(face = "bold"),
-    strip.text = element_text(face = "italic")
-    #legend.position = "none"
-  ) +
-  #geom_hline(yintercept = 166, linetype = "dotted", color = "olivedrab") +
+    strip.text = element_text(face = "italic")) +
   labs(
     y = "Live Fuel Moisture",
     x = "Date",
     color = "Phenophase",
-    #shape = "Age",
     fill = "Tissue Status"
-  ) +
-  #ylim(40, 400) +
-  color_two
-
-
-###These are in the wrong spot! Not sure why, but its annoying. Something with the dates not lining up...
+  ) 
 ```
 
 
 ```{r}
 phenoplot2 <- ggplot() +
-  geom_line(aes(y = line_position, 
-                x = week,
+  geom_line(aes(y = lfm,
+                #x = week,
                 #x = cut(date, breaks = "week"),
+               x = date,
                 color = phenophase_name),
             alpha = 1, 
-            data  = pheno_df_leaves, 
+            #data  = pheno_df_leaves, 
+            data  = pheno_fig, 
             size = 4,
             position=position_dodge(w=1)) +
    #scale_color_manual(values=met.brewer("Morgenstern", 3)) +
   labs(color = "Phenophase") +
-  facet_wrap(~scientific_name)
+  facet_wrap(~Species)
 
 phenoplot2
 ```

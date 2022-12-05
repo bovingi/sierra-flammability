@@ -725,7 +725,7 @@ NOTE: This isn't working -- 'subscript out of bounds error'; not sure why?
 #   mutate(rwc_new = 100 * (gww_gdw/swc_sat))
 ```
 
-#Write CSV
+#Write .csv
 
 ```{r}
 field_data_all %>%
