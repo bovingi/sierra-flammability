@@ -949,7 +949,6 @@ pheno_df %>%
     )) + 
   facet_wrap(~scientific_name) +
   geom_line() +
-  th+
   theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=1))
 ```
 

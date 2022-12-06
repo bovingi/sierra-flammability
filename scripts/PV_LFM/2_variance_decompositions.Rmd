@@ -43,12 +43,14 @@ source(here::here("scripts", "scripts_functions", "figure_info_sierra_flammabili
 # Section 1: Pressure Volume Curves
 
 ```{r,warning=FALSE}
-pv_all_df <- read_csv(here("processed-data", "allcurves_clean.csv"), show_col_types = FALSE) %>%
+pv_all_df <- read_csv(here("processed-data", "analysis 2.0", "all_pv_curves_clean_v2.csv"), show_col_types = FALSE) %>%
+  mutate(spp == species) %>% 
   filter(!spp %in% c("ADFA", "CEME")) %>% 
   mutate(sample = as.factor(sample)) %>% 
   mutate(month = as.factor(month)) %>% 
   mutate(date = ymd(date), 
-         individual = unique_id) %>% 
+        individual = str_c(species, '_', sample)
+        ) %>% 
   mutate(year_month = str_c(year, '_', month)) %>% 
   clean_names() %>% 
   group_by(spp) %>% 
@@ -96,7 +98,8 @@ pv_all_df <- read_csv(here("processed-data", "allcurves_clean.csv"), show_col_ty
     spp == "CECO" ~ "Angiosperm",
     spp == "PIJE" ~ "Gymnosperm",
     spp == "QUKE" ~ "Angiosperm"
-  )) 
+  )) %>% 
+  filter(timing == "fall")
 ```
 
 ####PV plot
@@ -118,14 +121,15 @@ pv_plot <- pv_all_df %>%
   xlim(0, 10) +
   annotate(
     geom = "text",
-    x = 10,
-    y = 460,
+    x = 9.9,
+    y = 232,
     label = 'b',
     fontface = 'bold',
     size = 10
   ) +
   facet_wrap(~F.Group)+
   theme(plot.margin = unit(c(.2, .5,-.5, .25), "cm")) #margin(t = 0, r = 0, b = 0, l = 0, unit = "pt")
+
 pv_plot
 ```
 
@@ -157,7 +161,7 @@ lm(maxLFM ~ time)
 R^2 full = R^2 spp + R^2 time + R^2 spp * time)
 
 ```{r}
-m1 <- lmer(maxLFM ~ spp * year_month + (1|plant), data = pv_all_df) 
+m1 <- lmer(maxLFM ~ spp * year + (1|plant), data = pv_all_df) 
 # NOTE: Did we decide against or for an interaction term? I believe the following is how to caclulate the relative contributions of variables to the R2 with an interaction term, but I am not sure how to do it with spp + year...
 m2 <- lmer(maxLFM ~ spp + (1|plant), data = pv_all_df)
 m3 <- lmer(maxLFM ~ year_month + (1|plant), data = pv_all_df)
@@ -178,10 +182,10 @@ mod_all_df <- mod_all_df1 %>%
               values_from = r2m) %>% 
   mutate(
     #spp_AND_time_effects =  m3 - week_effect - mpa_effect,
-    time_effect = m2, #week + mpa mod - mpa mod
-         spp_effect = m3, #week + mpa mod - week mod
+    time_effect = m1 - m3, #m2, #week + mpa mod - mpa mod
+         spp_effect = m1 - m2, #m3, #week + mpa mod - week mod
          full_mod = m1, #week + mpa mod 
-    spp_AND_time_effects =  m1 - m2 - m3,
+    spp_AND_time_effects =  m1 - (time_effect - spp_effect),
          ) #full minus the effects of mpa and week alone
 mod_all_df
 
