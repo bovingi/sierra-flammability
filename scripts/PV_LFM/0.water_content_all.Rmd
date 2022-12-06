@@ -83,16 +83,68 @@ pv_allcurves_data <- read_csv(here("raw-data", "allcurves.csv")) %>%
         # date = as.Date(date, format = '%m.%d.%Y'), 
          year = year(date),
          month = month(date)
-         )
+         ) 
+
+  #deal with bag added to CECO in 2020: 
+
+#pv curve data without CECO: 
+pv_allcurves_noceco <- pv_allcurves_data %>% 
+  filter(!(spp %in% c("CECO") & year == 2020)) 
+
+#Just CECO TLP information:
+pv_tlp_data_ceco <- read_csv(here("raw-data", "PV_sierra_summaries.csv")) %>% 
+  clean_names() %>% 
+  mutate(fresh_weight_saturated = swc, 
+         po = po_m_pa, 
+         tlp = ytlp_m_pa, 
+         rwc_at_tlp = rwctlp, 
+         lfm_at_tlp = lf_mtlp, 
+         date = mdy(date), 
+         year = year(date), 
+         month = month(date), 
+         #timing = "fall", 
+         sample = replicate,
+         .keep = "unused"
+         ) %>% 
+  filter(species %in% c("CECO") & year == 2020) %>% 
+  select(-date, -e_m_pa, - cft_m_pa_1, -ctlp_m_pa_1, -cft_mol_m_2_m_pa_1)
+
+#Just CECO full curve data: 
+pv_ceco_2020 <- pv_allcurves_data %>% 
+  filter(spp %in% c("CECO") & year == 2020) %>% 
+  select(-lfm, swc, rwc, rwd, water_weight) %>% 
+  mutate(fresh_weight = fresh_weight - 0.8754, #<- avg. weight of plastic bags used during analysis (bag was used and not accounted for)
+         #fresh_weight_saturated = fresh_weight_saturated - 0.8754, 
+         water_weight = fresh_weight - dry_weight, 
+         lfm = (((fresh_weight - dry_weight)/dry_weight)* 100), 
+        # swc = fresh_weight_saturated - dry_weight, 
+         #rwc = fresh_weight/fresh_weight_saturated, 
+         #rwd = 100 - rwc
+        ) %>% 
+  select(-po, -tlp, -rwc_at_tlp, -lfm_at_tlp, -fresh_weight_saturated)
+
+pv_ceco_2020_tlp_data <- merge(pv_ceco_2020, pv_tlp_data_ceco, 
+                               by = c("sample", "month", "year"), 
+                               all.x = T) %>% 
+  mutate( water_weight = fresh_weight - dry_weight, 
+         lfm = (((fresh_weight - dry_weight)/dry_weight)* 100), 
+         swc = fresh_weight_saturated - dry_weight, 
+         rwc = fresh_weight/fresh_weight_saturated, 
+         rwd = 100 - rwc
+        )
+
+#put fixed CECO back into dataset: 
+
+pv_allcurves_data_fixed <- bind_rows(pv_allcurves_noceco, pv_ceco_2020_tlp_data)
 
 #Need to also do something like this: 
  # group_by("spp", "sample") %>% 
  #  mutate(rwc_at_tlp_r = rwc from the row where tlp is equal to tlp_excel)
 
-data.not.adfa <- pv_allcurves_data %>% #deal wirh some weird outliners in ADFA
+data.not.adfa <- pv_allcurves_data_fixed %>% #deal wirh some weird outliners in ADFA
    filter(spp != "ADFA")
 
-data.adfa <- pv_allcurves_data %>% 
+data.adfa <- pv_allcurves_data_fixed %>% 
   filter(lfm < 300, spp == "ADFA") #remove outlier ADFAs (not sure why this is how it is?)
 
 pv_allcurves_data_clean  <- rbind(data.adfa, data.not.adfa)
