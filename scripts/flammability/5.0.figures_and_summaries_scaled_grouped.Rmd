@@ -1098,6 +1098,29 @@ TukeyHSD(fh.aov)
 TukeyHSD(gd.aov)
 ```
 
+### ANCOVA Tests
+We had previously tried this and the first assumption (independence of the covariate and treatment) was not met, so we shifted gears to the ANOVA test, but we are going to try this again with some data transformations (scaled & centered, log-transformed, and sample-weight normalized)
+
+```{r}
+# No transformation
+lfm.lm <- aov(lfm ~ spp, data = mem_data_all)
+summary(lfm.lm) # Assumption failed
+
+# Scaling, log-transforming, normalizing
+mem_data_all_ancova <- mem_data_all %>% 
+  ungroup() %>% 
+  mutate(lfm.sc = scale(lfm),
+         lfm.log = log(lfm),
+         lfm.norm = lfm/sample_wt)
+
+lfm.lm <- aov(lfm.sc ~ spp, data = mem_data_all_ancova)
+summary(lfm.lm) # Assumption failed
+lfm.lm <- aov(lfm.log ~ spp, data = mem_data_all_ancova)
+summary(lfm.lm) # Assumption failed
+lfm.lm <- aov(lfm.norm ~ spp, data = mem_data_all_ancova)
+summary(lfm.lm) # Assumption failed
+```
+
 ## Visualizations
 
 ## TTI
