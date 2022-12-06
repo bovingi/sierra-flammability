@@ -102,7 +102,7 @@ pv_all_df <- read_csv(here("processed-data", "analysis 2.0", "all_pv_curves_clea
   filter(timing == "fall")
 ```
 
-####PV plot
+####- PV plot
 ```{r}
 pv_plot <- pv_all_df %>%
   filter(!spp %in% c("ADFA", "CEME")) %>%
@@ -127,7 +127,7 @@ pv_plot <- pv_all_df %>%
     fontface = 'bold',
     size = 10
   ) +
-  facet_wrap(~F.Group)+
+  #facet_wrap(~F.Group)+
   theme(plot.margin = unit(c(.2, .5,-.5, .25), "cm")) #margin(t = 0, r = 0, b = 0, l = 0, unit = "pt")
 
 pv_plot
@@ -161,10 +161,10 @@ lm(maxLFM ~ time)
 R^2 full = R^2 spp + R^2 time + R^2 spp * time)
 
 ```{r}
-m1 <- lmer(maxLFM ~ spp * year + (1|plant), data = pv_all_df) 
+m1 <- lmer(maxLFM ~ spp + year + (1|plant), data = pv_all_df) 
 # NOTE: Did we decide against or for an interaction term? I believe the following is how to caclulate the relative contributions of variables to the R2 with an interaction term, but I am not sure how to do it with spp + year...
 m2 <- lmer(maxLFM ~ spp + (1|plant), data = pv_all_df)
-m3 <- lmer(maxLFM ~ year_month + (1|plant), data = pv_all_df)
+m3 <- lmer(maxLFM ~ year + (1|plant), data = pv_all_df)
 
 #try using r.squaredGLMM:
 mods_list <- list(m1, m2, m3)
@@ -183,7 +183,7 @@ mod_all_df <- mod_all_df1 %>%
   mutate(
     #spp_AND_time_effects =  m3 - week_effect - mpa_effect,
     time_effect = m1 - m3, #m2, #week + mpa mod - mpa mod
-         spp_effect = m1 - m2, #m3, #week + mpa mod - week mod
+         spp_effect = m1 - m2, #week + mpa mod - week mod
          full_mod = m1, #week + mpa mod 
     spp_AND_time_effects =  m1 - (time_effect - spp_effect),
          ) #full minus the effects of mpa and week alone
@@ -484,7 +484,7 @@ flam_curve_df <- flam_curve_phys_all_raw %>%
 ```
 
 
-#####Flam plot
+#####- Flam plot
 ```{r}
 flam_plot <- flam_curve_df %>% 
   filter(lfm < 300, 
@@ -502,16 +502,19 @@ flam_plot <- flam_curve_df %>%
        y = "LFM")+
   theme(plot.margin = unit(c(.2, .5, .3, .25), "cm")) +
   xlim(0,10) +
-  annotate(geom = "text", x = 10, y = 225, label = 'c', fontface = 'bold', size = 10)+
-  facet_wrap(~F.Group)
+  annotate(geom = "text", x = 10, y = 225, label = 'c', fontface = 'bold', size = 10)
+  #facet_wrap(~F.Group)
 flam_plot
 ```
 
 ####MaxLFM
 ```{r}
-m1 <- lmer(maxLFM ~ spp * year_month + (1|plant), data = flam_curve_df)
+m1 <- lmer(maxLFM ~ spp*year_month + (1|plant), data = flam_curve_df)
 m2 <- lmer(maxLFM ~ spp + (1|plant), data = flam_curve_df)
 m3 <- lmer(maxLFM ~ year_month + (1|plant), data = flam_curve_df)
+
+anova(m1)
+summary(m1)
 
 #try using r.squaredGLMM:
 mods_list <- list(m1, m2, m3)
@@ -529,10 +532,10 @@ mod_all_df <- mod_all_df1 %>%
               values_from = r2m) %>% 
   mutate(
     #spp_AND_time_effects =  m3 - week_effect - mpa_effect,
-    time_effect = m3, #week + mpa mod - mpa mod
-         spp_effect = m2, #week + mpa mod - week mod
+    time_effect = m1 - m2, #week + mpa mod - mpa mod
+         spp_effect = m1 - m3, #week + mpa mod - week mod
          full_mod = m1, #week + mpa mod 
-    spp_AND_time_effects =  m1 - m2 - m3,
+    spp_AND_time_effects =  m1 - (time_effect = spp_effect)
          ) #full minus the effects of mpa and week alone
 mod_all_df
 
@@ -780,7 +783,7 @@ field_data_all <- read_csv(here("processed-data", "analysis 2.0", "field_data_20
   )) 
 ```
 
-#####field plot
+#####- Field plot
 
 ```{r}
 field_plot <- field_data_all %>% 
@@ -790,7 +793,7 @@ field_plot <- field_data_all %>%
              x = -1*water_potential, 
              color = spp)) +
   geom_point(alpha = .5)+
-  facet_wrap(~F.Group) +
+ # facet_wrap(~F.Group) +
  # geom_smooth(method = "lm", se = F) +
   color_many +
   theme(legend.position = "none") +
@@ -1018,7 +1021,7 @@ var_decomp_df_lfm %>%
   color_fill
 ```
 
-#Scatterplots
+#- Scatterplots
 ```{r}
 field_plot_leg <- field_data_all %>% 
   filter(lfm < 300, 
@@ -1027,7 +1030,7 @@ field_plot_leg <- field_data_all %>%
              x = -1*water_potential, 
              color = spp)) +
   geom_point(alpha = .5) +
-  labs(coloe = "Species") +
+  labs(color = "Species") +
  # geom_smooth(method = "lm", se = F) +
   color_many 
 legend <- cowplot::get_legend(field_plot_leg)
@@ -1044,8 +1047,8 @@ plots_legend
 
 #ggsave(plot=plots_legend, bg = "white" , here::here("figures", "mpa_flam_metrics_unscaled"), device="jpg")
 
-#ggsave(plot=plots_legend, bg = "white" , here::here("figures", "flam_pv_field"), device="jpg")
-ggsave(plot=plots_legend, bg = "white" , here::here("figures", "flam_pv_field_fgroups"), device="jpg")
+ggsave(plot=plots_legend, bg = "white" , here::here("figures", "flam_pv_field"), device="jpg")
+#ggsave(plot=plots_legend, bg = "white" , here::here("figures", "flam_pv_field_fgroups"), device="jpg")
 ```
 #-------------
 

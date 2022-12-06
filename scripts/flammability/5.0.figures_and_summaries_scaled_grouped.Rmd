@@ -35,6 +35,8 @@ library(kableExtra)
 #devtools::install_github("hohenstein/remef")
 library(remef)
 
+library(lmerTest)
+
 library(kableExtra)
 
 filter = dplyr::filter
@@ -202,8 +204,11 @@ mem_data_all <- mem_data_all %>%
 mem_data_all_r <- mem_data_all%>% drop_na(mpa_scaled, lfm_scaled, sample_wt_scaled, fh, gd)
 
 tti_mod <- lmer(tti ~ spp*mpa_scaled + spp*lfm_scaled + site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all_r)
+#anova(tti_mod)
 
 tti_mod_fgroup <- lmer(tti ~ F.Group*mpa_scaled + F.Group*lfm_scaled + site + year_month + sample_wt_scaled + (1|individual), data = mem_data_all_r)
+
+#anova(tti_mod_fgroup)
 
 r_tti_mpa <- remef(tti_mod, fix = c("sample_wt_scaled", "lfm_scaled", "site"), ran = list(individual = c("(Intercept)"))) # Using Remef for plots with MPa
 r_tti_lfm <- remef(tti_mod, fix = c("mpa_scaled", "sample_wt_scaled", "site"), ran = list(individual = c("(Intercept)"))) # Using Remef for plots with LFM
@@ -996,7 +1001,8 @@ spp_estimates <- tidy_data  %>%
   geom_segment(aes(x= lwr, xend = upr, y = species, yend = species, color = species))+
   labs(y = "", 
        color = "Species", 
-       x = "Estimate") +
+       x = "Estimate", 
+       title = "Spp estimates with CECO") +
     facet_wrap(~y_var_name, scales = "free") + 
 theme(
   strip.background = element_blank(),
@@ -1005,7 +1011,7 @@ theme(
 )+
   geom_vline(xintercept = 0,
              linetype="dotted") +
-  color_many2 
+  color_many2
 spp_estimates
 
 ggsave(plot=spp_estimates, bg = "white" , here::here("figures", "spp_estimates_flam_metrics_withceco.jpeg"), device="jpg")
@@ -1051,6 +1057,7 @@ tab_model(tti_mod_fgroup, fh_mod_fgroup, gd_mod_fgroup, prop_ignite_mod,
   ---------------------------------------------------------------------------------------
  | NOTE: For standard error, should we do +/-0.5*standard error  or +/- standard error ? |
   ---------------------------------------------------------------------------------------
+  
 ## Statistical tests
 ### ANOVA Tests
 ```{r}
@@ -1466,6 +1473,7 @@ ST.slopes <- c(7.4, -0.057, 6.4, 9.3, 0.55, -1.7, -4.5, -2.3, -1.2, -3.7, 16, 18
 ST.yints <- c(93, 78, 90, 73, 24, 37, 43, 43, 32, 38, 130, 140, 140, 190, 130)
 ST.r2 <- c(0.089, 0.0000071, 0.11, 0.077, 0.006, 0.065, 0.35, 0.16, 0.025, 0.35, 0.14, 0.14, 0.032, 0.043, 0.0028)
 ST.df <- data.frame(ST.flam.metric, ST.spp, ST.slopes, ST.yints, ST.r2)
+ST.df
 ```
 
 ```{r}
