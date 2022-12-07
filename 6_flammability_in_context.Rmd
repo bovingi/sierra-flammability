@@ -34,9 +34,114 @@ source(here::here("scripts", "scripts_functions", "figure_info_sierra_flammabili
 
 Goal here is to make a plot that shows flammability over time: 
 
-1. 
+1. Get a df of field LFM and MPa values
+2. Use best lm to predict TTI, FH, and Max temp from corresponding LFM/Mpa
+#Data: 
+```{r}
+field_data_all_6 <- read_csv(here("processed-data", "analysis 2.0","field_data_2020_2021.csv")) %>% 
+  select(spp, lfm, year, month, water_potential, site, wet_weight, unique_id, date) %>% 
+  mutate(lfm_scaled = scale(lfm), 
+         mpa_scaled = scale(water_potential), 
+         mpa = water_potential, 
+         year_month = paste(year, month, sep = "_", collapse = NULL), 
+         sample_wt_scaled = scale(wet_weight), 
+         individual = unique_id, 
+         spp = tolower(spp)) %>% 
+  filter(spp != "ceco") %>% 
+  drop_na(spp)
+```
+
+#TTI
 
 ```{r}
+#tti_mod <- lmer(tti ~ spp*mpa_scaled + spp*lfm_scaled + site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all)
+#summary(tti_mod)
+#str(mem_data_all)
 
+tti_mod <- lm(tti ~ spp*mpa_scaled + spp*lfm_scaled + sample_wt_scaled, data = mem_data_all)
+summary(tti_mod)
+
+tti_df <- field_data_all_6 %>% 
+  modelr::add_predictions(tti_mod)
+
+tti_pred <- tti_df %>% 
+  filter(year == 2021) %>% 
+ggplot() +
+  geom_point(aes(y = pred*-1, 
+                 x = date, 
+                 color = spp)) +
+  geom_smooth(aes(y = pred*-1, x = date, color = spp)) +
+  theme(legend.position = "none") +
+  labs(y = "Ignitability")
+tti_pred
+```
+
+#FH:
+```{r}
+fh_mod <- lm(fh ~ spp*mpa_scaled + spp*lfm_scaled 
+             + site
+            # + sample_wt_scaled, 
+             ,data = mem_data_all)
+
+fh_df <- field_data_all_6 %>% 
+  modelr::add_predictions(fh_mod)
+
+fh_pred <- fh_df %>% 
+  filter(year == 2021) %>% 
+ggplot() +
+  geom_point(aes(y = pred, 
+                 x = date, 
+                 color = spp)) +
+  geom_smooth(aes(y = pred, x = date, color = spp)) +
+  theme(legend.position = "none") +
+  labs(y = "Flame Height")
+fh_pred
+```
+
+#Temp change
+
+```{r}
+temp_mod <- lm(temp_change ~ spp*mpa_scaled + spp*lfm_scaled 
+              +  site 
+             # + year_month 
+              + sample_wt_scaled 
+              #+ (1 | individual)
+              , data = mem_data_all)
+
+temp_df <- field_data_all_6 %>% 
+  modelr::add_predictions(temp_mod)
+
+temp_pred <- temp_df %>% 
+  filter(year == 2021) %>% 
+ggplot() +
+  geom_point(aes(y = pred, 
+                 x = date, 
+                 color = spp)) +
+  geom_smooth(aes(y = pred, x = date, color = spp)) +
+  theme(legend.position = "none") +
+  labs(y = "Temp Change")
+```
+
+##Combine together: 
+
+```{r}
+leg_plot<- temp_df %>% 
+ggplot() +
+  geom_point(aes(y = pred, 
+                 x = date, 
+                 color = spp)) +
+  geom_smooth(aes(y = pred, x = date, color = spp))
+```
+
+```{r}
+legend <- cowplot::get_legend(leg_plot)
+
+plots <- cowplot::plot_grid(tti_pred, fh_pred, temp_pred,
+                                   ncol = 1
+                                   #, rel_heights = c(0.9, 10, 9.95, 10)
+                                   )
+
+legend_plots <- cowplot::plot_grid(plots, legend, ncol = 2, rel_widths = c(4,1))
+legend_plots
 ```
 
