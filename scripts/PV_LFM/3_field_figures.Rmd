@@ -863,8 +863,8 @@ field_data_2021 <- field_data_fig_2 %>%
   ) %>% 
  drop_na(spp, Species) %>% 
   mutate(age_labs = case_when(
-    age_new %in% c("new") ~ "current year", 
-    age_new %in% c("old") ~ "previous year", 
+    age_new %in% c("new") ~ "Current Year", 
+    age_new %in% c("old") ~ "Previous Year", 
     TRUE ~ as.character(age)
   )
   )
@@ -938,9 +938,10 @@ phenoplot2
 ```
 
 ### Combining Phenology and Boxplots
+
 Function:
 ```{r}
-pheno.boxplot.vis <- function(species, phenophases, max.y = 350){
+pheno.boxplot.vis <- function(species, phenophases, max.y = 350, colors){
   
 df1 <- field_data_2021 %>%
   mutate(month = case_when(
@@ -985,17 +986,20 @@ p1 <- ggplot(data = df1, aes(x = month, y = lfm)) +
     axis.text.x = element_text(
       angle = 30,
       hjust = 1,
-      size = 10),
-    axis.title.y = element_text(face = "bold"),
+      size = 16),
     axis.title.x = element_blank(),
+    axis.title.y = element_text(face = "bold", size = 16),
+    axis.text.y = element_text(size = 12),
     legend.title = element_text(face = "bold"),
-    strip.text = element_text(face = "italic")) +
+    strip.text = element_text(face = "italic", size = 14),
+    legend.position = 'none') +
   labs(y = "Live Fuel Moisture",
        fill = "Tissue Status")
 
 p2 <- ggplot2::ggplot(data = df3, aes(x = date, y = lfm, color = phenophase_name)) +
   geom_line(alpha = 1, size = 4) +
-  theme(aspect.ratio = 1/30,
+  scale_color_manual(values = colors) +
+  theme(aspect.ratio = 1/20,
         legend.position = 'none',
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
@@ -1010,11 +1014,11 @@ return(p3)
   }
 ```
 
-QUKE
+QUKE:
+QUKE wasn't working in the function because of the lack of samples in April
 ```{r}
 df1 <- field_data_2021 %>%
   mutate(month = case_when(
-    date == '2021-04-24' ~ "April",
     date == '2021-05-14' ~ "May",
     date == '2021-05-15' ~ "May",
     date == '2021-06-15' ~ "June",
@@ -1033,7 +1037,7 @@ df1 <- field_data_2021 %>%
   filter(age != "both",
          lfm < 350,
          spp == "QUKE")
-df1$month <- factor(df1$month, levels = c("April", "May", "June", "E. July",
+df1$month <- factor(df1$month, levels = c("May", "June", "E. July",
                                           "L. July", "Aug.", "Sept.", "Oct."))
 df2 <- field_data_all_3 %>% 
   filter(spp == "QUKE")
@@ -1047,23 +1051,26 @@ p1 <- ggplot(data = df1, aes(x = month, y = lfm)) +
   geom_hline(aes(yintercept  = mean_lfm),
              linetype = "dotted") +
   scale_y_continuous(limits = c(0, 260)) +
-  facet_wrap(~spp) +
+  facet_wrap(~spp, labeller = labeller(spp = spp.labs)) +
   theme(axis.ticks.x = element_blank(),
     axis.text.x = element_text(
       angle = 30,
       hjust = 1,
-      size = 10),
-    axis.title = element_text(face = "bold"),
+      size = 16),
+    axis.title.y = element_text(face = "bold", size = 16),
+    axis.text.y = element_text(size = 12),
+    axis.title.x = element_blank(),
     legend.title = element_text(face = "bold"),
-    strip.text = element_text(face = "italic")) +
+    strip.text = element_text(face = "italic", size = 14),
+    legend.position = 'none') +
   labs(y = "Live Fuel Moisture",
-       x = "Date",
        fill = "Tissue Status")
 p1
 
 p2 <- ggplot2::ggplot(data = df3, aes(x = date, y = lfm, color = phenophase_name)) +
   geom_line(alpha = 1, size = 4) +
-  theme(aspect.ratio = 1/30,
+  scale_color_manual(values = c("lightblue", "orange")) +
+  theme(aspect.ratio = 1/20,
         legend.position = 'none',
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
@@ -1073,33 +1080,89 @@ p2 <- ggplot2::ggplot(data = df3, aes(x = date, y = lfm, color = phenophase_name
         panel.background = element_rect(fill = 'white'))
 p2
 
-p3 <- p1 + annotation_custom(ggplotGrob(p2), xmin = "May", xmax = "Oct.",
+p.quke <- p1 + annotation_custom(ggplotGrob(p2), xmin = "May", xmax = "Oct.",
                        ymin = -10, ymax = 30)
-p3
+p.quke
 ```
 
-# MAIN
+Legends:
+```{r}
+# Phenophase legend:
+df.leg <- pheno_fig %>%
+  filter(phenophase_name %in% c("Breaking needle buds", "Young needles", "Emerging needles", "Pollen cones", "Pollen release", "Breaking leaf buds", "Young leaves", "Increasing leaf size"))
+df.leg$phenophase_name <- factor(df.leg$phenophase_name, levels = c("Breaking needle buds", "Young needles", "Emerging needles", "Pollen cones", "Pollen release", "Breaking leaf buds", "Young leaves", "Increasing leaf size"))
+
+legend.plot <- ggplot() +
+  geom_line(aes(y = lfm, x = date, color = phenophase_name), alpha = 1, 
+            data = df.leg, size = 4, position=position_dodge(w=1)) +
+  labs(color = "Phenophase") +
+  scale_color_manual(values = c("darkblue", "lightgreen", "gray", "brown", "gold", "lightblue", "darkgreen", "orange")) + #Holder color palette, matched to the phenophase vector above
+  theme(legend.position = 'top',
+        legend.title = element_text(face = 'bold'))
+legend.plot
+
+legend <- cowplot::get_legend(legend.plot)
+
+# Boxplot legend:
+legend.plot2 <- ggplot(data = field_data_2021, aes(x = date, y = lfm)) +
+  geom_boxplot(aes(fill = age_labs)) +
+  labs(fill = "Tissue Status") +
+  theme(legend.position = 'top',
+        legend.title = element_text(face = 'bold'))
+legend.plot2
+
+legend2 <- cowplot::get_legend(legend.plot2)
+```
+
+
 ```{r}
 abco.phenophases <- c("Breaking needle buds", "Young needles")
-p.abco <- pheno.boxplot.vis(species = "ABCO", phenophases = abco.phenophases)
+abco.colors <- c("darkblue", "lightgreen")
+p.abco <- pheno.boxplot.vis(species = "ABCO", phenophases = abco.phenophases,
+                            colors = abco.colors)
 
 pije.phenophases <- c("Emerging needles", "Young needles")
-p.pije <- pheno.boxplot.vis(species = "PIJE", phenophases = pije.phenophases)
+pije.colors <- c("lightgreen", "gray")
+p.pije <- pheno.boxplot.vis(species = "PIJE", phenophases = pije.phenophases,
+                            colors = pije.colors)
 
 cade.phenophases <- c("Pollen release", "Pollen cones")
-p.cade <- pheno.boxplot.vis(species = "CADE", phenophases = cade.phenophases, max.y = 150)
+cade.colors <- c("brown", "gold")
+p.cade <- pheno.boxplot.vis(species = "CADE", phenophases = cade.phenophases,
+                            max.y = 150, colors = cade.colors)
 
 arpa.phenophases <- c("Breaking leaf buds", "Young leaves")
-p.arpa <-pheno.boxplot.vis(species = "ARPA", phenophases = arpa.phenophases, max.y = 210)
+arpa.colors <- c("lightblue", "darkgreen")
+p.arpa <-pheno.boxplot.vis(species = "ARPA", phenophases = arpa.phenophases,
+                           max.y = 210, colors = arpa.colors)
 
 ceco.phenophases <- c("Young leaves")
-p.ceco <- pheno.boxplot.vis(species = "CECO", phenophases = ceco.phenophases, max.y = 260)
+ceco.colors <- c("darkgreen")
+p.ceco <- pheno.boxplot.vis(species = "CECO", phenophases = ceco.phenophases,
+                            max.y = 260, colors = ceco.colors)
 
-# Not working
-quke.phenophases <- c("Breaking leaf buds", "Increasing leaf size")
-p.quke <- pheno.boxplot.vis(species = "QUKE", phenophases = quke.phenophases, max.y = 260)
+```
 
-ggarrange(p.abco, p.pije, p.cade, p.ceco, p.arpa, p.quke, common.legend = T)
+```{r}
+# I ended up doing some odd cowplot stuff here to get the final product we wanted
+p.spp <- cowplot::plot_grid(p.abco, p.pije, p.cade, p.ceco, p.arpa, p.quke, ncol = 3)
+p.spp
+ggsave(here("figures", "phenophase.lfm.boxplot.jpg"),
+       height = 10, width = 15,
+       plot = p.spp)
+
+blank_plot <- ggplot(data = df1, aes(x = lfm, y = week)) +
+  geom_point(color = 'white') +
+  theme_void()
+
+legends <- cowplot::plot_grid(blank_plot, legend, legend2, ncol = 1,
+                              rel_heights = c(3, 1, 1))
+legends
+ggsave(here("figures", "phenophase.lfm.legends.jpg"),
+       height = 2, width = 7,
+       plot = legends)
+
+# For some strange reason, I could not get the legends and the plots to mesh together with cowplot or ggarrange... I ended up just stitching them together on Google Slides
 ```
 
 
