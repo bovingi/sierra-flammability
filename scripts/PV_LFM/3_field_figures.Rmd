@@ -1,5 +1,5 @@
 ---
-title: "Untitled"
+title: "Field Figures"
 author: "Indra Boving"
 date: "1/29/2022"
 output: html_document
@@ -460,6 +460,7 @@ field_data_all_3 %>%
   #scale_color_gradientn(colors=met.brewer("Morgenstern"))
 ```
 ####LFM by MPa (date)
+NOTE: Error popping up here -- 'seg_psi_df not found'
 ```{r}
 #ribbon values: 
 mpa_summs <- pv_summaries %>% 
@@ -935,6 +936,172 @@ phenoplot2 <- ggplot() +
 
 phenoplot2
 ```
+
+### Combining Phenology and Boxplots
+Function:
+```{r}
+pheno.boxplot.vis <- function(species, phenophases, max.y = 350){
+  
+df1 <- field_data_2021 %>%
+  mutate(month = case_when(
+    date == '2021-04-24' ~ "April",
+    date == '2021-05-14' ~ "May",
+    date == '2021-05-15' ~ "May",
+    date == '2021-06-15' ~ "June",
+    date == '2021-06-16' ~ "June",
+    date == '2021-07-08' ~ "E. July",
+    date == '2021-07-09' ~ "E. July",
+    date == '2021-07-30' ~ "L. July",
+    date == '2021-07-31' ~ "L. July",
+    date == '2021-08-19' ~ "Aug.",
+    date == '2021-08-20' ~ "Aug.",
+    date == '2021-09-16' ~ "Sept.",
+    date == '2021-09-17' ~ "Sept.",
+    date == '2021-10-16' ~ "Oct.",
+    date == '2021-10-17' ~ "Oct."
+  )) %>% 
+  filter(age != "both",
+         lfm < 350,
+         spp == species)
+
+df1$month <- factor(df1$month, levels = c("April", "May", "June", "E. July",
+                                          "L. July", "Aug.", "Sept.", "Oct."))
+
+df2 <- field_data_all_3 %>% 
+  filter(spp == species)
+mean_lfm <- mean(df2$mean_lfm_fall_spp)
+
+df3 <- pheno_fig %>%
+  filter(spp == species) %>% 
+  filter(phenophase_name %in% phenophases)
+
+p1 <- ggplot(data = df1, aes(x = month, y = lfm)) +
+  geom_boxplot(aes(fill = age_labs)) +
+  geom_hline(aes(yintercept  = mean_lfm),
+             linetype = "dotted") +
+  scale_y_continuous(limits = c(0, max.y)) +
+  facet_wrap(~spp, labeller = labeller(spp = spp.labs)) +
+  theme(axis.ticks.x = element_blank(),
+    axis.text.x = element_text(
+      angle = 30,
+      hjust = 1,
+      size = 10),
+    axis.title.y = element_text(face = "bold"),
+    axis.title.x = element_blank(),
+    legend.title = element_text(face = "bold"),
+    strip.text = element_text(face = "italic")) +
+  labs(y = "Live Fuel Moisture",
+       fill = "Tissue Status")
+
+p2 <- ggplot2::ggplot(data = df3, aes(x = date, y = lfm, color = phenophase_name)) +
+  geom_line(alpha = 1, size = 4) +
+  theme(aspect.ratio = 1/30,
+        legend.position = 'none',
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.title = element_blank(),
+        axis.text = element_blank(),
+        axis.ticks = element_blank(),
+        panel.background = element_rect(fill = 'white'))
+
+p3 <- p1 + annotation_custom(ggplotGrob(p2), xmin = "April", xmax = "Oct.",
+                       ymin = -10, ymax = 30)
+return(p3)
+  }
+```
+
+QUKE
+```{r}
+df1 <- field_data_2021 %>%
+  mutate(month = case_when(
+    date == '2021-04-24' ~ "April",
+    date == '2021-05-14' ~ "May",
+    date == '2021-05-15' ~ "May",
+    date == '2021-06-15' ~ "June",
+    date == '2021-06-16' ~ "June",
+    date == '2021-07-08' ~ "E. July",
+    date == '2021-07-09' ~ "E. July",
+    date == '2021-07-30' ~ "L. July",
+    date == '2021-07-31' ~ "L. July",
+    date == '2021-08-19' ~ "Aug.",
+    date == '2021-08-20' ~ "Aug.",
+    date == '2021-09-16' ~ "Sept.",
+    date == '2021-09-17' ~ "Sept.",
+    date == '2021-10-16' ~ "Oct.",
+    date == '2021-10-17' ~ "Oct."
+  )) %>% 
+  filter(age != "both",
+         lfm < 350,
+         spp == "QUKE")
+df1$month <- factor(df1$month, levels = c("April", "May", "June", "E. July",
+                                          "L. July", "Aug.", "Sept.", "Oct."))
+df2 <- field_data_all_3 %>% 
+  filter(spp == "QUKE")
+mean_lfm <- mean(df2$mean_lfm_fall_spp)
+df3 <- pheno_fig %>%
+  filter(spp == "QUKE") %>% 
+  filter(phenophase_name %in% c("Breaking leaf buds", "Increasing leaf size"))
+
+p1 <- ggplot(data = df1, aes(x = month, y = lfm)) +
+  geom_boxplot(aes(fill = age_labs)) +
+  geom_hline(aes(yintercept  = mean_lfm),
+             linetype = "dotted") +
+  scale_y_continuous(limits = c(0, 260)) +
+  facet_wrap(~spp) +
+  theme(axis.ticks.x = element_blank(),
+    axis.text.x = element_text(
+      angle = 30,
+      hjust = 1,
+      size = 10),
+    axis.title = element_text(face = "bold"),
+    legend.title = element_text(face = "bold"),
+    strip.text = element_text(face = "italic")) +
+  labs(y = "Live Fuel Moisture",
+       x = "Date",
+       fill = "Tissue Status")
+p1
+
+p2 <- ggplot2::ggplot(data = df3, aes(x = date, y = lfm, color = phenophase_name)) +
+  geom_line(alpha = 1, size = 4) +
+  theme(aspect.ratio = 1/30,
+        legend.position = 'none',
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.title = element_blank(),
+        axis.text = element_blank(),
+        axis.ticks = element_blank(),
+        panel.background = element_rect(fill = 'white'))
+p2
+
+p3 <- p1 + annotation_custom(ggplotGrob(p2), xmin = "May", xmax = "Oct.",
+                       ymin = -10, ymax = 30)
+p3
+```
+
+# MAIN
+```{r}
+abco.phenophases <- c("Breaking needle buds", "Young needles")
+p.abco <- pheno.boxplot.vis(species = "ABCO", phenophases = abco.phenophases)
+
+pije.phenophases <- c("Emerging needles", "Young needles")
+p.pije <- pheno.boxplot.vis(species = "PIJE", phenophases = pije.phenophases)
+
+cade.phenophases <- c("Pollen release", "Pollen cones")
+p.cade <- pheno.boxplot.vis(species = "CADE", phenophases = cade.phenophases, max.y = 150)
+
+arpa.phenophases <- c("Breaking leaf buds", "Young leaves")
+p.arpa <-pheno.boxplot.vis(species = "ARPA", phenophases = arpa.phenophases, max.y = 210)
+
+ceco.phenophases <- c("Young leaves")
+p.ceco <- pheno.boxplot.vis(species = "CECO", phenophases = ceco.phenophases, max.y = 260)
+
+# Not working
+quke.phenophases <- c("Breaking leaf buds", "Increasing leaf size")
+p.quke <- pheno.boxplot.vis(species = "QUKE", phenophases = quke.phenophases, max.y = 260)
+
+ggarrange(p.abco, p.pije, p.cade, p.ceco, p.arpa, p.quke, common.legend = T)
+```
+
 
 
 ```{r}
