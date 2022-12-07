@@ -1,0 +1,42 @@
+v---
+title: "Visualizations and Summaries - Figures"
+author: "Indra Boving & Joe Celebrezze"
+date: "6/21/2022"
+output: html_document
+---
+
+# Setup
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(ggplot2)
+library(tidyverse)
+library(ggpubr)
+library(cowplot)
+#library(strengejacke)
+library(sjPlot) # table functions
+library(here)
+library("broom.mixed")
+library(nlme)
+library(lme4)
+library(remef)
+library(kableExtra)
+
+#some weird functions:
+filter = dplyr::filter
+mutate = dplyr::mutate
+select = dplyr::select
+here = here::here
+group_by = dplyr::group_by
+
+source(here::here("scripts", "scripts_functions", "figure_info_sierra_flammability.R")) #color and theme info is here
+```
+
+Goal here is to make a plot that shows flammability over time: 
+
+1. 
+
+```{r}
+
+```
+

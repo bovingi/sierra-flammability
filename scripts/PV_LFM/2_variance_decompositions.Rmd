@@ -161,7 +161,7 @@ lm(maxLFM ~ time)
 R^2 full = R^2 spp + R^2 time + R^2 spp * time)
 
 ```{r}
-m1 <- lmer(maxLFM ~ spp + year + (1|plant), data = pv_all_df) 
+m1 <- lmer(maxLFM ~ spp * year + (1|plant), data = pv_all_df) 
 # NOTE: Did we decide against or for an interaction term? I believe the following is how to caclulate the relative contributions of variables to the R2 with an interaction term, but I am not sure how to do it with spp + year...
 m2 <- lmer(maxLFM ~ spp + (1|plant), data = pv_all_df)
 m3 <- lmer(maxLFM ~ year + (1|plant), data = pv_all_df)
@@ -185,7 +185,7 @@ mod_all_df <- mod_all_df1 %>%
     time_effect = m1 - m3, #m2, #week + mpa mod - mpa mod
          spp_effect = m1 - m2, #week + mpa mod - week mod
          full_mod = m1, #week + mpa mod 
-    spp_AND_time_effects =  m1 - (time_effect - spp_effect),
+    spp_AND_time_effects =  m1 - (time_effect + spp_effect),
          ) #full minus the effects of mpa and week alone
 mod_all_df
 
@@ -535,7 +535,7 @@ mod_all_df <- mod_all_df1 %>%
     time_effect = m1 - m2, #week + mpa mod - mpa mod
          spp_effect = m1 - m3, #week + mpa mod - week mod
          full_mod = m1, #week + mpa mod 
-    spp_AND_time_effects =  m1 - (time_effect = spp_effect)
+    spp_AND_time_effects =  m1 - (time_effect + spp_effect)
          ) #full minus the effects of mpa and week alone
 mod_all_df
 
@@ -883,10 +883,10 @@ mod_all_df <- mod_all_df1 %>%
               values_from = r2m) %>% 
   mutate(
     #spp_AND_time_effects =  m3 - week_effect - mpa_effect,
-    time_effect = m3, #week + mpa mod - mpa mod
-         spp_effect = m2, #week + mpa mod - week mod
+    time_effect = m1 - m2, #week + mpa mod - mpa mod
+         spp_effect = m1 - m3, #week + mpa mod - week mod
          full_mod = m1, #week + mpa mod 
-    spp_AND_time_effects =  m1 - m2 - m3,
+    spp_AND_time_effects =  m1 - (time_effect + spp_effect)
          ) #full minus the effects of mpa and week alone
 mod_all_df
 
@@ -1168,7 +1168,7 @@ p <- mod_all_df1 %>%
     time_effect = m1 - (m4), #week + mpa mod - mpa mod
          mpa_effect = m1 - (m3), #week + mpa mod - week mod
         # spp_effect = m1 - (m4 - m3), #week + mpa mod 
-    mpa_AND_time_effects =  m1 - (time_effect - mpa_effect),
+    mpa_AND_time_effects =  m1 - (time_effect + mpa_effect),
     time_mpa_effect = m1
          ) %>% #full minus the effects of mpa and week alone  
   select(time_effect, mpa_effect, time_mpa_effect, mpa_AND_time_effects, #spp_effect
