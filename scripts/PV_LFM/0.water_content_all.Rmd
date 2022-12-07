@@ -310,7 +310,8 @@ tlp_summary_timing <- pv_allcurves_data_clean %>%
 
 pv_summary_spp <- pv_allcurves_data_clean %>%
   filter(timing == "fall", 
-         year == 2021) %>% 
+         #year == 2021
+         ) %>% 
   group_by(spp) %>% 
   summarise(n=n(), mean_tlp_fall_spp=mean(tlp),sd_fall_spp=sd(tlp), 
              mean_po_fall_spp=mean(po),sd_fall_spp=sd(po))
@@ -324,7 +325,8 @@ tlp_summary_timing_lfm <- pv_allcurves_data_clean %>%
 
 tlp_summary_spp_lfm <- pv_allcurves_data_clean %>%
   filter(timing == "fall", 
-         year == 2021) %>% 
+        # year == 2021
+         ) %>% 
   group_by(spp) %>% 
   summarise(n=n(), mean_lfm_fall_spp=mean(lfm),sd_lfm_fall_spp=sd(lfm))
 ```

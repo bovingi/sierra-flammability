@@ -407,6 +407,9 @@ field_data_all_3 %>%
 ```
 #-----------------------------------------------
 #Nice FIgures
+```{r}
+unique(field_data_all_3$year)
+```
 
 #### LFM by MPa (species)
 ```{r}
@@ -417,7 +420,7 @@ field_data_all_3 <- field_data_all_3 %>%
   ))
 
 field_data_all_3 %>%
-  filter(month < 10) %>% #removing post-rain values (October sample collection)
+  #filter(month < 10) %>% #removing post-rain values (October sample collection)
   mutate(spp = fct_relevel(spp, "ABCO", "PIJE", "CADE", "CECO", "ARPA", "QUKE"))  %>%
   mutate(month = month(date, label = TRUE, abbr = TRUE)) %>%
   ggplot(aes(
@@ -426,21 +429,22 @@ field_data_all_3 %>%
     shape = Age
   )) +
   geom_point(size = 1.4, alpha = .65, aes(color = as.factor(month))) +
-  geom_smooth(se = F, method = 'lm', size = 0.5, alpha = .6, color = 'black', aes(lty = Age), show_guide = F) +
+ # geom_smooth(se = F, method = 'lm', size = 0.5, alpha = .6, color = 'black', aes(lty = Age), show_guide = F) +
   geom_vline(
-    aes(xintercept = mean_tlp_spp, lty = Species),
+    aes(xintercept = mean_tlp_spp, #lty = Species
+        ),
     size = 0.7,
     color = 'black',
     alpha = .6,
     show_guide = F
   ) +
-  geom_hline(
-    aes(yintercept = mean_lfm_fall_spp, lty = Species),
-    size = 0.7,
-    color = 'black',
-    alpha = .6,
-    show_guide = F
-  ) +
+  # geom_hline(
+  #   aes(yintercept = mean_lfm_fall_spp, lty = Species),
+  #   size = 0.7,
+  #   color = 'black',
+  #   alpha = .6,
+  #   show_guide = F
+  # ) +
   #stat_smooth(aes(x = LFM, y = predawn, colour = Date, linetype = "Linear Fit"), method = "lm")
   xlim(-5, 0) +
   labs(
@@ -450,7 +454,7 @@ field_data_all_3 %>%
   ) +
   ylim(50, 300) +
   facet_wrap( ~ spp, labeller = labeller(spp = spp.labs)) +
-  scale_color_brewer(palette = "YlOrRd") +
+ color_all +
   theme(
     strip.text = element_text(face = "italic"),
     axis.title = element_text(face = "bold"),
