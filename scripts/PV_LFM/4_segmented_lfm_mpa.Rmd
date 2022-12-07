@@ -101,10 +101,16 @@ field_data_all_4 <- read_csv(here("processed-data", "analysis 2.0", "field_data_
   )) %>% 
   filter(lfm < 300, 
          lfm > 70, 
-         age == "new") %>% 
+         #age == "new"
+         ) %>% 
   mutate(upr_lfm = mean_lfm_fall_spp + (sd_lfm_fall_spp/2), 
          lwr_lfm = mean_lfm_fall_spp - (sd_lfm_fall_spp/2))
 
+unique(field_data_all_4$year)
+```
+
+
+```{r}
 field_data_angio <- field_data_all_4 %>% 
   filter(strategy_binary == 2)
   
@@ -603,7 +609,7 @@ mpa_p <- c(rep(NaN, 4))
 seg_psi_norand_df <- tibble::data_frame(mpa_psi, mpa_se, mpa_p)
 
 #With random
-field_segment_df <- field_segment_angio_df %>% 
+field_segment_angio_df <- field_segment_angio_df %>% 
   drop_na(mpa, lfm) %>% 
   mutate(id = unique_id)
 
@@ -719,7 +725,7 @@ mpa_p <- c(rep(NaN, 4))
 seg_psi_norand_df <- tibble::data_frame(mpa_psi, mpa_se, mpa_p)
 
 #With random
-field_segment_df <- field_segment_gymno_df %>% 
+field_segment_gymno_df <- field_segment_gymno_df %>% 
   drop_na(mpa, lfm) %>% 
   mutate(id = unique_id)
 
@@ -791,12 +797,12 @@ ggplot(aes(x = mpa,
               fill = "red", 
               color = "red", 
               alpha = .5) +
-  geom_ribbon(aes(xmin = seg_psi_df$lwr, 
-                  xmax = seg_psi_df$upr), 
-              fill = "pink", 
-              color = "pink", 
-              alpha = .5)   +
-  geom_vline(xintercept  = seg_psi_df$mpa_psi, color = "pink", size = 2) +
+  # geom_ribbon(aes(xmin = seg_psi_df$lwr, 
+  #                 xmax = seg_psi_df$upr), 
+  #             fill = "pink", 
+  #             color = "pink", 
+  #             alpha = .5)   +
+ # geom_vline(xintercept  = seg_psi_df$mpa_psi, color = "pink", size = 2) +
    geom_vline(xintercept  = seg_psi_norand_df$mpa_psi, color = "red", size = 2) +
   geom_vline(xintercept  = seg_psi_norand_df$mpa_psi, linetype = "dotted") +
   #geom_vline(xintercept  = field_data_gymno$mean_tlp_spp, colour = "blue") +
