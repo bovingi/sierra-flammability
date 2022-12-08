@@ -817,36 +817,38 @@ phenoplot1 <- ggplot() +
 
 phenoplot1
 ```
+
 For figure with lfm boxplots: 
+# Pheno_fig df wrangle
 ```{r}
 pheno_fig <- pheno_df %>% 
   filter(#category %in% c("Leaves", "Needles"), 
          phenophase_status == "Yes") %>% 
   mutate(lfm = case_when(
-    phenophase_name == "Young leaves" ~ 30, 
-    phenophase_name == "Young needles" ~ 30, 
+    phenophase_name == "Young leaves" ~ 20, 
+    phenophase_name == "Young needles" ~ 20, 
     phenophase_name == "Breaking leaf buds" ~ 10,
     phenophase_name == "Breaking needle buds" ~ 10,
-    phenophase_name == "Emerging needles" ~ 20, 
-    phenophase_name == "Increasing leaf size" ~ 20, 
+    phenophase_name == "Emerging needles" ~ 30, 
+    phenophase_name == "Increasing leaf size" ~ 30, 
     phenophase_name == "Leaves" ~ 40, 
     phenophase_name == "Colored leaves" ~ 50,
-    #phenophase_name == "Flowers or flower buds" ~ 75, 
+    phenophase_name == "Flowers or flower buds" ~ 30, 
    # phenophase_name == "Open flowers" ~ 76,
-    phenophase_name == "Pollen cones" ~ 60,
-    phenophase_name == "Pollen release" ~ 70, 
+    phenophase_name == "Pollen cones" ~ 40,
+    phenophase_name == "Pollen release" ~ 50, 
    # phenophase_name == "Fruits" ~ 78, 
    # phenophase_name == "Open pollen cones" ~ 86,
    # phenophase_name == "Unripe seed cones" ~ 90,
    # phenophase_name == "Recent fruit of seed drop" ~95,
-    phenophase_name == "Ripe fruits" ~ 80,
+    phenophase_name == "Ripe fruits" ~ 40,
   #  phenophase_name == "Ripe seed codes" ~ 91
   TRUE ~ NA_real_
   )) %>% 
   mutate(week = week(date)) %>% 
   select(phenophase_name, lfm, date, week, spp) %>% 
   drop_na(lfm) %>% mutate(Species = case_when(
-     spp == "ABCO" ~ "A. concolor",
+    spp == "ABCO" ~ "A. concolor",
     spp == "PIJE" ~ "P. jeffreyi", 
     spp == "CADE" ~ "C. decurrens", 
     spp == "CECO" ~ "C. cordulatus", 
@@ -971,9 +973,34 @@ phenoplot2
 
 ### Combining Phenology and Boxplots
 
-Function:
+Phenology df data wrangling:
 ```{r}
-pheno.boxplot.vis <- function(species, phenophases, max.y = 350, colors){
+pheno_fig2 <- pheno_fig %>% 
+  filter(phenophase_name %in% c("Breaking needle buds", "Young needles", "Emerging needles", "Pollen cones", "Pollen release", "Breaking leaf buds", "Young leaves", "Increasing leaf size", "Flowers or flower buds", "Fruits", "Ripe fruits")) %>% 
+  mutate(phenophase_name = case_when(
+    phenophase_name == "Breaking needle buds" ~ "Breaking buds",
+    phenophase_name == "Breaking leaf buds" ~ "Breaking buds",
+    phenophase_name == "Young needles" ~ "Young leaves",
+    phenophase_name == "Young leaves" ~ "Young leaves",
+    phenophase_name == "Emerging needles" ~ "Increasing leaf size",
+    phenophase_name == "Pollen cones" ~ "Pollen cones",
+    phenophase_name == "Pollen release" ~ "Pollen release",
+    phenophase_name == "Increasing leaf size" ~ "Increasing leaf size",
+    phenophase_name == "Flowers or flower buds" ~ "Flowers or flower buds",
+    phenophase_name == "Fruits" ~ "Fruits",
+    phenophase_name == "Ripe fruits" ~ "Ripe fruits"))
+```
+
+For aspect ratio of phenophases plots:
+```{r}
+two <- c(1/20, 4)
+three <- c(1/13, 3)
+four <- c(1/10, 2.75)
+```
+
+#Function:
+```{r}
+pheno.boxplot.vis <- function(species, phenophases, max.y = 350, colors, no.phenophases = two){
   
 df1 <- field_data_2021 %>%
   mutate(month = case_when(
@@ -1004,7 +1031,7 @@ df2 <- field_data_all_3 %>%
   filter(spp == species)
 mean_lfm <- mean(df2$mean_lfm_fall_spp)
 
-df3 <- pheno_fig %>%
+df3 <- pheno_fig2 %>%
   filter(spp == species) %>% 
   filter(phenophase_name %in% phenophases)
 
@@ -1029,9 +1056,9 @@ p1 <- ggplot(data = df1, aes(x = month, y = lfm)) +
        fill = "Tissue Status")
 
 p2 <- ggplot2::ggplot(data = df3, aes(x = date, y = lfm, color = phenophase_name)) +
-  geom_line(alpha = 1, size = 4) +
+  geom_line(alpha = 1, size = no.phenophases[2]) +
   scale_color_manual(values = colors) +
-  theme(aspect.ratio = 1/20,
+  theme(aspect.ratio = no.phenophases[1],
         legend.position = 'none',
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
@@ -1046,7 +1073,7 @@ return(p3)
   }
 ```
 
-QUKE:
+#QUKE:
 QUKE wasn't working in the function because of the lack of samples in April
 ```{r}
 df1 <- field_data_2021 %>%
@@ -1074,9 +1101,9 @@ df1$month <- factor(df1$month, levels = c("May", "June", "E. July",
 df2 <- field_data_all_3 %>% 
   filter(spp == "QUKE")
 mean_lfm <- mean(df2$mean_lfm_fall_spp)
-df3 <- pheno_fig %>%
+df3 <- pheno_fig2 %>%
   filter(spp == "QUKE") %>% 
-  filter(phenophase_name %in% c("Breaking leaf buds", "Increasing leaf size"))
+  filter(phenophase_name %in% c("Breaking buds", "Increasing leaf size", "Ripe fruits"))
 
 p1 <- ggplot(data = df1, aes(x = month, y = lfm)) +
   geom_boxplot(aes(fill = age_labs)) +
@@ -1100,9 +1127,9 @@ p1 <- ggplot(data = df1, aes(x = month, y = lfm)) +
 p1
 
 p2 <- ggplot2::ggplot(data = df3, aes(x = date, y = lfm, color = phenophase_name)) +
-  geom_line(alpha = 1, size = 4) +
-  scale_color_manual(values = c("lightblue", "orange")) +
-  theme(aspect.ratio = 1/20,
+  geom_line(alpha = 1, size = 3) +
+  scale_color_manual(values = c("lightblue", "darkslategray4", "darkred")) +
+  theme(aspect.ratio = 1/13,
         legend.position = 'none',
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
@@ -1117,18 +1144,18 @@ p.quke <- p1 + annotation_custom(ggplotGrob(p2), xmin = "May", xmax = "Oct.",
 p.quke
 ```
 
-Legends:
+#Legends:
 ```{r}
 # Phenophase legend:
-df.leg <- pheno_fig %>%
-  filter(phenophase_name %in% c("Breaking needle buds", "Young needles", "Emerging needles", "Pollen cones", "Pollen release", "Breaking leaf buds", "Young leaves", "Increasing leaf size"))
-df.leg$phenophase_name <- factor(df.leg$phenophase_name, levels = c("Breaking needle buds", "Young needles", "Emerging needles", "Pollen cones", "Pollen release", "Breaking leaf buds", "Young leaves", "Increasing leaf size"))
+df.leg <- pheno_fig2 %>%
+  filter(phenophase_name %in% c("Breaking buds", "Young leaves", "Increasing leaf size",  "Pollen release", "Pollen cones", "Ripe fruits", "Flowers or flower buds"))
+df.leg$phenophase_name <- factor(df.leg$phenophase_name, levels = c("Breaking buds", "Young leaves", "Increasing leaf size",  "Pollen release", "Pollen cones", "Ripe fruits", "Flowers or flower buds"))
 
 legend.plot <- ggplot() +
   geom_line(aes(y = lfm, x = date, color = phenophase_name), alpha = 1, 
             data = df.leg, size = 4, position=position_dodge(w=1)) +
   labs(color = "Phenophase") +
-  scale_color_manual(values = c("darkblue", "lightgreen", "gray", "brown", "gold", "lightblue", "darkgreen", "orange")) + #Holder color palette, matched to the phenophase vector above
+  scale_color_manual(values = c("lightblue", "lightgreen", "darkslategray4", "gold", "brown", "darkred", "deeppink")) + #Holder color palette, matched to the phenophase vector above
   theme(legend.position = 'top',
         legend.title = element_text(face = 'bold'))
 legend.plot
@@ -1148,33 +1175,34 @@ legend2 <- cowplot::get_legend(legend.plot2)
 
 
 ```{r}
-abco.phenophases <- c("Breaking needle buds", "Young needles")
-abco.colors <- c("darkblue", "lightgreen")
+abco.phenophases <- c("Breaking buds", "Young leaves")
+abco.colors <- c("lightblue", "lightgreen") # Based on above vector
 p.abco <- pheno.boxplot.vis(species = "ABCO", phenophases = abco.phenophases,
                             colors = abco.colors)
 
-pije.phenophases <- c("Emerging needles", "Young needles")
-pije.colors <- c("lightgreen", "gray")
+pije.phenophases <- c("Increasing leaf size", "Young leaves")
+pije.colors <- c("darkslategray4", "lightgreen")
 p.pije <- pheno.boxplot.vis(species = "PIJE", phenophases = pije.phenophases,
                             colors = pije.colors)
 
-cade.phenophases <- c("Pollen release", "Pollen cones")
+cade.phenophases <- c("Pollen cones", "Pollen release")
 cade.colors <- c("brown", "gold")
 p.cade <- pheno.boxplot.vis(species = "CADE", phenophases = cade.phenophases,
                             max.y = 150, colors = cade.colors)
 
-arpa.phenophases <- c("Breaking leaf buds", "Young leaves")
-arpa.colors <- c("lightblue", "darkgreen")
+arpa.phenophases <- c("Breaking buds", "Flowers or flower buds", "Ripe fruits", "Young leaves")
+arpa.colors <- c("lightblue", "deeppink", "darkred", "lightgreen")
 p.arpa <-pheno.boxplot.vis(species = "ARPA", phenophases = arpa.phenophases,
-                           max.y = 210, colors = arpa.colors)
+                           max.y = 210, colors = arpa.colors, no.phenophases = four)
 
-ceco.phenophases <- c("Young leaves")
-ceco.colors <- c("darkgreen")
+ceco.phenophases <- c("Flowers or flower buds", "Ripe fruits", "Young leaves")
+ceco.colors <- c("deeppink", "darkred", "lightgreen")
 p.ceco <- pheno.boxplot.vis(species = "CECO", phenophases = ceco.phenophases,
-                            max.y = 260, colors = ceco.colors)
+                            max.y = 260, colors = ceco.colors, no.phenophases = three)
 
 ```
 
+#Arrange
 ```{r}
 # I ended up doing some odd cowplot stuff here to get the final product we wanted
 p.spp <- cowplot::plot_grid(p.abco, p.pije, p.cade, p.ceco, p.arpa, p.quke, ncol = 3)
