@@ -598,15 +598,15 @@ field_segment_angio_df <- field_data_all_4 %>%
  # filter(lfm > 80, 
        #  lfm < 150)
 
-mpa_psi <- c(rep(NaN, 4))
-mpa_se <- c(rep(NaN, 4))
-seg_psi_df <- tibble::data_frame(mpa_psi, mpa_se)
+mpa_psi_angio <- c(rep(NaN, 4))
+mpa_se_angio <- c(rep(NaN, 4))
+seg_psi_df_angio <- tibble::data_frame(mpa_psi_angio, mpa_se_angio)
 
 
-mpa_psi <- c(rep(NaN, 4))
-mpa_se <- c(rep(NaN, 4))
-mpa_p <- c(rep(NaN, 4))
-seg_psi_norand_df <- tibble::data_frame(mpa_psi, mpa_se, mpa_p)
+mpa_psi_angio <- c(rep(NaN, 4))
+mpa_se_angio <- c(rep(NaN, 4))
+mpa_p_angio <- c(rep(NaN, 4))
+seg_psi_norand_df_angio <- tibble::data_frame(mpa_psi_angio, mpa_se_angio, mpa_p_angio)
 
 #With random
 field_segment_angio_df <- field_segment_angio_df %>% 
@@ -620,8 +620,8 @@ os_mod<-segmented.default(o_mod, ~mpa, npsi=list(lfm=1))
 summary.segmented(os_mod)
 
 #put into the df:
-seg_psi_df[1] <- summary(os_mod)$psi[2]
-seg_psi_df[2] <- summary(os_mod)$psi[3]
+seg_psi_df_angio[1] <- summary(os_mod)$psi[2]
+seg_psi_df_angio[2] <- summary(os_mod)$psi[3]
 
 #No random
 u_mod <- lm(lfm~mpa+ spp + doy, data = field_segment_angio_df)
@@ -632,73 +632,79 @@ u_mod_davies <- davies.test(u_mod_b)
 u_mod_davies
 
 #put into the df:
-seg_psi_norand_df[1] <- summary(u_mod_b)$psi[2]
-seg_psi_norand_df[2] <- summary(u_mod_b)$psi[3]
-seg_psi_norand_df[3] <- u_mod_davies$p.value
+seg_psi_norand_df_angio[1] <- summary(u_mod_b)$psi[2]
+seg_psi_norand_df_angio[2] <- summary(u_mod_b)$psi[3]
+seg_psi_norand_df_angio[3] <- u_mod_davies$p.value
 
 
 #Set up SE grey areas: 
 
-seg_psi_df <- seg_psi_df %>% 
-  mutate(lwr = mpa_psi - (mpa_se/2), 
-         upr = mpa_psi + (mpa_se/2)) %>% 
+seg_psi_df_angio <- seg_psi_df_angio %>% 
+  mutate(lwr_angio = mpa_psi_angio - (mpa_se_angio/2), 
+         upr_angio = mpa_psi_angio + (mpa_se_angio/2)) %>% 
   distinct()
 
-seg_psi_norand_df <- seg_psi_norand_df %>% 
-  mutate(lwr = mpa_psi - (mpa_se/2), 
-         upr = mpa_psi + (mpa_se/2)) %>% 
+seg_psi_norand_df_angio <- seg_psi_norand_df_angio %>% 
+  mutate(lwr_angio = mpa_psi_angio - (mpa_se_angio/2), 
+         upr_angio = mpa_psi_angio + (mpa_se_angio/2)) %>% 
   distinct()
 
-mean_tlp <- field_segment_angio_df %>% 
+mean_tlp_angio <- field_segment_angio_df %>% 
   drop_na(mean_tlp_spp) %>% 
  # filter(year == 2021, timing == "fall") %>% 
   mutate(mean_tlp_all = mean(mean_tlp_spp)) %>% 
   select(mean_tlp_all) %>% 
   distinct() %>% 
   pull()
-mean_tlp
+mean_tlp_angio
 
-sd_tlp <- field_segment_angio_df %>% 
+sd_tlp_angio <- field_segment_angio_df %>% 
   drop_na(mean_tlp_spp) %>% 
  # filter(year == 2021, timing == "fall") %>% 
   mutate(sd_tlp_all = sd(mean_tlp_spp)) %>% 
   select(sd_tlp_all) %>% 
   distinct() %>% 
   pull() 
-sd_tlp
+sd_tlp_angio
 
-upr_tlp <- mean(mean_tlp + (sd_tlp/2))
-upr_tlp
-lwr_tlp <- mean(mean_tlp - (sd_tlp/2))
+upr_tlp_angio <- mean(mean_tlp_angio + (sd_tlp_angio/2))
+upr_tlp_angio
+lwr_tlp_angio <- mean(mean_tlp_angio - (sd_tlp_angio/2))
 
-ggplot(aes(x = mpa, 
+angio_seg_plot <- ggplot(aes(x = mpa, 
            y = lfm, 
            color = spp), 
            data = field_segment_angio_df) +
   geom_point()+
-  geom_ribbon(aes(xmin = seg_psi_norand_df$lwr, 
-                  xmax = seg_psi_norand_df$upr), 
+  geom_ribbon(aes(xmin = seg_psi_norand_df_angio$lwr_angio, 
+                  xmax = seg_psi_norand_df_angio$upr_angio), 
               fill = "red", 
               color = "red", 
               alpha = .5) +
-  geom_ribbon(aes(xmin = seg_psi_df$lwr, 
-                  xmax = seg_psi_df$upr), 
+  geom_ribbon(aes(xmin = seg_psi_df_angio$lwr_angio, 
+                  xmax = seg_psi_df_angio$upr_angio), 
               fill = "pink", 
               color = "pink", 
               alpha = .5)   +
-  geom_vline(xintercept  = seg_psi_df$mpa_psi, color = "pink", size = 2)  +
-   geom_vline(xintercept  = seg_psi_norand_df$mpa_psi, color = "red", size = 2) +
-  geom_vline(xintercept  = seg_psi_norand_df$mpa_psi, linetype = "dotted") +
+  geom_vline(xintercept  = seg_psi_df_angio$mpa_psi_angio, color = "pink", size = 2)  +
+   geom_vline(xintercept  = seg_psi_norand_df_angio$mpa_psi_angio, color = "red", size = 2) +
+  geom_vline(xintercept  = seg_psi_norand_df_angio$mpa_psi_angio, linetype = "dotted") +
   #geom_vline(xintercept  = field_data_angio$mean_tlp_spp, colour = "blue") +
  # geom_vline(xintercept  = field_data_gymno$mean_tlp_spp, colour = "purple") +
-  geom_vline(xintercept  = mean_tlp, colour = "green", size = 2) +
-  geom_ribbon(aes(xmin = lwr_tlp, 
-                  xmax = upr_tlp), 
+  geom_vline(xintercept  = mean_tlp_angio, colour = "green", size = 2) +
+  geom_ribbon(aes(xmin = lwr_tlp_angio, 
+                  xmax = upr_tlp_angio), 
               fill = "green", 
               color = "green", 
               alpha = .5)  +
   labs(title = "Angiosperms", 
-       caption = "pink = est. breakpoint with no random effects, red = with random effects, green = tlp")
+       #caption = "pink = est. breakpoint with no random effects, red = with random effects, green = tlp"
+       x = "", 
+       y = "LFM") +
+  theme(legend.position = "none") +
+  xlim(-5, 0)
+
+angio_seg_plot
 ```
 
 
@@ -787,7 +793,7 @@ upr_tlp <- mean(mean_tlp + (sd_tlp/2))
 upr_tlp
 lwr_tlp <- mean(mean_tlp - (sd_tlp/2))
 
-ggplot(aes(x = mpa, 
+gymno_seg_plot <- ggplot(aes(x = mpa, 
            y = lfm, 
            color = spp), 
            data = field_segment_gymno_df) +
@@ -814,13 +820,36 @@ ggplot(aes(x = mpa,
               color = "green", 
               alpha = .5)  +
   labs(title = "Gymnosperms", 
-       caption = "pink = est. breakpoint with no random effects, red = with random effects, green = tlp")
+       caption = "pink = est. breakpoint with no random effects, red = with random effects, green = tlp") +
+  theme(legend.position = "none") +
+  xlim(-5, 0)
 
+gymno_seg_plot
+
+```
+Figure back together: 
+```{r}
+legend_gymno <- cowplot::get_legend(ggplot(aes(x = mpa, 
+           y = lfm, 
+           color = spp), 
+           data = field_segment_df) +
+  geom_point()+
+   geom_vline(xintercept  = seg_psi_norand_df$mpa_psi, color = "red", size = 2) +
+  geom_vline(xintercept  = mean_tlp, colour = "green", size = 2) +
+  labs(color = "Species"))
+
+plot_1 <- cowplot::plot_grid(angio_seg_plot, gymno_seg_plot, ncol = 1)
+plot_1
+
+plot_legend <- cowplot::plot_grid(plot_1, legend, ncol = 2, rel_widths = c(4,1))
+plot_legend
 ```
 
 
-
 #------
+
+#*Ignore me*:
+
 Combine angio and gymno back together: 
 ```{r}
 seg_psi_fgroups_df <- bind_rows(seg_psi_angio_df, seg_psi_gymno_df

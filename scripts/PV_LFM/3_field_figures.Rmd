@@ -672,7 +672,8 @@ field_data_all_3 %>%
   
 ```
 
-#-----------------------------------------------
+###LFM by MPa (tree v shrub)
+
 ```{r}
 field_data_all_3 %>%
   ggplot(aes(x = midday, y = lfm, color = month, shape = spp)) +
@@ -694,25 +695,7 @@ field_data_all_3 %>%
   scale_color_gradient(low = "maroon", high = "goldenrod") 
 ```
 
-```{r}
-field_data_all_3 %>%
-  ggplot(aes(x = midday, y = lfm, color = month, shape = age)) +
-  geom_point(size = 1, alpha = .5) +
-  geom_vline(aes(xintercept = mean_tlp_spp), size = .5, 
-             color = "olivedrab", 
-             linetype = "dotted"
-             ) +
-  #stat_smooth(aes(x = LFM, y = predawn, colour = Date, linetype = "Linear Fit"), method = "lm") 
-  xlim(-5,0) + 
-  labs( y = "Live Fuel Moisture", 
-        x = "Midday (-MPa)", 
-        color = "Month") +
-  ylim(50,300) +
-  facet_wrap(~spp)+
-  #ggtitle("Outliers removed (outlierKD)") +
-  #scale_color_gradient(low = "darkblue", high = "goldenrod") +
-  scale_color_gradient(low = "maroon", high = "goldenrod") 
-```
+
 #-----------------------------------------------
 
 #Boxplots over time
