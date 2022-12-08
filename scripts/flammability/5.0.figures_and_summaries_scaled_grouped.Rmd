@@ -30,13 +30,12 @@ library(lme4)
 library(MetBrewer)
 library(car)
 library(kableExtra)
+library(multcomp) # For post-hoc pairwise comparison tests
 #devtools::install_github("an-bui/calecopal")
 #library(calecopal)
 #devtools::install_github("hohenstein/remef")
 library(remef)
-
 library(lmerTest)
-
 library(kableExtra)
 
 filter = dplyr::filter
@@ -55,7 +54,7 @@ source(here::here("scripts", "scripts_functions", "figure_info_sierra_flammabili
 
 ```{r}
 mem_data_all_raw <- read_csv(here("processed-data", "analysis 2.0", "sierra_flam_data_all.csv")) %>% 
-  select(lfm, mpa, fh, fh, fd, gd,tti, prop_ignite, temp_change, ignition, sample_wt, dry_wt, fresh_wt, water_wt, location, site, year_month, spp, individual, bins10lfm, bins5lfm, bins20lfm, notes_flam) %>% 
+  select(lfm, mpa, fh, fh, fd, gd,tti, prop_ignite, temp_change, lower_temp_max, ignition, sample_wt, dry_wt, fresh_wt, water_wt, location, site, year_month, spp, individual, bins10lfm, bins5lfm, bins20lfm, notes_flam) %>% 
   mutate(dw_flam_sample = sample_wt * (dry_wt/fresh_wt),
          ww_flam_sample = sample_wt * (water_wt/fresh_wt)) %>% 
   mutate(excess_water = (ww_flam_sample - dw_flam_sample)) %>% 
@@ -120,7 +119,11 @@ mem_data_all <- mem_data_all %>%
     spp == "pije" ~ "No", spp == "quke" ~ "Yes")) %>% 
   mutate(temp.change.sig = case_when(
     spp == "arpa" ~ "No", spp == "abco" ~ "No", spp == "cade" ~ "No", spp == "ceco" ~ "No", 
-    spp == "pije" ~ "No", spp == "quke" ~ "No"))
+    spp == "pije" ~ "No", spp == "quke" ~ "No")) %>% 
+  mutate(temp.max.sig = case_when(
+      spp == "arpa" ~ "No", spp == "abco" ~ "No", spp == "cade" ~ "No",
+      spp == "ceco" ~ "No", spp == "pije" ~ "No", spp == "quke" ~ "No"
+    ))
 
 # Significance by functional group
 mem_data_all <- mem_data_all %>% 
@@ -131,6 +134,10 @@ mem_data_all <- mem_data_all %>%
   mutate(F.gd.lfm.sig = case_when(
     F.Group == "Angiosperm" ~ "Yes", F.Group == "Gymnosperm" ~ "Yes")) %>% 
   mutate(F.gd.mpa.sig = case_when(
+    F.Group == "Angiosperm" ~ "No", F.Group == "Gymnosperm" ~ "No")) %>% 
+  mutate(F.temp.max.lfm.sig = case_when(
+    F.Group == "Angiosperm" ~ "Yes", F.Group == "Gymnosperm" ~ "Yes")) %>% 
+  mutate(F.temp.max.mpa.sig = case_when(
     F.Group == "Angiosperm" ~ "No", F.Group == "Gymnosperm" ~ "No"))
 ```
 
@@ -265,12 +272,12 @@ tti_plot_lfm_r <- mem_data_all_r %>%
   ggplot(aes(y = r_tti_lfm, 
              x = lfm_scaled, 
              group = F.Group)) +
-  geom_point(alpha= .4, aes(color = F.Group, shape = F.tti.sig))+
-  geom_smooth(method = "lm", se = F, aes(color = F.Group), alpha = .75) + 
+  geom_point(alpha= .4, aes(color = F.Group))+
+  geom_smooth(method = "lm", se = F, aes(color = F.Group, lty = F.tti.sig), alpha = .75) + 
   ##color_many2  + # For color by F.Group w/ CECO
   #color_noceco+ # For color by F.Group w/o CECO
-  scale_color_manual(values = c('#FDD358', 'black')) + # For color by angio vs gymno; change F.Group > F.Group, tti.sig > F.tti.sig (version 2)
-  scale_shape_manual(values = c(16, 10)) +
+  scale_color_manual(values = c('steelblue3', 'darkgreen')) + # For color by angio vs gymno; change F.Group > F.Group, tti.sig > F.tti.sig (version 2)
+  #scale_shape_manual(values = c(16, 10)) +
   theme(legend.position = "none",
                        axis.text.y = element_text(size = 13),
                        axis.title = element_text(size = 16, face = 'bold'),
@@ -347,13 +354,13 @@ fh_plot_lfm_r <- mem_data_all_r %>%
   ggplot(aes(y = r_fh_lfm, 
              x = lfm_scaled, 
              group = F.Group)) +
-  geom_point(alpha= .4, aes(color = F.Group, shape = F.fh.sig))+
-  geom_smooth(method = "lm", se = F, aes(color = F.Group), alpha = .75) + 
+  geom_point(alpha= .4, aes(color = F.Group))+
+  geom_smooth(method = "lm", se = F, aes(color = F.Group, lty = F.fh.sig), alpha = .75) + 
   #color_many2  + # For color by F.Group w/ CECO
   #color_noceco+ # For color by F.Group w/o CECO
   #scale_color_manual(values = c('black', '#FDD358', 'black', 'black', '#FDD358')) + # For color by angio vs gymno (version 1)
-  scale_color_manual(values = c('#FDD358', 'black')) + # For color by angio vs gymno; change F.Group > F.Group (version 2)
-  scale_shape_manual(values = c(16, 10)) +
+  scale_color_manual(values = c('steelblue3', 'darkgreen')) + # For color by angio vs gymno; change F.Group > F.Group (version 2)
+  #scale_shape_manual(values = c(16, 10)) +
   theme(legend.position = "none",
                        axis.text = element_text(size = 13),
                        axis.title.y = element_text(size = 16, face = 'bold', 
@@ -366,6 +373,92 @@ fh_plot_lfm_r
 
 #ggarrange(fh_plot, fh_plot_r, fh_plot_lfm, fh_plot_lfm_r, nrow = 2, ncol = 2)
 ```
+
+## Max. Temp.
+```{r}
+lower_temp_max_mod <- lmer(lower_temp_max ~ spp*mpa_scaled + spp*lfm_scaled +  site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all_r)
+
+lower_temp_max_mod_fgroup <- lmer(lower_temp_max ~ F.Group*mpa_scaled + F.Group*lfm_scaled + site + year_month + sample_wt_scaled + (1|individual), data = mem_data_all_r)
+summary(lower_temp_max_mod_fgroup)
+
+r_lower_temp_max_mpa <- remef(lower_temp_max_mod, fix = c("sample_wt_scaled", "lfm_scaled", "site"), ran = list(individual = c("(Intercept)"))) # Using Remef for plots with MPa
+r_lower_temp_max_lfm <- remef(lower_temp_max_mod, fix = c("mpa_scaled", "sample_wt_scaled", "site"), ran = list(individual = c("(Intercept)"))) # Using Remef for plots with LFM
+
+mem_data_all_r$r_lower_temp_max_mpa <- r_lower_temp_max_mpa
+mem_data_all_r$r_lower_temp_max_lfm <- r_lower_temp_max_lfm
+
+lower_temp_max_plot <- mem_data_all_r %>% 
+  ggplot(aes(y = lower_temp_max, 
+             x = mpa_scaled, 
+             group = spp)) +
+  geom_point(alpha= .4, aes(color = Species))+
+  geom_smooth(method = "lm", se = F, aes(color = Species, lty = temp.max.sig), alpha = .75) + 
+  #color_many2  + # For color by species w/ CECO
+  color_noceco+ # For color by species w/o CECO
+  theme(legend.position = "none",
+        axis.text = element_text(size = 14),
+        axis.title = element_text(size = 22, face = 'bold'))+
+  labs(x = "", 
+       y = "Maximum Temperature") +
+  annotate(geom = "text", x = -1.8, y = 500, label = 'c', fontface = 'bold', size = 10)
+lower_temp_max_plot
+
+lower_temp_max_plot_r <- mem_data_all_r %>% 
+  ggplot(aes(y = r_lower_temp_max_mpa, 
+             x = mpa_scaled, 
+             group = spp)) +
+  geom_point(alpha= .4, aes(color = Species))+
+  geom_smooth(method = "lm", se = F, aes(color = Species, lty = temp.max.sig), alpha = .75) +
+  #color_many2  + # For color by species w/ CECO
+  color_noceco+ # For color by species w/o CECO
+  theme(legend.position = "none",
+        axis.text = element_text(size = 14),
+        axis.title = element_text(size = 22, face = 'bold'))+
+  labs(x = "", 
+       y = "Maximum Temperature") +
+  annotate(geom = "text", x = -1.8, y = 500, label = 'c', fontface = 'bold', size = 10)
+lower_temp_max_plot_r
+
+lower_temp_max_plot_lfm <- mem_data_all_r %>% 
+  ggplot(aes(y = lower_temp_max, 
+             x = lfm_scaled, 
+             group = spp)) +
+  geom_point(alpha= .4, aes(color = Species))+
+  geom_smooth(method = "lm", se = F, aes(color = Species, lty = temp.max.sig), alpha = .75) + 
+  #color_many2  + # For color by species w/ CECO
+  color_noceco+ # For color by species w/o CECO
+  theme(legend.position = "none",
+        axis.text = element_text(size = 14),
+        axis.title = element_text(size = 22, face = 'bold'))+
+  labs(x = "", 
+       y = "Maximum Temperature") +
+  annotate(geom = "text", x = -2.6, y = 500, label = 'c', fontface = 'bold', size = 10)
+lower_temp_max_plot_lfm
+
+# For main figure:
+lower_temp_max_plot_lfm_r <- mem_data_all_r %>% 
+  ggplot(aes(y = r_lower_temp_max_lfm, 
+             x = lfm_scaled, 
+             group = F.Group)) +
+  geom_point(alpha= .4, aes(color = F.Group))+
+  geom_smooth(method = "lm", se = F, aes(color = F.Group,
+                   lty = F.temp.max.lfm.sig), alpha = .75, lty = 2) +
+  theme(legend.position = "none",
+                       axis.text = element_text(size = 13),
+                       axis.title = element_text(size = 16, face = 'bold'))+
+  #color_many2 + # For color by spp w/ CECO
+  #color_noceco + # For color by spp w/o CECO
+  #scale_color_manual(values = c('black', '#FDD358', 'black', 'black', '#FDD358')) + # For color by angio vs gymno (version 1)
+  scale_color_manual(values = c('steelblue3', 'darkgreen')) + # For color by angio vs gymno; change spp > F.Group (version 2)
+  #scale_shape_manual(values = c(16, 10)) +
+  labs(x = "LFM", 
+       y = "Maximum Temperature") +
+  annotate(geom = "text", x = -2.6, y = 500, label = 'g', fontface = 'bold', size = 10)
+lower_temp_max_plot_lfm_r
+
+#ggarrange(lower_temp_max_plot, lower_temp_max_plot_r, lower_temp_max_plot_lfm, lower_temp_max_plot_lfm_r, nrow = 2, ncol = 2)
+```
+
 
 ## GD
 ```{r}
@@ -432,16 +525,17 @@ gd_plot_lfm_r <- mem_data_all_r %>%
   ggplot(aes(y = r_gd_lfm, 
              x = lfm_scaled, 
              group = F.Group)) +
-  geom_point(alpha= .4, aes(color = F.Group, shape = F.gd.lfm.sig))+
-  geom_smooth(method = "lm", se = F, aes(color = F.Group), alpha = .75) +
+  geom_point(alpha= .4, aes(color = F.Group))+
+  geom_smooth(method = "lm", se = F, aes(color = F.Group, lty = F.gd.lfm.sig),
+              alpha = .75) +
   theme(legend.position = "none",
                        axis.text = element_text(size = 13),
                        axis.title = element_text(size = 16, face = 'bold'))+
   #color_many2 + # For color by F.Group w/ CECO
   #color_noceco + # For color by F.Group w/o CECO
   #scale_color_manual(values = c('black', '#FDD358', 'black', 'black', '#FDD358')) + # For color by angio vs gymno (version 1)
-  scale_color_manual(values = c('#FDD358', 'black')) + # For color by angio vs gymno; change F.Group > F.Group (version 2)
-  scale_shape_manual(values = c(16, 10)) +
+  scale_color_manual(values = c('steelblue3', 'darkgreen')) + # For color by angio vs gymno; change F.Group > F.Group (version 2)
+  #scale_shape_manual(values = c(16, 10)) +
   labs(x = "LFM", 
        y = "Glow Duration") +
   annotate(geom = "text", x = -2.6, y = 400, label = 'g', fontface = 'bold', size = 10)
@@ -1108,6 +1202,7 @@ TukeyHSD(gd.aov)
 ### ANCOVA Tests
 We had previously tried this and the first assumption (independence of the covariate and treatment) was not met, so we shifted gears to the ANOVA test, but we are going to try this again with some data transformations (scaled & centered, log-transformed, and sample-weight normalized)
 
+#### Testing assumptions
 ```{r}
 # No transformation
 lfm.lm <- aov(lfm ~ spp, data = mem_data_all)
@@ -1126,7 +1221,50 @@ lfm.lm <- aov(lfm.log ~ spp, data = mem_data_all_ancova)
 summary(lfm.lm) # Assumption failed
 lfm.lm <- aov(lfm.norm ~ spp, data = mem_data_all_ancova)
 summary(lfm.lm) # Assumption failed
+
+# Scaling, centering by species
+mem_data_all_ancova <- mem_data_all %>% 
+  mutate(lfm.sc = scale(lfm))
+lfm.lm <- aov(lfm.sc ~ spp, data = mem_data_all_ancova)
+summary(lfm.lm) # Assumption passed
+
+# Proceeding with this, testing homogeneity of variance for all four flam metrics of interest:
+tti.mod <- lm(tti ~ lfm.sc + spp,data = mem_data_all_ancova)
+tti.res <- resid(tti.mod)
+plot(fitted(tti.mod), tti.res) # Assumption failed
+fh.mod <- lm(fh ~ lfm.sc + spp,data = mem_data_all_ancova)
+fh.res <- resid(fh.mod)
+plot(fitted(fh.mod), fh.res) # Assumption passed
+temp.max.mod <- lm(lower_temp_max ~ lfm.sc + spp,data = mem_data_all_ancova)
+temp.max.res <- resid(temp.max.mod)
+plot(fitted(temp.max.mod), temp.max.res) # Assumption passed
+gd.mod <- lm(gd ~ lfm.sc + spp,data = mem_data_all_ancova)
+gd.res <- resid(gd.mod)
+plot(fitted(gd.mod), gd.res) # Not sure...
 ```
+
+#### Running tests
+```{r}
+mem_data_all_ancova <- mem_data_all_ancova %>% 
+  mutate(spp = as.factor(spp))
+
+# ANCOVA
+tti.ancov <- aov(tti ~ spp + lfm.sc, data = mem_data_all_ancova)
+Anova(tti.ancov, type = 'III') # Significant
+fh.ancov <- aov(fh ~ lfm.sc + spp, data = mem_data_all_ancova)
+Anova(fh.ancov, type = 'III') # Significant
+temp.max.ancov <- aov(lower_temp_max ~ lfm.sc + spp, data = mem_data_all_ancova)
+Anova(temp.max.ancov, type = 'III') # Significant
+
+# Post-Hoc Test: Pairwise Comparison
+tti.post.hoc <- glht(tti.ancov, linfct = mcp(spp = "Tukey"))
+summary(tti.post.hoc)
+fh.post.hoc <- glht(fh.ancov, linfct = mcp(spp = "Tukey"))
+summary(fh.post.hoc)
+temp.max.post.hoc <- glht(temp.max.ancov, linfct = mcp(spp = "Tukey"))
+summary(temp.max.post.hoc)
+```
+
 
 ## Visualizations
 
@@ -1152,15 +1290,15 @@ tti.ES.lfm.plot <- ggplot(data = tti.ES.df, aes(x = species, y = tti.ES.lfm,
   geom_point(size = 5) +
   geom_linerange(aes(ymin = tti.ES.lfm - 0.5*tti.SE.lfm, ymax = tti.ES.lfm + 0.5*tti.SE.lfm)) +
   geom_abline(intercept = 0, slope = 0, color = 'black', alpha = 0.5, size = 0.3) +
-  geom_vline(xintercept = 3.4, alpha = 0.5, size = 0.3, lty = 2) +
+ # geom_vline(xintercept = 3.4, alpha = 0.5, size = 0.3, lty = 2) +
   theme_bw() +
   scale_y_continuous(limits = c(-12.5, 14.5), breaks = c(-10,-5, 0, 5, 10)) +
   color_noceco+
   #scale_color_manual(values = c('black', '#FDD358', 'black', 'black', '#FDD358')) + # For color by angio vs gymno (version 1)
   scale_shape_manual(values = c(16, 10)) +
   annotate(geom = "text", x = 0.9, y = 11, label = 'b', fontface = 'bold', size = 10) +
-  annotate(geom = "text", x = 2, y = 14, label = 'Gymnosperms', size = 4) +
-  annotate(geom = "text", x = 4.52, y = 14, label = 'Angiosperms', size = 4) +
+ # annotate(geom = "text", x = 2, y = 14, label = 'Gymnosperms', size = 4) +
+ # annotate(geom = "text", x = 4.52, y = 14, label = 'Angiosperms', size = 4) +
   theme(axis.title.x = element_blank(), axis.text.x = element_blank(),
         axis.title.y = element_blank(), 
         axis.text.y = element_blank(),
@@ -1182,14 +1320,14 @@ tti.ES.mpa.plot <- ggplot(data = tti.ES.df, aes(x = species, y = tti.ES.mpa,
   geom_point(size = 5, cex = 5) +
   geom_linerange(aes(ymin = tti.ES.mpa - 0.5*tti.SE.mpa, ymax = tti.ES.mpa + 0.5*tti.SE.mpa)) +
   geom_abline(intercept = 0, slope = 0, color = 'black', alpha = 0.5, size = 0.3) +
-  geom_vline(xintercept = 3.4, alpha = 0.5, size = 0.3, lty = 2) +
+ # geom_vline(xintercept = 3.4, alpha = 0.5, size = 0.3, lty = 2) +
   theme_bw() +
   color_noceco+
   #scale_color_manual(values = c('black', '#FDD358', 'black', 'black', '#FDD358')) + # For color by angio vs gymno (version 1)
   scale_shape_manual(values = c(16, 10)) +
   annotate(geom = "text", x = 0.9, y = 11, label = 'c', fontface = 'bold', size = 10) +
-  annotate(geom = "text", x = 2, y = 14, label = 'Gymnosperms', size = 4) +
-  annotate(geom = "text", x = 4.52, y = 14, label = 'Angiosperms', size = 4) +
+ # annotate(geom = "text", x = 2, y = 14, label = 'Gymnosperms', size = 4) +
+ # annotate(geom = "text", x = 4.52, y = 14, label = 'Angiosperms', size = 4) +
   theme(axis.title.x = element_blank(), axis.text.x = element_blank(),
         axis.ticks.y.left = element_blank(), 
         axis.text.y.left = element_blank(),
@@ -1226,7 +1364,7 @@ fh.ES.lfm.plot <- ggplot(data = fh.ES.df, aes(x = species, y = fh.ES.lfm,
   geom_point(size = 5) +
   geom_linerange(aes(ymin = fh.ES.lfm - 0.5*fh.SE.lfm, ymax = fh.ES.lfm + 0.5*fh.SE.lfm)) +
   geom_abline(intercept = 0, slope = 0, color = 'black', alpha = 0.5, size = 0.3) +
-  geom_vline(xintercept = 3.4, alpha = 0.5, size = 0.3, lty = 2) +
+ # geom_vline(xintercept = 3.4, alpha = 0.5, size = 0.3, lty = 2) +
   theme_bw() +
   scale_y_continuous(limits = c(-5.5, 3), breaks = c(-5,-2.5, 0, 2.5)) +
   #color_many2 +
@@ -1256,13 +1394,82 @@ fh.ES.mpa.plot <- ggplot(data = fh.ES.df, aes(x = species, y = fh.ES.mpa,
   geom_point(size = 5, cex = 5) +
   geom_linerange(aes(ymin = fh.ES.mpa - 0.5*fh.SE.mpa, ymax = fh.ES.mpa + 0.5*fh.SE.mpa)) +
   geom_abline(intercept = 0, slope = 0, color = 'black', alpha = 0.5, size = 0.3) +
-  geom_vline(xintercept = 3.4, alpha = 0.5, size = 0.3, lty = 2) +
+ # geom_vline(xintercept = 3.4, alpha = 0.5, size = 0.3, lty = 2) +
   theme_bw() +
   #color_many2 +
   color_noceco+
   #scale_color_manual(values = c('black', '#FDD358', 'black', 'black', '#FDD358')) + # For color by angio vs gymno (version 1)
   scale_shape_manual(values = c(16, 10)) +
   annotate(geom = "text", x = 0.9, y = 2, label = 'f', fontface = 'bold', size = 10) +
+  theme(axis.title = element_blank(), axis.text.x = element_blank(),
+        axis.ticks.y.left = element_blank(), 
+        axis.text.y.left = element_blank(),
+        axis.text.y.right = element_text(size = 12),
+        legend.title = element_text(face = 'bold', size = 14),
+        legend.text = element_text(face = 'italic',),
+        panel.grid = element_blank(), axis.ticks.x = element_blank(),
+        plot.margin = unit(c(0.1, 0.2, 0.1, 0), 'cm'),
+        legend.position = 'none')
+fh.ES.mpa.plot
+```
+
+## Max. Temp.
+```{r}
+summary(lower_temp_max_mod)
+
+temp_max.ES.lfm <- c(0.13, 3.3, 9.9, 5, -19) # Following this order: ABCO, CADE, PIJE, ARPA, QUKE
+temp_max.SE.lfm <- c(5.4192, 10.0238, 7.6785, 8.1860, 13.8426)
+temp_max.sig.lfm <- c('No', 'No', 'No', 'Yes', 'No')
+temp_max.ES.mpa <- c(1.5, -1.1, -15, 17, 19)
+temp_max.SE.mpa <- c(5.5976, 9.6061, 7.8172, 8.2544, 14.1627)
+temp_max.sig.mpa <- c('No', 'No', 'No', 'No', 'No')
+temp_max.ES.df <- data.frame(species, temp_max.ES.lfm, temp_max.SE.lfm, temp_max.sig.lfm, temp_max.ES.mpa, temp_max.SE.mpa, temp_max.sig.mpa)
+
+temp_max.ES.df$species <- factor(temp_max.ES.df$species, levels = c("A. concolor", "C. decurrens", "P. jeffreyi", "A. patula", "Q. kelloggii"))
+
+temp_max.ES.lfm.plot <- ggplot(data = temp_max.ES.df, aes(x = species, y = temp_max.ES.lfm, 
+                                                color = species, shape = temp_max.sig.lfm)) +
+  labs(color = 'Species', shape = 'Significant?') +
+  geom_point(size = 5) +
+  geom_linerange(aes(ymin = temp_max.ES.lfm - 0.5*temp_max.SE.lfm, ymax = temp_max.ES.lfm + 0.5*temp_max.SE.lfm)) +
+  geom_abline(intercept = 0, slope = 0, color = 'black', alpha = 0.5, size = 0.3) +
+  #geom_vline(xintercept = 3.4, alpha = 0.5, size = 0.3, lty = 2) +
+  theme_bw() +
+  scale_y_continuous(limits = c(-30, 30), breaks = c(-20,-10, 0, 10, 20)) +
+  #color_many2 +
+  color_noceco+
+  #scale_color_manual(values = c('black', '#FDD358', 'black', 'black', '#FDD358')) + # For color by angio vs gymno (version 1)
+  scale_shape_manual(values = c(16, 10)) +
+  annotate(geom = "text", x = 0.9, y = 27, label = 'h', fontface = 'bold', size = 10) +
+  theme(axis.title.x = element_blank(), axis.text.x = element_blank(),
+        axis.title.y = element_blank(), 
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        legend.title = element_text(face = 'bold', size = 14),
+        legend.text = element_text(face = 'italic'),
+        panel.grid = element_blank(), axis.ticks.x = element_blank(),
+        plot.margin = unit(c(0.1, 0.05, 0.1, 0.1), 'cm'),
+        legend.position = 'none')
+temp_max.ES.lfm.plot
+  
+temp_max.ES.mpa.plot <- ggplot(data = temp_max.ES.df, aes(x = species, y = temp_max.ES.mpa,
+                                                color = species, shape = temp_max.sig.mpa)) +
+  labs(y = '', color = 'Species', shape = 'Significant?') +
+  scale_y_continuous(limits = c(-30, 30), breaks = c(-20,-10, 0, 10, 20),
+                     sec.axis = sec_axis(trans = ~.*1, 
+                     name = 'Hydration x Species Effect Size',
+                     breaks = c(-20,-10, 0, 10, 20),
+                     labels = c(-20,-10, 0, 10, 20))) +
+  geom_point(size = 5, cex = 5) +
+  geom_linerange(aes(ymin = temp_max.ES.mpa - 0.5*temp_max.SE.mpa, ymax = temp_max.ES.mpa + 0.5*temp_max.SE.mpa)) +
+  geom_abline(intercept = 0, slope = 0, color = 'black', alpha = 0.5, size = 0.3) +
+  #geom_vline(xintercept = 3.4, alpha = 0.5, size = 0.3, lty = 2) +
+  theme_bw() +
+  #color_many2 +
+  color_noceco+
+  #scale_color_manual(values = c('black', '#FDD358', 'black', 'black', '#FDD358')) + # For color by angio vs gymno (version 1)
+  scale_shape_manual(values = c(16, 10)) +
+  annotate(geom = "text", x = 0.9, y = 27, label = 'i', fontface = 'bold', size = 10) +
   theme(axis.title.x = element_blank(), axis.text.x = element_blank(),
         axis.ticks.y.left = element_blank(), 
         axis.text.y.left = element_blank(),
@@ -1273,8 +1480,9 @@ fh.ES.mpa.plot <- ggplot(data = fh.ES.df, aes(x = species, y = fh.ES.mpa,
         panel.grid = element_blank(), axis.ticks.x = element_blank(),
         plot.margin = unit(c(0.1, 0.2, 0.1, 0), 'cm'),
         legend.position = 'none')
-fh.ES.mpa.plot
+temp_max.ES.mpa.plot
 ```
+
 
 ## GD
 ```{r}
@@ -1298,7 +1506,7 @@ gd.ES.lfm.plot <- ggplot(data = gd.ES.df, aes(x = species, y = gd.ES.lfm,
   geom_point(size = 5) +
   geom_linerange(aes(ymin = gd.ES.lfm - 0.5*gd.SE.lfm, ymax = gd.ES.lfm + 0.5*gd.SE.lfm)) +
   geom_abline(intercept = 0, slope = 0, color = 'black', alpha = 0.5, size = 0.3) +
-  geom_vline(xintercept = 3.4, alpha = 0.5, size = 0.3, lty = 2) +
+ # geom_vline(xintercept = 3.4, alpha = 0.5, size = 0.3, lty = 2) +
   theme_bw() +
   scale_y_continuous(limits = c(-20, 40), breaks = c(-10, 0, 10, 20,  30)) +
   #color_many2 +
@@ -1328,7 +1536,7 @@ gd.ES.mpa.plot <- ggplot(data = gd.ES.df, aes(x = species, y = gd.ES.mpa,
   geom_point(size = 5, cex = 5) +
   geom_linerange(aes(ymin = gd.ES.mpa - 0.5*gd.SE.mpa, ymax = gd.ES.mpa + 0.5*gd.SE.mpa)) +
   geom_abline(intercept = 0, slope = 0, color = 'black', alpha = 0.5, size = 0.3) +
-  geom_vline(xintercept = 3.4, alpha = 0.5, size = 0.3, lty = 2) +
+#  geom_vline(xintercept = 3.4, alpha = 0.5, size = 0.3, lty = 2) +
   theme_bw() +
   #color_many2 +
   color_noceco+
@@ -1437,10 +1645,10 @@ plot_legend.ES <- ggplot(data = gd.ES.df2, aes(x = species, y = gd.ES.mpa,
         legend.text = element_text(face = 'italic', size = 17))
 
 plot_legend.scatterplot <- mem_data_all_r %>% 
-  ggplot(aes(x = tti, y = mpa, group = F.Group)) +
+  ggplot(aes(x = fh, y = mpa, group = F.Group)) +
   geom_point(aes(color = F.Group), size = 2.2) +
-  geom_smooth(se = F, method = 'lm', aes(color = F.Group)) +
-  scale_color_manual(values = c('#FDD358', 'black')) + # For color by angio vs gymno 
+  geom_smooth(se = F, method = 'lm', aes(color = F.Group, lty = F.fh.sig)) +
+  scale_color_manual(values = c('steelblue3', 'darkgreen')) + # For color by angio vs gymno 
   labs(color = "Functional Group", lty = "Significant?") +
   theme(legend.text = element_text(size = 17),  # , face = 'italic'
         legend.title = element_text(size = 20, face = 'bold'),
@@ -1454,14 +1662,15 @@ SP_legend <- cowplot::get_legend(plot_legend.scatterplot)
 Arranging:
 Note: I had to do some wacky things with blank plots to get the final product to look okay. I still think we could improve it, but I felt like this was passable for now.
 ```{r}
-scatterplots <- cowplot::plot_grid(blank_plot, tti_plot_lfm_r, fh_plot_lfm_r, gd_plot_lfm_r,
-                                   ncol = 1, rel_heights = c(0.9, 10, 9.95, 10))
+scatterplots <- cowplot::plot_grid(blank_plot, tti_plot_lfm_r, fh_plot_lfm_r,
+                                   lower_temp_max_plot_lfm_r,
+                                   ncol = 1, rel_heights = c(0.78, 10, 9.95, 10))
 
 ES.plots <- cowplot::plot_grid(tti.ES.lfm.plot, tti.ES.mpa.plot,
                               blank_plot, blank_plot,
                               fh.ES.lfm.plot, fh.ES.mpa.plot,
                               blank_plot, blank_plot,
-                              gd.ES.lfm.plot, gd.ES.mpa.plot,
+                              temp_max.ES.lfm.plot, temp_max.ES.mpa.plot,
                               blank_plot, blank_plot,
                               ncol = 2, nrow = 6,
                               rel_widths = c(6,7.5),
@@ -1472,7 +1681,7 @@ main_figure_no_legend
 
 legend <- cowplot::plot_grid(ES_legend, SP_legend, ncol = 1)
 
-legend_and_boxplot <- cowplot::plot_grid(blank_plot, boxplot.no.tlp.split, blank_plot, legend, ncol = 1, rel_heights = c(0.3,4,1.5,4))
+legend_and_boxplot <- cowplot::plot_grid(blank_plot, boxplot.no.tlp.split, blank_plot, legend, ncol = 1, rel_heights = c(0.3,4,0.5,6))
 
 main_figure <- cowplot::plot_grid(main_figure_no_legend, legend_and_boxplot, ncol = 2, rel_widths = c(5,1.5))
 main_figure
