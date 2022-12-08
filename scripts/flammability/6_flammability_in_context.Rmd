@@ -72,7 +72,8 @@ ggplot() +
                  color = spp)) +
   geom_smooth(aes(y = pred*-1, x = date, color = spp)) +
   theme(legend.position = "none") +
-  labs(y = "Ignitability")
+  labs(y = "Ignitability") +
+  color_many
 tti_pred
 ```
 
@@ -94,7 +95,8 @@ ggplot() +
                  color = spp)) +
   geom_smooth(aes(y = pred, x = date, color = spp)) +
   theme(legend.position = "none") +
-  labs(y = "Flame Height")
+  labs(y = "Flame Height")+
+  color_many
 fh_pred
 ```
 
@@ -119,7 +121,9 @@ ggplot() +
                  color = spp)) +
   geom_smooth(aes(y = pred, x = date, color = spp)) +
   theme(legend.position = "none") +
-  labs(y = "Temp Change")
+  labs(y = "Temp Change")+
+  color_many
+temp_pred
 ```
 
 ##Combine together: 
@@ -130,18 +134,132 @@ ggplot() +
   geom_point(aes(y = pred, 
                  x = date, 
                  color = spp)) +
-  geom_smooth(aes(y = pred, x = date, color = spp))
+  geom_smooth(aes(y = pred, x = date, color = spp))+
+  color_many
 ```
 
-```{r}
+```{r, fig.height= 4, fig.width=2.5}
 legend <- cowplot::get_legend(leg_plot)
 
 plots <- cowplot::plot_grid(tti_pred, fh_pred, temp_pred,
                                    ncol = 1
-                                   #, rel_heights = c(0.9, 10, 9.95, 10)
+                                   , rel_heights = c(1, 1, 1)
                                    )
 
 legend_plots <- cowplot::plot_grid(plots, legend, ncol = 2, rel_widths = c(4,1))
 legend_plots
 ```
 
+#-------
+#boxplots: 
+
+#TTI
+
+```{r}
+#tti_mod <- lmer(tti ~ spp*mpa_scaled + spp*lfm_scaled + site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all)
+#summary(tti_mod)
+#str(mem_data_all)
+
+tti_mod <- lm(tti ~ spp*mpa_scaled + spp*lfm_scaled + sample_wt_scaled, data = mem_data_all)
+summary(tti_mod)
+
+tti_df <- field_data_all_6 %>% 
+  modelr::add_predictions(tti_mod)
+
+
+df_mean <- tti_df %>% 
+  group_by(spp) %>% 
+  summarize(average = -1*mean(pred)) %>%
+  ungroup()
+
+tti_pred <- tti_df %>% 
+  filter(year == 2021, 
+         month < 10) %>% 
+ggplot() +
+  geom_boxplot(aes(y = pred*-1, 
+                 x = cut(date, breaks = "quarter"),
+                 fill = spp)) +
+  # geom_line(aes(y = pred*-1, 
+  #               #x = cut(date, breaks = "quarter"),
+  #               color = spp)) +
+  #geom_line(data = df_mean,
+           # mapping = aes(x = cut(date, breaks = "quarter"),
+                         # y = average)) +
+  theme(legend.position = "none") +
+  labs(y = "Ignitability", x = "") +
+  color_many
+tti_pred
+```
+
+#FH:
+```{r}
+fh_mod <- lm(fh ~ spp*mpa_scaled + spp*lfm_scaled 
+             + site
+            # + sample_wt_scaled, 
+             ,data = mem_data_all)
+
+fh_df <- field_data_all_6 %>% 
+  modelr::add_predictions(fh_mod)
+
+fh_pred <- fh_df %>% 
+  filter(year == 2021, 
+         month < 10) %>% 
+ggplot() +
+  geom_boxplot(aes(y = pred*-1, 
+                 x = cut(date, breaks = "quarter"),
+                 fill = spp)) +
+ # geom_smooth(aes(y = pred*-1, x = date, color = spp)) +
+  theme(legend.position = "none") +
+  labs(y = "Flame Height", x = "")+
+  color_many
+fh_pred
+```
+
+#Temp change
+
+```{r}
+temp_mod <- lm(temp_change ~ spp*mpa_scaled + spp*lfm_scaled 
+              +  site 
+             # + year_month 
+              + sample_wt_scaled 
+              #+ (1 | individual)
+              , data = mem_data_all)
+
+temp_df <- field_data_all_6 %>% 
+  modelr::add_predictions(temp_mod)
+
+temp_pred <- temp_df %>% 
+  filter(year == 2021, 
+         month < 10) %>% 
+ggplot() +
+  geom_boxplot(aes(y = pred*-1, 
+                 x = cut(date, breaks = "quarter"),
+                 fill = spp)) +
+ # geom_smooth(aes(y = pred*-1, x = date, color = spp)) +
+  theme(legend.position = "none") +
+  labs(y = "Temp Change", x = "Date")
+
+temp_pred
+```
+
+##Combine together: 
+
+```{r}
+leg_plot_box<- temp_df %>% 
+ggplot() +
+  geom_boxplot(aes(y = pred, 
+                 x = date, 
+                 fill = spp))
+```
+
+```{r, fig.height= 4, fig.width=2.5}
+legend_box <- cowplot::get_legend(leg_plot_box)
+
+plots_box <- cowplot::plot_grid(tti_pred, fh_pred, temp_pred,
+                                   ncol = 1
+                                   , rel_heights = c(2, 1, 1)
+                                   )
+
+legend_plots_box <- cowplot::plot_grid(plots_box, legend_box, ncol = 2, rel_widths = c(4,1))
+legend_plots_box
+```
