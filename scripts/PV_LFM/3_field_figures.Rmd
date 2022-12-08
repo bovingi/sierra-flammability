@@ -854,7 +854,8 @@ pheno_fig <- pheno_df %>%
     spp == "CECO" ~ "C. cordulatus", 
     spp == "ARPA" ~ "A. patula", 
     spp == "QUKE" ~ "Q. kelloggii"
-    )) 
+    ))  %>% 
+  mutate(data_source = "mlab")
   
 field_data_2021_fig <- field_data_all_3 %>% 
   select(age, year, date, lfm, Species, spp)
@@ -975,6 +976,72 @@ phenoplot2
 
 Phenology df data wrangling:
 ```{r}
+pheno_fig_npn <- read_csv(here("processed-data", "analysis 2.0", "npn_data.csv")) %>% 
+  select(phenophase_description, observation_date, common_name) %>% 
+  mutate(date = observation_date,
+         year = year(date), 
+         month = month(date),
+         week = week(date),
+         phenophase_name = phenophase_description, 
+         spp = case_when(
+           common_name %in% c("white fir") ~ "ABCO", 
+           common_name %in% c("incense cedar") ~ "CADE", 
+           common_name %in% c("California black oak") ~ "QUKE", 
+           common_name %in% c("greenload manzanita") ~ "ARPA", 
+           common_name %in% c("whitethord ceanothus") ~ "CECO", 
+           common_name %in% c("Jeffrey pine") ~ "PIJE"
+         )) %>% 
+  mutate(phenophase_name = case_when(
+    phenophase_name == "Breaking needle buds" ~ "Breaking buds",
+    phenophase_name == "Breaking leaf buds" ~ "Breaking buds",
+    phenophase_name == "Young needles" ~ "Young leaves",
+    phenophase_name == "Young leaves" ~ "Young leaves",
+    phenophase_name == "Emerging needles" ~ "Increasing leaf size",
+    phenophase_name == "Pollen cones" ~ "Pollen cones",
+    phenophase_name == "Pollen release" ~ "Pollen release",
+    #phenophase_name == "Recent co" ~ "Ripe fruits",
+    phenophase_name == "Increasing leaf size" ~ "Increasing leaf size",
+    phenophase_name == "Flowers or flower buds" ~ "Flowers or flower buds",
+    phenophase_name == "Fruits" ~ "Fruits",
+    phenophase_name == "Ripe fruits" ~ "Ripe fruits", 
+    TRUE ~ as.character(phenophase_name)
+    ), 
+    data_source = "npn") %>% 
+  drop_na(date) %>% 
+  mutate(Species = case_when(
+    spp == "ABCO" ~ "A. concolor",
+    spp == "PIJE" ~ "P. jeffreyi", 
+    spp == "CADE" ~ "C. decurrens", 
+    spp == "CECO" ~ "C. cordulatus", 
+    spp == "ARPA" ~ "A. patula", 
+    spp == "QUKE" ~ "Q. kelloggii"
+    )) %>% 
+  mutate(lfm = case_when(
+    phenophase_name == "Young leaves" ~ 20, 
+    phenophase_name == "Young needles" ~ 20, 
+    phenophase_name == "Breaking leaf buds" ~ 10,
+    phenophase_name == "Breaking needle buds" ~ 10,
+    phenophase_name == "Emerging needles" ~ 30, 
+    phenophase_name == "Increasing leaf size" ~ 30, 
+    phenophase_name == "Leaves" ~ 40, 
+    phenophase_name == "Colored leaves" ~ 50,
+    phenophase_name == "Flowers or flower buds" ~ 30, 
+    phenophase_name == "Open flowers" ~ 35,
+    phenophase_name == "Pollen cones" ~ 40,
+    phenophase_name == "Pollen release" ~ 50, 
+    phenophase_name == "Fruits" ~ 50, 
+   # phenophase_name == "Open pollen cones" ~ 86,
+   # phenophase_name == "Unripe seed cones" ~ 90,
+   # phenophase_name == "Recent fruit of seed drop" ~95,
+    phenophase_name == "Ripe fruits" ~ 40,
+  #  phenophase_name == "Ripe seed codes" ~ 91
+  TRUE ~ NA_real_
+  )) %>% 
+  select(phenophase_name, lfm, date, week, spp, Species)
+```
+
+
+```{r}
 pheno_fig2 <- pheno_fig %>% 
   filter(phenophase_name %in% c("Breaking needle buds", "Young needles", "Emerging needles", "Pollen cones", "Pollen release", "Breaking leaf buds", "Young leaves", "Increasing leaf size", "Flowers or flower buds", "Fruits", "Ripe fruits")) %>% 
   mutate(phenophase_name = case_when(
@@ -989,6 +1056,11 @@ pheno_fig2 <- pheno_fig %>%
     phenophase_name == "Flowers or flower buds" ~ "Flowers or flower buds",
     phenophase_name == "Fruits" ~ "Fruits",
     phenophase_name == "Ripe fruits" ~ "Ripe fruits"))
+```
+
+Combine NPN and our data: 
+```{r}
+pheno_fig3 <- bind_rows(pheno_fig_npn, pheno_fig2)
 ```
 
 For aspect ratio of phenophases plots:
@@ -1031,7 +1103,7 @@ df2 <- field_data_all_3 %>%
   filter(spp == species)
 mean_lfm <- mean(df2$mean_lfm_fall_spp)
 
-df3 <- pheno_fig2 %>%
+df3 <- pheno_fig3 %>%
   filter(spp == species) %>% 
   filter(phenophase_name %in% phenophases)
 
@@ -1101,7 +1173,7 @@ df1$month <- factor(df1$month, levels = c("May", "June", "E. July",
 df2 <- field_data_all_3 %>% 
   filter(spp == "QUKE")
 mean_lfm <- mean(df2$mean_lfm_fall_spp)
-df3 <- pheno_fig2 %>%
+df3 <- pheno_fig3 %>%
   filter(spp == "QUKE") %>% 
   filter(phenophase_name %in% c("Breaking buds", "Increasing leaf size", "Ripe fruits"))
 
@@ -1147,7 +1219,7 @@ p.quke
 #Legends:
 ```{r}
 # Phenophase legend:
-df.leg <- pheno_fig2 %>%
+df.leg <- pheno_fig3 %>%
   filter(phenophase_name %in% c("Breaking buds", "Young leaves", "Increasing leaf size",  "Pollen release", "Pollen cones", "Ripe fruits", "Flowers or flower buds"))
 df.leg$phenophase_name <- factor(df.leg$phenophase_name, levels = c("Breaking buds", "Young leaves", "Increasing leaf size",  "Pollen release", "Pollen cones", "Ripe fruits", "Flowers or flower buds"))
 
