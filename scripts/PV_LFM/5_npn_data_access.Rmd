@@ -32,7 +32,7 @@ group_by = dplyr::group_by
 
 source(here::here("scripts", "scripts_functions", "figure_info_sierra_flammability.R")) #color and theme info is here
 
-install.packages("rnpn")
+install.packages("rnpn") #https://github.com/usa-npn/rnpn
 library(rnpn)
 ```
 
