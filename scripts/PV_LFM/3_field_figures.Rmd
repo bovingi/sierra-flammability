@@ -411,7 +411,7 @@ field_data_all_3 %>%
 unique(field_data_all_3$year)
 ```
 
-#### LFM by MPa (species)
+#### LFM by MPa (species, time)
 ```{r}
 field_data_all_3 <- field_data_all_3 %>% 
   mutate(Age = case_when(
@@ -463,6 +463,51 @@ field_data_all_3 %>%
   ) 
   #scale_color_gradientn(colors=met.brewer("Morgenstern"))
 ```
+#### LFM by MPa (species, age)
+```{r}
+field_data_all_3 <- field_data_all_3 %>% 
+  mutate(Age = case_when(
+    age == 'new' ~ 'New',
+    age == 'old' ~ 'Old'
+  ))
+
+field_data_all_3 %>%
+  #filter(month < 10) %>% #removing post-rain values (October sample collection)
+  mutate(spp = fct_relevel(spp, "ABCO", "PIJE", "CADE", "CECO", "ARPA", "QUKE"))  %>%
+  mutate(month = month(date, label = TRUE, abbr = TRUE)) %>%
+  ggplot(aes(
+    x = midday,
+    y = lfm,
+    #shape = Age
+  )) +
+  geom_point(size = 1.4, alpha = .65, 
+             aes(color = Age)) +
+  geom_vline(
+    aes(xintercept = mean_tlp_spp, #lty = Species
+        ),
+    size = 0.7,
+    color = 'black',
+    alpha = .6,
+    show_guide = F
+  ) +
+  xlim(-5, 0) +
+  labs(
+    y = "Live Fuel Moisture",
+    x = "Midday Water Potential (MPa)",
+    color = "Tissue Age"
+  ) +
+  ylim(50, 300) +
+  facet_wrap( ~ spp, labeller = labeller(spp = spp.labs)) +
+ color_two +
+  theme(
+    strip.text = element_text(face = "italic"),
+    axis.title = element_text(face = "bold"),
+    legend.title = element_text(face = "bold"),
+    strip.background = element_rect(fill = "gray90")
+  ) 
+  #scale_color_gradientn(colors=met.brewer("Morgenstern"))
+```
+
 ####LFM by MPa (date)
 NOTE: Error popping up here -- 'seg_psi_df not found'
 ```{r}
