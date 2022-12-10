@@ -1100,7 +1100,9 @@ df1$month <- factor(df1$month, levels = c("May", "June", "E. July",
                                           "L. July", "Aug.", "Sept.", "Oct."))
 df2 <- field_data_all_3 %>% 
   filter(spp == "QUKE")
+
 mean_lfm <- mean(df2$mean_lfm_fall_spp)
+
 df3 <- pheno_fig2 %>%
   filter(spp == "QUKE") %>% 
   filter(phenophase_name %in% c("Breaking buds", "Increasing leaf size", "Ripe fruits"))

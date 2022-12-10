@@ -1,3 +1,37 @@
+---
+title: "Field Figures"
+author: "Indra Boving"
+date: "1/29/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+#install.packages("ggplot2")
+library(ggplot2)
+library(dplyr)
+library(ggpubr)
+library(tidyverse)
+#install.packages("cowplot")
+library(cowplot)
+library(here)
+library(lubridate)
+month = lubridate::month
+library(janitor)
+library(tidytext)
+library(grid)
+library(gridExtra)
+library(ggbeeswarm)
+library(wesanderson)
+library(MetBrewer)
+library(RColorBrewer)
+
+source(here::here("scripts", "scripts_functions", "figure_info_sierra_flammability.R")) #color and theme info is here
+```
+
 For figure with lfm boxplots: 
 
 # Pheno_fig df wrangle
@@ -55,7 +89,7 @@ pheno_fig_npn <- pheno_fig_npn_raw %>%
 
 ####***Combine NPN and our data: 
 ```{r}
-pheno_fig3 <- bind_rows(pheno_fig_npn, pheno_fig2) %>% 
+pheno_fig3 <- bind_rows(pheno_fig_npn, pheno_fig) %>% 
   mutate(month = month(date), 
          day = mday(date), 
          year = year(date)) %>% 
@@ -91,6 +125,11 @@ unique(pheno_fig3$lfm)
 
 ```
 
+```{r}
+field_data_all_3 <- read_csv(here("processed-data", "analysis 2.0","field_data_2020_2021.csv"), show_col_types = FALSE) %>% 
+  drop_na(spp) %>% 
+  filter(lfm < 350)
+```
 
 ```{r}
 field_data_2021_fig <- field_data_all_3 %>% 
