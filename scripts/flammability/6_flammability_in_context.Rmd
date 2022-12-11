@@ -40,27 +40,44 @@ Goal here is to make a plot that shows flammability over time:
 ```{r}
 field_data_all_6 <- read_csv(here("processed-data", "analysis 2.0","field_data_2020_2021.csv")) %>% 
   select(spp, lfm, year, month, water_potential, site, wet_weight, unique_id, date) %>% 
-  mutate(lfm_scaled = scale(lfm), 
-         mpa_scaled = scale(water_potential), 
-         mpa = water_potential, 
-         year_month = paste(year, month, sep = "_", collapse = NULL), 
+  mutate(mpa = -1*water_potential,
+    lfm_scaled = scale(lfm), 
+         mpa_scaled = scale(mpa), 
+        # mpa = water_potential, 
+         year_month = paste(year, month, sep = "_", collapse = NULL),
          sample_wt_scaled = scale(wet_weight), 
          individual = unique_id, 
          spp = tolower(spp)) %>% 
   filter(spp != "ceco") %>% 
   drop_na(spp)
+
+mem_data_all_6 <- read_csv(here("processed-data", "analysis 2.0", "sierra_flam_data_all.csv")) %>% 
+  select(lfm, mpa, fh, fh, fd, gd,tti, prop_ignite, temp_change, ignition, sample_wt, dry_wt, fresh_wt, water_wt, location, site, year_month, spp, individual) %>% 
+  mutate(dw_flam_sample = sample_wt * (dry_wt/fresh_wt),
+         ww_flam_sample = sample_wt * (water_wt/fresh_wt)) %>% 
+  mutate(mpa = -1*mpa,
+    excess_water = (ww_flam_sample - dw_flam_sample)) %>% 
+   #group_by(spp) %>% 
+  mutate(mpa_scaled = scale(mpa),
+         dw_flam_sample_scaled = scale(dw_flam_sample), 
+         sample_wt_scaled = scale(sample_wt), 
+         ww_flam_sample_scaled = scale(ww_flam_sample),
+         lfm_scaled = scale(lfm), 
+         excess_water_scaled = scale(excess_water)) %>% 
+  filter(!year_month %in% c("2021_august")) %>% 
+  drop_na(mpa_scaled, lfm_scaled, sample_wt_scaled)
 ```
 
 #TTI
 
 ```{r}
-#tti_mod <- lmer(tti ~ spp*mpa_scaled + spp*lfm_scaled + site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all)
+#tti_mod <- lmer(tti ~ spp*mpa_scaled + spp*lfm_scaled + site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all_6)
 #summary(tti_mod)
-#str(mem_data_all)
+#str(mem_data_all_6)
 
 tti_mod <- lm(tti ~ spp*mpa_scaled + spp*lfm_scaled 
               +site
-              , data = mem_data_all)
+              , data = mem_data_all_6)
 summary(tti_mod)
 
 tti_df <- field_data_all_6 %>% 
@@ -84,7 +101,7 @@ tti_pred
 fh_mod <- lm(fh ~ spp*mpa_scaled + spp*lfm_scaled 
              + site
             # + sample_wt_scaled, 
-             ,data = mem_data_all)
+             ,data = mem_data_all_6)
 
 fh_df <- field_data_all_6 %>% 
   modelr::add_predictions(fh_mod)
@@ -110,7 +127,7 @@ temp_mod <- lm(temp_change ~ spp*mpa_scaled + spp*lfm_scaled
              # + year_month 
               #+ sample_wt_scaled 
               #+ (1 | individual)
-              , data = mem_data_all)
+              , data = mem_data_all_6)
 
 temp_df <- field_data_all_6 %>% 
   modelr::add_predictions(temp_mod)
@@ -158,11 +175,11 @@ legend_plots
 #TTI
 
 ```{r}
-#tti_mod <- lmer(tti ~ spp*mpa_scaled + spp*lfm_scaled + site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all)
+#tti_mod <- lmer(tti ~ spp*mpa_scaled + spp*lfm_scaled + site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all_6)
 #summary(tti_mod)
-#str(mem_data_all)
+#str(mem_data_all_6)
 
-tti_mod <- lm(tti ~ spp*mpa_scaled + spp*lfm_scaled + sample_wt_scaled, data = mem_data_all)
+tti_mod <- lm(tti ~ spp*mpa_scaled + spp*lfm_scaled + sample_wt_scaled, data = mem_data_all_6)
 summary(tti_mod)
 
 tti_df <- field_data_all_6 %>% 
@@ -197,8 +214,8 @@ tti_pred
 ```{r}
 fh_mod <- lm(fh ~ spp*mpa_scaled + spp*lfm_scaled 
              + site
-            # + sample_wt_scaled, 
-             ,data = mem_data_all)
+             + sample_wt_scaled, 
+             ,data = mem_data_all_6)
 
 fh_df <- field_data_all_6 %>% 
   modelr::add_predictions(fh_mod)
@@ -225,7 +242,7 @@ temp_mod <- lm(temp_change ~ spp*mpa_scaled + spp*lfm_scaled
              # + year_month 
               + sample_wt_scaled 
               #+ (1 | individual)
-              , data = mem_data_all)
+              , data = mem_data_all_6)
 
 temp_df <- field_data_all_6 %>% 
   modelr::add_predictions(temp_mod)
@@ -271,40 +288,58 @@ legend_plots_box
 
 ```{r}
 field_data_all_sept <- field_data_all_6 %>% 
-  filter(month %in% c(9), 
-         year == 2021)
-```
+  filter(month %in% c(8,9), 
+         year == 2021) %>% 
+  filter(lfm < 250)
+
+field_data_all_sept$spp <- factor(field_data_all_sept$spp, levels = c("quke", "arpa", "abco", "pije", "cade"))
+
+lfm_sept <- field_data_all_sept %>% 
+  ggplot(aes(y = lfm, 
+             x = spp, 
+             fill = spp)) +
+  geom_boxplot() +
+  theme(legend.position = "none")
+
+mpa_sept <- field_data_all_sept %>% 
+  ggplot(aes(y = -1*mpa, 
+             x = spp, 
+             fill = spp)) +
+  geom_boxplot() +
+  theme(legend.position = "none")
+
 
 #ALL together:
 
-```{r}
-tti_mod <- lm(tti ~ spp*mpa_scaled + spp*lfm_scaled 
-             # + sample_wt_scaled, 
-              ,data = mem_data_all)
+
+tti_mod <- lm(tti ~ spp*mpa_scaled + spp*lfm_scaled
+              +  site 
+              + sample_wt_scaled
+              ,data = mem_data_all_6)
 
 
 fh_mod <- lm(fh ~ spp*mpa_scaled + spp*lfm_scaled 
              + site
-            # + sample_wt_scaled 
-             ,data = mem_data_all)
+             + sample_wt_scaled 
+             ,data = mem_data_all_6)
 
 temp_mod <- lm(temp_change ~ spp*mpa_scaled + spp*lfm_scaled 
               +  site 
              # + year_month 
-             # + sample_wt_scaled 
+             + sample_wt_scaled 
               #+ (1 | individual)
-              , data = mem_data_all)
+              , data = mem_data_all_6)
 
 
 fd_mod <- lm(fd ~ spp*mpa_scaled + spp*lfm_scaled 
               +  site 
              # + year_month 
-             # + sample_wt_scaled 
+              + sample_wt_scaled 
               #+ (1 | individual)
-              , data = mem_data_all)
+              , data = mem_data_all_6)
 
 
-tti_df <- field_data_all_6 %>% 
+tti_df <- field_data_all_sept %>% 
   modelr::add_predictions(tti_mod) %>% 
   mutate(pred_tti = pred, 
          .keep = "unused")
@@ -332,12 +367,25 @@ pred_long_df <- tti_fh_temp_fd_df %>%
 
 pred_long_df$spp <- factor(pred_long_df$spp, levels = c("quke", "arpa", "abco", "pije", "cade"))
 
-pred_long_df %>% 
+allmetrics <- pred_long_df %>% 
   ggplot(aes(y = prediction, 
              #x = metric, 
              fill = spp)) +
   geom_boxplot() +
-  facet_wrap(~metric, scales = "free", nrow = 1)
+  facet_wrap(~metric, scales = "free", nrow = 1) +
+  theme(legend.position = "none")
+
+legend <- get_legend(pred_long_df %>% 
+  ggplot(aes(y = prediction, 
+             #x = metric, 
+             fill = spp)) +
+  geom_boxplot())
+
+p1 <- cowplot::plot_grid(lfm_sept, mpa_sept, allmetrics, ncol = 1)
+p1
+
+p2 <- cowplot::plot_grid(p1, legend, ncol = 2, rel_widths = c(3,.5))
+p2
 ```
 
 

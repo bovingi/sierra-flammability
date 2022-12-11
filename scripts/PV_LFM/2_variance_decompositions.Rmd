@@ -32,6 +32,8 @@ library(remef)
 library(kableExtra)
 library(janitor)
 library(lubridate)
+library(specr)
+#install.packages("specr")
 
 filter = dplyr::filter
 mutate = dplyr::mutate
@@ -49,7 +51,7 @@ pv_all_df <- read_csv(here("processed-data", "analysis 2.0", "all_pv_curves_clea
   mutate(sample = as.factor(sample)) %>% 
   mutate(month = as.factor(month)) %>% 
   mutate(date = ymd(date), 
-        individual = str_c(species, '_', sample)
+        individual = str_c(species, '_', sample, '_', year)
         ) %>% 
   mutate(year_month = str_c(year, '_', month)) %>% 
   clean_names() %>% 
@@ -158,7 +160,12 @@ fgroup_pv_summaries <- pv_summaries_2 %>%
   mutate(mean_tlp_group = mean(tlp))
 ```
 
+```{r}
+unique(pv_all_df$year)
+```
+
 ####- PV plot
+
 ```{r}
 dat_text <- data.frame(
   F.Group = c("Angiosperm", "Gymnosperm"),
@@ -170,18 +177,21 @@ pv_plot <- pv_all_df %>%
   ggplot(aes(
     x = -1 * water_potential,
     y = lfm,
-    color = spp
+    color = spp,
+   # shape = as.factor(year)
   )) +
   geom_vline(aes(xintercept = -1*mean_tlp_group, 
                  lty = F.Group), data = fgroup_pv_summaries) +
-  geom_point(alpha = .5) +
+  geom_point(alpha = .5, 
+              aes(shape = as.factor(year))
+             ) +
   color_many +
   theme(legend.position = "none",
         axis.title.x = element_text("")) +
   labs(title = "PV Curves",
        x = "",
        y = "LFM") +
-  xlim(0, 9) +
+  xlim(0, 10) +
   # annotate(
   #   geom = "text",
   #   x = 9,
@@ -200,6 +210,60 @@ pv_plot <- pv_all_df %>%
   
 pv_plot
 ```
+F.test: 
+Allowa us to compare the variance between two groups, in this case angiosperms and gymnosperms:
+```{r}
+
+res.ftest <- var.test(lfm ~ F.Group, data = pv_all_df)
+res.ftest
+#There is a significant difference between the variaance 
+```
+Var decomp: 
+
+https://cran.r-project.org/web/packages/specr/vignettes/decompose_var.html 
+```{r}
+pv_mod <- lmer(lfm~(1|water_potential) + (1|F.Group) + (1|plant), data = pv_all_df)
+summary(pv_mod)
+anova(pv_mod)
+
+specr::icc_specs(pv_mod) %>%
+  mutate_if(is.numeric, round, 2)
+```
+
+#MEM!
+
+```{r}
+m10.5 <- lmer(lfm~ water_potential*F.Group + (1|plant), data = pv_all_df)
+summary(m10.5)
+AIC(m10.5)
+
+m10 <- lmer(lfm~ water_potential + F.Group + (1|plant), data = pv_all_df)
+summary(m10)
+AIC(m10)
+
+anova(m10, m10.5) #don't need interacrtion
+
+m10.75 <- lmer(lfm~ water_potential + F.Group + as.factor(year) + (1|plant), data = pv_all_df)
+summary(m10.75) #yes add year
+
+anova(m10, m10.75)
+
+m10.757 <- lmer(lfm~ water_potential*as.factor(year) + F.Group + (1|plant), data = pv_all_df)
+summary(m10.757)
+
+anova(m10.75, m10.757) # dont need year interaction
+
+qqnorm(resid(m10.75))
+r <- resid(m10.75)
+plot(fitted(m10.75), r)
+
+anova(m10.75)
+car::Anova(m10.75)
+
+specr::icc_specs(m10.75) %>%
+  mutate_if(is.numeric, round, 2)
+```
+
 
 ####- PV plot, neg mpa
 ```{r}
@@ -595,7 +659,8 @@ mod_all_long_lfm %>%
 # Section 2: Flam curve phys data
 
 ```{r, warning=FALSE}
-flam_curve_phys_all_raw <- read_csv(here("processed-data", "analysis 2.0", "flam_curve_phys_all.csv"), show_col_types = FALSE)
+# flam_curve_phys_all_raw <- read_csv(here("processed-data", "analysis 2.0", "flam_curve_phys_all.csv"), show_col_types = FALSE)
+flam_curve_phys_all_raw <- read_csv(here("processed-data", "analysis 2.0", "sierra_flam_data_all.csv"), show_col_types = FALSE)
 
 flam_curve_df <- flam_curve_phys_all_raw %>% 
    filter(!spp %in% c("ADFA", "CEME")) %>% 
@@ -605,6 +670,7 @@ flam_curve_df <- flam_curve_phys_all_raw %>%
   group_by(spp) %>% 
   mutate(plant = udpipe::unique_identifier(individual), 
          maxLFM = gww_gdw_saturated * 100) %>% 
+  mutate(spp = toupper(spp)) %>% 
   mutate(strategy = case_when( #based on slope of predawn~midday line
     spp == "ABCO" ~ "Isohydric", 
     spp == "PIJE" ~ "Isohydric", 
@@ -644,11 +710,41 @@ flam_curve_df <- flam_curve_phys_all_raw %>%
     spp == "CECO" ~ "Angiosperm",
     spp == "PIJE" ~ "Gymnosperm",
     spp == "QUKE" ~ "Angiosperm"
-  )) 
+  )) %>% 
+  select(lfm, water_potential, mpa, year, month, year_month, plant, F.Group, spp)
 #%>% 
  # select(spp, swc, lfm, mpa, month, tlp, water_potential, po, individual, plant)
 ```
 
+#MEM!
+
+```{r}
+m11.5 <- lmer(lfm~ water_potential + F.Group + (1|plant), data = flam_curve_df)
+summary(m11)
+
+m11 <- lmer(lfm~ water_potential*F.Group + (1|plant), data = flam_curve_df)
+
+anova(m11, m11.5) #Yes interaction between mpa and f group
+
+m11.75  <- lmer(lfm~ water_potential*F.Group + as.factor(year) + (1|plant), data = flam_curve_df)
+m11.75 #there shouldn't be an interaction between year and f group, so dont include
+summary(m11.75)
+
+anova(m11, m11.75) 
+
+qqnorm(resid(m11.75))
+r <- resid(m11.75)
+plot(fitted(m11.75
+            ), r)
+
+anova(m11.75)
+car::Anova(m11.75)
+
+performance::multicollinearity(m11.75)
+
+specr::icc_specs(m11) %>%
+  mutate_if(is.numeric, round, 2)
+```
 
 #####- Flam plot
 ```{r}
@@ -666,7 +762,9 @@ flam_plot <- flam_curve_df %>%
              color = spp)) +
   geom_vline(aes(xintercept = -1*mean_tlp_group, 
                  lty = F.Group), data = fgroup_pv_summaries) +
-  geom_point(alpha = .5) +
+  geom_point(alpha = .5, 
+             aes( shape = as.factor(year))
+             ) +
  # geom_smooth(method = "lm", se = F) +
   color_many +
   theme(legend.position = "none")+
@@ -674,7 +772,7 @@ flam_plot <- flam_curve_df %>%
        x = "Water Potential", 
        y = "LFM")+
   theme(plot.margin = unit(c(.2, .5, .3, .25), "cm")) +
-  xlim(0, 9) + 
+ # xlim(0, 9) + 
   geom_text(
   data    = dat_text,
   color = "black",
@@ -1007,7 +1105,8 @@ field_data_all <- read_csv(here("processed-data", "analysis 2.0", "field_data_20
          po = mean_po_date) %>% 
  # select(-mpa, -water_potential) %>% 
   mutate(water_potential = midday, 
-         plant = udpipe::unique_identifier(unique_id)) %>% 
+         unique_id2 = str_c(spp, "_",pod, '_', site),
+         plant = udpipe::unique_identifier(unique_id2)) %>% 
   mutate(year_month = str_c(year, '_', month)) %>% 
  # group_by(spp, plant) %>% 
   mutate(maxLFM = wettest_lfm)  %>% 
@@ -1053,6 +1152,39 @@ field_data_all <- read_csv(here("processed-data", "analysis 2.0", "field_data_20
   )) 
 ```
 
+#MEM!
+
+```{r}
+m12 <- lmer(lfm~ water_potential*F.Group*as.factor(year) + (1|plant), data = field_data_all)
+summary(m12) #doenst make sense to have year and F group interaction, don't use!
+
+m12.5 <- lmer(lfm~ water_potential*F.Group + as.factor(year) + (1|plant), data = field_data_all)
+summary(m12.5)
+
+#anova(m12, m12.5) #m12 is better
+
+#remove interaction between F.Group and year: 
+m12.45<- lmer(lfm~ water_potential*as.factor(year) + F.Group + (1|plant), data = field_data_all)
+summary(m12.45)
+
+m12.4<- lmer(lfm~ water_potential*as.factor(year) + water_potential*F.Group + F.Group + (1|plant), data = field_data_all)
+summary(m12.4)
+
+anova(m12.5, m12.4, m12.45) #with all interactions is better\
+
+qqnorm(resid(m12.4))
+r <- resid(m12.4)
+plot(fitted(m12.4
+            ), r)
+
+car::Anova(m12.4)
+
+performance::multicollinearity(m12.4)
+
+specr::icc_specs(m12) %>%
+  mutate_if(is.numeric, round, 2)
+```
+
 #####- Field plot
 
 ```{r}
@@ -1069,7 +1201,9 @@ field_plot <- field_data_all %>%
              color = spp)) +
   geom_vline(aes(xintercept = -1*mean_tlp_group, 
                  lty = F.Group), data = fgroup_pv_summaries) +
-  geom_point(alpha = .5)+
+  geom_point(alpha = .5, 
+             aes(shape = as.factor(year))
+             )+
   facet_wrap(~F.Group) +
  # geom_smooth(method = "lm", se = F) +
   color_many +
@@ -1078,7 +1212,7 @@ field_plot <- field_data_all %>%
        x = "", 
        y = "LFM") +
   theme(plot.margin = unit(c(.2, .5, -.5, .25), "cm")) +
-  xlim(0, 9) +
+  xlim(0, 10) +
   geom_text(
   data    = dat_text,
   color = "black",
@@ -1337,6 +1471,21 @@ var_decomp_df_lfm %>%
        title ="LFM") +
   color_fill
 ```
+#-MEMs combine:
+```{r}
+tab_model <- sjPlot::tab_model(m10.75, m11.75, m12.4,
+                               show.reflvl = TRUE, 
+          digits = 3, 
+          show.aic = TRUE, 
+          show.ci = FALSE,
+          show.icc = FALSE, 
+         string.pred = "Coeffcient", 
+        dv.labels = c("PV", "Flam", "Field"),
+         title = "LFM ~ MPa",
+  string.p = "P-Value", 
+  p.style = "stars")
+tab_model
+```
 
 #- Scatterplots, combine
 ```{r}
@@ -1348,9 +1497,11 @@ field_plot_leg <- field_data_all %>%
              color = spp)) +
   geom_vline(aes(xintercept = -1*mean_tlp_group, 
                  lty = F.Group), data = fgroup_pv_summaries) +
-  geom_point(alpha = .5) +
+  geom_point(alpha = .5, 
+             aes(shape = as.factor(year))) +
   labs(color = "Species", 
-       lty = "TLP") +
+       lty = "TLP", 
+       shape = "Year") +
  # geom_smooth(method = "lm", se = F) +
   color_many 
 legend <- cowplot::get_legend(field_plot_leg)
