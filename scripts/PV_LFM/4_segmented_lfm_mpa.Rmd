@@ -900,8 +900,6 @@ slopes_gymno
 #------
 #-1/MPA
 
-####With functional groups: 
-
 ####Angiosperms: 
 
 ```{r}
@@ -1158,6 +1156,639 @@ plot_legend <- cowplot::plot_grid(plot_1, legend, ncol = 2, rel_widths = c(4,1))
 plot_legend
 ```
 #-------
+
+#Pressure Volume Curves
+
+```{r,warning=FALSE}
+pv_all_df_4 <- read_csv(here("processed-data", "analysis 2.0", "all_pv_curves_clean_v2.csv"), show_col_types = FALSE) %>%
+  mutate(spp == species) %>% 
+  filter(!spp %in% c("ADFA", "CEME")) %>% 
+  mutate(sample = as.factor(sample)) %>% 
+  mutate(month = as.factor(month)) %>% 
+  mutate(date = ymd(date), 
+        individual = str_c(species, '_', sample, '_', year)
+        ) %>% 
+  mutate(year_month = str_c(year, '_', month)) %>% 
+  clean_names() %>% 
+  group_by(spp) %>% 
+  mutate(plant = udpipe::unique_identifier(individual), 
+         fresh_weight_saturated = as.numeric(fresh_weight_saturated)) %>% 
+  group_by(spp, plant) %>% 
+  mutate(maxLFM = ((fresh_weight_saturated - dry_weight)/dry_weight)*100) %>% 
+   mutate(spp = fct_relevel(spp, "ABCO","PIJE","CADE","CECO", "ARPA","QUKE")) %>% 
+  mutate(strategy = case_when( #based on slope of predawn~midday line
+    spp == "ABCO" ~ "Isohydric", 
+    spp == "PIJE" ~ "Isohydric", 
+     spp == "CADE" ~ "Isohydric", 
+    spp == "CECO" ~ "Anisohydric", 
+    spp == "ARPA" ~ "Anisohydric", 
+    spp == "QUKE" ~ "Anisohydric"
+  )) %>% 
+   mutate(strategy_binary = case_when( #based on slope of predawn~midday line
+    spp == "ABCO" ~ "1", 
+    spp == "ARPA" ~ "2", 
+    spp == "CADE" ~ "1", 
+    spp == "CECO" ~ "2", 
+    spp == "PIJE" ~ "1", 
+    spp == "QUKE" ~ "2"
+  )) %>% 
+   mutate(Species = case_when(
+     spp == "ABCO" ~ "A. concolor",
+    spp == "PIJE" ~ "P. jeffreyi", 
+    spp == "CADE" ~ "C. decurrens", 
+    spp == "CECO" ~ "C. cordulatus", 
+    spp == "ARPA" ~ "A. patula", 
+    spp == "QUKE" ~ "Q. kelloggii"
+    )) %>% 
+  mutate(type = case_when(
+    spp == "PIJE" ~ "tree", 
+    spp == "QUKE" ~ "tree", 
+    spp == "CECO" ~ "shrub", 
+    spp == "ARPA" ~ "shrub", 
+    spp == "ABCO" ~ "tree", 
+    spp == "CADE" ~ "tree"
+  )) %>% 
+  mutate(F.Group = case_when(
+    spp == "ARPA" ~ "Angiosperm", 
+    spp == "ABCO" ~ "Gymnosperm",
+    spp == "CADE" ~ "Gymnosperm",
+    spp == "CECO" ~ "Angiosperm",
+    spp == "PIJE" ~ "Gymnosperm",
+    spp == "QUKE" ~ "Angiosperm"
+  )) %>% 
+  filter(timing == "fall")
+  
+```
+
+
+####Angiosperms: 
+
+```{r}
+#Data
+field_segment_angio_df <- pv_all_df_4 %>% 
+  filter(F.Group == "Angiosperm") %>% 
+  mutate(mpa = water_potential) %>% 
+  #drop_na(mpa, lfm) %>% 
+  mutate(id = plant) %>% 
+  filter(mpa < 0)
+ # filter(lfm > 80, 
+       #  lfm < 150)
+
+mpa_psi_angio <- c(rep(NaN, 4))
+mpa_se_angio <- c(rep(NaN, 4))
+seg_psi_df_angio <- tibble::data_frame(mpa_psi_angio, mpa_se_angio)
+
+
+mpa_psi_angio <- c(rep(NaN, 4))
+mpa_se_angio <- c(rep(NaN, 4))
+mpa_p_angio <- c(rep(NaN, 4))
+seg_psi_norand_df_angio <- tibble::data_frame(mpa_psi_angio, mpa_se_angio, mpa_p_angio)
+
+#With random
+field_segment_angio_nona_df <- field_segment_angio_df %>% 
+  drop_na(lfm, mpa)
+
+o_mod<-lme(lfm ~ mpa + spp, random=~1|id, data=field_segment_angio_nona_df)
+
+os_mod<-segmented.default(o_mod, ~mpa, npsi=list(lfm=1))
+#summarizing results (note the '_coef' argument)
+summary.segmented(os_mod)
+
+#put into the df:
+seg_psi_df_angio[1] <- summary(os_mod)$psi[2]
+seg_psi_df_angio[2] <- summary(os_mod)$psi[3]
+
+#No random
+u_mod <- lm(lfm~mpa+ spp, data = field_segment_angio_nona_df)
+u_mod_b <- segmented(u_mod, ~mpa)
+summary.segmented(u_mod_b)
+summary(u_mod_b)
+
+slopes_angio <- slope(u_mod_b)
+
+u_mod_davies <- davies.test(u_mod, seg.Z = ~mpa)
+u_mod_davies
+
+u_mod_pscore <- pscore.test(u_mod, seg.Z=~mpa, k = 100, n.break = 1)
+u_mod_pscore
+
+#put into the df:
+seg_psi_norand_df_angio[1] <- summary(u_mod_b)$psi[2]
+seg_psi_norand_df_angio[2] <- summary(u_mod_b)$psi[3]
+seg_psi_norand_df_angio[3] <- u_mod_davies$p.value
+
+
+#Set up SE grey areas: 
+
+seg_psi_df_angio <- seg_psi_df_angio %>% 
+  mutate(lwr_angio = mpa_psi_angio - (mpa_se_angio/2), 
+         upr_angio = mpa_psi_angio + (mpa_se_angio/2)) %>% 
+  distinct()
+
+seg_psi_norand_df_angio <- seg_psi_norand_df_angio %>% 
+  mutate(lwr_angio = mpa_psi_angio - (mpa_se_angio/2), 
+         upr_angio = mpa_psi_angio + (mpa_se_angio/2)) %>% 
+  distinct()
+
+# mean_tlp_angio <- field_segment_angio_df %>% 
+#   drop_na(mean_tlp_spp) %>% 
+#  # filter(year == 2021, timing == "fall") %>% 
+#   mutate(mean_tlp_all = mean(mean_tlp_spp)) %>% 
+#   select(mean_tlp_all) %>% 
+#   distinct() %>% 
+#   pull()
+# mean_tlp_angio
+
+# sd_tlp_angio <- field_segment_angio_df %>% 
+#   drop_na(mean_tlp_spp) %>% 
+#  # filter(year == 2021, timing == "fall") %>% 
+#   mutate(sd_tlp_all = sd(mean_tlp_spp)) %>% 
+#   select(sd_tlp_all) %>% 
+#   distinct() %>% 
+#   pull() 
+# sd_tlp_angio
+
+# upr_tlp_angio <- mean(mean_tlp_angio + (sd_tlp_angio/2))
+# upr_tlp_angio
+# lwr_tlp_angio <- mean(mean_tlp_angio - (sd_tlp_angio/2))
+
+angio_seg_plot <- ggplot(aes(x = mpa, 
+           y = lfm, 
+           color = spp), 
+           data = field_segment_angio_df) +
+  geom_point()+
+  geom_ribbon(aes(xmin = seg_psi_norand_df_angio$lwr_angio, 
+                  xmax = seg_psi_norand_df_angio$upr_angio), 
+              fill = "red", 
+              color = "red", 
+              alpha = .5) +
+  geom_ribbon(aes(xmin = seg_psi_df_angio$lwr_angio, 
+                  xmax = seg_psi_df_angio$upr_angio), 
+              fill = "pink", 
+              color = "pink", 
+              alpha = .5)   +
+  geom_vline(xintercept  = seg_psi_df_angio$mpa_psi_angio, color = "pink", size = 2)  +
+   geom_vline(xintercept  = seg_psi_norand_df_angio$mpa_psi_angio, color = "red", size = 2) +
+  geom_vline(xintercept  = seg_psi_norand_df_angio$mpa_psi_angio, linetype = "dotted") +
+  #geom_vline(xintercept  = field_data_angio$mean_tlp_spp, colour = "blue") +
+ # geom_vline(xintercept  = field_data_gymno$mean_tlp_spp, colour = "purple") +
+  geom_vline(xintercept  = mean_tlp_angio, colour = "orange", size = 2) +
+  geom_ribbon(aes(xmin = lwr_tlp_angio, 
+                  xmax = upr_tlp_angio), 
+              fill = "orange", 
+              color = "orange", 
+              alpha = .5)  +
+  labs(title = "Angiosperms", 
+       #caption = "pink = est. breakpoint with no random effects, red = with random effects, orange = tlp"
+       x = "", 
+       y = "LFM") +
+  theme(legend.position = "none") +
+  xlim(-5, 0)
+
+angio_seg_plot
+```
+
+
+
+####Gymnosperms: 
+
+```{r}
+#Data
+field_segment_gymno_df <- pv_all_df_4 %>% 
+  filter(F.Group == "Gymnosperm") %>% 
+  mutate(id = plant,
+         mpa = water_potential) %>% 
+  drop_na(mpa, lfm)
+
+mpa_psi <- c(rep(NaN, 4))
+mpa_se <- c(rep(NaN, 4))
+seg_psi_df <- tibble::data_frame(mpa_psi, mpa_se)
+
+
+mpa_psi <- c(rep(NaN, 4))
+mpa_se <- c(rep(NaN, 4))
+mpa_p <- c(rep(NaN, 4))
+seg_psi_norand_df <- tibble::data_frame(mpa_psi, mpa_se, mpa_p)
+
+#With random
+field_segment_gymno_df <- field_segment_gymno_df %>% 
+  drop_na(mpa, lfm) %>% 
+  mutate(id = plant)
+
+o_mod<-lme(lfm ~ mpa + spp, random=~1|id, data=field_segment_gymno_df)
+
+os_mod<-segmented.default(o_mod, ~mpa, npsi=list(lfm=1))
+#summarizing results (note the '_coef' argument)
+summary.segmented(os_mod)
+
+#put into the df:
+seg_psi_df[1] <- summary(os_mod)$psi[2]
+seg_psi_df[2] <- summary(os_mod)$psi[3]
+
+#No random
+u_mod <- lm(lfm~mpa+ spp, data = field_segment_gymno_df)
+u_mod_b <- segmented(u_mod, ~mpa)
+summary.segmented(u_mod_b)
+
+slopes_gymno <- slope(u_mod_b)
+
+u_mod_davies <- davies.test(u_mod, seg.Z = ~mpa)
+u_mod_davies
+
+u_mod_pscore <- pscore.test(u_mod_b)
+u_mod_pscore
+
+#put into the df:
+seg_psi_norand_df[1] <- summary(u_mod_b)$psi[2]
+seg_psi_norand_df[2] <- summary(u_mod_b)$psi[3]
+seg_psi_norand_df[3] <- u_mod_davies$p.value
+
+
+#Set up SE grey areas: 
+
+seg_psi_df <- seg_psi_df %>% 
+  mutate(lwr = mpa_psi - (mpa_se/2), 
+         upr = mpa_psi + (mpa_se/2)) %>% 
+  distinct()
+
+seg_psi_norand_df <- seg_psi_norand_df %>% 
+  mutate(lwr = mpa_psi - (mpa_se/2), 
+         upr = mpa_psi + (mpa_se/2)) %>% 
+  distinct()
+
+# mean_tlp <- field_segment_gymno_df %>% 
+#   drop_na(mean_tlp_spp) %>% 
+#  # filter(year == 2021, timing == "fall") %>% 
+#   mutate(mean_tlp_all = mean(mean_tlp_spp)) %>% 
+#   select(mean_tlp_all) %>% 
+#   distinct() %>% 
+#   pull()
+# mean_tlp
+# 
+# sd_tlp <- field_segment_gymno_df %>% 
+#   drop_na(mean_tlp_spp) %>% 
+#  # filter(year == 2021, timing == "fall") %>% 
+#   mutate(sd_tlp_all = sd(mean_tlp_spp)) %>% 
+#   select(sd_tlp_all) %>% 
+#   distinct() %>% 
+#   pull() 
+# sd_tlp
+# 
+# upr_tlp <- mean(mean_tlp + (sd_tlp/2))
+# upr_tlp
+# lwr_tlp <- mean(mean_tlp - (sd_tlp/2))
+
+gymno_seg_plot <- ggplot(aes(x = mpa, 
+           y = lfm, 
+           color = spp), 
+           data = field_segment_gymno_df) +
+  geom_point()+
+  geom_ribbon(aes(xmin = seg_psi_norand_df$lwr, 
+                  xmax = seg_psi_norand_df$upr), 
+              fill = "red", 
+              color = "red", 
+              alpha = .5) +
+ geom_ribbon(aes(xmin = seg_psi_df$lwr,
+                 xmax = seg_psi_df$upr),
+             fill = "pink",
+             color = "pink",
+             alpha = .5)   +
+ geom_vline(xintercept  = seg_psi_df$mpa_psi, color = "pink", size = 2) +
+   geom_vline(xintercept  = seg_psi_norand_df$mpa_psi, color = "red", size = 2) +
+  geom_vline(xintercept  = seg_psi_norand_df$mpa_psi, linetype = "dotted") +
+  #geom_vline(xintercept  = field_data_gymno$mean_tlp_spp, colour = "blue") +
+ # geom_vline(xintercept  = field_data_gymno$mean_tlp_spp, colour = "purple") +
+  geom_vline(xintercept  = mean_tlp, colour = "orange", size = 2) +
+  geom_ribbon(aes(xmin = lwr_tlp, 
+                  xmax = upr_tlp), 
+              fill = "orange", 
+              color = "orange", 
+              alpha = .5)  +
+  labs(title = "Gymnosperms", 
+       caption = "pink = est. breakpoint with no random effects, red = with random effects, orange = tlp") +
+  theme(legend.position = "none") +
+  xlim(-5, 0)
+
+gymno_seg_plot
+
+```
+
+#------
+
+#Flam curve phys data
+
+```{r, warning=FALSE}
+# flam_curve_phys_all_raw <- read_csv(here("processed-data", "analysis 2.0", "flam_curve_phys_all.csv"), show_col_types = FALSE)
+flam_curve_phys_all_raw <- read_csv(here("processed-data", "analysis 2.0", "sierra_flam_data_all.csv"), show_col_types = FALSE)
+
+flam_curve_df_4 <- flam_curve_phys_all_raw %>% 
+   filter(!spp %in% c("ADFA", "CEME")) %>% 
+  mutate(water_potential = -1*pos_mpa, 
+         swc = swc_sat, 
+         month = as.factor(month)) %>% 
+  group_by(spp) %>% 
+  mutate(plant = udpipe::unique_identifier(individual), 
+         maxLFM = gww_gdw_saturated * 100) %>% 
+  mutate(spp = toupper(spp)) %>% 
+  mutate(strategy = case_when( #based on slope of predawn~midday line
+    spp == "ABCO" ~ "Isohydric", 
+    spp == "PIJE" ~ "Isohydric", 
+     spp == "CADE" ~ "Isohydric", 
+    spp == "CECO" ~ "Anisohydric", 
+    spp == "ARPA" ~ "Anisohydric", 
+    spp == "QUKE" ~ "Anisohydric"
+  )) %>% 
+   mutate(strategy_binary = case_when( #based on slope of predawn~midday line
+    spp == "ABCO" ~ "1", 
+    spp == "ARPA" ~ "2", 
+    spp == "CADE" ~ "1", 
+    spp == "CECO" ~ "2", 
+    spp == "PIJE" ~ "1", 
+    spp == "QUKE" ~ "2"
+  )) %>% 
+   mutate(Species = case_when(
+     spp == "ABCO" ~ "A. concolor",
+    spp == "PIJE" ~ "P. jeffreyi", 
+    spp == "CADE" ~ "C. decurrens", 
+    spp == "CECO" ~ "C. cordulatus", 
+    spp == "ARPA" ~ "A. patula", 
+    spp == "QUKE" ~ "Q. kelloggii"
+    )) %>% 
+  mutate(type = case_when(
+    spp == "PIJE" ~ "tree", 
+    spp == "QUKE" ~ "tree", 
+    spp == "CECO" ~ "shrub", 
+    spp == "ARPA" ~ "shrub", 
+    spp == "ABCO" ~ "tree", 
+    spp == "CADE" ~ "tree"
+  )) %>% 
+  mutate(F.Group = case_when(
+    spp == "ARPA" ~ "Angiosperm", 
+    spp == "ABCO" ~ "Gymnosperm",
+    spp == "CADE" ~ "Gymnosperm",
+    spp == "CECO" ~ "Angiosperm",
+    spp == "PIJE" ~ "Gymnosperm",
+    spp == "QUKE" ~ "Angiosperm"
+  )) %>% 
+  select(lfm, water_potential, mpa, year, month, year_month, plant, F.Group, spp)
+#%>% 
+ # select(spp, swc, lfm, mpa, month, tlp, water_potential, po, individual, plant)
+```
+
+
+
+####Angiosperms: 
+
+```{r}
+#Data
+field_segment_angio_df <- flam_curve_df_4 %>% 
+  filter(F.Group == "Angiosperm") %>% 
+  mutate(mpa = water_potential) %>% 
+  #drop_na(mpa, lfm) %>% 
+  mutate(id = plant) %>% 
+  filter(mpa < 0)
+ # filter(lfm > 80, 
+       #  lfm < 150)
+
+mpa_psi_angio <- c(rep(NaN, 4))
+mpa_se_angio <- c(rep(NaN, 4))
+seg_psi_df_angio <- tibble::data_frame(mpa_psi_angio, mpa_se_angio)
+
+
+mpa_psi_angio <- c(rep(NaN, 4))
+mpa_se_angio <- c(rep(NaN, 4))
+mpa_p_angio <- c(rep(NaN, 4))
+seg_psi_norand_df_angio <- tibble::data_frame(mpa_psi_angio, mpa_se_angio, mpa_p_angio)
+
+#With random
+field_segment_angio_nona_df <- field_segment_angio_df %>% 
+  drop_na(lfm, mpa)
+
+o_mod<-lme(lfm ~ mpa + spp, random=~1|id, data=field_segment_angio_nona_df)
+
+os_mod<-segmented.default(o_mod, ~mpa, npsi=list(lfm=1))
+#summarizing results (note the '_coef' argument)
+summary.segmented(os_mod)
+
+#put into the df:
+seg_psi_df_angio[1] <- summary(os_mod)$psi[2]
+seg_psi_df_angio[2] <- summary(os_mod)$psi[3]
+
+#No random
+u_mod <- lm(lfm~mpa+ spp, data = field_segment_angio_nona_df)
+u_mod_b <- segmented(u_mod, ~mpa)
+summary.segmented(u_mod_b)
+summary(u_mod_b)
+
+slopes_angio <- slope(u_mod_b)
+
+u_mod_davies <- davies.test(u_mod, seg.Z = ~mpa)
+u_mod_davies
+
+u_mod_pscore <- pscore.test(u_mod, seg.Z=~mpa, k = 100, n.break = 1)
+u_mod_pscore
+
+#put into the df:
+seg_psi_norand_df_angio[1] <- summary(u_mod_b)$psi[2]
+seg_psi_norand_df_angio[2] <- summary(u_mod_b)$psi[3]
+seg_psi_norand_df_angio[3] <- u_mod_davies$p.value
+
+
+#Set up SE grey areas: 
+
+seg_psi_df_angio <- seg_psi_df_angio %>% 
+  mutate(lwr_angio = mpa_psi_angio - (mpa_se_angio/2), 
+         upr_angio = mpa_psi_angio + (mpa_se_angio/2)) %>% 
+  distinct()
+
+seg_psi_norand_df_angio <- seg_psi_norand_df_angio %>% 
+  mutate(lwr_angio = mpa_psi_angio - (mpa_se_angio/2), 
+         upr_angio = mpa_psi_angio + (mpa_se_angio/2)) %>% 
+  distinct()
+
+# mean_tlp_angio <- field_segment_angio_df %>% 
+#   drop_na(mean_tlp_spp) %>% 
+#  # filter(year == 2021, timing == "fall") %>% 
+#   mutate(mean_tlp_all = mean(mean_tlp_spp)) %>% 
+#   select(mean_tlp_all) %>% 
+#   distinct() %>% 
+#   pull()
+# mean_tlp_angio
+
+# sd_tlp_angio <- field_segment_angio_df %>% 
+#   drop_na(mean_tlp_spp) %>% 
+#  # filter(year == 2021, timing == "fall") %>% 
+#   mutate(sd_tlp_all = sd(mean_tlp_spp)) %>% 
+#   select(sd_tlp_all) %>% 
+#   distinct() %>% 
+#   pull() 
+# sd_tlp_angio
+
+# upr_tlp_angio <- mean(mean_tlp_angio + (sd_tlp_angio/2))
+# upr_tlp_angio
+# lwr_tlp_angio <- mean(mean_tlp_angio - (sd_tlp_angio/2))
+
+angio_seg_plot <- ggplot(aes(x = mpa, 
+           y = lfm, 
+           color = spp), 
+           data = field_segment_angio_df) +
+  geom_point()+
+  geom_ribbon(aes(xmin = seg_psi_norand_df_angio$lwr_angio, 
+                  xmax = seg_psi_norand_df_angio$upr_angio), 
+              fill = "red", 
+              color = "red", 
+              alpha = .5) +
+  geom_ribbon(aes(xmin = seg_psi_df_angio$lwr_angio, 
+                  xmax = seg_psi_df_angio$upr_angio), 
+              fill = "pink", 
+              color = "pink", 
+              alpha = .5)   +
+  geom_vline(xintercept  = seg_psi_df_angio$mpa_psi_angio, color = "pink", size = 2)  +
+   geom_vline(xintercept  = seg_psi_norand_df_angio$mpa_psi_angio, color = "red", size = 2) +
+  geom_vline(xintercept  = seg_psi_norand_df_angio$mpa_psi_angio, linetype = "dotted") +
+  #geom_vline(xintercept  = field_data_angio$mean_tlp_spp, colour = "blue") +
+ # geom_vline(xintercept  = field_data_gymno$mean_tlp_spp, colour = "purple") +
+  geom_vline(xintercept  = mean_tlp_angio, colour = "orange", size = 2) +
+  geom_ribbon(aes(xmin = lwr_tlp_angio, 
+                  xmax = upr_tlp_angio), 
+              fill = "orange", 
+              color = "orange", 
+              alpha = .5)  +
+  labs(title = "Angiosperms", 
+       #caption = "pink = est. breakpoint with no random effects, red = with random effects, orange = tlp"
+       x = "", 
+       y = "LFM") +
+  theme(legend.position = "none") 
+
+angio_seg_plot
+```
+
+
+
+####Gymnosperms: 
+
+```{r}
+#Data
+field_segment_gymno_df <-flam_curve_df_4%>% 
+  filter(F.Group == "Gymnosperm") %>% 
+  mutate(id = plant,
+         mpa = water_potential) %>% 
+  drop_na(mpa, lfm)
+
+mpa_psi <- c(rep(NaN, 4))
+mpa_se <- c(rep(NaN, 4))
+seg_psi_df <- tibble::data_frame(mpa_psi, mpa_se)
+
+
+mpa_psi <- c(rep(NaN, 4))
+mpa_se <- c(rep(NaN, 4))
+mpa_p <- c(rep(NaN, 4))
+seg_psi_norand_df <- tibble::data_frame(mpa_psi, mpa_se, mpa_p)
+
+#With random
+field_segment_gymno_df <- field_segment_gymno_df %>% 
+  drop_na(mpa, lfm) %>% 
+  mutate(id = plant)
+
+o_mod<-lme(lfm ~ mpa + spp, random=~1|id, data=field_segment_gymno_df)
+
+os_mod<-segmented.default(o_mod, ~mpa, npsi=list(lfm=1))
+#summarizing results (note the '_coef' argument)
+summary.segmented(os_mod)
+
+#put into the df:
+seg_psi_df[1] <- summary(os_mod)$psi[2]
+seg_psi_df[2] <- summary(os_mod)$psi[3]
+
+#No random
+u_mod <- lm(lfm~mpa+ spp, data = field_segment_gymno_df)
+u_mod_b <- segmented(u_mod, ~mpa)
+summary.segmented(u_mod_b)
+
+slopes_gymno <- slope(u_mod_b)
+
+u_mod_davies <- davies.test(u_mod, seg.Z = ~mpa)
+u_mod_davies
+
+u_mod_pscore <- pscore.test(u_mod_b)
+u_mod_pscore
+
+#put into the df:
+seg_psi_norand_df[1] <- summary(u_mod_b)$psi[2]
+seg_psi_norand_df[2] <- summary(u_mod_b)$psi[3]
+seg_psi_norand_df[3] <- u_mod_davies$p.value
+
+
+#Set up SE grey areas: 
+
+seg_psi_df <- seg_psi_df %>% 
+  mutate(lwr = mpa_psi - (mpa_se/2), 
+         upr = mpa_psi + (mpa_se/2)) %>% 
+  distinct()
+
+seg_psi_norand_df <- seg_psi_norand_df %>% 
+  mutate(lwr = mpa_psi - (mpa_se/2), 
+         upr = mpa_psi + (mpa_se/2)) %>% 
+  distinct()
+
+# mean_tlp <- field_segment_gymno_df %>% 
+#   drop_na(mean_tlp_spp) %>% 
+#  # filter(year == 2021, timing == "fall") %>% 
+#   mutate(mean_tlp_all = mean(mean_tlp_spp)) %>% 
+#   select(mean_tlp_all) %>% 
+#   distinct() %>% 
+#   pull()
+# mean_tlp
+# 
+# sd_tlp <- field_segment_gymno_df %>% 
+#   drop_na(mean_tlp_spp) %>% 
+#  # filter(year == 2021, timing == "fall") %>% 
+#   mutate(sd_tlp_all = sd(mean_tlp_spp)) %>% 
+#   select(sd_tlp_all) %>% 
+#   distinct() %>% 
+#   pull() 
+# sd_tlp
+# 
+# upr_tlp <- mean(mean_tlp + (sd_tlp/2))
+# upr_tlp
+# lwr_tlp <- mean(mean_tlp - (sd_tlp/2))
+
+gymno_seg_plot <- ggplot(aes(x = mpa, 
+           y = lfm, 
+           color = spp), 
+           data = field_segment_gymno_df) +
+  geom_point()+
+  geom_ribbon(aes(xmin = seg_psi_norand_df$lwr, 
+                  xmax = seg_psi_norand_df$upr), 
+              fill = "red", 
+              color = "red", 
+              alpha = .5) +
+ geom_ribbon(aes(xmin = seg_psi_df$lwr,
+                 xmax = seg_psi_df$upr),
+             fill = "pink",
+             color = "pink",
+             alpha = .5)   +
+ geom_vline(xintercept  = seg_psi_df$mpa_psi, color = "pink", size = 2) +
+   geom_vline(xintercept  = seg_psi_norand_df$mpa_psi, color = "red", size = 2) +
+  geom_vline(xintercept  = seg_psi_norand_df$mpa_psi, linetype = "dotted") +
+  #geom_vline(xintercept  = field_data_gymno$mean_tlp_spp, colour = "blue") +
+ # geom_vline(xintercept  = field_data_gymno$mean_tlp_spp, colour = "purple") +
+  geom_vline(xintercept  = mean_tlp, colour = "orange", size = 2) +
+  geom_ribbon(aes(xmin = lwr_tlp, 
+                  xmax = upr_tlp), 
+              fill = "orange", 
+              color = "orange", 
+              alpha = .5)  +
+  labs(title = "Gymnosperms", 
+       caption = "pink = est. breakpoint with no random effects, red = with random effects, orange = tlp") +
+  theme(legend.position = "none") 
+
+gymno_seg_plot
+
+```
+
+
+#-----
 
 #*Ignore me*:
 
