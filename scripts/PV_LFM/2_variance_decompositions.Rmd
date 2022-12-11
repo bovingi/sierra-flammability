@@ -241,7 +241,7 @@ m10 <- lmer(lfm~ water_potential + F.Group + (1|plant), data = pv_all_df)
 summary(m10)
 AIC(m10)
 
-anova(m10, m10.5) #don't need interacrtion
+anova(m10, m10.5) #don't need interaction
 
 m10.75 <- lmer(lfm~ water_potential + F.Group + as.factor(year) + (1|plant), data = pv_all_df)
 summary(m10.75) #yes add year
@@ -1150,12 +1150,27 @@ field_data_all <- read_csv(here("processed-data", "analysis 2.0", "field_data_20
     spp == "PIJE" ~ "Gymnosperm",
     spp == "QUKE" ~ "Angiosperm"
   )) 
+
+field_data_all_2 <- field_data_all %>% 
+  drop_na(lfm, water_potential, plant, F.Group, year)
 ```
 
 #MEM!
+```{r}
+o1 <-lme(lconc ~ lTime*group, random=~1|Subject, data=Cefamandole)
+
+o1 <- lme(lfm~ water_potential*as.factor(year) + water_potential*F.Group + F.Group, random = ~1|plant, 
+          data = field_data_all_2)
+
+
+os1 <- segmented(o1, ~water_potential, x.diff=~F.Group, z.psi=~water_potential)
+
+slope(os1, by=list(z=.1)) #the slope estimates when z=.1
+```
+
 
 ```{r}
-m12 <- lmer(lfm~ water_potential*F.Group*as.factor(year) + (1|plant), data = field_data_all)
+m12 <- lmer(sqrt(lfm)~ water_potential*F.Group*as.factor(year) + (1|plant), data = field_data_all)
 summary(m12) #doenst make sense to have year and F group interaction, don't use!
 
 m12.5 <- lmer(lfm~ water_potential*F.Group + as.factor(year) + (1|plant), data = field_data_all)
@@ -1166,8 +1181,12 @@ summary(m12.5)
 #remove interaction between F.Group and year: 
 m12.45<- lmer(lfm~ water_potential*as.factor(year) + F.Group + (1|plant), data = field_data_all)
 summary(m12.45)
+```
 
-m12.4<- lmer(lfm~ water_potential*as.factor(year) + water_potential*F.Group + F.Group + (1|plant), data = field_data_all)
+
+```{r}
+m12.4<- lmer(log(lfm)~ water_potential*as.factor(year) + water_potential*F.Group + F.Group + (1|plant), data = field_data_all)
+
 summary(m12.4)
 
 anova(m12.5, m12.4, m12.45) #with all interactions is better\
@@ -1175,7 +1194,7 @@ anova(m12.5, m12.4, m12.45) #with all interactions is better\
 qqnorm(resid(m12.4))
 r <- resid(m12.4)
 plot(fitted(m12.4
-            ), r)
+            ), r) #right skewed
 
 car::Anova(m12.4)
 
@@ -1217,9 +1236,47 @@ field_plot <- field_data_all %>%
   data    = dat_text,
   color = "black",
   fontface = 'bold', size = 10,
-  mapping = aes(x = 9, y = 300, label = label))
+  mapping = aes(x = 9, 
+                y = 300, 
+                #y = 2,
+                label = label)
+ )
   #annotate(geom = "text", x = 9, y = 300, label = 'a', fontface = 'bold', size = 10) 
 field_plot
+```
+##### Field plot, log(lfm)
+```{r}
+field_plot_logged<- field_data_all %>% 
+  filter(lfm < 300, 
+         lfm > 50) %>% 
+  ggplot(aes(y = log(lfm), 
+             x = -1*water_potential, 
+             color = spp)) +
+  geom_vline(aes(xintercept = -1*mean_tlp_group, 
+                 lty = F.Group), data = fgroup_pv_summaries) +
+  geom_point(alpha = .5, 
+             aes(shape = as.factor(year))
+             )+
+  facet_wrap(~F.Group) +
+ # geom_smooth(method = "lm", se = F) +
+  color_many +
+  theme(legend.position = "none") +
+  labs(title = "Field", 
+       x = "", 
+       y = "LFM") +
+  theme(plot.margin = unit(c(.2, .5, -.5, .25), "cm")) +
+  xlim(0, 10) +
+  geom_text(
+  data    = dat_text,
+  color = "black",
+  fontface = 'bold', size = 10,
+  mapping = aes(x = 9, 
+               # y = 300, 
+                y = 2,
+                label = label)
+ )
+  #annotate(geom = "text", x = 9, y = 300, label = 'a', fontface = 'bold', size = 10) 
+field_plot_logged
 ```
 
 #####- Field plot, neg

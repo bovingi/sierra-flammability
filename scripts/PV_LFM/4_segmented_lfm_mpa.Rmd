@@ -630,7 +630,8 @@ field_segment_angio_df <- field_data_all_4 %>%
   filter(F.Group == "Angiosperm") %>% 
   mutate(mpa = water_potential) %>% 
   #drop_na(mpa, lfm) %>% 
-  mutate(id = unique_id) 
+  mutate(id = unique_id) %>% 
+  filter(mpa < 0)
  # filter(lfm > 80, 
        #  lfm < 150)
 
@@ -662,9 +663,15 @@ seg_psi_df_angio[2] <- summary(os_mod)$psi[3]
 u_mod <- lm(lfm~mpa+ spp + doy, data = field_segment_angio_nona_df)
 u_mod_b <- segmented(u_mod, ~mpa)
 summary.segmented(u_mod_b)
+summary(u_mod_b)
 
-u_mod_davies <- davies.test(u_mod_b)
+slopes_angio <- slope(u_mod_b)
+
+u_mod_davies <- davies.test(u_mod, seg.Z = ~mpa)
 u_mod_davies
+
+u_mod_pscore <- pscore.test(u_mod, seg.Z=~mpa, k = 100, n.break = 1)
+u_mod_pscore
 
 #put into the df:
 seg_psi_norand_df_angio[1] <- summary(u_mod_b)$psi[2]
@@ -784,8 +791,13 @@ u_mod <- lm(lfm~mpa+ spp + doy, data = field_segment_gymno_df)
 u_mod_b <- segmented(u_mod, ~mpa)
 summary.segmented(u_mod_b)
 
-u_mod_davies <- davies.test(u_mod_b)
+slopes_gymno <- slope(u_mod_b)
+
+u_mod_davies <- davies.test(u_mod, seg.Z = ~mpa)
 u_mod_davies
+
+u_mod_pscore <- pscore.test(u_mod_b)
+u_mod_pscore
 
 #put into the df:
 seg_psi_norand_df[1] <- summary(u_mod_b)$psi[2]
@@ -879,6 +891,11 @@ plot_legend <- cowplot::plot_grid(plot_1, legend, ncol = 2, rel_widths = c(4,1))
 plot_legend
 ```
 
+These are the slopes for before and after the breakpoints:
+```{r}
+slopes_angio
+slopes_gymno
+```
 
 #------
 #-1/MPA
