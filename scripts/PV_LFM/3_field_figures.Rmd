@@ -745,6 +745,16 @@ field_data_all_3 %>%
 
 #Boxplots over time
 
+
+```{r}
+field_data_all_3 %>% 
+  filter(month %in% c(9)) %>% 
+  group_by(spp, year) %>% 
+  summarise(mean_lfm = mean(lfm), 
+            mean_mpa = mean(midday)) %>% 
+  arrange(year, mean_lfm, mean_mpa)
+```
+
 ####Setup:
 ```{r}
 pheno_df_leaves <- pheno_df %>% 
@@ -950,6 +960,55 @@ field_data_2021 %>%
     strip.text = element_text(face = "italic")) +
   labs(
     y = "Live Fuel Moisture",
+    x = "Date",
+    color = "Phenophase",
+    fill = "Tissue Status"
+  ) 
+```
+```{r}
+mpa_plot <- field_data_all_3 %>%
+  filter(age != "both",
+         lfm < 350) %>%
+  filter(year == 2021) 
+
+
+  ggplot() +
+  geom_boxplot(aes(
+    y = midday,
+    x = cut(date, breaks = "week"),
+    #x = week,
+   # x = as.numeric(week),
+    #x = week,
+    #color = age
+   # fill = age
+  ),
+  data = mpa_plot
+  ) +
+  geom_hline(aes(yintercept  = mpatlp), field_data_all_3,
+             linetype = "dotted") +
+  # geom_line(aes(y = lfm, 
+  #               #x = cut(date, breaks = "week"),
+  #                x = week,
+  #               color = phenophase_name),
+  #           alpha = 1, 
+  #           data  = field_data_fig_2,
+  #           size = 4,
+  #           position=position_dodge(w=1)) +
+  facet_wrap( ~ spp, 
+              labeller = labeller(spp = spp.labs), 
+              scales = "free"
+              ) +
+  theme(axis.ticks.x = element_blank(),
+    #axis.title.x = element_blank(),
+    axis.text.x = element_text(
+      angle = 30,
+      hjust = 1,
+      size = 10),
+    axis.title = element_text(face = "bold"),
+    legend.title = element_text(face = "bold"),
+    strip.text = element_text(face = "italic")) +
+  labs(
+    y = "Water Potential",
     x = "Date",
     color = "Phenophase",
     fill = "Tissue Status"

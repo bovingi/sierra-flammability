@@ -58,7 +58,9 @@ field_data_all_6 <- read_csv(here("processed-data", "analysis 2.0","field_data_2
 #summary(tti_mod)
 #str(mem_data_all)
 
-tti_mod <- lm(tti ~ spp*mpa_scaled + spp*lfm_scaled + sample_wt_scaled, data = mem_data_all)
+tti_mod <- lm(tti ~ spp*mpa_scaled + spp*lfm_scaled 
+              +site
+              , data = mem_data_all)
 summary(tti_mod)
 
 tti_df <- field_data_all_6 %>% 
@@ -67,7 +69,7 @@ tti_df <- field_data_all_6 %>%
 tti_pred <- tti_df %>% 
   filter(year == 2021) %>% 
 ggplot() +
-  geom_point(aes(y = pred*-1, 
+  geom_beeswarm(aes(y = pred*-1, 
                  x = date, 
                  color = spp)) +
   geom_smooth(aes(y = pred*-1, x = date, color = spp)) +
@@ -90,7 +92,7 @@ fh_df <- field_data_all_6 %>%
 fh_pred <- fh_df %>% 
   filter(year == 2021) %>% 
 ggplot() +
-  geom_point(aes(y = pred, 
+  geom_beeswarm(aes(y = pred, 
                  x = date, 
                  color = spp)) +
   geom_smooth(aes(y = pred, x = date, color = spp)) +
@@ -106,7 +108,7 @@ fh_pred
 temp_mod <- lm(temp_change ~ spp*mpa_scaled + spp*lfm_scaled 
               +  site 
              # + year_month 
-              + sample_wt_scaled 
+              #+ sample_wt_scaled 
               #+ (1 | individual)
               , data = mem_data_all)
 
@@ -116,7 +118,7 @@ temp_df <- field_data_all_6 %>%
 temp_pred <- temp_df %>% 
   filter(year == 2021) %>% 
 ggplot() +
-  geom_point(aes(y = pred, 
+  geom_beeswarm(aes(y = pred, 
                  x = date, 
                  color = spp)) +
   geom_smooth(aes(y = pred, x = date, color = spp)) +
@@ -263,3 +265,80 @@ plots_box <- cowplot::plot_grid(tti_pred, fh_pred, temp_pred,
 legend_plots_box <- cowplot::plot_grid(plots_box, legend_box, ncol = 2, rel_widths = c(4,1))
 legend_plots_box
 ```
+
+#-------
+#just sept: 
+
+```{r}
+field_data_all_sept <- field_data_all_6 %>% 
+  filter(month %in% c(9), 
+         year == 2021)
+```
+
+#ALL together:
+
+```{r}
+tti_mod <- lm(tti ~ spp*mpa_scaled + spp*lfm_scaled 
+             # + sample_wt_scaled, 
+              ,data = mem_data_all)
+
+
+fh_mod <- lm(fh ~ spp*mpa_scaled + spp*lfm_scaled 
+             + site
+            # + sample_wt_scaled 
+             ,data = mem_data_all)
+
+temp_mod <- lm(temp_change ~ spp*mpa_scaled + spp*lfm_scaled 
+              +  site 
+             # + year_month 
+             # + sample_wt_scaled 
+              #+ (1 | individual)
+              , data = mem_data_all)
+
+
+fd_mod <- lm(fd ~ spp*mpa_scaled + spp*lfm_scaled 
+              +  site 
+             # + year_month 
+             # + sample_wt_scaled 
+              #+ (1 | individual)
+              , data = mem_data_all)
+
+
+tti_df <- field_data_all_6 %>% 
+  modelr::add_predictions(tti_mod) %>% 
+  mutate(pred_tti = pred, 
+         .keep = "unused")
+
+tti_fh_df <- tti_df %>% 
+  modelr::add_predictions(fh_mod) %>% 
+  mutate(pred_fh = pred, 
+         .keep = "unused")
+
+tti_fh_temp_df <- tti_fh_df %>% 
+  modelr::add_predictions(temp_mod) %>% 
+  mutate(pred_temp = pred, 
+         .keep = "unused")
+
+tti_fh_temp_fd_df <- tti_fh_temp_df %>% 
+  modelr::add_predictions(fd_mod) %>% 
+  mutate(pred_fd = pred, 
+         .keep = "unused")
+
+pred_long_df <- tti_fh_temp_fd_df %>% 
+  pivot_longer(cols = c(pred_temp, pred_tti, pred_fh, pred_fd),
+                        names_to = "metric", 
+               values_to = "prediction"
+               )
+
+pred_long_df$spp <- factor(pred_long_df$spp, levels = c("quke", "arpa", "abco", "pije", "cade"))
+
+pred_long_df %>% 
+  ggplot(aes(y = prediction, 
+             #x = metric, 
+             fill = spp)) +
+  geom_boxplot() +
+  facet_wrap(~metric, scales = "free", nrow = 1)
+```
+
+
+

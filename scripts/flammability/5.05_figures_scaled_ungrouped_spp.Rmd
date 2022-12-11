@@ -587,7 +587,7 @@ fd_plot_r <- mem_data_all_r %>%
   geom_smooth(method = "lm", se = F, aes(color = Species, lty = fd.sig), alpha = .75) + 
   #color_many2  + # For color by species w/ CECO
   color_noceco+ # For color by species w/o CECO
-  theme(legend.position = "none",
+  theme(#legend.position = "none",
                        axis.text = element_text(size = 14),
                        axis.title = element_text(size = 22, face = 'bold'))+
   labs(x = "", 
@@ -998,15 +998,32 @@ Now, putting all figures together, remef only:
 # All together
 ```{r}
 plot_legend <- mem_data_all_r %>% 
-  ggplot(aes(x = tti, y = mpa, group = Species)) +
-  geom_point(aes(color = Species), size = 2.2) +
-  geom_smooth(se = F, method = 'lm', aes(color = Species, lty = fh.mpa.sig)) +
-  #color_many2  +
-  labs(color = "Species", lty = "Significant?") +
-  theme(legend.text = element_text(size = 16, face = 'italic'), 
-        legend.title = element_text(size = 22, face = 'bold'),
-        legend.key = element_rect(fill = 'white')) +
-  guides(lty = guide_legend(override.aes = list(color = 'black')))
+  ggplot(aes(y = fh, 
+             x = mpa_scaled, 
+             group = spp)) +
+  geom_point(alpha= .4, aes(color = Species))+
+  geom_smooth(method = "lm", se = F, 
+              aes(color = Species, lty = fh.mpa.sig), 
+              alpha = .75) + 
+  #color_many2  + # For color by species w/ CECO
+  color_noceco + # For color by species w/o CECO
+  theme(#legend.position = "none",
+        axis.text = element_text(size = 14, color = "black"),
+        axis.title = element_text(size = 22, face = 'bold'))+
+  labs(x = "", 
+       y = "Flame Height (cm)") +
+  annotate(geom = "text", x = -1.8, y = 53, label = 'b', fontface = 'bold', size = 10)
+
+# mem_data_all_r %>% 
+#   ggplot(aes(x = tti, y = mpa, group = Species)) +
+#   geom_point(aes(color = Species), size = 2.2) +
+#   geom_smooth(se = F, method = 'lm', aes(color = Species, lty = fh.mpa.sig)) +
+#  # color_many2  +
+#   labs(color = "Species", lty = "Significant?") +
+#   theme(legend.text = element_text(size = 16, face = 'italic'), 
+#         legend.title = element_text(size = 22, face = 'bold'),
+#         legend.key = element_rect(fill = 'white')) +
+#   guides(lty = guide_legend(override.aes = list(color = 'black')))
 
 legend <- cowplot::get_legend(plot_legend)
 ```
@@ -1034,6 +1051,29 @@ ggsave(plot=plots_legend, bg = "white" , here::here("figures", "mpa_flam_metrics
 ```
 
 #### LFM
+```{r, fig.height=5, fig.width=9}
+plots <- cowplot::plot_grid(tti_plot_lfm,
+          fh_plot_lfm,
+          gd_plot_lfm,
+          fd_plot_lfm,
+          temp_change_plot_lfm_r,
+          prop_ignite_plot_lfm_r
+          #, 
+         # ncol = 3, 
+         # nrow = 2, 
+          )
+plots
+plots_legend <- cowplot::plot_grid(plots, legend, rel_widths = c(5, 1))
+plots_legend
+
+#ggsave(plot=plots_legend, bg = "white" , here::here("figures", "lfm_flam_metrics.jpeg"), device="jpg")
+
+ggsave(plot=plots_legend, bg = "white" , here::here("figures", "lfm_flam_metrics_withceco.jpeg"), device="jpg")
+```
+
+
+With f groups: 
+
 ```{r, fig.height=5, fig.width=9}
 plots <- cowplot::plot_grid(tti_plot_lfm_r,
           fh_plot_lfm_r,
@@ -1166,12 +1206,24 @@ tab_model(tti_mod, fh_mod, gd_mod, lower_temp_max_mod, prop_ignite_mod,
          title = "Effect Size Plots: MEM Table",
   string.p = "P-Value", 
   p.style = "stars")
+```
 
+```{r}
+tti_mod
+plot_model(tti_mod, 
+                  # type = "slope",
+                   rm.terms = c("site", "year_month", "sample_wt_scaled", "year month [2020_september]"), 
+                   show.p = TRUE)
+
+```
+
+
+```{r}
 tti_mod
 
 tti_spp <- lmer(tti ~ spp + lfm_scaled + (1 | individual), data = mem_data_all_r)
 
-sjPlot::plot_model(tti_spp)
+sjPlot::plot_model(tti_mod)
 
 fh_spp <- lmer(fh ~ spp + lfm_scaled + (1 | individual), data = mem_data_all_r)
 
