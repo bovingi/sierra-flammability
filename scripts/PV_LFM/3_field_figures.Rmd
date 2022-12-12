@@ -9,6 +9,8 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+#Setup
+
 ```{r}
 #install.packages("ggplot2")
 library(ggplot2)
@@ -30,22 +32,13 @@ library(MetBrewer)
 library(RColorBrewer)
 
 source(here::here("scripts", "scripts_functions", "figure_info_sierra_flammability.R")) #color and theme info is here
+
+spp.labs <- c(" Abies concolor","Pinus jeffreyi","Calocedrus decurrens","Ceanothus cordulatus","Arctostaphylos patula","Quercus kelloggii")
+names(spp.labs) <- c("ABCO","PIJE","CADE","CECO", "ARPA","QUKE")
 ```
 #Setup
 This dataset has field-collected LFM and Mpa data, and LFM at TLP and MPa at TLP from PV Curves
 
-```{r, pretty colors, include = FALSE}
-# Morgenstern = list(c("#7c668c", "#b08ba5", "#dfbbc8", "#ffc680", "#ffb178", "#db8872", "#a56457"), c("darkpurp", "medpurp", "lightpurp", "yellow", "golden", "orange", "darkorange"), colorblind=TRUE)
-# 
-# my_colors_3 <- MetBrewer::met.brewer("Morgenstern", n = 3)
-# 
-# morg_diverge <- list(c("#7c668c",  "#db8872", "#ffc680","#a56457"), colorblind=TRUE)
-# 
-# th <- theme(panel.background = element_rect(fill='white', colour='black'), # Make background white and border black
-#           panel.grid.major = element_blank(),  # Hide major gridlines
-#           panel.grid.minor = element_blank())
-```
-#-----------------------------------------------
 #Data 
 
 ###Field Data
@@ -69,6 +62,7 @@ pheno_df <- read_csv(here("processed-data", "compiled-datasets", "phenology_czo_
 ```{r}
 pv_summaries <- read_csv(here("raw-data", "PV_sierra_summaries.csv")) %>% 
   clean_names() %>% 
+  mutate(tlp_mpa = ytlp_m_pa) %>% 
    mutate(spp = fct_relevel(species, "ABCO","PIJE","CADE","CECO", "ARPA","QUKE"))  %>% 
   mutate(strategy = case_when( #based on slope of predawn~midday line
     spp == "ABCO" ~ "Isohydric", 
@@ -258,9 +252,6 @@ field_data_all_3 %>%
 #Hydroscapes, but remove up to June:
 
 ```{r}
-spp.labs <- c(" Abies concolor","Pinus jeffreyi","Calocedrus decurrens","Ceanothus cordulatus","Arctostaphylos patula","Quercus kelloggii")
-names(spp.labs) <- c("ABCO","PIJE","CADE","CECO", "ARPA","QUKE")
-
 p1 <- field_data_all_3 %>% 
  filter(age == "new",
         strategy == "Isohydric",
@@ -965,14 +956,52 @@ field_data_2021 %>%
     fill = "Tissue Status"
   ) 
 ```
+
+#MPa over time: 
 ```{r}
 mpa_plot <- field_data_all_3 %>%
+  mutate(spp = fct_relevel(spp, "ABCO", "PIJE", "CADE", "CECO", "ARPA", "QUKE"))  %>%
   filter(age != "both",
          lfm < 350) %>%
-  filter(year == 2021) 
+  filter(year == 2021) %>% 
+  pivot_longer(cols = c(midday, predawn), 
+               names_to = "time_mpa", 
+               values_to = "field_mpa", 
+               names_repair = "minimal") 
+#%>% 
+  # select(lfm, spp, mean_tlp_spp, sd_spp, age, F.Group, date, field_mpa, timing)
+
+mpa_plot %>% 
+   mutate(spp = fct_relevel(spp, "ABCO", "PIJE", "CADE", "CECO", "ARPA", "QUKE"))  %>%
+  ggplot(aes(y = field_mpa,
+             x = cut(date, breaks = "week"),
+             fill = time_mpa)) +
+  geom_boxplot() +
+  facet_wrap(~ spp, 
+              labeller = labeller(spp = spp.labs), 
+              scales = "free") +
+  geom_hline(aes(yintercept  = mean_tlp_spp), field_data_all_3,
+             linetype = "dotted")  +
+  theme(axis.ticks.x = element_blank(),
+    #axis.title.x = element_blank(),
+    axis.text.x = element_text(
+      angle = 30,
+      hjust = 1,
+      size = 10),
+    axis.title = element_text(face = "bold"),
+    legend.title = element_text(face = "bold"),
+    strip.text = element_text(face = "italic")) +
+  labs(
+    y = "Water Potential",
+    x = "Date",
+    #color = "Phenophase",
+    fill = "Time"
+  ) 
+```
 
 
-  ggplot() +
+```{r}
+ggplot() +
   geom_boxplot(aes(
     y = midday,
     x = cut(date, breaks = "week"),

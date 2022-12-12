@@ -73,7 +73,8 @@ flam_sierra_raw_no2021 <- bind_rows(flam_seki_raw, flam_czo_2020_raw) %>%
        ignition_num = as.numeric(ignition), 
        prop_new_lfm = NA_real_
   ) %>% 
-  rename(notes_flam = video_notes_57) %>% 
+  mutate(notes_flam = video_notes_57, 
+         .keep = "unused") %>% 
   select(-precip_2month, -x1, -gr, -lfm, -video_notes_58,
          -temp_max_higher, - temp_max, -start_temp, -ignition_temp_higher, - ignition_temp)
 

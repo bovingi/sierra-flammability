@@ -186,7 +186,13 @@ NA.median
 #head(aq_shadow)
 
 NA.rlm <- aq_shadow %>%
-  impute_rlm(lfm.outliers.out ~ mpa |spp) %>%
+  impute_rlm(lfm.outliers.out ~ mpa 
+             #+ dry.wt 
+             + fresh.wt 
+             +site
+             +sample
+             +round
+             + 1|spp) %>%
   ggplot(aes(x = mpa,
              y = lfm.outliers.out, 
              colour = lfm.outliers.out_NA,shape = spp)) + 
@@ -201,12 +207,17 @@ Based on the visualizations above and the fact that our data are MCAR, we will u
 #impute rlm for each spp. 
 data.with.na.czo <- data.with.na.czo %>%
   mutate(lfm.NAs.imputed = lfm.outliers.out) %>%
-  impute_rlm(lfm.NAs.imputed ~ mpa | spp)
-```
+  impute_rlm(lfm.NAs.imputed ~ mpa 
+             #+ dry.wt 
+             + fresh.wt 
+            # +site
+             +sample
+             +round
+             + 1|spp)
 
 
 #Now to add some columns to the dataframe and manipulate some variables:
-
+```
 - Add precip columns with 2 moth and 4 month previous precipitation (from SBBG daily precip. database, see Precip_SB_DATE.Rmd file for tidying that data)
 - Proportion ignite columns: for each increase in LFM of 10%, what proportion fo the the attempted burns ignited? 
 - Categorical "dry" vs. "wet" vs. "moderate" column for season, based on prior precip and date
