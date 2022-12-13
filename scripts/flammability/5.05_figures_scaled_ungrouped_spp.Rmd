@@ -55,9 +55,11 @@ source(here::here("scripts", "scripts_functions", "figure_info_sierra_flammabili
 - For the Sierra analysis, this is combining all species and dropping the august sampling data (not enough samples and it was measured a lil differently). 
 
 ```{r}
-mem_data_all_raw <- read_csv(here("processed-data", "analysis 2.0", "sierra_flam_data_all.csv")) %>% 
+mem_data_all_raw <- read_csv(here("processed-data", "analysis 2.0", "sierra_flam_data_all.csv"), show_col_types = F) 
+
+mem_data_all_clean <- mem_data_all_raw %>% 
   select(lfm, mpa, fh, fh, fd, gd,tti, prop_ignite, temp_change, lower_temp_max, ignition, sample_wt, dry_wt, fresh_wt, water_wt, location, site, year_month, spp, individual, bins10lfm, bins5lfm, bins20lfm, notes_flam) %>% 
-  mutate(mpa = mpa * -1) %>% 
+  mutate(mpa = -1*mpa) %>% 
   mutate(dw_flam_sample = sample_wt * (dry_wt/fresh_wt),
          ww_flam_sample = sample_wt * (water_wt/fresh_wt)) %>% 
   mutate(excess_water = (ww_flam_sample - dw_flam_sample)) %>% 
@@ -88,10 +90,10 @@ mem_data_all_raw <- read_csv(here("processed-data", "analysis 2.0", "sierra_flam
   filter(ignition != 2) %>% # Removing manual ignitions
   drop_na(mpa_scaled, lfm_scaled, sample_wt_scaled) 
 
-mem_data_all <- mem_data_all_raw %>% 
+mem_data_all <- mem_data_all_clean %>% 
   filter(spp != "ceco")
 
-field_data_all <- read_csv(here("processed-data", "analysis 2.0","field_data_2020_2021.csv"))
+field_data_all <- read_csv(here("processed-data", "analysis 2.0","field_data_2020_2021.csv"), show_col_types = F)
 ```
 
 ## Specifying significance
@@ -165,7 +167,7 @@ pv_summary_df_timing %>%
    setNames(unique(pv_summary_df_timing$name)) %>%
   list2env(envir = globalenv())
 
-mem_data_all_raw <- mem_data_all_raw %>% 
+mem_data_all_clean <- mem_data_all_clean %>% 
   mutate(pre.post.tlp = case_when(
     spp == 'abco' & mpa > abco_pv$mean_tlp ~ 'post',
     spp == 'abco' & mpa < abco_pv$mean_tlp ~ 'pre',
@@ -210,18 +212,36 @@ mem_data_all <- mem_data_all %>%
 ```
 
 # -----------------------------
-# 2. Scatterplots
+# 2. Scatterplots & Models
 
 ## TTI
 Models:
 ```{r}
 mem_data_all_r <- mem_data_all%>% drop_na(mpa_scaled, lfm_scaled, sample_wt_scaled, fh, gd)
 
-tti_mod <- lmer(tti ~ spp*mpa_scaled + spp*lfm_scaled + site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all_r)
-#anova(tti_mod)
+tti_mod <- lmer(tti ~ spp*mpa_scaled + spp*lfm_scaled + site 
+                + year_month 
+                + sample_wt_scaled 
+                + (1 | individual), data = mem_data_all_r)
 
-tti_mod.lfm <- lmer(tti ~ spp*lfm_scaled + site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all_r)
-tti_mod.mpa <- lmer(tti ~ spp*mpa_scaled + site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all_r)
+tti_mod_nosw <- lmer(tti ~ spp*mpa_scaled + spp*lfm_scaled + site 
+                + year_month 
+                #+ sample_wt_scaled 
+                + (1 | individual), data = mem_data_all_r)
+
+tab_model(tti_mod, tti_mod_nosw)
+#anova(tti_mod)
+```
+
+
+```{r}
+tti_mod.lfm <- lmer(tti ~ spp*lfm_scaled + site + year_month 
+                    + sample_wt_scaled 
+                    + (1 | individual), data = mem_data_all_r)
+
+tti_mod.mpa <- lmer(tti ~ spp*mpa_scaled + site + year_month 
+                    + sample_wt_scaled 
+                    + (1 | individual), data = mem_data_all_r)
 
 tti_mod_fgroup <- lmer(tti ~ F.Group*mpa_scaled + F.Group*lfm_scaled + site + year_month + sample_wt_scaled + (1|individual), data = mem_data_all_r)
 #anova(tti_mod_fgroup)
@@ -958,7 +978,7 @@ ggsave(plot=plots_legend, bg = "white" , here::here("figures", "lfm_flam_metrics
 
 # 3. Boxplot: % Ignition
 ```{r, warning=FALSE}
-df <- mem_data_all_raw %>% 
+df <- mem_data_all_clean %>% 
    mutate(hydration = case_when(
      lfm <= 100 ~ 'dry', 
      lfm > 100 ~ 'wet', 
