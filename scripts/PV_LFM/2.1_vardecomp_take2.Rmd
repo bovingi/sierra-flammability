@@ -48,141 +48,44 @@ source(here::here("scripts", "scripts_functions", "figure_info_sierra_flammabili
 # BiocManager::install("variancePartition")
 library('variancePartition')
 ```
-# Section 1: Pressure Volume Curves
 
-```{r,warning=FALSE}
-pv_all_df <- read_csv(here("processed-data", "analysis 2.0", "all_pv_curves_clean_v2.csv"), show_col_types = FALSE) %>%
-  mutate(spp == species) %>% 
-  filter(!spp %in% c("ADFA", "CEME")) %>% 
-  mutate(sample = as.factor(sample)) %>% 
-  mutate(month = as.factor(month)) %>% 
-  mutate(date = ymd(date), 
-        individual = str_c(species, '_', sample, '_', date)
-        ) %>% 
-  mutate(year_month = str_c(year, '_', month)) %>% 
-  clean_names() %>% 
-  group_by(spp) %>% 
-  mutate(plant = udpipe::unique_identifier(individual), 
-         plant = as.factor(plant),
-         fresh_weight_saturated = as.numeric(fresh_weight_saturated)) %>% 
-  group_by(spp, plant) %>% 
-  mutate(maxLFM = ((fresh_weight_saturated - dry_weight)/dry_weight)*100) %>% 
-   mutate(spp = fct_relevel(spp, "ABCO","PIJE","CADE","CECO", "ARPA","QUKE")) %>% 
-  mutate(strategy = case_when( #based on slope of predawn~midday line
-    spp == "ABCO" ~ "Isohydric", 
-    spp == "PIJE" ~ "Isohydric", 
-     spp == "CADE" ~ "Isohydric", 
-    spp == "CECO" ~ "Anisohydric", 
-    spp == "ARPA" ~ "Anisohydric", 
-    spp == "QUKE" ~ "Anisohydric"
-  )) %>% 
-   mutate(strategy_binary = case_when( #based on slope of predawn~midday line
-    spp == "ABCO" ~ "1", 
-    spp == "ARPA" ~ "2", 
-    spp == "CADE" ~ "1", 
-    spp == "CECO" ~ "2", 
-    spp == "PIJE" ~ "1", 
-    spp == "QUKE" ~ "2"
-  )) %>% 
-   mutate(Species = case_when(
-     spp == "ABCO" ~ "A. concolor",
-    spp == "PIJE" ~ "P. jeffreyi", 
-    spp == "CADE" ~ "C. decurrens", 
-    spp == "CECO" ~ "C. cordulatus", 
-    spp == "ARPA" ~ "A. patula", 
-    spp == "QUKE" ~ "Q. kelloggii"
-    )) %>% 
-  mutate(type = case_when(
-    spp == "PIJE" ~ "tree", 
-    spp == "QUKE" ~ "tree", 
-    spp == "CECO" ~ "shrub", 
-    spp == "ARPA" ~ "shrub", 
-    spp == "ABCO" ~ "tree", 
-    spp == "CADE" ~ "tree"
-  )) %>% 
-  mutate(F.Group = case_when(
-    spp == "ARPA" ~ "Angiosperm", 
-    spp == "ABCO" ~ "Gymnosperm",
-    spp == "CADE" ~ "Gymnosperm",
-    spp == "CECO" ~ "Angiosperm",
-    spp == "PIJE" ~ "Gymnosperm",
-    spp == "QUKE" ~ "Angiosperm"
-  )) %>% 
-  filter(timing == "fall")
-```
+based on this paper: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC8930200/#DS1 
 
-###PV Summaries
+#Data: 
+
 ```{r}
-pv_summaries_2 <- read_csv(here("raw-data", "PV_sierra_summaries.csv")) %>% 
-  clean_names() %>% 
-   mutate(spp = fct_relevel(species, "ABCO","PIJE","CADE","CECO", "ARPA","QUKE"), 
-          tlp = ytlp_m_pa, 
-          lfmtlp = lf_mtlp)  %>% 
-  mutate(strategy = case_when( #based on slope of predawn~midday line
-    spp == "ABCO" ~ "Isohydric", 
-    spp == "PIJE" ~ "Isohydric", 
-     spp == "CADE" ~ "Isohydric", 
-    spp == "CECO" ~ "Anisohydric", 
-    spp == "ARPA" ~ "Anisohydric", 
-    spp == "QUKE" ~ "Anisohydric"
-  )) %>% 
-   mutate(strategy_binary = case_when( #based on slope of predawn~midday line
-    spp == "ABCO" ~ "1", 
-    spp == "ARPA" ~ "2", 
-    spp == "CADE" ~ "1", 
-    spp == "CECO" ~ "2", 
-    spp == "PIJE" ~ "1", 
-    spp == "QUKE" ~ "2"
-  )) %>% 
-   mutate(spp = fct_relevel(spp, "ABCO","PIJE","CADE","CECO", "ARPA","QUKE"))  %>% 
-   mutate(Species = case_when(
-     spp == "ABCO" ~ "A. concolor",
-    spp == "PIJE" ~ "P. jeffreyi", 
-    spp == "CADE" ~ "C. decurrens", 
-    spp == "CECO" ~ "C. cordulatus", 
-    spp == "ARPA" ~ "A. patula", 
-    spp == "QUKE" ~ "Q. kelloggii"
-    )) %>% 
-  mutate(type = case_when(
-    spp == "PIJE" ~ "tree", 
-    spp == "QUKE" ~ "tree", 
-    spp == "CECO" ~ "shrub", 
-    spp == "ARPA" ~ "shrub", 
-    spp == "ABCO" ~ "tree", 
-    spp == "CADE" ~ "tree"
-  )) %>% 
-  mutate(F.Group = case_when(
-    spp == "ARPA" ~ "Angiosperm", 
-    spp == "ABCO" ~ "Gymnosperm",
-    spp == "CADE" ~ "Gymnosperm",
-    spp == "CECO" ~ "Angiosperm",
-    spp == "PIJE" ~ "Gymnosperm",
-    spp == "QUKE" ~ "Angiosperm"
-  )) %>% 
-  mutate(date = lubridate::mdy(date), 
-         year = year(date))
+flam_curve_df_2.1 <- read_csv(here("processed-data", "analysis 2.0", "flam_curve_vardecomp_2.csv"), show_col_types = FALSE) %>% 
+  drop_na(lfm, water_potential, spp, plant, year_month, F.Group) %>% 
+  mutate(plant = as.factor(plant), 
+         F.Group = as.factor(F.Group), 
+         year = as_factor(year))
 
-fgroup_pv_summaries <- pv_summaries_2 %>% 
-  group_by(F.Group) %>% 
-  mutate(mean_tlp_group = mean(tlp))
+pv_all_df_2.1 <-  read_csv(here("processed-data", "analysis 2.0", "all_pv_curves_clean_vardecomp_2.csv"), show_col_types = FALSE) %>% 
+  mutate(plant = as.factor(plant))
+
+field_data_all_2.1 <- read_csv(here("processed-data", "analysis 2.0", "field_data_vardecomp_2.csv"), show_col_types = FALSE) %>% 
+  drop_na(lfm, water_potential, spp, plant, year_month) %>% 
+  mutate(plant = as.factor(plant))
 ```
+
+#Pressure Volume Curves
 
 Try using variancePartition:
 
 ```{r}
-pv_mod <- lmer(lfm ~ water_potential  + (1|spp) + (1|date), pv_all_df)
+pv_mod <- lmer(lfm ~ water_potential  + (1|spp) + (1|date), pv_all_df_2.1)
 
-form <- ~ water_potential  + (1|spp) + (1|date) + (1|plant) + (1|F.Group)
+form <- ~ water_potential  + (1|year_month) + (1|plant) + (1|F.Group) + (1|spp)
 
 
-lfm_matrix <- pv_all_df %>% 
+lfm_matrix <- pv_all_df_2.1 %>% 
   ungroup() %>% 
   mutate(id = row_number()) %>% 
   select(id, lfm) %>% 
   pivot_wider(names_from = id, 
               values_from = lfm) 
 
-varPart <- fitExtractVarPartModel(lfm_matrix, form, pv_all_df )
+varPart <- fitExtractVarPartModel(lfm_matrix, form, pv_all_df_2.1 )
 varPart
 
 plotVarPart(varPart)
@@ -192,25 +95,21 @@ pvflam_decomp <- plotPercentBars(varPart) +
 pvflam_decomp
 ```
 
+#Flam curves
+
 ```{r}
-#pv_mod <- lmer(lfm ~ water_potential  + (1|spp) + (1|date), flam_curve_df)
+#pv_mod <- lmer(lfm ~ water_potential  + (1|spp) + (1|date), flam_curve_df_2.1)
 
-form <- ~ water_potential  + (1|spp) + (1|year_month) + (1|plant)  + (1|F.Group)
+form <- ~ water_potential  + (1|spp) + (1|year) + (1|plant)  + (1|F.Group)
 
-flam_curve_df <- flam_curve_df %>% 
-  drop_na(lfm, water_potential, spp, plant, year_month, F.Group) %>% 
-  mutate(plant = as.factor(plant), 
-         F.Group = as.factor(F.Group))
-  
-
-lfm_matrix <- flam_curve_df %>% 
+lfm_matrix <- flam_curve_df_2.1 %>% 
   ungroup() %>% 
   mutate(id = row_number()) %>% 
   select(id, lfm) %>% 
   pivot_wider(names_from = id, 
               values_from = lfm) 
 
-varPart <- fitExtractVarPartModel(lfm_matrix, form, flam_curve_df)
+varPart <- fitExtractVarPartModel(lfm_matrix, form, flam_curve_df_2.1)
 varPart
 
 plotVarPart(varPart)
@@ -220,32 +119,78 @@ flam_vardecomp <- plotPercentBars(varPart) +
 flam_vardecomp
 ```
 
+#FIeld data
+
+(split at TLP)
+
+Above tlp:
+```{r}
+above <- field_data_all_2.1 %>% 
+  group_by(spp) %>% 
+  filter(lfm > lfm_tlp)
+
+below <- field_data_all_2.1 %>% 
+  group_by(spp) %>% 
+  filter(lfm < lfm_tlp)
+```
+
 
 ```{r}
-pv_mod <- lmer(lfm ~ water_potential  + (1|spp) + (1|date), field_data_all )
+form <- ~ water_potential  + (1|spp) + (1|year_month) + (1|plant) + (1|F.Group) + (1|age_new)
 
-form <- ~ water_potential  + (1|spp) + (1|year_month) + (1|plant) + (1|F.Group)
-
-field_data_all_vdc <- field_data_all %>% 
-  drop_na(lfm, water_potential, spp, plant, year_month) %>% 
-  mutate(plant = as.factor(plant))
-  
-
-lfm_matrix <- field_data_all_vdc %>% 
+lfm_matrix <- field_data_all_2.1 %>% 
   ungroup() %>% 
   mutate(id = row_number()) %>% 
   select(id, lfm) %>% 
   pivot_wider(names_from = id, 
               values_from = lfm) 
 
-varPart <- fitExtractVarPartModel(lfm_matrix, form, field_data_all_vdc)
+varPart <- fitExtractVarPartModel(lfm_matrix, form, field_data_all_2.1)
 varPart
 
 plotVarPart(varPart)
 
 field_vardecomp <- plotPercentBars(varPart)+
-  labs(x = "Feild curve") 
+  labs(x = "Feild data", 
+       title = "all together")  
 field_vardecomp
 ```
 
+```{r}
+lfm_matrix <- above %>% 
+  ungroup() %>% 
+  mutate(id = row_number()) %>% 
+  select(id, lfm) %>% 
+  pivot_wider(names_from = id, 
+              values_from = lfm) 
+
+varPart <- fitExtractVarPartModel(lfm_matrix, form, above)
+varPart
+
+plotVarPart(varPart)
+
+field_vardecomp <- plotPercentBars(varPart)+
+  labs(x = "Feild data", 
+       title = "Above")  
+field_vardecomp
+```
+
+```{r}
+lfm_matrix <- below %>% 
+  ungroup() %>% 
+  mutate(id = row_number()) %>% 
+  select(id, lfm) %>% 
+  pivot_wider(names_from = id, 
+              values_from = lfm) 
+
+varPart <- fitExtractVarPartModel(lfm_matrix, form, below)
+varPart
+
+plotVarPart(varPart)
+
+field_vardecomp <- plotPercentBars(varPart)+
+  labs(x = "Feild data", 
+       title = "Below")  
+field_vardecomp
+```
 

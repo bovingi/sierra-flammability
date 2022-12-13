@@ -51,12 +51,14 @@ pv_all_df <- read_csv(here("processed-data", "analysis 2.0", "all_pv_curves_clea
   mutate(sample = as.factor(sample)) %>% 
   mutate(month = as.factor(month)) %>% 
   mutate(date = ymd(date), 
-        individual = str_c(species, '_', sample, '_', year)
+        individual = str_c(species, '_', sample, '_', date)
         ) %>% 
-  mutate(year_month = str_c(year, '_', month)) %>% 
+  mutate(year_month = str_c(year, '_', month), 
+         year = as.factor(year)) %>% 
   clean_names() %>% 
   group_by(spp) %>% 
   mutate(plant = udpipe::unique_identifier(individual), 
+         plant = as.factor(plant),
          fresh_weight_saturated = as.numeric(fresh_weight_saturated)) %>% 
   group_by(spp, plant) %>% 
   mutate(maxLFM = ((fresh_weight_saturated - dry_weight)/dry_weight)*100) %>% 
@@ -102,6 +104,8 @@ pv_all_df <- read_csv(here("processed-data", "analysis 2.0", "all_pv_curves_clea
     spp == "QUKE" ~ "Angiosperm"
   )) %>% 
   filter(timing == "fall")
+
+write_csv(pv_all_df, (here("processed-data", "analysis 2.0", "all_pv_curves_clean_vardecomp_2.csv")))
 ```
 
 ###PV Summaries
@@ -714,6 +718,8 @@ flam_curve_df <- flam_curve_phys_all_raw %>%
   select(lfm, water_potential, mpa, year, month, year_month, plant, F.Group, spp)
 #%>% 
  # select(spp, swc, lfm, mpa, month, tlp, water_potential, po, individual, plant)
+
+write_csv(flam_curve_df, here("processed-data", "analysis 2.0", "flam_curve_vardecomp_2.csv"))
 ```
 
 #MEM!
@@ -1153,6 +1159,8 @@ field_data_all <- read_csv(here("processed-data", "analysis 2.0", "field_data_20
 
 field_data_all_2 <- field_data_all %>% 
   drop_na(lfm, water_potential, plant, F.Group, year)
+
+write_csv(field_data_all, (here("processed-data", "analysis 2.0", "field_data_vardecomp_2.csv")))
 ```
 
 #MEM!
