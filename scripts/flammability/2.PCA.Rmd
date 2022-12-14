@@ -5,7 +5,8 @@ date: "6/20/2022"
 output: html_document
 ---
 
-OCT 29 NOTES: Probably will not use PCA - doesn't really tell as nice of a story with all species. 
+OCT 29 NOTES: Probably will not use PCA - doesn't really tell as nice of a story with all species.
+DEC 14 NOTES: Actually we might! 
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)

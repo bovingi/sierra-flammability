@@ -40,6 +40,7 @@ Goal here is to make a plot that shows flammability over time:
 ```{r}
 field_data_all_6 <- read_csv(here("processed-data", "analysis 2.0","field_data_2020_2021.csv")) %>% 
   select(spp, lfm, year, month, water_potential, site, wet_weight, unique_id, date) %>% 
+  filter(wet_weight > 50) %>% #remove weirdly small wet weights
   mutate(mpa = water_potential,
     lfm_scaled = scale(lfm), 
          mpa_scaled = scale(mpa), 
@@ -49,7 +50,10 @@ field_data_all_6 <- read_csv(here("processed-data", "analysis 2.0","field_data_2
          individual = unique_id, 
          spp = tolower(spp)) %>% 
   filter(spp != "ceco") %>% 
-  drop_na(spp)
+  drop_na(spp) 
+
+field_data_all_6$spp <- factor(field_data_all_6$spp, levels = c("abco", "pije", "cade", "arpa", "quke"))
+
 
 mem_data_all_6 <- read_csv(here("processed-data", "analysis 2.0", "sierra_flam_data_all.csv"), show_col_types = F) %>% 
   select(lfm, mpa, fh, fh, fd, gd,tti, prop_ignite, temp_change, ignition, sample_wt, dry_wt, fresh_wt, water_wt, location, site, year_month, spp, individual, lower_temp_max) %>% 
@@ -65,9 +69,43 @@ mem_data_all_6 <- read_csv(here("processed-data", "analysis 2.0", "sierra_flam_d
          lfm_scaled = scale(lfm), 
          excess_water_scaled = scale(excess_water)) %>% 
   filter(!year_month %in% c("2021_august")) %>% 
-  drop_na(mpa_scaled, lfm_scaled, sample_wt_scaled) %>% 
-   mutate(spp = toupper(spp), 
-          spp = fct_relevel(spp, "ABCO","PIJE","CADE","ARPA", "CECO", "QUKE")) 
+  drop_na(mpa_scaled, lfm_scaled, sample_wt_scaled)
+```
+
+
+```{r}
+field_data_all_6 %>% 
+ggplot()+
+  geom_histogram(aes(y = wet_weight)) +
+  facet_wrap(~spp)
+
+field_data_all_6 %>% 
+ggplot()+
+  geom_histogram(aes(y = sample_wt_scaled)) +
+  facet_wrap(~spp)
+
+sw <- aov(sample_wt_scaled ~ spp, data = mem_data_all_6)
+summary(sw)
+
+TukeyHSD(sw, conf.level=.95)
+```
+
+
+```{r}
+mem_data_all_6 %>% 
+ggplot()+
+  geom_histogram(aes(y = sample_wt)) +
+  facet_wrap(~spp)
+
+mem_data_all_6 %>% 
+ggplot()+
+  geom_histogram(aes(y = sample_wt_scaled)) +
+  facet_wrap(~spp)
+
+sw <- aov(sample_wt_scaled ~ spp, data = mem_data_all_6)
+summary(sw)
+
+TukeyHSD(sw, conf.level=.95)
 ```
 
 #TTI
@@ -88,9 +126,10 @@ tti_df <- field_data_all_6 %>%
 tti_pred <- tti_df %>% 
   filter(year == 2021) %>% 
 ggplot() +
-  geom_point(aes(y = pred*-1, 
+  geom_jitter(aes(y = pred*-1, 
                  x = date, 
-                 color = spp)) +
+                 color = spp), alpha = .3
+             ) +
   geom_smooth(aes(y = pred*-1, x = date, color = spp),span = .6,
               se = F) +
   theme(legend.position = "none") +
@@ -104,7 +143,7 @@ tti_pred
 ```{r}
 fh_mod <- lm(fh ~ spp*mpa_scaled + spp*lfm_scaled 
              + site
-            # + sample_wt_scaled, 
+             + sample_wt_scaled, 
              ,data = mem_data_all_6)
 
 fh_df <- field_data_all_6 %>% 
@@ -113,9 +152,10 @@ fh_df <- field_data_all_6 %>%
 fh_pred <- fh_df %>% 
   filter(year == 2021) %>% 
 ggplot() +
-  geom_point(aes(y = pred, 
+  geom_jitter(aes(y = pred, 
                  x = date, 
-                 color = spp)) +
+                 color = spp), alpha = .3
+             ) +
   geom_smooth(aes(y = pred, x = date, color = spp), 
               span = .6,
               se = F) +
@@ -145,7 +185,8 @@ temp_max_pred <- temp_max_df %>%
 ggplot() +
   geom_point(aes(y = pred, 
                  x = date, 
-                 color = spp)) +
+                 color = spp), alpha = .3
+             ) +
   geom_smooth(aes(y = pred, x = date, color = spp), 
               span = .6,
               se = F) +
@@ -164,7 +205,7 @@ temp_max_pred
 temp_mod <- lm(temp_change ~ spp*mpa_scaled + spp*lfm_scaled 
               +  site 
              # + year_month 
-              #+ sample_wt_scaled 
+              + sample_wt_scaled 
               #+ (1 | individual)
               , data = mem_data_all_6)
 
@@ -176,7 +217,8 @@ temp_pred <- temp_df %>%
 ggplot() +
   geom_point(aes(y = pred, 
                  x = date, 
-                 color = spp)) +
+                 color = spp), alpha = .3
+             ) +
   geom_smooth(aes(y = pred, x = date, color = spp), 
               span = .6,
               se = F) +
@@ -193,11 +235,11 @@ temp_pred
 
 ```{r}
 leg_plot<- temp_df %>% 
-  mutate(spp = fct_relevel(spp, "ABCO","PIJE","CADE","ARPA", "CECO", "QUKE")) %>% 
+ # mutate(spp = fct_relevel(spp, "ABCO","PIJE","CADE","ARPA", "CECO", "QUKE")) %>% 
 ggplot() +
   geom_point(aes(y = pred, 
                  x = date, 
-                 color = spp)) +
+                 color = spp), alpha = .3) +
   geom_smooth(aes(y = pred, x = date, color = spp), se = F)+
   labs(color = "Species") +
   theme(legend.key=element_blank()) +
@@ -207,22 +249,28 @@ ggplot() +
   color_many
 ```
 
-```{r, fig.height= 4, fig.width=6}
+```{r, fig.height= 6, fig.width=4}
 legend <- cowplot::get_legend(leg_plot)
 
-plots <- cowplot::plot_grid(tti_pred, fh_pred, temp_pred,temp_max_pred,
-                                   ncol = 2
+plots <- cowplot::plot_grid(tti_pred, fh_pred, 
+                            #temp_pred, 
+                            temp_max_pred,
+                                   ncol = 1
                                    , rel_heights = c(1, 1, 1,1)
                                    )
 
-legend_plots <- cowplot::plot_grid(plots, legend, ncol = 2, rel_widths = c(6,.5))
+legend_plots <- cowplot::plot_grid(plots, legend, 
+                                   ncol = 2,
+                                   rel_widths = c(4,.5)#rel_widths = c(6,.5)
+                                   )
 legend_plots
 ```
-
 #-------
+#-------
+
 #Boxplots, all 2021: 
 
-NOTE: did not finsih this. 
+NOTE: did not finish this, prob wont. 
 
 #TTI
 
@@ -295,7 +343,7 @@ fh_pred
 temp_mod <- lm(temp_change ~ spp*mpa_scaled + spp*lfm_scaled 
               +  site 
              # + year_month 
-              #+ sample_wt_scaled 
+              + sample_wt_scaled 
               #+ (1 | individual)
               , data = mem_data_all_6)
 

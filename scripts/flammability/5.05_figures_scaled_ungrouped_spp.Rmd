@@ -1141,14 +1141,46 @@ tab_model(tti_mod_fgroup, fh_mod_fgroup, gd_mod_fgroup,lower_temp_max_mod_fgroup
 
 ### By Species 
 ```{r}
-tab_model(tti_mod, fh_mod, gd_mod, lower_temp_max_mod, prop_ignite_mod,
+pl <- c(
+  `(Intercept)` = "Intercept",
+  lfm_scaled = "LFM",
+ mpa_scaled = "Water Pot.", 
+  sample_wt_scaled = "Sample wt.", 
+  site = "Site",
+  sppabco = "A. Concolor",
+ spparpa = "A. patula",
+ sppcade = "C. decurrens", 
+ spppije = "P. jeffreyi", 
+ sppquke = "Q. kellogii", 
+ sppceco = "C. cordulatus"
+ # appcade:mpa_scaled = ""
+ #  `spparpa:lfm_scaled` = "ARPA:LFM"
+ # c172code3 = "Education: high (Carer)",
+#  a_non_used_label = "We don't care"
+)
+
+tti_mod_tidy <- tidy(tti_mod)
+tti_mod_tidy
+tab_model(tti_mod, fh_mod, gd_mod, lower_temp_max_mod
+          #, prop_ignite_mod
+          ,
+          terms = c("`(Intercept)`","lfm_scaled","mpa_scaled","sample_wt_scaled","site", 
+                    "sppabco",
+"spparpa",
+ "sppcade",
+ "spppije",
+ "sppquke",
+ "sppceco"),
           show.reflvl = TRUE, 
           digits = 3, 
           show.aic = TRUE, 
           show.ci = FALSE,
           show.icc = FALSE, 
-         string.pred = "Coeffcient", 
-        dv.labels = c("Time to Ignition", "Flame Height", "Max Temp", "Glow Duration", "Proportion  Ignited"),
+         string.pred = "Coefficient", 
+         pred.labels = pl, 
+        dv.labels = c("Time to Ignition", "Flame Height", "Max Temp", "Glow Duration"
+                      #, "Proportion  Ignited"
+                      ),
          title = "Effect Size Plots: MEM Table",
   string.p = "P-Value", 
   p.style = "stars")

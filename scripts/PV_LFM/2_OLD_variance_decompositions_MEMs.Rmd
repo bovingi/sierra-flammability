@@ -160,8 +160,22 @@ pv_summaries_2 <- read_csv(here("raw-data", "PV_sierra_summaries.csv")) %>%
          year = year(date))
 
 fgroup_pv_summaries <- pv_summaries_2 %>% 
+ # filter(year == 2021) %>% 
+  select(F.Group, tlp, lfmtlp) %>% 
   group_by(F.Group) %>% 
-  mutate(mean_tlp_group = mean(tlp))
+  mutate(mean_tlp_group = mean(tlp), 
+         sd_tlp_group = sd(tlp), 
+         mean_lfm_tlp_group = mean(lfmtlp), 
+         sd_lfm_tlp_group = sd(lfmtlp), 
+         .keep = "unused") %>% 
+  distinct()
+fgroup_pv_summaries
+
+stats_df <- pv_summaries_2 %>% 
+  select(spp, lfmtlp, tlp, F.Group, year, spp, date)
+
+summary(aov(lfmtlp ~ F.Group + year + spp + date, data = stats_df))
+summary(aov(tlp ~ F.Group + year + spp + date, data = stats_df))
 ```
 
 ```{r}
