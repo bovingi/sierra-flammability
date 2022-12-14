@@ -65,17 +65,39 @@ pv_all_df_2.1 <-  read_csv(here("processed-data", "analysis 2.0", "all_pv_curves
 
 field_data_all_2.1 <- read_csv(here("processed-data", "analysis 2.0", "field_data_vardecomp_2.csv"), show_col_types = FALSE) %>% 
   drop_na(lfm, water_potential, spp, plant, year_month) %>% 
-  mutate(plant = as.factor(plant))
+  mutate(plant = as.factor(plant), 
+         log_lfm = as.numeric(log(lfm))) %>% 
+  drop_na(log_lfm)
 ```
+
+#Information:
+
+From: https://rdrr.io/github/GabrielHoffman/variancePartition/man/calcVarPart-method.html 
+
+For linear model, variance fractions are computed based on the sum of squares explained by each component. For the linear mixed model, the variance fractions are computed by variance component estimates for random effects and sum of squares for fixed effects.
+
+For a generalized linear model, the variance fraction also includes the contribution of the link function so that fractions are reported on the linear (i.e. link) scale rather than the observed (i.e. response) scale. For linear regression with an identity link, fractions are the same on both scales. But for logit or probit links, the fractions are not well defined on the observed scale due to the transformation imposed by the link function.
+
+The variance implied by the link function is the variance of the corresponding distribution:
+
+logit -> logistic distribution -> variance is pi^2/3
+
+probit -> standard normal distribution -> variance is 1
+
+For the Poisson distribution with rate λ, the variance is log(1 + 1/λ).
+
+For the negative binomial distribution with rate λ and shape θ, the variance is log(1 + 1/λ + 1/θ).
+
+Variance decomposition is reviewed by Nakagawa and Schielzeth (2012), and expanded to other GLMs by Nakagawa, Johnson and Schielzeth (2017). See McKelvey and Zavoina (1975) for early work on applying to GLMs. Also see DeMaris (2002)
+
+We note that Nagelkerke's pseudo R^2 evaluates the variance explained by the full model. Instead, a variance partitioning approach evaluates the variance explained by each term in the model, so that the sum of each systematic plus random term sums to 1 (Hoffman and Schadt, 2016; Nakagawa and Schielzeth, 2012). 
 
 #Pressure Volume Curves
 
 Try using variancePartition:
 
 ```{r}
-pv_mod <- lmer(lfm ~ water_potential  + (1|spp) + (1|date), pv_all_df_2.1)
-
-form <- ~ water_potential  + (1|year_month) + (1|plant) + (1|F.Group) + (1|spp)
+form <- ~ water_potential + (1|year_month) + (1|plant) + (1|F.Group) + (1|spp)
 
 
 lfm_matrix <- pv_all_df_2.1 %>% 
@@ -90,9 +112,13 @@ varPart
 
 plotVarPart(varPart)
 
-pvflam_decomp <- plotPercentBars(varPart) +
+pv_vardecomp <- plotPercentBars(varPart) +
   labs(x = "PV")
-pvflam_decomp
+pv_vardecomp
+```
+```{r}
+varPart <- calcVarPart(lmer(lfm ~ water_potential  + (1|spp) + (1|year_month) + (1|F.Group) + (1|plant), pv_all_df_2.1))
+varPart
 ```
 
 #Flam curves
@@ -136,14 +162,34 @@ below <- field_data_all_2.1 %>%
 
 
 ```{r}
+form <- ~ water_potential*F.Group + water_potential + (1|spp) + (1|year_month) + (1|plant) + (1|F.Group) 
+
+lfm_matrix <- field_data_all_2.1 %>% 
+  ungroup() %>% 
+  mutate(id = row_number()) %>% 
+  select(id, log_lfm) %>% 
+  pivot_wider(names_from = id, 
+              values_from = log_lfm) 
+
+varPart <- fitExtractVarPartModel(lfm_matrix, form, field_data_all_2.1)
+varPart
+
+plotVarPart(varPart)
+
+field_vardecomp_all <- plotPercentBars(varPart)+
+  labs(x = "Feild data", 
+       title = "all together")  
+field_vardecomp_all
+```
+```{r}
 form <- ~ water_potential  + (1|spp) + (1|year_month) + (1|plant) + (1|F.Group) + (1|age_new)
 
 lfm_matrix <- field_data_all_2.1 %>% 
   ungroup() %>% 
   mutate(id = row_number()) %>% 
-  select(id, lfm) %>% 
+  select(id, log_lfm) %>% 
   pivot_wider(names_from = id, 
-              values_from = lfm) 
+              values_from = log_lfm) 
 
 varPart <- fitExtractVarPartModel(lfm_matrix, form, field_data_all_2.1)
 varPart
@@ -151,46 +197,59 @@ varPart
 plotVarPart(varPart)
 
 field_vardecomp <- plotPercentBars(varPart)+
-  labs(x = "Feild data", 
+  labs(x = "Field data", 
        title = "all together")  
 field_vardecomp
 ```
 
 ```{r}
+form <- ~ water_potential  + (1|spp) + (1|year_month) + (1|plant) + (1|F.Group) + (1|age_new)
+
 lfm_matrix <- above %>% 
   ungroup() %>% 
   mutate(id = row_number()) %>% 
-  select(id, lfm) %>% 
+  select(id, log_lfm) %>% 
   pivot_wider(names_from = id, 
-              values_from = lfm) 
+              values_from = log_lfm) 
 
 varPart <- fitExtractVarPartModel(lfm_matrix, form, above)
 varPart
 
 plotVarPart(varPart)
 
-field_vardecomp <- plotPercentBars(varPart)+
-  labs(x = "Feild data", 
+field_vardecomp_above <- plotPercentBars(varPart)+
+  labs(x = "Field data", 
        title = "Above")  
-field_vardecomp
+field_vardecomp_above
 ```
 
 ```{r}
+form <- ~ water_potential + (1|spp) + (1|year_month) + (1|plant) + (1|F.Group) + (1|age_new)
+
+#form <- ~ water_potential  + spp + year_month + (1|plant) + F.Group + age_new
+
 lfm_matrix <- below %>% 
   ungroup() %>% 
   mutate(id = row_number()) %>% 
-  select(id, lfm) %>% 
+  select(id, log_lfm) %>% 
   pivot_wider(names_from = id, 
-              values_from = lfm) 
+              values_from = log_lfm) 
 
 varPart <- fitExtractVarPartModel(lfm_matrix, form, below)
 varPart
 
 plotVarPart(varPart)
 
-field_vardecomp <- plotPercentBars(varPart)+
+field_vardecomp_below <- plotPercentBars(varPart)+
   labs(x = "Feild data", 
        title = "Below")  
-field_vardecomp
+field_vardecomp_below
+```
+#Combine:
+```{r}
+cowplot::plot_grid(field_vardecomp_all, flam_vardecomp, pv_vardecomp, nrow = 3)
+
+
+cowplot::plot_grid(field_vardecomp, field_vardecomp_above, field_vardecomp_below, nrow = 3)
 ```
 

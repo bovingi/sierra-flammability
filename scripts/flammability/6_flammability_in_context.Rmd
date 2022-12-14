@@ -76,7 +76,7 @@ mem_data_all_6 <- read_csv(here("processed-data", "analysis 2.0", "sierra_flam_d
 #str(mem_data_all_6)
 
 tti_mod <- lm(tti ~ spp*mpa_scaled + spp*lfm_scaled 
-              +site
+              +site + sample_wt_scaled
               , data = mem_data_all_6)
 summary(tti_mod)
 
@@ -86,7 +86,7 @@ tti_df <- field_data_all_6 %>%
 tti_pred <- tti_df %>% 
   filter(year == 2021) %>% 
 ggplot() +
-  geom_beeswarm(aes(y = pred*-1, 
+  ggbeeswarm::geom_beeswarm(aes(y = pred*-1, 
                  x = date, 
                  color = spp)) +
   geom_smooth(aes(y = pred*-1, x = date, color = spp)) +

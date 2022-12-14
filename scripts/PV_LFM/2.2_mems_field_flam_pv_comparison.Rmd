@@ -1,0 +1,759 @@
+---
+title: "PV Curves"
+author: "Indra Boving"
+date: "11/8/2022"
+output: html_document
+---
+# Setup
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(datapasta)
+library(ggplot2)
+library(purrr) #for visualizing all variables in one big plot
+library(naniar) #for dealing with NAs nicely 
+library(tidyverse)
+library(ggpubr)
+library(cowplot)
+library(GGally) #for corr plots
+require(kimisc) # has the nlist function to create a named list
+#library(strengejacke)
+library(sjPlot) # table functions
+library(here)
+library(effects) #for plofhng model effects
+library(sjstats) #use for r2 functions
+library("broom.mixed")
+library(MuMIn)
+library(modelsummary)
+library(nlme)
+library(lme4)
+library(MetBrewer)
+library(remef)
+library(kableExtra)
+library(janitor)
+library(lubridate)
+library(specr)
+#install.packages("specr")
+
+filter = dplyr::filter
+mutate = dplyr::mutate
+select = dplyr::select
+here = here::here
+
+source(here::here("scripts", "scripts_functions", "figure_info_sierra_flammability.R")) #color and theme info is here
+```
+# Section 1: Pressure Volume Curves
+
+```{r,warning=FALSE}
+pv_all_df <- read_csv(here("processed-data", "analysis 2.0", "all_pv_curves_clean_v2.csv"), show_col_types = FALSE) %>%
+  mutate(spp == species) %>% 
+  filter(!spp %in% c("ADFA", "CEME")) %>% 
+  mutate(sample = as.factor(sample)) %>% 
+  mutate(month = as.factor(month)) %>% 
+  mutate(date = ymd(date), 
+        individual = str_c(species, '_', sample, '_', date)
+        ) %>% 
+  mutate(year_month = str_c(year, '_', month), 
+         year = as.factor(year)) %>% 
+  clean_names() %>% 
+  group_by(spp) %>% 
+  mutate(plant = udpipe::unique_identifier(individual), 
+         plant = as.factor(plant),
+         fresh_weight_saturated = as.numeric(fresh_weight_saturated)) %>% 
+  group_by(spp, plant) %>% 
+  mutate(maxLFM = ((fresh_weight_saturated - dry_weight)/dry_weight)*100) %>% 
+   mutate(spp = fct_relevel(spp, "ABCO","PIJE","CADE","CECO", "ARPA","QUKE")) %>% 
+  mutate(strategy = case_when( #based on slope of predawn~midday line
+    spp == "ABCO" ~ "Isohydric", 
+    spp == "PIJE" ~ "Isohydric", 
+     spp == "CADE" ~ "Isohydric", 
+    spp == "CECO" ~ "Anisohydric", 
+    spp == "ARPA" ~ "Anisohydric", 
+    spp == "QUKE" ~ "Anisohydric"
+  )) %>% 
+   mutate(strategy_binary = case_when( #based on slope of predawn~midday line
+    spp == "ABCO" ~ "1", 
+    spp == "ARPA" ~ "2", 
+    spp == "CADE" ~ "1", 
+    spp == "CECO" ~ "2", 
+    spp == "PIJE" ~ "1", 
+    spp == "QUKE" ~ "2"
+  )) %>% 
+   mutate(Species = case_when(
+     spp == "ABCO" ~ "A. concolor",
+    spp == "PIJE" ~ "P. jeffreyi", 
+    spp == "CADE" ~ "C. decurrens", 
+    spp == "CECO" ~ "C. cordulatus", 
+    spp == "ARPA" ~ "A. patula", 
+    spp == "QUKE" ~ "Q. kelloggii"
+    )) %>% 
+  mutate(type = case_when(
+    spp == "PIJE" ~ "tree", 
+    spp == "QUKE" ~ "tree", 
+    spp == "CECO" ~ "shrub", 
+    spp == "ARPA" ~ "shrub", 
+    spp == "ABCO" ~ "tree", 
+    spp == "CADE" ~ "tree"
+  )) %>% 
+  mutate(F.Group = case_when(
+    spp == "ARPA" ~ "Angiosperm", 
+    spp == "ABCO" ~ "Gymnosperm",
+    spp == "CADE" ~ "Gymnosperm",
+    spp == "CECO" ~ "Angiosperm",
+    spp == "PIJE" ~ "Gymnosperm",
+    spp == "QUKE" ~ "Angiosperm"
+  )) %>% 
+  filter(timing == "fall")
+
+write_csv(pv_all_df, (here("processed-data", "analysis 2.0", "all_pv_curves_clean_vardecomp_2.csv")))
+```
+
+###PV Summaries
+```{r}
+pv_summaries_2 <- read_csv(here("raw-data", "PV_sierra_summaries.csv")) %>% 
+  clean_names() %>% 
+   mutate(spp = fct_relevel(species, "ABCO","PIJE","CADE","CECO", "ARPA","QUKE"), 
+          tlp = ytlp_m_pa, 
+          lfmtlp = lf_mtlp)  %>% 
+  mutate(strategy = case_when( #based on slope of predawn~midday line
+    spp == "ABCO" ~ "Isohydric", 
+    spp == "PIJE" ~ "Isohydric", 
+     spp == "CADE" ~ "Isohydric", 
+    spp == "CECO" ~ "Anisohydric", 
+    spp == "ARPA" ~ "Anisohydric", 
+    spp == "QUKE" ~ "Anisohydric"
+  )) %>% 
+   mutate(strategy_binary = case_when( #based on slope of predawn~midday line
+    spp == "ABCO" ~ "1", 
+    spp == "ARPA" ~ "2", 
+    spp == "CADE" ~ "1", 
+    spp == "CECO" ~ "2", 
+    spp == "PIJE" ~ "1", 
+    spp == "QUKE" ~ "2"
+  )) %>% 
+   mutate(spp = fct_relevel(spp, "ABCO","PIJE","CADE","CECO", "ARPA","QUKE"))  %>% 
+   mutate(Species = case_when(
+     spp == "ABCO" ~ "A. concolor",
+    spp == "PIJE" ~ "P. jeffreyi", 
+    spp == "CADE" ~ "C. decurrens", 
+    spp == "CECO" ~ "C. cordulatus", 
+    spp == "ARPA" ~ "A. patula", 
+    spp == "QUKE" ~ "Q. kelloggii"
+    )) %>% 
+  mutate(type = case_when(
+    spp == "PIJE" ~ "tree", 
+    spp == "QUKE" ~ "tree", 
+    spp == "CECO" ~ "shrub", 
+    spp == "ARPA" ~ "shrub", 
+    spp == "ABCO" ~ "tree", 
+    spp == "CADE" ~ "tree"
+  )) %>% 
+  mutate(F.Group = case_when(
+    spp == "ARPA" ~ "Angiosperm", 
+    spp == "ABCO" ~ "Gymnosperm",
+    spp == "CADE" ~ "Gymnosperm",
+    spp == "CECO" ~ "Angiosperm",
+    spp == "PIJE" ~ "Gymnosperm",
+    spp == "QUKE" ~ "Angiosperm"
+  )) %>% 
+  mutate(date = lubridate::mdy(date), 
+         year = year(date))
+
+fgroup_pv_summaries <- pv_summaries_2 %>% 
+  group_by(F.Group) %>% 
+  mutate(mean_tlp_group = mean(tlp))
+```
+
+```{r}
+unique(pv_all_df$year)
+```
+
+####- PV plot
+
+```{r}
+dat_text <- data.frame(
+  F.Group = c("Angiosperm", "Gymnosperm"),
+  label   = c(NA, "b")
+)
+
+pv_plot <- pv_all_df %>%
+  filter(!spp %in% c("ADFA", "CEME")) %>%
+  ggplot(aes(
+    x = -1 * water_potential,
+    y = lfm,
+    color = spp,
+   # shape = as.factor(year)
+  )) +
+  geom_vline(aes(xintercept = -1*mean_tlp_group, 
+                 lty = F.Group), data = fgroup_pv_summaries) +
+  geom_point(alpha = .5, 
+              aes(shape = as.factor(year))
+             ) +
+  color_many +
+  theme(legend.position = "none",
+        axis.title.x = element_text("")) +
+  labs(title = "PV Curves",
+       x = "",
+       y = "LFM") +
+  xlim(0, 10) +
+  # annotate(
+  #   geom = "text",
+  #   x = 9,
+  #   y = 232,
+  #   label = 'b',
+  #   fontface = 'bold',
+  #   size = 10
+  # ) +  
+  geom_text(
+  data    = dat_text,
+  color = "black",
+  fontface = 'bold', size = 10,
+  mapping = aes(x = 9, y = 232, label = label))+
+  facet_wrap(~F.Group)+
+  theme(plot.margin = unit(c(.2, .5,-.5, .25), "cm")) #margin(t = 0, r = 0, b = 0, l = 0, unit = "pt")
+  
+pv_plot
+```
+
+F.test: 
+Allowa us to compare the variance between two groups, in this case angiosperms and gymnosperms:
+```{r}
+
+res.ftest <- var.test(lfm ~ F.Group, data = pv_all_df)
+res.ftest
+#There is a significant difference between the variaance 
+```
+Var decomp: 
+
+https://cran.r-project.org/web/packages/specr/vignettes/decompose_var.html 
+```{r}
+pv_mod <- lmer(lfm~(1|water_potential) + (1|F.Group) + (1|plant), data = pv_all_df)
+summary(pv_mod)
+anova(pv_mod)
+
+specr::icc_specs(pv_mod) %>%
+  mutate_if(is.numeric, round, 2)
+```
+
+#MEM!
+
+```{r}
+m10.5 <- lmer(lfm~ water_potential*F.Group + (1|plant), data = pv_all_df)
+summary(m10.5)
+AIC(m10.5)
+
+m10 <- lmer(lfm~ water_potential + F.Group + (1|plant), data = pv_all_df)
+summary(m10)
+AIC(m10)
+
+anova(m10, m10.5) #don't need interaction
+
+m10.75 <- lmer(lfm~ water_potential + F.Group + as.factor(year) + (1|plant), data = pv_all_df)
+summary(m10.75) #yes add year
+
+anova(m10, m10.75)
+
+m10.757 <- lmer(lfm~ water_potential*as.factor(year) + F.Group + (1|plant), data = pv_all_df)
+summary(m10.757)
+
+anova(m10.75, m10.757) # dont need year interaction
+
+qqnorm(resid(m10.75))
+r <- resid(m10.75)
+plot(fitted(m10.75), r)
+
+anova(m10.75)
+car::Anova(m10.75)
+
+specr::icc_specs(m10.75) %>%
+  mutate_if(is.numeric, round, 2)
+```
+
+
+####- PV plot, neg mpa
+```{r}
+dat_text <- data.frame(
+  F.Group = c("Angiosperm", "Gymnosperm"),
+  label   = c(NA, "b")
+)
+
+pv_plot_neg <- pv_all_df %>%
+  filter(!spp %in% c("ADFA", "CEME")) %>%
+  ggplot(aes(
+    x = -1/water_potential,
+    y = lfm,
+    color = spp
+  )) +
+  geom_vline(aes(xintercept = -1/mean_tlp_group, 
+                 lty = F.Group), data = fgroup_pv_summaries) +
+  geom_point(alpha = .5) +
+  color_many +
+  theme(legend.position = "none",
+        axis.title.x = element_text("")) +
+  labs(title = "PV Curves",
+       x = "",
+       y = "LFM") +
+  xlim(0, 15) +
+  # annotate(
+  #   geom = "text",
+  #   x = 9,
+  #   y = 232,
+  #   label = 'b',
+  #   fontface = 'bold',
+  #   size = 10
+  # ) +  
+  geom_text(
+  data    = dat_text,
+  color = "black",
+  fontface = 'bold', size = 10,
+  mapping = aes(x = 14, y = 232, label = label))+
+  facet_wrap(~F.Group)+
+  theme(plot.margin = unit(c(.2, .5,-.5, .25), "cm")) #margin(t = 0, r = 0, b = 0, l = 0, unit = "pt")
+  
+pv_plot_neg
+```
+
+
+#
+# Section 2: Flam curve phys data
+
+```{r, warning=FALSE}
+# flam_curve_phys_all_raw <- read_csv(here("processed-data", "analysis 2.0", "flam_curve_phys_all.csv"), show_col_types = FALSE)
+flam_curve_phys_all_raw <- read_csv(here("processed-data", "analysis 2.0", "sierra_flam_data_all.csv"), show_col_types = FALSE)
+
+flam_curve_df <- flam_curve_phys_all_raw %>% 
+   filter(!spp %in% c("ADFA", "CEME")) %>% 
+  mutate(water_potential = -1*pos_mpa, 
+         swc = swc_sat, 
+         month = as.factor(month)) %>% 
+  group_by(spp) %>% 
+  mutate(plant = udpipe::unique_identifier(individual), 
+         maxLFM = gww_gdw_saturated * 100) %>% 
+  mutate(spp = toupper(spp)) %>% 
+  mutate(strategy = case_when( #based on slope of predawn~midday line
+    spp == "ABCO" ~ "Isohydric", 
+    spp == "PIJE" ~ "Isohydric", 
+     spp == "CADE" ~ "Isohydric", 
+    spp == "CECO" ~ "Anisohydric", 
+    spp == "ARPA" ~ "Anisohydric", 
+    spp == "QUKE" ~ "Anisohydric"
+  )) %>% 
+   mutate(strategy_binary = case_when( #based on slope of predawn~midday line
+    spp == "ABCO" ~ "1", 
+    spp == "ARPA" ~ "2", 
+    spp == "CADE" ~ "1", 
+    spp == "CECO" ~ "2", 
+    spp == "PIJE" ~ "1", 
+    spp == "QUKE" ~ "2"
+  )) %>% 
+   mutate(Species = case_when(
+     spp == "ABCO" ~ "A. concolor",
+    spp == "PIJE" ~ "P. jeffreyi", 
+    spp == "CADE" ~ "C. decurrens", 
+    spp == "CECO" ~ "C. cordulatus", 
+    spp == "ARPA" ~ "A. patula", 
+    spp == "QUKE" ~ "Q. kelloggii"
+    )) %>% 
+  mutate(type = case_when(
+    spp == "PIJE" ~ "tree", 
+    spp == "QUKE" ~ "tree", 
+    spp == "CECO" ~ "shrub", 
+    spp == "ARPA" ~ "shrub", 
+    spp == "ABCO" ~ "tree", 
+    spp == "CADE" ~ "tree"
+  )) %>% 
+  mutate(F.Group = case_when(
+    spp == "ARPA" ~ "Angiosperm", 
+    spp == "ABCO" ~ "Gymnosperm",
+    spp == "CADE" ~ "Gymnosperm",
+    spp == "CECO" ~ "Angiosperm",
+    spp == "PIJE" ~ "Gymnosperm",
+    spp == "QUKE" ~ "Angiosperm"
+  )) %>% 
+  select(lfm, water_potential, mpa, year, month, year_month, plant, F.Group, spp)
+#%>% 
+ # select(spp, swc, lfm, mpa, month, tlp, water_potential, po, individual, plant)
+
+write_csv(flam_curve_df, here("processed-data", "analysis 2.0", "flam_curve_vardecomp_2.csv"))
+```
+
+#MEM!
+
+```{r}
+m11.5 <- lmer(lfm~ water_potential + F.Group + (1|plant), data = flam_curve_df)
+summary(m11)
+
+m11 <- lmer(lfm~ water_potential*F.Group + (1|plant), data = flam_curve_df)
+
+anova(m11, m11.5) #Yes interaction between mpa and f group
+
+m11.75  <- lmer(lfm~ water_potential*F.Group + as.factor(year) + (1|plant), data = flam_curve_df)
+m11.75 #there shouldn't be an interaction between year and f group, so dont include
+summary(m11.75)
+
+anova(m11, m11.75) 
+
+qqnorm(resid(m11.75))
+r <- resid(m11.75)
+plot(fitted(m11.75
+            ), r)
+
+anova(m11.75)
+car::Anova(m11.75)
+
+performance::multicollinearity(m11.75)
+
+specr::icc_specs(m11) %>%
+  mutate_if(is.numeric, round, 2)
+```
+
+#####- Flam plot
+```{r}
+dat_text <- data.frame(
+  F.Group = c("Angiosperm", "Gymnosperm"),
+  label   = c(NA, "c")
+)
+
+flam_plot <- flam_curve_df %>% 
+  filter(lfm < 300, 
+         lfm > 50) %>% 
+  filter(!spp %in% c("ADFA", "CEME")) %>% 
+  ggplot(aes(y = lfm, 
+             x = -1*water_potential, 
+             color = spp)) +
+  geom_vline(aes(xintercept = -1*mean_tlp_group, 
+                 lty = F.Group), data = fgroup_pv_summaries) +
+  geom_point(alpha = .5, 
+             aes( shape = as.factor(year))
+             ) +
+ # geom_smooth(method = "lm", se = F) +
+  color_many +
+  theme(legend.position = "none")+
+  labs(title = "Flam", 
+       x = "Water Potential", 
+       y = "LFM")+
+  theme(plot.margin = unit(c(.2, .5, .3, .25), "cm")) +
+ # xlim(0, 9) + 
+  geom_text(
+  data    = dat_text,
+  color = "black",
+  fontface = 'bold', size = 10,
+  mapping = aes(x = 9, y = 210, label = label))+
+ # annotate(geom = "text", x = 9, y = 225, label = 'c', fontface = 'bold', size = 10)+
+  facet_wrap(~F.Group)
+flam_plot
+```
+
+#####- Flam plot, neg
+```{r}
+dat_text <- data.frame(
+  F.Group = c("Angiosperm", "Gymnosperm"),
+  label   = c(NA, "c")
+)
+
+flam_plot_neg <- flam_curve_df %>% 
+  filter(lfm < 300, 
+         lfm > 50) %>% 
+  filter(!spp %in% c("ADFA", "CEME")) %>% 
+  ggplot(aes(y = lfm, 
+             x = -1/water_potential, 
+             color = spp)) +
+  geom_vline(aes(xintercept = -1/mean_tlp_group, 
+                 lty = F.Group), data = fgroup_pv_summaries) +
+  geom_point(alpha = .5) +
+ # geom_smooth(method = "lm", se = F) +
+  color_many +
+  theme(legend.position = "none")+
+  labs(title = "Flam", 
+       x = "Water Potential", 
+       y = "LFM")+
+  theme(plot.margin = unit(c(.2, .5, .3, .25), "cm")) +
+  xlim(0, 15) + 
+  geom_text(
+  data    = dat_text,
+  color = "black",
+  fontface = 'bold', size = 10,
+  mapping = aes(x = 14, y = 210, label = label))+
+ # annotate(geom = "text", x = 9, y = 225, label = 'c', fontface = 'bold', size = 10)+
+  facet_wrap(~F.Group)
+flam_plotNeg
+```
+
+
+# Section 3: Field data
+
+```{r}
+field_data_all <- read_csv(here("processed-data", "analysis 2.0", "field_data_2020_2021.csv"), show_col_types = FALSE) %>% 
+  mutate(tlp = mean_tlp_spp, 
+         po = mean_po_date) %>% 
+ # select(-mpa, -water_potential) %>% 
+  mutate(water_potential = midday, 
+         unique_id2 = str_c(spp, "_",pod, '_', site),
+         plant = udpipe::unique_identifier(unique_id2)) %>% 
+  mutate(year_month = str_c(year, '_', month)) %>% 
+ # group_by(spp, plant) %>% 
+  mutate(maxLFM = wettest_lfm)  %>% 
+  mutate(strategy = case_when( #based on slope of predawn~midday line
+    spp == "ABCO" ~ "Isohydric", 
+    spp == "PIJE" ~ "Isohydric", 
+     spp == "CADE" ~ "Isohydric", 
+    spp == "CECO" ~ "Anisohydric", 
+    spp == "ARPA" ~ "Anisohydric", 
+    spp == "QUKE" ~ "Anisohydric"
+  )) %>% 
+   mutate(strategy_binary = case_when( #based on slope of predawn~midday line
+    spp == "ABCO" ~ "1", 
+    spp == "ARPA" ~ "2", 
+    spp == "CADE" ~ "1", 
+    spp == "CECO" ~ "2", 
+    spp == "PIJE" ~ "1", 
+    spp == "QUKE" ~ "2"
+  )) %>% 
+   mutate(Species = case_when(
+     spp == "ABCO" ~ "A. concolor",
+    spp == "PIJE" ~ "P. jeffreyi", 
+    spp == "CADE" ~ "C. decurrens", 
+    spp == "CECO" ~ "C. cordulatus", 
+    spp == "ARPA" ~ "A. patula", 
+    spp == "QUKE" ~ "Q. kelloggii"
+    )) %>% 
+  mutate(type = case_when(
+    spp == "PIJE" ~ "tree", 
+    spp == "QUKE" ~ "tree", 
+    spp == "CECO" ~ "shrub", 
+    spp == "ARPA" ~ "shrub", 
+    spp == "ABCO" ~ "tree", 
+    spp == "CADE" ~ "tree"
+  )) %>% 
+  mutate(F.Group = case_when(
+    spp == "ARPA" ~ "Angiosperm", 
+    spp == "ABCO" ~ "Gymnosperm",
+    spp == "CADE" ~ "Gymnosperm",
+    spp == "CECO" ~ "Angiosperm",
+    spp == "PIJE" ~ "Gymnosperm",
+    spp == "QUKE" ~ "Angiosperm"
+  )) 
+
+field_data_all_2 <- field_data_all %>% 
+  drop_na(lfm, water_potential, plant, F.Group, year)
+
+write_csv(field_data_all, (here("processed-data", "analysis 2.0", "field_data_vardecomp_2.csv")))
+```
+
+#MEM!
+
+
+```{r}
+m12 <- lmer(sqrt(lfm)~ water_potential*F.Group*as.factor(year) + (1|plant), data = field_data_all)
+summary(m12) #doenst make sense to have year and F group interaction, don't use!
+
+m12.5 <- lmer(log(lfm)~ water_potential*F.Group + as.factor(year) + (1|plant), data = field_data_all)
+summary(m12.5)
+
+m12.55 <- lmer(log(lfm)~ water_potential*F.Group + age + as.factor(year) + (1|plant), data = field_data_all)
+summary(m12.55)
+
+anova(m12.55, m12.5) #m12 is better
+
+#remove interaction between F.Group and year: 
+m12.45<- lmer(log(lfm)~ water_potential*as.factor(year) + F.Group + (1|plant), data = field_data_all)
+summary(m12.45)
+
+anova(m12.55, m12.45)
+
+m12.4<- lmer(log(lfm)~ water_potential*as.factor(year) + water_potential*F.Group + (1|plant), data = field_data_all)
+
+summary(m12.4)
+
+anova(m12.5, m12.4, m12.45, m12.55) #with all interactions is better\
+
+qqnorm(resid(m12.4))
+r <- resid(m12.4)
+plot(fitted(m12.4
+            ), r) #right skewed
+
+car::Anova(m12.4)
+
+performance::multicollinearity(m12.4)
+
+specr::icc_specs(m12) %>%
+  mutate_if(is.numeric, round, 2)
+```
+
+#####- Field plot
+
+```{r}
+dat_text <- data.frame(
+  F.Group = c("Angiosperm", "Gymnosperm"),
+  label   = c(NA, "a")
+)
+
+field_plot <- field_data_all %>% 
+  filter(lfm < 300, 
+         lfm > 50) %>% 
+  ggplot(aes(y = lfm, 
+             x = -1*water_potential, 
+             color = spp)) +
+  geom_vline(aes(xintercept = -1*mean_tlp_group, 
+                 lty = F.Group), data = fgroup_pv_summaries) +
+  geom_point(alpha = .5, 
+             aes(shape = as.factor(year))
+             )+
+  facet_wrap(~F.Group) +
+ # geom_smooth(method = "lm", se = F) +
+  color_many +
+  theme(legend.position = "none") +
+  labs(title = "Field", 
+       x = "", 
+       y = "LFM") +
+  theme(plot.margin = unit(c(.2, .5, -.5, .25), "cm")) +
+  xlim(0, 10) +
+  geom_text(
+  data    = dat_text,
+  color = "black",
+  fontface = 'bold', size = 10,
+  mapping = aes(x = 9, 
+                y = 300, 
+                #y = 2,
+                label = label)
+ )
+  #annotate(geom = "text", x = 9, y = 300, label = 'a', fontface = 'bold', size = 10) 
+field_plot
+```
+##### Field plot, log(lfm)
+```{r}
+field_plot_logged<- field_data_all %>% 
+  filter(lfm < 300, 
+         lfm > 50) %>% 
+  ggplot(aes(y = log(lfm), 
+             x = -1*water_potential, 
+             color = spp)) +
+  geom_vline(aes(xintercept = -1*mean_tlp_group, 
+                 lty = F.Group), data = fgroup_pv_summaries) +
+  geom_point(alpha = .5, 
+             aes(shape = as.factor(year))
+             )+
+  facet_wrap(~F.Group) +
+ # geom_smooth(method = "lm", se = F) +
+  color_many +
+  theme(legend.position = "none") +
+  labs(title = "Field", 
+       x = "", 
+       y = "LFM") +
+  theme(plot.margin = unit(c(.2, .5, -.5, .25), "cm")) +
+  xlim(0, 10) +
+  geom_text(
+  data    = dat_text,
+  color = "black",
+  fontface = 'bold', size = 10,
+  mapping = aes(x = 9, 
+               # y = 300, 
+                y = 2,
+                label = label)
+ )
+  #annotate(geom = "text", x = 9, y = 300, label = 'a', fontface = 'bold', size = 10) 
+field_plot_logged
+```
+
+#####- Field plot, neg
+
+```{r}
+dat_text <- data.frame(
+  F.Group = c("Angiosperm", "Gymnosperm"),
+  label   = c(NA, "a")
+)
+
+field_plot_neg <- field_data_all %>% 
+  filter(lfm < 300, 
+         lfm > 50) %>% 
+  ggplot(aes(y = lfm, 
+             x = -1/water_potential, 
+             color = spp)) +
+  geom_vline(aes(xintercept = -1/mean_tlp_group, 
+                 lty = F.Group), data = fgroup_pv_summaries) +
+  geom_point(alpha = .5)+
+  facet_wrap(~F.Group) +
+ # geom_smooth(method = "lm", se = F) +
+  color_many +
+  theme(legend.position = "none") +
+  labs(title = "Field", 
+       x = "", 
+       y = "LFM") +
+  theme(plot.margin = unit(c(.2, .5, -.5, .25), "cm")) +
+  xlim(0, 2) +
+  geom_text(
+  data    = dat_text,
+  color = "black",
+  fontface = 'bold', size = 10,
+  mapping = aes(x = 1.7, y = 300, label = label))
+  #annotate(geom = "text", x = 9, y = 300, label = 'a', fontface = 'bold', size = 10) 
+field_plot_neg
+```
+
+#-MEMs combine:
+```{r}
+tab_model <- sjPlot::tab_model(m10.75, m11.75, m12.4,
+                               show.reflvl = TRUE, 
+          digits = 3, 
+          show.aic = TRUE, 
+          show.ci = FALSE,
+          show.icc = FALSE, 
+         string.pred = "Coeffcient", 
+        dv.labels = c("PV", "Flam", "Field"),
+         title = "LFM ~ MPa",
+  string.p = "P-Value", 
+  p.style = "stars")
+tab_model
+```
+
+#- Scatterplots, combine
+```{r, fig.height=6, fig.width=5}
+field_plot_leg <- field_data_all %>% 
+  filter(lfm < 300, 
+         lfm > 50) %>% 
+  ggplot(aes(y = lfm, 
+             x = -1*water_potential, 
+             color = spp)) +
+  geom_vline(aes(xintercept = -1*mean_tlp_group, 
+                 lty = F.Group), data = fgroup_pv_summaries) +
+  geom_point(alpha = .5, 
+             aes(shape = as.factor(year))) +
+  labs(color = "Species", 
+       lty = "TLP", 
+       shape = "Year") +
+ # geom_smooth(method = "lm", se = F) +
+  color_many 
+legend <- cowplot::get_legend(field_plot_leg)
+
+#Mpas:
+plots <- cowplot::plot_grid(field_plot, pv_plot, flam_plot,
+          ncol = 1, 
+         nrow = 3
+          )
+plots_legend <- cowplot::plot_grid(plots, legend, rel_widths = c(5, 1), rel_heights = c(-.1, -0.1, -.1))
+plots_legend
+
+#ggsave(plot=plots_legend, bg = "white" , here::here("figures", "mpa_flam_metrics_unscaled"), device="jpg")
+
+ggsave(plot=plots_legend, bg = "white" , here::here("figures", "flam_pv_field"), device="jpg")
+#ggsave(plot=plots_legend, bg = "white" , here::here("figures", "flam_pv_field_fgroups"), device="jpg")
+```
+
+####combine, neg
+```{r, fig.height=6, fig.width=5}
+#Mpas:
+plots_neg <- cowplot::plot_grid(field_plot_neg, pv_plot_neg, flam_plot_neg,
+          ncol = 1, 
+         nrow = 3
+          )
+plots_legend_neg <- cowplot::plot_grid(plots_neg, legend, rel_widths = c(5, 1), rel_heights = c(-.1, -0.1, -.1))
+plots_legend_neg
+
+#ggsave(plot=plots_legend, bg = "white" , here::here("figures", "mpa_flam_metrics_unscaled"), device="jpg")
+
+ggsave(plot=plots_legend, bg = "white" , here::here("figures", "flam_pv_field"), device="jpg")
+#ggsave(plot=plots_legend, bg = "white" , here::here("figures", "flam_pv_field_fgroups"), device="jpg")
+```
+#-------------
+
+
