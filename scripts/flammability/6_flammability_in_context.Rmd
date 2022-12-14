@@ -40,7 +40,7 @@ Goal here is to make a plot that shows flammability over time:
 ```{r}
 field_data_all_6 <- read_csv(here("processed-data", "analysis 2.0","field_data_2020_2021.csv")) %>% 
   select(spp, lfm, year, month, water_potential, site, wet_weight, unique_id, date) %>% 
-  mutate(mpa = -1*water_potential,
+  mutate(mpa = water_potential,
     lfm_scaled = scale(lfm), 
          mpa_scaled = scale(mpa), 
         # mpa = water_potential, 
@@ -51,8 +51,8 @@ field_data_all_6 <- read_csv(here("processed-data", "analysis 2.0","field_data_2
   filter(spp != "ceco") %>% 
   drop_na(spp)
 
-mem_data_all_6 <- read_csv(here("processed-data", "analysis 2.0", "sierra_flam_data_all.csv")) %>% 
-  select(lfm, mpa, fh, fh, fd, gd,tti, prop_ignite, temp_change, ignition, sample_wt, dry_wt, fresh_wt, water_wt, location, site, year_month, spp, individual) %>% 
+mem_data_all_6 <- read_csv(here("processed-data", "analysis 2.0", "sierra_flam_data_all.csv"), show_col_types = F) %>% 
+  select(lfm, mpa, fh, fh, fd, gd,tti, prop_ignite, temp_change, ignition, sample_wt, dry_wt, fresh_wt, water_wt, location, site, year_month, spp, individual, lower_temp_max) %>% 
   mutate(dw_flam_sample = sample_wt * (dry_wt/fresh_wt),
          ww_flam_sample = sample_wt * (water_wt/fresh_wt)) %>% 
   mutate(mpa = -1*mpa,
@@ -65,7 +65,9 @@ mem_data_all_6 <- read_csv(here("processed-data", "analysis 2.0", "sierra_flam_d
          lfm_scaled = scale(lfm), 
          excess_water_scaled = scale(excess_water)) %>% 
   filter(!year_month %in% c("2021_august")) %>% 
-  drop_na(mpa_scaled, lfm_scaled, sample_wt_scaled)
+  drop_na(mpa_scaled, lfm_scaled, sample_wt_scaled) %>% 
+   mutate(spp = toupper(spp), 
+          spp = fct_relevel(spp, "ABCO","PIJE","CADE","ARPA", "CECO", "QUKE")) 
 ```
 
 #TTI
@@ -86,14 +88,180 @@ tti_df <- field_data_all_6 %>%
 tti_pred <- tti_df %>% 
   filter(year == 2021) %>% 
 ggplot() +
-  ggbeeswarm::geom_beeswarm(aes(y = pred*-1, 
+  geom_point(aes(y = pred*-1, 
                  x = date, 
                  color = spp)) +
-  geom_smooth(aes(y = pred*-1, x = date, color = spp)) +
+  geom_smooth(aes(y = pred*-1, x = date, color = spp),span = .6,
+              se = F) +
   theme(legend.position = "none") +
-  labs(y = "Ignitability") +
+  labs(y = "Ignitability", 
+       x = "") +
   color_many
 tti_pred
+```
+
+#FH:
+```{r}
+fh_mod <- lm(fh ~ spp*mpa_scaled + spp*lfm_scaled 
+             + site
+            # + sample_wt_scaled, 
+             ,data = mem_data_all_6)
+
+fh_df <- field_data_all_6 %>% 
+  modelr::add_predictions(fh_mod)
+
+fh_pred <- fh_df %>% 
+  filter(year == 2021) %>% 
+ggplot() +
+  geom_point(aes(y = pred, 
+                 x = date, 
+                 color = spp)) +
+  geom_smooth(aes(y = pred, x = date, color = spp), 
+              span = .6,
+              se = F) +
+  theme(legend.position = "none") +
+  labs(y = "Flame Height", 
+       x = "")+
+  color_many
+fh_pred
+```
+
+#Max Temp
+
+```{r}
+lower_temp_max_mod <- lm(lower_temp_max ~ spp*mpa_scaled 
+                           + spp*lfm_scaled 
+                           +  site 
+                          #+ year_month 
+                           + sample_wt_scaled 
+                           #+ (1 | individual), 
+                           ,data = mem_data_all_r)
+
+temp_max_df <- field_data_all_6 %>% 
+  modelr::add_predictions(lower_temp_max_mod)
+
+temp_max_pred <- temp_max_df %>% 
+  filter(year == 2021) %>% 
+ggplot() +
+  geom_point(aes(y = pred, 
+                 x = date, 
+                 color = spp)) +
+  geom_smooth(aes(y = pred, x = date, color = spp), 
+              span = .6,
+              se = F) +
+  theme(legend.position = "none") +
+  labs(y = "Max. Temperature", 
+       x = "Date")+
+  color_many +
+  theme(legend.title = element_text(face = 'bold', size = 20),
+        legend.text = element_text(face = 'italic', size = 17)) 
+temp_max_pred
+```
+
+#Temp change
+
+```{r}
+temp_mod <- lm(temp_change ~ spp*mpa_scaled + spp*lfm_scaled 
+              +  site 
+             # + year_month 
+              #+ sample_wt_scaled 
+              #+ (1 | individual)
+              , data = mem_data_all_6)
+
+temp_df <- field_data_all_6 %>% 
+  modelr::add_predictions(temp_mod)
+
+temp_pred <- temp_df %>% 
+  filter(year == 2021) %>% 
+ggplot() +
+  geom_point(aes(y = pred, 
+                 x = date, 
+                 color = spp)) +
+  geom_smooth(aes(y = pred, x = date, color = spp), 
+              span = .6,
+              se = F) +
+  theme(legend.position = "none") +
+  labs(y = "Temp Change", 
+       x = "Date")+
+  color_many +
+  theme(legend.title = element_text(face = 'bold', size = 20),
+        legend.text = element_text(face = 'italic', size = 17)) 
+temp_pred
+```
+
+##Combine together: 
+
+```{r}
+leg_plot<- temp_df %>% 
+  mutate(spp = fct_relevel(spp, "ABCO","PIJE","CADE","ARPA", "CECO", "QUKE")) %>% 
+ggplot() +
+  geom_point(aes(y = pred, 
+                 x = date, 
+                 color = spp)) +
+  geom_smooth(aes(y = pred, x = date, color = spp), se = F)+
+  labs(color = "Species") +
+  theme(legend.key=element_blank()) +
+  theme(legend.title = element_text(face = 'bold', size = 20),
+        legend.text = element_text(face = 'italic', size = 17)) +
+  theme_bw() +
+  color_many
+```
+
+```{r, fig.height= 4, fig.width=6}
+legend <- cowplot::get_legend(leg_plot)
+
+plots <- cowplot::plot_grid(tti_pred, fh_pred, temp_pred,temp_max_pred,
+                                   ncol = 2
+                                   , rel_heights = c(1, 1, 1,1)
+                                   )
+
+legend_plots <- cowplot::plot_grid(plots, legend, ncol = 2, rel_widths = c(6,.5))
+legend_plots
+```
+
+#-------
+#Boxplots, all 2021: 
+
+NOTE: did not finsih this. 
+
+#TTI
+
+```{r}
+#tti_mod <- lmer(tti ~ spp*mpa_scaled + spp*lfm_scaled + site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all_6)
+#summary(tti_mod)
+#str(mem_data_all_6)
+
+tti_mod <- lm(tti ~ spp*mpa_scaled + spp*lfm_scaled 
+              +site + sample_wt_scaled
+              , data = mem_data_all_6)
+summary(tti_mod)
+
+tti_df <- field_data_all_6 %>% 
+  modelr::add_predictions(tti_mod)
+
+df_mean <- tti_df %>% 
+  filter(year == 2021) %>% 
+  mutate(week_cut = cut(date, breaks = "week")) %>% 
+  group_by(week_cut, spp) %>% 
+  summarize(average = mean(pred)) %>%
+  ungroup() %>% 
+  drop_na(average)
+	
+#tti_pred <- 
+  tti_df %>% 
+  filter(year == 2021) %>% 
+ggplot() +
+  geom_point(aes(y = pred*-1, 
+                 x = date, 
+                 color = spp)) +
+  geom_smooth(aes(y = -1*pred, x = date, color = spp), 
+              se = F,
+              span = .6)+
+  theme(legend.position = "none") +
+  labs(y = "Ignitability") +
+  color_many 
+
+#tti_pred
 ```
 
 #FH:
@@ -112,7 +280,9 @@ ggplot() +
   geom_beeswarm(aes(y = pred, 
                  x = date, 
                  color = spp)) +
-  geom_smooth(aes(y = pred, x = date, color = spp)) +
+  geom_smooth(aes(y = pred, x = date, color = spp), 
+              se = F,
+              span = .6
   theme(legend.position = "none") +
   labs(y = "Flame Height")+
   color_many
@@ -135,10 +305,14 @@ temp_df <- field_data_all_6 %>%
 temp_pred <- temp_df %>% 
   filter(year == 2021) %>% 
 ggplot() +
-  geom_beeswarm(aes(y = pred, 
+  geom_point(aes(y = pred, 
                  x = date, 
                  color = spp)) +
-  geom_smooth(aes(y = pred, x = date, color = spp)) +
+  geom_smooth(aes(y = pred, x = date, color = spp), 
+              se = F,
+              span = .6
+  #formula = pred ~ lfm_scaled + mpa_scaled + spp + sample_wt
+) +
   theme(legend.position = "none") +
   labs(y = "Temp Change")+
   color_many
@@ -170,7 +344,7 @@ legend_plots
 ```
 
 #-------
-#boxplots: 
+#Boxplots, old vs. new
 
 #TTI
 
