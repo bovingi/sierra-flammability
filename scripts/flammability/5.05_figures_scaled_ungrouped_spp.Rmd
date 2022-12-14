@@ -1309,12 +1309,18 @@ ES.plot <- function(df, y.var, sig, std.error, mpa = 'no', margins.vector = c(0.
 Setup:
 ```{r}
 species <- c("A. concolor", "C. decurrens", "P. jeffreyi", "A. patula", "Q. kelloggii")
-tti.ES.lfm <- c(tti_mod.coef.df$estimate[6], tti_mod.coef.df$estimate[11:12], tti_mod.coef.df$estimate[10], tti_mod.coef.df$estimate[13])
+ref <- tti_mod.coef.df$estimate[6]
+tti.ES.lfm <- c(ref, ref + tti_mod.coef.df$estimate[11:12],
+                ref + tti_mod.coef.df$estimate[10],
+                ref + tti_mod.coef.df$estimate[13])
   # Following this order: ABCO, CADE, PIJE, ARPA, QUKE (no CECO)
 tti.SE.lfm <- c(tti_mod.coef.df$std.error[6], tti_mod.coef.df$std.error[11:12], tti_mod.coef.df$std.error[10], tti_mod.coef.df$std.error[13])
 tti.p.value.lfm <- c(tti_mod.coef.df$p.value[6], tti_mod.coef.df$p.value[11:12], tti_mod.coef.df$p.value[10], tti_mod.coef.df$p.value[13])
 tti.sig.lfm <- significance(tti.p.value.lfm, tti.sig.lfm)
-tti.ES.mpa <- c(tti_mod.coef.df$estimate[21], tti_mod.coef.df$estimate[26:27], tti_mod.coef.df$estimate[25], tti_mod.coef.df$estimate[28]) 
+ref2 <- tti_mod.coef.df$estimate[21]
+tti.ES.mpa <- c(ref2, ref2 + tti_mod.coef.df$estimate[26:27], 
+                ref2 + tti_mod.coef.df$estimate[25], 
+                ref2 + tti_mod.coef.df$estimate[28]) 
 tti.SE.mpa <- c(tti_mod.coef.df$std.error[21], tti_mod.coef.df$std.error[26:27], tti_mod.coef.df$std.error[25], tti_mod.coef.df$std.error[28])
 tti.p.value.mpa <- c(tti_mod.coef.df$p.value[21], tti_mod.coef.df$p.value[26:27], tti_mod.coef.df$p.value[25], tti_mod.coef.df$p.value[28])
 tti.sig.mpa <- significance(tti.p.value.mpa, tti.sig.mpa)
@@ -1327,19 +1333,19 @@ Plots:
 ```{r}
 tti.ES.lfm.plot <- ES.plot(tti.ES.df, tti.ES.lfm, tti.sig.lfm, tti.SE.lfm,
                            margins.vector = c(0.2, 0.05, 0.1, 0.1),
-                           limits.vector = c(-17, 19),
-                           breaks.vector = c(-15, -10, -5, 0, 5, 10, 15)) +
-  annotate(geom = "text", x = 0.7, y = 17, label = 'd',
+                           limits.vector = c(-6, 19),
+                           breaks.vector = c(-5, 0, 5, 10, 15)) +
+  annotate(geom = "text", x = 0.7, y = 17.2, label = 'd',
            fontface = 'bold', size = 10) +
   labs(title = 'LFM')
 tti.ES.lfm.plot
 
 tti.ES.mpa.plot <- ES.plot(tti.ES.df, tti.ES.mpa, tti.sig.mpa, tti.SE.mpa,
                            mpa = 'y',
-                           margins.vector = c(0.2, 0.2, 0.1, 0),
-                           limits.vector = c(-17, 19),
-                           breaks.vector = c(-15, -10, -5, 0, 5, 10, 15)) +
-  annotate(geom = "text", x = 0.7, y = 17, label = 'g',
+                           margins.vector = c(0.2, 0.3, 0.1, 0),
+                           limits.vector = c(-6, 19),
+                           breaks.vector = c(-5, 0, 5, 10, 15)) +
+  annotate(geom = "text", x = 0.7, y = 17.2, label = 'g',
            fontface = 'bold', size = 10) +
   labs(title = 'Water Potential')
 tti.ES.mpa.plot
@@ -1348,12 +1354,18 @@ tti.ES.mpa.plot
 ### FH
 Setup:
 ```{r}
-fh.ES.lfm <- c(fh_mod.coef.df$estimate[6], fh_mod.coef.df$estimate[11:12], fh_mod.coef.df$estimate[10], fh_mod.coef.df$estimate[13])
+ref <- fh_mod.coef.df$estimate[6]
+fh.ES.lfm <- c(ref, ref + fh_mod.coef.df$estimate[11:12],
+                ref + fh_mod.coef.df$estimate[10],
+                ref + fh_mod.coef.df$estimate[13])
   # Following this order: ABCO, CADE, PIJE, ARPA, QUKE (no CECO)
 fh.SE.lfm <- c(fh_mod.coef.df$std.error[6], fh_mod.coef.df$std.error[11:12], fh_mod.coef.df$std.error[10], fh_mod.coef.df$std.error[13])
 fh.p.value.lfm <- c(fh_mod.coef.df$p.value[6], fh_mod.coef.df$p.value[11:12], fh_mod.coef.df$p.value[10], fh_mod.coef.df$p.value[13])
 fh.sig.lfm <- significance(fh.p.value.lfm, fh.sig.lfm)
-fh.ES.mpa <- c(fh_mod.coef.df$estimate[21], fh_mod.coef.df$estimate[26:27], fh_mod.coef.df$estimate[25], fh_mod.coef.df$estimate[28]) 
+ref2 <- fh_mod.coef.df$estimate[21]
+fh.ES.mpa <- c(ref2, ref2 + fh_mod.coef.df$estimate[26:27], 
+                ref2 + fh_mod.coef.df$estimate[25], 
+                ref2 + fh_mod.coef.df$estimate[28]) 
 fh.SE.mpa <- c(fh_mod.coef.df$std.error[21], fh_mod.coef.df$std.error[26:27], fh_mod.coef.df$std.error[25], fh_mod.coef.df$std.error[28])
 fh.p.value.mpa <- c(fh_mod.coef.df$p.value[21], fh_mod.coef.df$p.value[26:27], fh_mod.coef.df$p.value[25], fh_mod.coef.df$p.value[28])
 fh.sig.mpa <- significance(fh.p.value.mpa, fh.sig.mpa)
@@ -1366,8 +1378,8 @@ Plots:
 ```{r}
 fh.ES.lfm.plot <- ES.plot(fh.ES.df, fh.ES.lfm, fh.sig.lfm, fh.SE.lfm,
                            margins.vector = c(0.1, 0.05, 0.1, 0.1),
-                           limits.vector = c(-7, 5),
-                           breaks.vector = c(-6, -4, -2, 0, 2, 4)) +
+                           limits.vector = c(-5.5, 5),
+                           breaks.vector = c(-4, -2, 0, 2, 4)) +
   annotate(geom = "text", x = 0.7, y = 4.2, label = 'e',
            fontface = 'bold', size = 10)
 fh.ES.lfm.plot
@@ -1375,8 +1387,8 @@ fh.ES.lfm.plot
 fh.ES.mpa.plot <- ES.plot(fh.ES.df, fh.ES.mpa, fh.sig.mpa, fh.SE.mpa,
                            mpa = 'y',
                            margins.vector = c(0.1, 0.4, 0.1, 0),
-                           limits.vector = c(-7, 5),
-                           breaks.vector = c(-6, -4, -2, 0, 2, 4),
+                           limits.vector = c(-5.5, 5),
+                           breaks.vector = c(-4, -2, 0, 2, 4),
                           axis.title = 'Hydration x Species Effect Size') +
   annotate(geom = "text", x = 0.7, y = 4.2, label = 'h',
            fontface = 'bold', size = 10) 
@@ -1386,12 +1398,18 @@ fh.ES.mpa.plot
 ### Max. Temp.
 Setup:
 ```{r}
-temp_max.ES.lfm <- c(temp_mod.coef.df$estimate[6], temp_mod.coef.df$estimate[11:12], temp_mod.coef.df$estimate[10], temp_mod.coef.df$estimate[13])
+ref <- temp_mod.coef.df$estimate[6]
+temp_max.ES.lfm <- c(ref, ref + temp_mod.coef.df$estimate[11:12],
+                ref + temp_mod.coef.df$estimate[10],
+                ref + temp_mod.coef.df$estimate[13])
   # Following this order: ABCO, CADE, PIJE, ARPA, QUKE (no CECO)
 temp_max.SE.lfm <- c(temp_mod.coef.df$std.error[6], temp_mod.coef.df$std.error[11:12], temp_mod.coef.df$std.error[10], temp_mod.coef.df$std.error[13])
 temp_max.p.value.lfm <- c(temp_mod.coef.df$p.value[6], temp_mod.coef.df$p.value[11:12], temp_mod.coef.df$p.value[10], temp_mod.coef.df$p.value[13])
 temp_max.sig.lfm <- significance(temp_max.p.value.lfm, temp_max.sig.lfm)
-temp_max.ES.mpa <- c(temp_mod.coef.df$estimate[21], temp_mod.coef.df$estimate[26:27], temp_mod.coef.df$estimate[25], temp_mod.coef.df$estimate[28]) 
+ref2 <- temp_mod.coef.df$estimate[21]
+temp_max.ES.mpa <- c(ref2, ref2 + temp_mod.coef.df$estimate[26:27], 
+                ref2 + temp_mod.coef.df$estimate[25], 
+                ref2 + temp_mod.coef.df$estimate[28]) 
 temp_max.SE.mpa <- c(temp_mod.coef.df$std.error[21], temp_mod.coef.df$std.error[26:27], temp_mod.coef.df$std.error[25], temp_mod.coef.df$std.error[28])
 temp_max.p.value.mpa <- c(temp_mod.coef.df$p.value[21], temp_mod.coef.df$p.value[26:27], temp_mod.coef.df$p.value[25], temp_mod.coef.df$p.value[28])
 temp_max.sig.mpa <- significance(temp_max.p.value.mpa, temp_max.sig.mpa)
@@ -1406,7 +1424,7 @@ temp_max.ES.lfm.plot <- ES.plot(temp_max.ES.df, temp_max.ES.lfm, temp_max.sig.lf
                            margins.vector = c(0.1, 0.05, 0.1, 0.1),
                            limits.vector = c(-27, 27),
                            breaks.vector = c(-25, -12, 0, 12, 25)) +
-  annotate(geom = "text", x = 0.7, y = 23.3, label = 'f',
+  annotate(geom = "text", x = 0.7, y = 23.1, label = 'f',
            fontface = 'bold', size = 10)
 temp_max.ES.lfm.plot
 
@@ -1415,7 +1433,7 @@ temp_max.ES.mpa.plot <- ES.plot(temp_max.ES.df, temp_max.ES.mpa, temp_max.sig.mp
                            margins.vector = c(0.1, 0.2, 0.1, 0),
                           limits.vector = c(-27, 27),
                           breaks.vector = c(-25, -12, 0, 12, 25)) +
-  annotate(geom = "text", x = 0.7, y = 23.3, label = 'i',
+  annotate(geom = "text", x = 0.7, y = 23.1, label = 'i',
            fontface = 'bold', size = 10)
 temp_max.ES.mpa.plot
 ```
@@ -1423,12 +1441,18 @@ temp_max.ES.mpa.plot
 ### GD
 Setup:
 ```{r}
-gd.ES.lfm <- c(gd_mod.coef.df$estimate[6], gd_mod.coef.df$estimate[11:12], gd_mod.coef.df$estimate[10], gd_mod.coef.df$estimate[13])
+ref <- gd_mod.coef.df$estimate[6]
+gd.ES.lfm <- c(ref, ref + gd_mod.coef.df$estimate[11:12],
+                ref + gd_mod.coef.df$estimate[10],
+                ref + gd_mod.coef.df$estimate[13])
   # Following this order: ABCO, CADE, PIJE, ARPA, QUKE (no CECO)
 gd.SE.lfm <- c(gd_mod.coef.df$std.error[6], gd_mod.coef.df$std.error[11:12], gd_mod.coef.df$std.error[10], gd_mod.coef.df$std.error[13])
 gd.p.value.lfm <- c(gd_mod.coef.df$p.value[6], gd_mod.coef.df$p.value[11:12], gd_mod.coef.df$p.value[10], gd_mod.coef.df$p.value[13])
 gd.sig.lfm <- significance(gd.p.value.lfm, gd.sig.lfm)
-gd.ES.mpa <- c(gd_mod.coef.df$estimate[21], gd_mod.coef.df$estimate[26:27], gd_mod.coef.df$estimate[25], gd_mod.coef.df$estimate[28]) 
+ref2 <- gd_mod.coef.df$estimate[21]
+gd.ES.mpa <- c(ref2, ref2 + gd_mod.coef.df$estimate[26:27], 
+                ref2 + gd_mod.coef.df$estimate[25], 
+                ref2 + gd_mod.coef.df$estimate[28]) 
 gd.SE.mpa <- c(gd_mod.coef.df$std.error[21], gd_mod.coef.df$std.error[26:27], gd_mod.coef.df$std.error[25], gd_mod.coef.df$std.error[28])
 gd.p.value.mpa <- c(gd_mod.coef.df$p.value[21], gd_mod.coef.df$p.value[26:27], gd_mod.coef.df$p.value[25], gd_mod.coef.df$p.value[28])
 gd.sig.mpa <- significance(gd.p.value.mpa, gd.sig.mpa)
@@ -1441,8 +1465,8 @@ Plots:
 ```{r}
 gd.ES.lfm.plot <- ES.plot(gd.ES.df, gd.ES.lfm, gd.sig.lfm, gd.SE.lfm,
                            margins.vector = c(0.1, 0.05, 0.1, 0.1),
-                           limits.vector = c(-25, 25),
-                           breaks.vector = c(-20, -10, 0, 10, 20)) +
+                           limits.vector = c(-25, 11),
+                           breaks.vector = c(-20, -10, 0, 10)) +
   labs(title = 'LFM')
   #annotate(geom = "text", x = 0.9, y = 9, label = 'e', fontface = 'bold', size = 10)
 gd.ES.lfm.plot
@@ -1450,8 +1474,8 @@ gd.ES.lfm.plot
 gd.ES.mpa.plot <- ES.plot(gd.ES.df, gd.ES.mpa, gd.sig.mpa, gd.SE.mpa,
                            mpa = 'y',
                            margins.vector = c(0.1, 0.2, 0.1, 0),
-                           limits.vector = c(-25, 25),
-                           breaks.vector = c(-20, -10, 0, 10, 20)) +
+                           limits.vector = c(-25, 11),
+                           breaks.vector = c(-20, -10, 0, 10)) +
   labs(title = 'MPa')
   #annotate(geom = "text", x = 0.9, y = 9, label = 'f', fontface = 'bold', size = 10)
 gd.ES.mpa.plot
@@ -1462,12 +1486,18 @@ ggarrange(gd_plot_lfm_r, gd.ES.lfm.plot, gd.ES.mpa.plot, nrow = 1)
 ### FD
 Setup:
 ```{r}
-fd.ES.lfm <- c(fd_mod.coef.df$estimate[6], fd_mod.coef.df$estimate[11:12], fd_mod.coef.df$estimate[10], fd_mod.coef.df$estimate[13])
+ref <- fd_mod.coef.df$estimate[6]
+fd.ES.lfm <- c(ref, ref + fd_mod.coef.df$estimate[11:12],
+                ref + fd_mod.coef.df$estimate[10],
+                ref + fd_mod.coef.df$estimate[13])
   # Following this order: ABCO, CADE, PIJE, ARPA, QUKE (no CECO)
 fd.SE.lfm <- c(fd_mod.coef.df$std.error[6], fd_mod.coef.df$std.error[11:12], fd_mod.coef.df$std.error[10], fd_mod.coef.df$std.error[13])
 fd.p.value.lfm <- c(fd_mod.coef.df$p.value[6], fd_mod.coef.df$p.value[11:12], fd_mod.coef.df$p.value[10], fd_mod.coef.df$p.value[13])
 fd.sig.lfm <- significance(fd.p.value.lfm, fd.sig.lfm)
-fd.ES.mpa <- c(fd_mod.coef.df$estimate[21], fd_mod.coef.df$estimate[26:27], fd_mod.coef.df$estimate[25], fd_mod.coef.df$estimate[28]) 
+ref2 <- fd_mod.coef.df$estimate[21]
+fd.ES.mpa <- c(ref2, ref2 + fd_mod.coef.df$estimate[26:27], 
+                ref2 + fd_mod.coef.df$estimate[25], 
+                ref2 + fd_mod.coef.df$estimate[28]) 
 fd.SE.mpa <- c(fd_mod.coef.df$std.error[21], fd_mod.coef.df$std.error[26:27], fd_mod.coef.df$std.error[25], fd_mod.coef.df$std.error[28])
 fd.p.value.mpa <- c(fd_mod.coef.df$p.value[21], fd_mod.coef.df$p.value[26:27], fd_mod.coef.df$p.value[25], fd_mod.coef.df$p.value[28])
 fd.sig.mpa <- significance(fd.p.value.mpa, fd.sig.mpa)
@@ -1480,8 +1510,8 @@ Plots:
 ```{r}
 fd.ES.lfm.plot <- ES.plot(fd.ES.df, fd.ES.lfm, fd.sig.lfm, fd.SE.lfm,
                            margins.vector = c(0.1, 0.05, 0.1, 0.1),
-                           limits.vector = c(-5, 7),
-                           breaks.vector = c(-4, -2, 0, 2, 4, 6)) +
+                           limits.vector = c(-5, 3),
+                           breaks.vector = c(-4, -2, 0, 2)) +
   labs(title = "LFM")
   #annotate(geom = "text", x = 0.9, y = 9, label = 'e', fontface = 'bold', size = 10)
 fd.ES.lfm.plot
@@ -1489,8 +1519,8 @@ fd.ES.lfm.plot
 fd.ES.mpa.plot <- ES.plot(fd.ES.df, fd.ES.mpa, fd.sig.mpa, fd.SE.mpa,
                            mpa = 'y',
                            margins.vector = c(0.1, 0.2, 0.1, 0),
-                           limits.vector = c(-5, 7),
-                           breaks.vector = c(-4, -2, 0, 2, 4, 6)) +
+                           limits.vector = c(-5, 3),
+                           breaks.vector = c(-4, -2, 0, 2)) +
   labs(title = "MPa")
   #annotate(geom = "text", x = 0.9, y = 9, label = 'f', fontface = 'bold', size = 10)
 fd.ES.mpa.plot

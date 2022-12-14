@@ -54,7 +54,7 @@ sierra_flamdata_pca <- sierra_flamdata_pca_all %>%
 
  # filter(year == 2020)
 
-figure_epi_pca_quant <- (sierra_flamdata_pca[, c("fh", "ttfg", "tti", "fd", "gd", "gti", "pfg","temp_change")]) %>%  
+figure_pca_quant <- (sierra_flamdata_pca[, c("fh", "ttfg", "tti", "fd", "gd", "gti", "pfg","temp_change")]) %>%  
  transmute( "               Flame Duration" = fd, #using spaces to shift labels over instead of \t since \t is leading to little blank squares popping up on the plot.. spaces are just manual tabs anyways right?
            "                 Flame Height" = fh,
            "Post-flame Glow" = pfg,
@@ -67,7 +67,7 @@ figure_epi_pca_quant <- (sierra_flamdata_pca[, c("fh", "ttfg", "tti", "fd", "gd"
           ) %>% 
   na.omit()
 
-figure_epi_pca_cat <-  (sierra_flamdata_pca[, c("fh", "ttfg", "tti", "fd", "gd", "gti", "pfg","temp_change", "hydration", "spp", "year_month", "sample", "F.Group")]) %>% 
+figure_pca_cat <-  (sierra_flamdata_pca[, c("fh", "ttfg", "tti", "fd", "gd", "gti", "pfg","temp_change", "hydration", "spp", "year_month", "sample", "F.Group")]) %>% 
   na.omit() %>% 
   select(hydration, spp, year_month, sample, F.Group) %>% 
   transmute("Hydration" = hydration, 
@@ -76,12 +76,12 @@ figure_epi_pca_cat <-  (sierra_flamdata_pca[, c("fh", "ttfg", "tti", "fd", "gd",
             "Timing" = year_month, 
             "Sample" = sample) 
   
-  figure_prcomp <- prcomp(na.omit(figure_epi_pca_quant), 
+  figure_prcomp <- prcomp(na.omit(figure_pca_quant), 
                           center = TRUE, 
                           scale = TRUE, 
                           retx=TRUE)
   
-figure_epi_pca <- (sierra_flamdata_pca[, c("fh", "ttfg", "tti", "fd", "gd", "gti", "pfg","temp_change", "hydration", "spp", "year_month", "sample", "F.Group")]) %>% 
+figure_pca <- (sierra_flamdata_pca[, c("fh", "ttfg", "tti", "fd", "gd", "gti", "pfg","temp_change", "hydration", "spp", "year_month", "sample", "F.Group")]) %>% 
   na.omit() 
 ```
 
@@ -100,7 +100,7 @@ circle.prob = 0.69
 choices = 1:2
 
 #Run PCA
-pcobj <- prcomp(na.omit(figure_epi_pca_quant), center = TRUE, scale = TRUE)
+pcobj <- prcomp(na.omit(figure_pca_quant), center = TRUE, scale = TRUE)
 
 # extract PCA components: 
 nobs.factor <- sqrt(nrow(pcobj$x) - 1)
@@ -127,7 +127,7 @@ PCAloadings = df.v
 #df.v = dataset with loadings 
 
   #dataset with scores and categorical variables for plotting points: 
-PCAvalues <- cbind(df.u, figure_epi_pca_cat)
+PCAvalues <- cbind(df.u, figure_pca_cat)
 
 #dataset with information for plotting circle: 
 theta <- c(seq(-pi, pi, length = 50), seq(pi, -pi, length = 50))
@@ -242,7 +242,7 @@ write_csv(mem_data, here("processed-data", "analysis 2.0", "mem_data_sierra_alld
 # 1.2. PCA Table
 
 ```{r warning=FALSE}
-figure_epi_pca_cat <- (sierra_flamdata_pca[c("hydration", "spp", "year_month", "sample")]) %>% 
+figure_pca_cat <- (sierra_flamdata_pca[c("hydration", "spp", "year_month", "sample")]) %>% 
   transmute("Hydration" = hydration, 
             spp = spp,
             "Timing" = year_month, 
@@ -273,7 +273,7 @@ sjPlot::tab_pca(pcobj,
 
 # 2. Interspecific differences
 
-## Setup
+## PCA Setup
 ```{r}
 sierra_flamdata_pca_noceco <- sierra_flamdata_pca_all %>% 
   filter(ignition == 1
@@ -287,43 +287,49 @@ sierra_flamdata_pca_noceco <- sierra_flamdata_pca_all %>%
     spp == "quke" ~ "Angiosperm"
   )) %>% 
   filter(spp != "ceco") %>% 
-   select("fh", "ttfg", "tti", "fd", "gd", "gti", "pfg","temp_change", "hydration", "spp", "year_month", "sample", "F.Group", "mpa", "lfm_outliers_out", "site", "individual", "sample_wt") %>% 
-  na.omit(c("fh", "ttfg", "tti", "fd", "gd", "gti", "pfg","temp_change", "hydration", "spp", "year_month", "sample"))
+   select("fh", "ttfg", "tti", "fd", "gd", "gti", "pfg","lower_temp_max", "hydration", "spp", "year_month", "sample", "F.Group", "mpa", "lfm_outliers_out", "site", "individual", "sample_wt") %>% 
+  na.omit(c("fh", "ttfg", "tti", "fd", "gd", "gti", "pfg","lower_temp_max", "hydration", "spp", "year_month", "sample"))
   
-figure_epi_pca_quant_spp <- (sierra_flamdata_pca_noceco[, c("fh", "ttfg", "tti", "fd", "gd", "gti", "pfg","temp_change")]) %>%  
+figure_pca_quant_spp <- (sierra_flamdata_pca_noceco[, c("fh", "ttfg", "tti", "fd", "gd", "gti", "pfg","lower_temp_max")]) %>%  
   mutate(tti = tti*-1) %>% 
-  transmute( "Flame Duration" = fd,
+  transmute("Flame Duration" = fd,
            "Flame Height" = fh,
            "Post-flame Glow" = pfg,
            "Ignitability" = tti,
            "Glow Duration" = gd,
            "Glow to Ignition" = gti,
            "Time to First Glow" = ttfg, 
-           "Temp Change" = temp_change
+           "Max Temp" = lower_temp_max
           ) %>% 
   na.omit()
 
-figure_epi_pca_cat_spp <-  (sierra_flamdata_pca_noceco[, c("fh", "ttfg", "tti", "fd", "gd", "gti", "pfg","temp_change", "hydration", "spp", "year_month", "sample", "F.Group")]) %>% 
+figure_pca_cat_spp <-  (sierra_flamdata_pca_noceco[, c("fh", "ttfg", "tti", "fd", "gd", "gti", "pfg","lower_temp_max", "hydration", "spp", "year_month", "sample", "F.Group")]) %>% 
   na.omit() %>% 
   select(hydration, spp, year_month, sample, F.Group) %>% 
   transmute("Hydration" = hydration, 
             spp = spp,
             "Species" = spp,
             "Timing" = year_month, 
-            "Sample" = sample) 
+            "Sample" = sample)
   
-figure_prcomp_spp <- prcomp(na.omit(figure_epi_pca_quant_spp), 
+figure_prcomp_spp <- prcomp(na.omit(figure_pca_quant_spp), 
                           center = TRUE, 
                           scale = TRUE)
   
-figure_epi_pca_spp <- (sierra_flamdata_pca_noceco[, c("fh", "ttfg", "tti", "fd", "gd", "gti", "pfg","temp_change", "hydration", "spp", "year_month", "sample", "F.Group")]) %>% 
+figure_pca_spp <- (sierra_flamdata_pca_noceco[, c("fh", "ttfg", "tti", "fd", "gd", "gti", "pfg","lower_temp_max", "hydration", "spp", "year_month", "sample", "F.Group")]) %>% 
   na.omit() 
+
+# Putting principal components into dataset
+spp_pc_flam <-predict(figure_prcomp_spp) 
+pca_flam_data_spp <- as_data_frame(spp_pc_flam) 
+spp_data_pca <- bind_cols(sierra_flamdata_pca_noceco, pca_flam_data_spp)
 ```
 
-## Visualization
+## PCA Visualization
+### Quick and Easy
 ```{r}
 ggbiplot(figure_prcomp_spp,
-         groups = figure_epi_pca_spp$F.Group,
+         groups = figure_pca_spp$F.Group,
          ellipse = TRUE, circle = FALSE, varname.size = 4, alpha = 0.5) +
   theme_bw() + 
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
@@ -333,15 +339,151 @@ ggbiplot(figure_prcomp_spp,
   labs(color = 'Functional Group')
 ```
 
-## Principal Components vs. LFM
+### GGPlot
+Setup:
+```{r}
+#decisions for plotting:
+choices = 1:2
+scale = 1
+obs.scale = 1 - scale
+var.scale = scale
+ellipse.prob = 0.68
+labels.size = 3
+circle.prob = 0.69
+choices = 1:2
 
+# extract PCA components: 
+nobs.factor <- sqrt(nrow(figure_prcomp_spp$x) - 1)
+    d <- figure_prcomp_spp$sdev
+    u <- sweep(figure_prcomp_spp$x, 2, 1/(d * nobs.factor), FUN = "*")
+    v <- figure_prcomp_spp$rotation
+
+  choices <- pmin(choices, ncol(u))
+  df.u <- as.data.frame(sweep(u[, choices], 2, d[choices]^obs.scale, 
+                              FUN = "*"))
+  v <- sweep(v, 2, d^var.scale, FUN = "*")
+  df.v <- as.data.frame(v[, choices])
+  names(df.u) <- c("PC1", "PC2")
+  names(df.v) <- names(df.u)
+  df.u <- df.u * nobs.factor
+
+  r <- sqrt(qchisq(circle.prob, df = 2)) * prod(colMeans(df.u^2))^(1/4)
+  
+v.scale <- rowSums(v^2)
+df.v <- r * df.v/sqrt(max(v.scale)) 
+df.v <- df.v %>% mutate(PC1, PC2)
+df.v$Variables <- rownames(v) 
+PCAloadings = df.v
+#df.v = dataset with loadings 
+
+# To adjust positions of labels in PCA:
+df.v <- df.v %>% 
+  mutate(Flam.Metric = case_when(
+    Variables == "Flame Height" ~ " ", # Entered this one manually so took out the label here
+    Variables == "Flame Duration" ~ "\nFlame Duration              ",
+    Variables == "Glow Duration" ~ "Glow Duration",
+    Variables == "Post-flame Glow" ~ "\nPost-flame Glow",
+    Variables == "Ignitability" ~ "          Ignitability",
+    Variables == "Glow to Ignition" ~ "Glow to Ignition",
+    Variables == "Max Temp" ~ "Max Temp",
+    Variables == "Time to First Glow" ~ "Time to First Glow\n",
+  ))
+
+df.v1 <- df.v %>% 
+  filter(Variables %in% c("Ignitability", "Glow Duration", "Post-flame Glow",
+                          "Time to First Glow"))
+df.v2 <- df.v %>% 
+  filter(Variables %in% c("Flame Duration", "Glow to Ignition", "Max Temp",
+                          "Flame Height"))
+
+  #dataset with scores and categorical variables for plotting points: 
+PCAvalues <- cbind(df.u, figure_pca_cat_spp)
+
+#dataset with information for plotting circle: 
+theta <- c(seq(-pi, pi, length = 50), seq(pi, -pi, length = 50))
+
+circle <- data.frame(PC1 = r * cos(theta), PC2 = r * sin(theta)) 
+```
+
+Visualization:
+```{r}
+ggplot(spp_data_pca, aes(x = PC1, y = PC2, color = F.Group)) +
+  geom_point(size = 1.7, alpha = .35) +
+  stat_ellipse(aes(x = PC1, y = PC2, color = F.Group), alpha = 0.5, cex = 0.95) +
+  labs(color = "Functional Group") +
+  guides(color = guide_legend(override.aes = list(size = 3, alpha = 0.55, lty = 0))) + # For legend point appearance
+  geom_segment(data = df.v, aes(x = 0, y = 0, 
+                                             xend = PC1, yend = PC2),
+     arrow = arrow(length = unit(1/2, "picas")), 
+     size = .93, alpha = 0.9, color = 'black') +
+  scale_color_manual(values = c('steelblue3', 'darkgreen')) +
+  annotate("text",
+          x = df.v1$PC1*1.3,
+          y = df.v1$PC2*1.15,
+          label = df.v1$Flam.Metric, size = 4.25,
+          fontface = 'bold') +
+  annotate("text",
+          x = df.v2$PC1*2.1,
+          y = df.v2$PC2*1.7,
+          label = df.v2$Flam.Metric, size = 4.25,
+          fontface = 'bold') +
+  annotate("text", x = 0.28, y = 0.55, label = "Flame Height", 
+           size = 4.25, fontface = 'bold') +
+  theme(panel.background = element_rect(fill='white', colour='black'), # Make background white and border black
+          panel.grid.major = element_blank(),  # Hide major gridlines
+          panel.grid.minor = element_blank(),
+          legend.key = element_rect(fill = "white"),
+          legend.title = element_text(face = 'bold', size = 18),
+          legend.text = element_text(size = 16),
+          axis.title = element_text(face = 'bold', size = 20),
+          axis.text = element_text(size = 14),
+          aspect.ratio = 1/1) +
+  coord_equal()
+
+ggsave(here("figures/PCA.angio.vs.gymno.jpg"), height = 8, width = 10)
+#ggsave(here("figures/PCA.spp.diff.jpg"), height = 8, width = 10) 
+#change F.Group > spp to run spp.diff PCA
+```
+
+## PCA Table
+```{r}
+tab_pca(figure_prcomp_spp, 
+        rotation = c("varimax"), 
+        digits = 2,
+        show.var = TRUE,
+  string.pov = "Proportion of Variance",
+  string.cpov = "Cumulative Proportion")
+```
+
+```{r}
+eig1 <- c(-0.96, 0.85, 0.00, 0.04, -0.03, -0.07, -0.09, -0.06, 26.20, 26.20)
+eig2 <- c(0.08, 0.04, -0.97, -0.96, -0.16, -0.05, -0.04, 0.26, 24.74, 50.94)
+eig3 <- c(-0.17, -0.45, 0.16, -0.12, 0.93, -0.05, 0.18, 0.47 ,14.76, 65.70)
+eig4 <- c(-0.10, 0.12, -0.12, 0.02, 0.03, -0.77, -0.77, -0.29, 13.26, 78.96)
+flam.metrics <- c("Time to First Glow", "Ignitability", "Glow Duration","Post-flame Glow", "Glow to Ignition", "Flame Duration", "Maximum Temperature", "Flame Height", "Proportion of Variance (%)", "Cumulative Proportion (%)")
+pca.table.df <- data.frame(flam.metrics, eig1, eig2, eig3, eig4)
+```
+there was probably a more elegant way to do that, but since there aren't too many numbers to enter in by hand, I thought it would be quicker to just go ahead and do so.
+
+Now, using kableExtra package to visualize how each component is weighted by each flam. metric
+```{r}
+pca.table.df %>%
+  mutate(flam.metrics = cell_spec(flam.metrics, 'html', bold = ifelse(flam.metrics == c("Proportion of Variance (%)", "Cumulative Proportion (%)"), T, F), color = 'black')) %>% 
+  mutate(eig1 = cell_spec(eig1, 'html', bold = ifelse(abs(eig1) > 0.5, T, F), color = 'black')) %>% 
+  mutate(eig2 = cell_spec(eig2, 'html', bold = ifelse(abs(eig2) > 0.5, T, F), color = 'black')) %>% 
+  mutate(eig3 = cell_spec(eig3, 'html', bold = ifelse(abs(eig3) > 0.5, T, F), color = 'black')) %>% 
+  mutate(eig4 = cell_spec(eig4, 'html', bold = ifelse(abs(eig4) > 0.5, T, F), color = 'black')) %>% 
+  kable(format = 'html', escape = F, col.names = c(' ', 'Component 1', 'Component 2', 'Component 3', 'Component 4')) %>% 
+  kable_styling(bootstrap_options = c('hover', 'bordered', 'condensed'), fixed_thead = T, font_size = 30) %>% 
+  row_spec(c(9:10), background = '#D3D3D3') %>% 
+  row_spec(0, bold = T, color = 'black') %>% 
+  save_kable(here('figures', 'pca_table.html'))
+```
+
+
+## PC's vs. LFM
 ### PC1
 ```{r}
-# Putting principal components into dataset
-spp_pc_flam <-predict(figure_prcomp_spp) 
-pca_flam_data_spp <- as_data_frame(spp_pc_flam) 
-spp_data_pca <- bind_cols(sierra_flamdata_pca_noceco, pca_flam_data_spp)
-
 # MEM and REMEF
 pc1_mod <- lmer(PC1 ~ spp*mpa + spp*lfm_outliers_out + site + year_month + sample_wt + (1 | individual), data = spp_data_pca)
 r_pc1_lfm <- remef(pc1_mod, fix = c("mpa", "sample_wt", "site"), ran = list(individual = c("(Intercept)"))) # Using Remef for plots with LFM
