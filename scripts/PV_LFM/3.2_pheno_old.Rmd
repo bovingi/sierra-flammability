@@ -1000,7 +1000,7 @@ four <- c(1/10, 2.75)
 
 #Function:
 ```{r}
-pheno.boxplot.vis <- function(species, phenophases, max.y = 350, colors, no.phenophases = two){
+pheno.boxplot.vis <- function(species, phenophases, max.y = 350, colors, no.phenophases = two, pheno_df = pheno_fig2){
   
 df1 <- field_data_2021 %>%
   mutate(month = case_when(
@@ -1031,7 +1031,7 @@ df2 <- field_data_all_3 %>%
   filter(spp == species)
 mean_lfm <- mean(df2$mean_lfm_fall_spp)
 
-df3 <- pheno_fig2 %>%
+df3 <- pheno_df %>%
   filter(spp == species) %>% 
   filter(phenophase_name %in% phenophases)
 
@@ -1073,7 +1073,7 @@ return(p3)
   }
 ```
 
-#QUKE:
+# QUKE:
 QUKE wasn't working in the function because of the lack of samples in April
 ```{r}
 df1 <- field_data_2021 %>%
@@ -1227,7 +1227,186 @@ ggsave(here("figures", "phenophase.lfm.legends.jpg"),
 # For some strange reason, I could not get the legends and the plots to mesh together with cowplot or ggarrange... I ended up just stitching them together on Google Slides
 ```
 
+#--------------
+# MAIN FIGURE
+Adjusting the above figure by removing some of the phenophases in which we made note of mistakes in observations or have a low frequency across all observed individuals. This way the phenology presented represents the population observed rather than individual anomalies.
 
+## Histogram of phenophases
+I wrote this code to see which weeks had only a couple of observations to get a better sense of how the entire population acted as an average rather than single individuals
+```{r}
+abco.hist <- pheno_fig %>% 
+  filter(spp == "ABCO") %>% 
+  ggplot(aes(x = week)) +
+  geom_histogram() +
+  facet_wrap(~phenophase_name)
+abco.hist
+
+cade.hist <- pheno_fig %>% 
+  filter(spp == "CADE") %>% 
+  ggplot(aes(x = week)) +
+  geom_histogram() +
+  facet_wrap(~phenophase_name)
+cade.hist
+
+pije.hist <- pheno_fig %>% 
+  filter(spp == "PIJE") %>% 
+  ggplot(aes(x = week)) +
+  geom_histogram() +
+  facet_wrap(~phenophase_name)
+pije.hist
+
+arpa.hist <- pheno_fig %>% 
+  filter(spp == "ARPA") %>% 
+  ggplot(aes(x = week)) +
+  geom_histogram() +
+  facet_wrap(~phenophase_name)
+arpa.hist
+
+ceco.hist <- pheno_fig %>% 
+  filter(spp == "CECO") %>% 
+  ggplot(aes(x = week)) +
+  geom_histogram() +
+  facet_wrap(~phenophase_name)
+ceco.hist
+
+quke.hist <- pheno_fig %>% 
+  filter(spp == "QUKE") %>% 
+  ggplot(aes(x = week)) +
+  geom_histogram() +
+  facet_wrap(~phenophase_name)
+quke.hist
+```
+
+## Data wrangling
+Using above histogram to filter out certain values
+```{r}
+# ABCO
+pheno_fig_abco1 <- pheno_fig2 %>% 
+  filter(spp == "ABCO") %>% 
+  filter(phenophase_name == "Breaking buds") %>% 
+  filter(week > 16 & week < 27)
+pheno_fig_abco2 <- pheno_fig2 %>% 
+  filter(spp == "ABCO") %>% 
+  filter(phenophase_name == "Pollen cones") %>% 
+  filter(week > 16)
+pheno_fig_abco3 <- pheno_fig2 %>% 
+  filter(spp == "ABCO") %>% 
+  filter(phenophase_name == "Young leaves") %>% 
+  filter(week > 16)
+pheno_fig_abco <- rbind(pheno_fig_abco1, pheno_fig_abco2, pheno_fig_abco3)
+
+# CADE
+pheno_fig_cade <- pheno_fig2 %>% 
+  filter(spp == "CADE")
+
+# PIJE
+pheno_fig_pije1 <- pheno_fig2 %>% 
+  filter(spp == "PIJE") %>% 
+  filter(phenophase_name == "Young leaves") %>% 
+  filter(week > 20)
+pheno_fig_pije2 <- pheno_fig2 %>% 
+  filter(spp == "PIJE") %>% 
+  filter(phenophase_name == "Increasing leaf size")
+pheno_fig_pije <- rbind(pheno_fig_pije1, pheno_fig_pije2)
+
+# ARPA
+pheno_fig_arpa1 <- pheno_fig2 %>% 
+  filter(spp == "ARPA") %>% 
+  filter(phenophase_name == "Breaking buds")
+pheno_fig_arpa2 <- pheno_fig2 %>% 
+  filter(spp == "ARPA") %>% 
+  filter(phenophase_name == "Young leaves") %>% 
+  filter(week > 20)
+pheno_fig_arpa3 <- pheno_fig2 %>% 
+  filter(spp == "ARPA") %>% 
+  filter(phenophase_name %in% c("Flowers or flower buds", "Ripe fruits"))
+pheno_fig_arpa <- rbind(pheno_fig_arpa1, pheno_fig_arpa2, pheno_fig_arpa3)
+
+# CECO
+pheno_fig_ceco1 <- pheno_fig2 %>% 
+  filter(spp == "CECO") %>% 
+  filter(phenophase_name == "Flowers or flower buds") %>% 
+  filter(week > 17)
+pheno_fig_ceco2 <- pheno_fig2 %>% 
+  filter(spp == "CECO") %>% 
+  filter(phenophase_name %in% c("Young leaves", "Ripe fruits"))
+pheno_fig_ceco <- rbind(pheno_fig_ceco1, pheno_fig_ceco2)
+
+# QUKE
+pheno_fig_quke1 <- pheno_fig2 %>% 
+  filter(spp == "QUKE") %>% 
+  filter(phenophase_name == "Breaking buds")
+pheno_fig_quke2 <- pheno_fig2 %>% 
+  filter(spp == "QUKE") %>% 
+  filter(phenophase_name == "Increasing leaf size") %>% 
+  filter(week < 37)
+pheno_fig_quke3 <- pheno_fig2 %>% 
+  filter(spp == "QUKE") %>% 
+  filter(phenophase_name == "Ripe fruits") %>% 
+  filter(week > 27)
+pheno_fig_quke <- rbind(pheno_fig_quke1, pheno_fig_quke2, pheno_fig_quke3)
+
+# Together
+pheno_fig_main <- rbind(pheno_fig_abco, pheno_fig_cade, pheno_fig_pije, pheno_fig_arpa, pheno_fig_ceco, pheno_fig_quke)
+```
+
+## QUKE Figure
+QUKE wasn't working in the function because of the lack of samples in April
+```{r}
+df3 <- pheno_fig_main %>%
+  filter(spp == "QUKE") %>% 
+  filter(phenophase_name %in% c("Breaking buds", "Increasing leaf size", "Ripe fruits"))
+
+p2 <- ggplot2::ggplot(data = df3, aes(x = date, y = lfm, color = phenophase_name)) +
+  geom_line(alpha = 1, size = 3) +
+  scale_color_manual(values = c("lightblue", "darkslategray4", "darkred")) +
+  theme(aspect.ratio = 1/13,
+        legend.position = 'none',
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.title = element_blank(),
+        axis.text = element_blank(),
+        axis.ticks = element_blank(),
+        panel.background = element_rect(fill = 'white'))
+p2
+
+p.quke.main <- p1 + annotation_custom(ggplotGrob(p2), xmin = "May", xmax = "Oct.",
+                       ymin = -10, ymax = 30)
+p.quke.main
+```
+
+## Other species
+```{r}
+p.abco.main <- pheno.boxplot.vis(species = "ABCO", phenophases = abco.phenophases,
+                            colors = abco.colors, pheno_df = pheno_fig_main)
+
+p.pije.main <- pheno.boxplot.vis(species = "PIJE", phenophases = pije.phenophases,
+                            colors = pije.colors, pheno_df = pheno_fig_main)
+
+p.cade.main <- pheno.boxplot.vis(species = "CADE", phenophases = cade.phenophases,
+                            max.y = 150, colors = cade.colors,
+                            pheno_df = pheno_fig_main)
+
+p.arpa.main <-pheno.boxplot.vis(species = "ARPA", phenophases = arpa.phenophases,
+                           max.y = 210, colors = arpa.colors,
+                           no.phenophases = four, pheno_df = pheno_fig_main)
+
+p.ceco.main <- pheno.boxplot.vis(species = "CECO", phenophases = ceco.phenophases,
+                            max.y = 260, colors = ceco.colors,
+                            no.phenophases = three, pheno_df = pheno_fig_main)
+```
+
+## Arrange
+```{r}
+# I ended up doing some odd cowplot stuff here to get the final product we wanted
+p.spp.main <- cowplot::plot_grid(p.abco.main, p.pije.main, p.cade.main, p.ceco.main, p.arpa.main, p.quke.main, ncol = 3)
+p.spp.main
+ggsave(here("figures", "phenophase.lfm.boxplot.main.jpg"),
+       height = 10, width = 15,
+       plot = p.spp.main)
+# For some strange reason, I could not get the legends and the plots to mesh together with cowplot or ggarrange... I ended up just stitching them together on Google Slides
+```
+# --------------
 
 ```{r}
 pheno_df %>% 
