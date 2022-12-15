@@ -38,6 +38,7 @@ library(remef)
 library(lmerTest)
 library(kableExtra)
 library(broom)
+library(emmeans) #for signifance of interaction terms
 
 tidy = broom::tidy
 filter = dplyr::filter
@@ -974,6 +975,48 @@ plots_legend <- cowplot::plot_grid(plots, legend, rel_widths = c(5, 1))
 plots_legend
 
 ggsave(plot=plots_legend, bg = "white" , here::here("figures", "lfm_flam_metrics_withceco.jpeg"), device="jpg")
+```
+
+#2.5. Significance of interaction terms: 
+
+```{r}
+tti_mod_lfm <- lmer(tti ~ spp*lfm_scaled +  site + year_month  + (1 | individual), data = mem_data_all_r)
+em_tti_lfm <- emmeans::emtrends(tti_mod_lfm, pairwise~spp, var = c("lfm_scaled"))
+summary(em_tti_lfm, infer=c(TRUE,TRUE),null=0)
+```
+
+
+```{r}
+tti_mod_mpa <- lmer(tti ~ spp*mpa_scaled +  site + year_month  + (1 | individual), data = mem_data_all_r)
+em_tti_mpa <- emmeans::emtrends(tti_mod_mpa, pairwise~spp, var = "mpa_scaled")
+summary(em_tti_mpa, infer=c(TRUE,TRUE),null=0)
+```
+
+FH
+```{r}
+fh_mod_lfm <- lmer(fh ~ spp*lfm_scaled +  site + year_month  + (1 | individual), data = mem_data_all_r)
+em_fh_lfm <- emmeans::emtrends(fh_mod_lfm, pairwise~spp, var = c("lfm_scaled"))
+summary(em_fh_lfm, infer=c(TRUE,TRUE),null=0)
+```
+
+
+```{r}
+fh_mod_mpa <- lmer(fh ~ spp*mpa_scaled +  site + year_month  + (1 | individual), data = mem_data_all_r)
+em_fh_mpa <- emmeans::emtrends(fh_mod_mpa, pairwise~spp, var = "mpa_scaled")
+summary(em_fh_mpa, infer=c(TRUE,TRUE),null=0)
+```
+
+```{r}
+tmp_mod_lfm <- lmer(lower_temp_max ~ spp*lfm_scaled +  site + year_month  + (1 | individual), data = mem_data_all_r)
+em_temp_max_lfm <- emmeans::emtrends(tmp_mod_lfm, pairwise~spp, var = c("lfm_scaled"))
+summary(em_temp_max_lfm, infer=c(TRUE,TRUE),null=0)
+```
+
+
+```{r}
+tmp_mod_mpa <- lmer(lower_temp_max ~ spp*mpa_scaled +  site + year_month  + (1 | individual), data = mem_data_all_r)
+em_temp_max_mpa <- emmeans::emtrends(tmp_mod_mpa, pairwise~spp, var = "mpa_scaled")
+summary(em_temp_max_mpa, infer=c(TRUE,TRUE),null=0)
 ```
 
 # 3. Boxplot: % Ignition
