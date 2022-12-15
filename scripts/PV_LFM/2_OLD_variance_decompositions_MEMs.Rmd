@@ -1242,7 +1242,8 @@ field_plot <- field_data_all %>%
              color = spp)) +
   geom_vline(aes(xintercept = -1*mean_tlp_group, 
                  lty = F.Group), data = fgroup_pv_summaries) +
-  geom_point(alpha = .5, 
+  geom_jitter(alpha = .5, 
+              #size = 2,
              aes(shape = as.factor(year))
              )+
   facet_wrap(~F.Group) +

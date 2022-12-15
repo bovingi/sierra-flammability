@@ -61,7 +61,8 @@ flam_curve_df_2.1 <- read_csv(here("processed-data", "analysis 2.0", "flam_curve
          year = as_factor(year))
 
 pv_all_df_2.1 <-  read_csv(here("processed-data", "analysis 2.0", "all_pv_curves_clean_vardecomp_2.csv"), show_col_types = FALSE) %>% 
-  mutate(plant = as.factor(plant))
+  mutate(plant = as.factor(plant), 
+         year = as.factor(year))
 
 field_data_all_2.1 <- read_csv(here("processed-data", "analysis 2.0", "field_data_vardecomp_2.csv"), show_col_types = FALSE) %>% 
   drop_na(lfm, water_potential, spp, plant, year_month) %>% 
@@ -96,8 +97,13 @@ We note that Nagelkerke's pseudo R^2 evaluates the variance explained by the ful
 
 Try using variancePartition:
 
+Best model from MEM: 
+
+m10.75 <- lmer(lfm~ water_potential + F.Group + as.factor(year) + (1|plant), data = pv_all_df)
+summary(m10.75) 
+
 ```{r}
-form <- ~ water_potential + (1|year_month) + (1|plant) + (1|F.Group) + (1|spp)
+form <- ~ water_potential + (1|year) + (1|plant)  + (1|spp)
 
 
 lfm_matrix <- pv_all_df_2.1 %>% 
@@ -112,10 +118,13 @@ varPart
 
 plotVarPart(varPart)
 
-pv_vardecomp <- plotPercentBars(varPart) +
+pv_vardecomp <- plotPercentBars(varPart, col = c(vcol)) +
   labs(x = "PV")
 pv_vardecomp
 ```
+
+
+
 ```{r}
 varPart <- calcVarPart(lmer(lfm ~ water_potential  + (1|spp) + (1|year_month) + (1|F.Group) + (1|plant), pv_all_df_2.1))
 varPart
@@ -123,10 +132,14 @@ varPart
 
 #Flam curves
 
+m11.75  <- lmer(lfm~ water_potential*F.Group + as.factor(year) + (1|plant), data = flam_curve_df)
+
+No interaction:
+
 ```{r}
 #pv_mod <- lmer(lfm ~ water_potential  + (1|spp) + (1|date), flam_curve_df_2.1)
 
-form <- ~ water_potential  + (1|spp) + (1|year) + (1|plant)  + (1|F.Group)
+form <- ~ water_potential  + (1|spp) + (1|year) + (1|plant)  
 
 lfm_matrix <- flam_curve_df_2.1 %>% 
   ungroup() %>% 
@@ -140,14 +153,41 @@ varPart
 
 plotVarPart(varPart)
 
-flam_vardecomp <- plotPercentBars(varPart) +
+flam_vardecomp <- plotPercentBars(varPart, col = c(vcol)) +
   labs(x = "Flam curve") 
 flam_vardecomp
+```
+
+```{r}
+#pv_mod <- lmer(lfm ~ water_potential  + (1|spp) + (1|date), flam_curve_df_2.1)
+
+form <- ~ water_potential*spp  + (1|spp) + (1|year) + (1|plant)  
+
+lfm_matrix <- flam_curve_df_2.1 %>% 
+  ungroup() %>% 
+  mutate(id = row_number()) %>% 
+  select(id, lfm) %>% 
+  pivot_wider(names_from = id, 
+              values_from = lfm) 
+
+varPart <- fitExtractVarPartModel(lfm_matrix, form, flam_curve_df_2.1)
+varPart
+
+plotVarPart(varPart)
+
+flam_vardecomp_ints <- plotPercentBars(varPart#, col = c(vcol)
+                                  ) +
+  labs(x = "Flam curve") 
+flam_vardecomp_ints
 ```
 
 #FIeld data
 
 (split at TLP)
+
+Best model in MEM: 
+
+m12.4<- lmer(log(lfm)~ water_potential*as.factor(year) + water_potential*F.Group + F.Group + (1|plant), data = field_data_all)
 
 Above tlp:
 ```{r}
@@ -162,7 +202,7 @@ below <- field_data_all_2.1 %>%
 
 
 ```{r}
-form <- ~ water_potential*F.Group + water_potential + (1|spp) + (1|year_month) + (1|plant) + (1|F.Group) 
+form <- ~ water_potential + water_potential + (1|spp) + (1|year_month) + (1|plant) + (1|age_new)
 
 lfm_matrix <- field_data_all_2.1 %>% 
   ungroup() %>% 
@@ -176,13 +216,15 @@ varPart
 
 plotVarPart(varPart)
 
-field_vardecomp_all <- plotPercentBars(varPart)+
-  labs(x = "Feild data", 
+field_vardecomp_all <- plotPercentBars(varPart, col = c(vcol))+
+  labs(x = "Field data", 
        title = "all together")  
 field_vardecomp_all
 ```
 ```{r}
-form <- ~ water_potential  + (1|spp) + (1|year_month) + (1|plant) + (1|F.Group) + (1|age_new)
+form <- ~ water_potential*spp  + (1|spp) + (1|year_month) + (1|plant) + (1|age_new)
+#+ (1|F.Group) 
+
 
 lfm_matrix <- field_data_all_2.1 %>% 
   ungroup() %>% 
@@ -196,14 +238,14 @@ varPart
 
 plotVarPart(varPart)
 
-field_vardecomp <- plotPercentBars(varPart)+
+field_vardecomp_ints <- plotPercentBars(varPart)+
   labs(x = "Field data", 
        title = "all together")  
-field_vardecomp
+field_vardecomp_ints
 ```
 
 ```{r}
-form <- ~ water_potential  + (1|spp) + (1|year_month) + (1|plant) + (1|F.Group) + (1|age_new)
+form <- ~ water_potential  + (1|spp) + (1|year_month) + (1|plant)  + (1|age_new) #+ (1|F.Group)
 
 lfm_matrix <- above %>% 
   ungroup() %>% 
@@ -217,14 +259,35 @@ varPart
 
 plotVarPart(varPart)
 
-field_vardecomp_above <- plotPercentBars(varPart)+
+field_vardecomp_above <- plotPercentBars(varPart, col = c(vcol))+
   labs(x = "Field data", 
        title = "Above")  
 field_vardecomp_above
 ```
 
 ```{r}
-form <- ~ water_potential + (1|spp) + (1|year_month) + (1|plant) + (1|F.Group) + (1|age_new)
+form <- ~ water_potential*spp  + (1|spp) + (1|year_month) + (1|plant)  + (1|age_new) #+ (1|F.Group)
+
+lfm_matrix <- above %>% 
+  ungroup() %>% 
+  mutate(id = row_number()) %>% 
+  select(id, log_lfm) %>% 
+  pivot_wider(names_from = id, 
+              values_from = log_lfm) 
+
+varPart <- fitExtractVarPartModel(lfm_matrix, form, above)
+varPart
+
+plotVarPart(varPart)
+
+field_vardecomp_above_ints <- plotPercentBars(varPart)+
+  labs(x = "Field data", 
+       title = "Above")  
+field_vardecomp_above_ints
+```
+
+```{r}
+form <- ~ water_potential + (1|spp) + (1|year_month) + (1|plant)  + (1|age_new)
 
 #form <- ~ water_potential  + spp + year_month + (1|plant) + F.Group + age_new
 
@@ -240,16 +303,44 @@ varPart
 
 plotVarPart(varPart)
 
-field_vardecomp_below <- plotPercentBars(varPart)+
+field_vardecomp_below <- plotPercentBars(varPart, col = c(vcol))+
   labs(x = "Feild data", 
        title = "Below")  
 field_vardecomp_below
 ```
+```{r}
+form <- ~ water_potential*spp + (1|spp) + (1|year_month) + (1|plant)  + (1|age_new)
+
+#form <- ~ water_potential  + spp + year_month + (1|plant) + F.Group + age_new
+
+lfm_matrix <- below %>% 
+  ungroup() %>% 
+  mutate(id = row_number()) %>% 
+  select(id, log_lfm) %>% 
+  pivot_wider(names_from = id, 
+              values_from = log_lfm) 
+
+varPart <- fitExtractVarPartModel(lfm_matrix, form, below)
+varPart
+
+plotVarPart(varPart)
+
+field_vardecomp_below_ints <- plotPercentBars(varPart)+
+  labs(x = "Feild data", 
+       title = "Below")  
+field_vardecomp_below_ints
+```
+
 #Combine:
+
 ```{r}
 cowplot::plot_grid(field_vardecomp_all, flam_vardecomp, pv_vardecomp, nrow = 3)
 
 
 cowplot::plot_grid(field_vardecomp, field_vardecomp_above, field_vardecomp_below, nrow = 3)
+
+cowplot::plot_grid(field_vardecomp_ints, field_vardecomp_above_ints, field_vardecomp_below_ints, nrow = 3)
+
+cowplot::plot_grid(field_vardecomp_ints, pv_vardecomp, flam_vardecomp_ints, nrow = 3)
 ```
 
