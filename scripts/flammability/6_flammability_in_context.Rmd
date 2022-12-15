@@ -59,7 +59,7 @@ field_data_all_6 <- read_csv(here("processed-data", "analysis 2.0","field_data_2
   )) %>% 
   filter(spp != "ceco") %>% 
   drop_na(spp) 
-
+field_data_all_6$Species <- factor(field_data_all_6$Species, levels = c('A. concolor',  'P. jeffreyi', 'C. decurrens', 'A. patula', 'Q. kelloggii'))
 field_data_all_6$spp <- factor(field_data_all_6$spp, levels = c("abco", "pije", "cade", "arpa", "quke"))
 
 
