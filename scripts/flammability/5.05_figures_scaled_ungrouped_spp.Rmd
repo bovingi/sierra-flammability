@@ -982,7 +982,20 @@ ggsave(plot=plots_legend, bg = "white" , here::here("figures", "lfm_flam_metrics
 ```{r}
 tti_mod_lfm <- lmer(tti ~ spp*lfm_scaled +  site + year_month  + (1 | individual), data = mem_data_all_r)
 em_tti_lfm <- emmeans::emtrends(tti_mod_lfm, pairwise~spp, var = c("lfm_scaled"))
-summary(em_tti_lfm, infer=c(TRUE,TRUE),null=0)
+tti_lfm <- summary(em_tti_lfm, infer=c(TRUE,TRUE),null=0)
+
+emtrends_tti_lfm <- tti_lfm$emtrends %>% 
+  as.data.frame() %>% 
+   mutate(spp = forcats::fct_relevel(spp, "abco", 
+                                     "pije", 
+                                     "cade", 
+                                     "arpa", 
+                                     "quke"
+                                           ))
+  
+emtrends_tti_lfm_list <- emtrends_tti_lfm %>% select(p.value) %>% as.list()
+
+
 ```
 
 ```{r}
@@ -1328,19 +1341,56 @@ sjPlot::plot_model(temp_spp)
 ```
 
 ## Sig. function
+
+#HERE::
+
+Problem: does not apply function to anything beyond the first value. 
+
 ```{r}
 significance <- function(p.value.df, sig.vector) {
-  sig.vector <- c(rep("No", 5))
+  
+  sig.vector <- c(rep("NA", 5))
+  
 for(i in 1:5){
+  
   if(p.value.df[i] < 0.05){
   sig.vector[i] <- 'Yes'
   }
+  
   else {
   sig.vector[i] <- 'No'
   }
   return(sig.vector)
 }
 }
+
+tti.sig.lfm.new <- significance(tti.p.value.lfm.new, tti.sig.lfm.new)
+```
+
+
+```{r}
+significance <- function(p.value.df, sig.vector) {
+  
+  sig.vector <- c(rep("NA", 5))
+  
+for(i in colnames[p.value.df]){
+  
+  if(i < 0.05){
+    
+  sig.vector[i] <- 'Yes'
+  }
+  else {
+  sig.vector[i] <- 'No'
+  }
+  
+  return(sig.vector)
+}
+}
+
+tti.p.value.lfm.new_df <- tti.p.value.lfm.new %>% as.data.frame()
+
+tti.sig.lfm.new <- significance(tti.p.value.lfm.new_df, tti.sig.lfm.new)
+tti.sig.lfm.new <- significance(tti.p.value.lfm.new, tti.sig.lfm.new)
 ```
 
 ## Visualizations
@@ -1418,14 +1468,28 @@ tti.ES.lfm <- c(ref, ref + tti_mod.coef.df$estimate[11:12],
                 ref + tti_mod.coef.df$estimate[13])
   # Following this order: ABCO, CADE, PIJE, ARPA, QUKE (no CECO)
 tti.SE.lfm <- c(tti_mod.coef.df$std.error[6], tti_mod.coef.df$std.error[11:12], tti_mod.coef.df$std.error[10], tti_mod.coef.df$std.error[13])
+
+#old
 tti.p.value.lfm <- c(tti_mod.coef.df$p.value[6], tti_mod.coef.df$p.value[11:12], tti_mod.coef.df$p.value[10], tti_mod.coef.df$p.value[13])
+
+#new
+tti.p.value.lfm.new <- c(emtrends_tti_lfm_list) %>% unlist() %>% unname()
+
+#old
 tti.sig.lfm <- significance(tti.p.value.lfm, tti.sig.lfm)
+
+#new
+tti.sig.lfm.new <- significance(tti.p.value.lfm.new, tti.sig.lfm.new)
+
 ref2 <- tti_mod.coef.df$estimate[21]
 tti.ES.mpa <- c(ref2, ref2 + tti_mod.coef.df$estimate[26:27], 
                 ref2 + tti_mod.coef.df$estimate[25], 
                 ref2 + tti_mod.coef.df$estimate[28]) 
 tti.SE.mpa <- c(tti_mod.coef.df$std.error[21], tti_mod.coef.df$std.error[26:27], tti_mod.coef.df$std.error[25], tti_mod.coef.df$std.error[28])
 tti.p.value.mpa <- c(tti_mod.coef.df$p.value[21], tti_mod.coef.df$p.value[26:27], tti_mod.coef.df$p.value[25], tti_mod.coef.df$p.value[28])
+
+tti.p.value.mpa <- c(tti_mod.coef.df$p.value[21], tti_mod.coef.df$p.value[26:27], tti_mod.coef.df$p.value[25], tti_mod.coef.df$p.value[28])
+
 tti.sig.mpa <- significance(tti.p.value.mpa, tti.sig.mpa)
 tti.ES.df <- data.frame(species, tti.ES.lfm, tti.SE.lfm, tti.p.value.lfm, tti.sig.lfm, tti.ES.mpa, tti.SE.mpa, tti.p.value.mpa, tti.sig.mpa)
 
