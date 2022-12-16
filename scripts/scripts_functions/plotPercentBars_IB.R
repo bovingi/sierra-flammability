@@ -51,8 +51,10 @@ plotPercentBars.new = function( varPart, col = c(ggColorHue(ncol(varPart)-1), "g
     theme(plot.title = element_text(hjust = 0.5))
   
   fig = fig + theme(
+    text = element_text(size=30),
+    axis.text.x = element_text(angle=90, hjust=1),
     axis.line = element_line(colour = "transparent"),
-    axis.line.x = element_line(colour = "black"),
+   # axis.line.x = element_line(colour = "black"),
     panel.grid.major = element_blank(),
     panel.grid.minor = element_blank(),
     panel.border = element_blank(),
@@ -71,7 +73,7 @@ plotPercentBars.new = function( varPart, col = c(ggColorHue(ncol(varPart)-1), "g
     labs(y = "", 
          x = "")
   
-  fig = fig + theme(text 		= element_text(colour="black"), 
+  fig = fig + theme(text = element_text(colour="black"), 
                     axis.text 	= element_text(colour="black"),
                     legend.text = element_text(colour="black")) 
   
