@@ -51,10 +51,9 @@ pv_all_df <- read_csv(here("processed-data", "analysis 2.0", "all_pv_curves_clea
   mutate(sample = as.factor(sample)) %>% 
   mutate(month = as.factor(month)) %>% 
   mutate(date = ymd(date), 
-        individual = str_c(species, '_', sample, '_', date)
-        ) %>% 
-  mutate(year_month = str_c(year, '_', month), 
-         year = as.factor(year)) %>% 
+        year_month = str_c(year, '_', month), 
+        year = as.factor(year),
+        individual = str_c(spp, '_', sample, '_', year, '_', timing)) %>% 
   clean_names() %>% 
   group_by(spp) %>% 
   mutate(plant = udpipe::unique_identifier(individual), 

@@ -33,7 +33,8 @@ library(kableExtra)
 library(janitor)
 library(lubridate)
 library(specr)
-#install.packages("specr")
+library(colorBlindness)
+install.packages("colorBlindness")
 
 filter = dplyr::filter
 mutate = dplyr::mutate
@@ -53,22 +54,43 @@ based on this paper: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC8930200/#DS1
 
 #Data: 
 
-```{r}
+```{r, fig.height=3, fig.width=2}
 flam_curve_df_2.1 <- read_csv(here("processed-data", "analysis 2.0", "flam_curve_vardecomp_2.csv"), show_col_types = FALSE) %>% 
   drop_na(lfm, water_potential, spp, plant, year_month, F.Group) %>% 
   mutate(plant = as.factor(plant), 
          F.Group = as.factor(F.Group), 
          year = as_factor(year))
 
+angio_flam <- flam_curve_df_2.1 %>% 
+  filter(F.Group == "Angiosperm")
+
+gymno_flam <- flam_curve_df_2.1 %>% 
+  filter(F.Group == "Gymnosperm") %>% 
+  drop_na()
+
 pv_all_df_2.1 <-  read_csv(here("processed-data", "analysis 2.0", "all_pv_curves_clean_vardecomp_2.csv"), show_col_types = FALSE) %>% 
   mutate(plant = as.factor(plant), 
-         year = as.factor(year))
+         year = as.factor(year), 
+         spp = as.factor(spp)) %>% 
+  select(lfm, water_potential, F.Group, plant, year, year_month, spp)
+
+angio_pv <- pv_all_df_2.1%>% 
+  filter(F.Group == "Angiosperm")
+
+gymno_pv <- pv_all_df_2.1 %>% 
+  filter(F.Group == "Gymnosperm") 
 
 field_data_all_2.1 <- read_csv(here("processed-data", "analysis 2.0", "field_data_vardecomp_2.csv"), show_col_types = FALSE) %>% 
   drop_na(lfm, water_potential, spp, plant, year_month) %>% 
   mutate(plant = as.factor(plant), 
          log_lfm = as.numeric(log(lfm))) %>% 
   drop_na(log_lfm)
+
+angio_field <- field_data_all_2.1 %>% 
+  filter(F.Group == "Angiosperm")
+
+gymno_field <- field_data_all_2.1 %>% 
+  filter(F.Group == "Gymnosperm")
 ```
 
 #Information:
@@ -102,9 +124,8 @@ Best model from MEM:
 m10.75 <- lmer(lfm~ water_potential + F.Group + as.factor(year) + (1|plant), data = pv_all_df)
 summary(m10.75) 
 
-```{r}
+```{r, fig.height=3, fig.width=2}
 form <- ~ water_potential + (1|year) + (1|plant)  + (1|spp)
-
 
 lfm_matrix <- pv_all_df_2.1 %>% 
   ungroup() %>% 
@@ -116,18 +137,60 @@ lfm_matrix <- pv_all_df_2.1 %>%
 varPart <- fitExtractVarPartModel(lfm_matrix, form, pv_all_df_2.1 )
 varPart
 
-plotVarPart(varPart)
 
-pv_vardecomp <- plotPercentBars(varPart, col = c(vcol)) +
+
+pv_vardecomp <- plotPercentBars.new(varPart, col = c(vcol)) + theme(legend.position = "none")
   labs(x = "PV")
 pv_vardecomp
 ```
 
 
+```{r, fig.height=3, fig.width=2}
+form <- ~ water_potential + (1|year) + (1|plant)  + (1|spp)
 
-```{r}
-varPart <- calcVarPart(lmer(lfm ~ water_potential  + (1|spp) + (1|year_month) + (1|F.Group) + (1|plant), pv_all_df_2.1))
+lfm_matrix <- angio_pv %>% 
+  ungroup() %>% 
+  mutate(id = row_number()) %>% 
+  select(id, lfm) %>% 
+  pivot_wider(names_from = id, 
+              values_from = lfm) 
+
+varPart <- fitExtractVarPartModel(lfm_matrix, form, angio_pv )
 varPart
+
+pv_vardecomp_angio <- plotPercentBars.new(varPart, col = c(vcol)) + theme(legend.position = "none")
+  labs(x = "PV")
+pv_vardecomp_angio
+```
+
+```{r, fig.height=3, fig.width=2}
+form <- ~ water_potential + (1|year)+ (1|spp) + (1|plant)
+
+lfm_matrix <- gymno_pv %>% 
+  ungroup() %>% 
+  mutate(id = row_number()) %>% 
+  select(id, lfm) %>% 
+  pivot_wider(names_from = id, 
+              values_from = lfm) 
+
+varPart <- fitExtractVarPartModel(lfm_matrix, form, gymno_pv)
+varPart
+
+
+
+pv_vardecomp_gymno <- plotPercentBars.new(varPart, col = c(vcol)) + theme(legend.position = "none")
+  labs(x = "PV")
+pv_vardecomp_gymno
+```
+
+
+```{r, fig.height=3, fig.width=2}
+# varPart <- calcVarPart(lmer(lfm ~ water_potential  + (1|spp) + (1|year) + (1|plant), gymno_pv))
+# varPart
+# 
+# pv_vardecomp <- plotPercentBars.new(varPart, col = c(vcol)) + theme(legend.position = "none")
+#   labs(x = "PV")
+# pv_vardecomp
 ```
 
 #Flam curves
@@ -136,7 +199,7 @@ m11.75  <- lmer(lfm~ water_potential*F.Group + as.factor(year) + (1|plant), data
 
 No interaction:
 
-```{r}
+```{r, fig.height=3, fig.width=2}
 #pv_mod <- lmer(lfm ~ water_potential  + (1|spp) + (1|date), flam_curve_df_2.1)
 
 form <- ~ water_potential  + (1|spp) + (1|year) + (1|plant)  
@@ -151,14 +214,57 @@ lfm_matrix <- flam_curve_df_2.1 %>%
 varPart <- fitExtractVarPartModel(lfm_matrix, form, flam_curve_df_2.1)
 varPart
 
-plotVarPart(varPart)
+flam_vardecomp <- plotPercentBars.new(varPart, col = c(vcol)) + theme(legend.position = "none")
 
-flam_vardecomp <- plotPercentBars(varPart, col = c(vcol)) +
-  labs(x = "Flam curve") 
 flam_vardecomp
 ```
 
-```{r}
+
+```{r, fig.height=3, fig.width=2}
+#pv_mod <- lmer(lfm ~ water_potential  + (1|spp) + (1|date), flam_curve_df_2.1)
+
+form <- ~ water_potential  + (1|spp) + (1|year) + (1|plant)  
+
+lfm_matrix <- angio_flam %>% 
+  ungroup() %>% 
+  mutate(id = row_number()) %>% 
+  select(id, lfm) %>% 
+  pivot_wider(names_from = id, 
+              values_from = lfm) 
+
+varPart <- fitExtractVarPartModel(lfm_matrix, form, angio_flam)
+varPart
+
+
+
+flam_vardecomp_angio <- plotPercentBars.new(varPart, col = c(vcol)) + theme(legend.position = "none")
+flam_vardecomp_angio
+```
+
+```{r, fig.height=3, fig.width=2}
+#pv_mod <- lmer(lfm ~ water_potential  + (1|spp) + (1|date), flam_curve_df_2.1)
+
+form <- ~ water_potential  + (1|spp) + (1|year) + (1|plant)  
+
+lfm_matrix <- gymno_flam %>% 
+  ungroup() %>% 
+  mutate(id = row_number()) %>% 
+  select(id, lfm) %>% 
+  pivot_wider(names_from = id, 
+              values_from = lfm) 
+
+varPart <- fitExtractVarPartModel(lfm_matrix, form, gymno_flam)
+varPart
+
+
+
+flam_vardecomp_gymno <- plotPercentBars.new(varPart, col = c(vcol)) + theme(legend.position = "none")
+  labs(x = "Flam curve") 
+flam_vardecomp_gymno
+```
+
+
+```{r, fig.height=3, fig.width=2}
 #pv_mod <- lmer(lfm ~ water_potential  + (1|spp) + (1|date), flam_curve_df_2.1)
 
 form <- ~ water_potential*spp  + (1|spp) + (1|year) + (1|plant)  
@@ -173,9 +279,9 @@ lfm_matrix <- flam_curve_df_2.1 %>%
 varPart <- fitExtractVarPartModel(lfm_matrix, form, flam_curve_df_2.1)
 varPart
 
-plotVarPart(varPart)
 
-flam_vardecomp_ints <- plotPercentBars(varPart#, col = c(vcol)
+
+flam_vardecomp_ints <- plotPercentBars.new(varPart#, col = c(vcol)
                                   ) +
   labs(x = "Flam curve") 
 flam_vardecomp_ints
@@ -190,7 +296,7 @@ Best model in MEM:
 m12.4<- lmer(log(lfm)~ water_potential*as.factor(year) + water_potential*F.Group + F.Group + (1|plant), data = field_data_all)
 
 Above tlp:
-```{r}
+```{r, fig.height=3, fig.width=2}
 above <- field_data_all_2.1 %>% 
   group_by(spp) %>% 
   filter(lfm > lfm_tlp)
@@ -198,10 +304,27 @@ above <- field_data_all_2.1 %>%
 below <- field_data_all_2.1 %>% 
   group_by(spp) %>% 
   filter(lfm < lfm_tlp)
+
+#angio
+above_angio <- angio_field %>% 
+  group_by(spp) %>% 
+  filter(lfm > lfm_tlp)
+
+below_angio <- angio_field %>% 
+  group_by(spp) %>% 
+  filter(lfm < lfm_tlp)
+
+above_gymno <- gymno_field %>% 
+  group_by(spp) %>% 
+  filter(lfm > lfm_tlp)
+
+below_gymno <- gymno_field %>% 
+  group_by(spp) %>% 
+  filter(lfm < lfm_tlp)
 ```
 
 
-```{r}
+```{r, fig.height=3, fig.width=2}
 form <- ~ water_potential + water_potential + (1|spp) + (1|year_month) + (1|plant) + (1|age_new)
 
 lfm_matrix <- field_data_all_2.1 %>% 
@@ -214,37 +337,73 @@ lfm_matrix <- field_data_all_2.1 %>%
 varPart <- fitExtractVarPartModel(lfm_matrix, form, field_data_all_2.1)
 varPart
 
-plotVarPart(varPart)
-
-field_vardecomp_all <- plotPercentBars(varPart, col = c(vcol))+
-  labs(x = "Field data", 
-       title = "all together")  
+field_vardecomp_all <- plotPercentBars.new(varPart, col = c(vcol)) + theme(legend.position = "none") 
 field_vardecomp_all
 ```
-```{r}
-form <- ~ water_potential*spp  + (1|spp) + (1|year_month) + (1|plant) + (1|age_new)
-#+ (1|F.Group) 
 
 
-lfm_matrix <- field_data_all_2.1 %>% 
+```{r, fig.height=3, fig.width=2}
+form <- ~ water_potential + water_potential + (1|spp) + (1|year_month) + (1|plant) + (1|age_new)
+
+lfm_matrix <-angio_field %>% 
   ungroup() %>% 
   mutate(id = row_number()) %>% 
   select(id, log_lfm) %>% 
   pivot_wider(names_from = id, 
               values_from = log_lfm) 
 
-varPart <- fitExtractVarPartModel(lfm_matrix, form, field_data_all_2.1)
+varPart <- fitExtractVarPartModel(lfm_matrix, form,angio_field)
 varPart
 
-plotVarPart(varPart)
-
-field_vardecomp_ints <- plotPercentBars(varPart)+
+field_vardecomp_angio <- plotPercentBars.new(varPart, col = c(vcol))+ theme(legend.position = "none") +
   labs(x = "Field data", 
        title = "all together")  
-field_vardecomp_ints
+field_vardecomp_angio
 ```
 
-```{r}
+
+```{r, fig.height=3, fig.width=2}
+form <- ~ water_potential + water_potential + (1|spp) + (1|year_month) + (1|plant) + (1|age_new)
+
+lfm_matrix <- gymno_field %>% 
+  ungroup() %>% 
+  mutate(id = row_number()) %>% 
+  select(id, log_lfm) %>% 
+  pivot_wider(names_from = id, 
+              values_from = log_lfm) 
+
+varPart <- fitExtractVarPartModel(lfm_matrix, form, gymno_field)
+varPart
+
+field_vardecomp_gymno <- plotPercentBars.new(varPart, col = c(vcol))+ theme(legend.position = "none")
+field_vardecomp_gymno
+```
+
+
+ ```{r, fig.height=3, fig.width=2}
+# form <- ~ water_potential*spp  + (1|spp) + (1|year_month) + (1|plant) + (1|age_new)
+# #+ (1|F.Group) 
+# 
+# 
+# lfm_matrix <- field_data_all_2.1 %>% 
+#   ungroup() %>% 
+#   mutate(id = row_number()) %>% 
+#   select(id, log_lfm) %>% 
+#   pivot_wider(names_from = id, 
+#               values_from = log_lfm) 
+# 
+# varPart <- fitExtractVarPartModel(lfm_matrix, form, field_data_all_2.1)
+# varPart
+# 
+# 
+# 
+# field_vardecomp_ints <- plotPercentBars.new(varPart) + theme(legend.position = "none")+
+#   labs(x = "Field data", 
+#        title = "all together")  
+# field_vardecomp_ints
+```
+
+```{r, fig.height=3, fig.width=2}
 form <- ~ water_potential  + (1|spp) + (1|year_month) + (1|plant)  + (1|age_new) #+ (1|F.Group)
 
 lfm_matrix <- above %>% 
@@ -257,15 +416,54 @@ lfm_matrix <- above %>%
 varPart <- fitExtractVarPartModel(lfm_matrix, form, above)
 varPart
 
-plotVarPart(varPart)
 
-field_vardecomp_above <- plotPercentBars(varPart, col = c(vcol))+
-  labs(x = "Field data", 
-       title = "Above")  
+
+field_vardecomp_above <- plotPercentBars.new(varPart, col = c(vcol)) + theme(legend.position = "none") 
 field_vardecomp_above
 ```
 
-```{r}
+```{r, fig.height=3, fig.width=2}
+form <- ~ water_potential  + (1|spp) + (1|year_month) + (1|plant)  + (1|age_new) #+ (1|F.Group)
+
+lfm_matrix <- above_gymno %>% 
+  ungroup() %>% 
+  mutate(id = row_number()) %>% 
+  select(id, log_lfm) %>% 
+  pivot_wider(names_from = id, 
+              values_from = log_lfm) 
+
+varPart <- fitExtractVarPartModel(lfm_matrix, form, above_gymno)
+varPart
+
+
+
+field_vardecomp_above_gymno <- plotPercentBars.new(varPart, col = c(vcol)) + theme(legend.position = "none") +
+  labs(x = "Field data", 
+       title = "Above")  
+field_vardecomp_above_gymno
+```
+
+```{r, fig.height=3, fig.width=2}
+form <- ~ water_potential  + (1|spp) + (1|year_month) + (1|plant)  + (1|age_new) #+ (1|F.Group)
+
+lfm_matrix <- above_angio %>% 
+  ungroup() %>% 
+  mutate(id = row_number()) %>% 
+  select(id, log_lfm) %>% 
+  pivot_wider(names_from = id, 
+              values_from = log_lfm) 
+
+varPart <- fitExtractVarPartModel(lfm_matrix, form, above_angio)
+varPart
+
+
+field_vardecomp_above_angio <- plotPercentBars.new(varPart, col = c(vcol)) + theme(legend.position = "none") +
+  labs(x = "Field data", 
+       title = "Above")  
+field_vardecomp_above_angio
+```
+
+```{r, fig.height=3, fig.width=2}
 form <- ~ water_potential*spp  + (1|spp) + (1|year_month) + (1|plant)  + (1|age_new) #+ (1|F.Group)
 
 lfm_matrix <- above %>% 
@@ -278,15 +476,15 @@ lfm_matrix <- above %>%
 varPart <- fitExtractVarPartModel(lfm_matrix, form, above)
 varPart
 
-plotVarPart(varPart)
 
-field_vardecomp_above_ints <- plotPercentBars(varPart)+
+
+field_vardecomp_above_ints <- plotPercentBars.new(varPart) + theme(legend.position = "none")+
   labs(x = "Field data", 
        title = "Above")  
 field_vardecomp_above_ints
 ```
 
-```{r}
+```{r, fig.height=3, fig.width=2}
 form <- ~ water_potential + (1|spp) + (1|year_month) + (1|plant)  + (1|age_new)
 
 #form <- ~ water_potential  + spp + year_month + (1|plant) + F.Group + age_new
@@ -301,14 +499,63 @@ lfm_matrix <- below %>%
 varPart <- fitExtractVarPartModel(lfm_matrix, form, below)
 varPart
 
-plotVarPart(varPart)
 
-field_vardecomp_below <- plotPercentBars(varPart, col = c(vcol))+
+
+field_vardecomp_below <- plotPercentBars.new(varPart, col = c(vcol)) + theme(legend.position = "none") +
   labs(x = "Feild data", 
        title = "Below")  
 field_vardecomp_below
 ```
-```{r}
+
+```{r, fig.height=3, fig.width=2}
+form <- ~ water_potential + (1|spp) + (1|year_month) + (1|plant)  + (1|age_new)
+
+#form <- ~ water_potential  + spp + year_month + (1|plant) + F.Group + age_new
+
+lfm_matrix <- below_angio %>% 
+  ungroup() %>% 
+  mutate(id = row_number()) %>% 
+  select(id, log_lfm) %>% 
+  pivot_wider(names_from = id, 
+              values_from = log_lfm) 
+
+varPart <- fitExtractVarPartModel(lfm_matrix, form, below_angio)
+varPart
+
+field_vardecomp_below_angio <- plotPercentBars.new(varPart, col = c(vcol)) +theme(legend.position = "none")
+#+ 
+ # theme(legend.position = "none") 
+
+field_vardecomp_below_angio
+```
+
+
+```{r, fig.height=3, fig.width=2}
+form <- ~ water_potential + (1|spp) + (1|year_month) + (1|plant)  + (1|age_new)
+
+#form <- ~ water_potential  + spp + year_month + (1|plant) + F.Group + age_new
+
+lfm_matrix <- below_gymno %>% 
+  ungroup() %>% 
+  mutate(id = row_number()) %>% 
+  select(id, log_lfm) %>% 
+  pivot_wider(names_from = id, 
+              values_from = log_lfm) 
+
+varPart <- fitExtractVarPartModel(lfm_matrix, form, below_gymno)
+varPart
+
+
+
+field_vardecomp_below_gymno <- plotPercentBars.new(varPart, col = c(vcol)) + theme(legend.position = "none") +
+  labs(x = "Feild data", 
+       title = "Below")  
+field_vardecomp_below_gymno
+```
+
+
+
+```{r, fig.height=3, fig.width=2}
 form <- ~ water_potential*spp + (1|spp) + (1|year_month) + (1|plant)  + (1|age_new)
 
 #form <- ~ water_potential  + spp + year_month + (1|plant) + F.Group + age_new
@@ -323,24 +570,94 @@ lfm_matrix <- below %>%
 varPart <- fitExtractVarPartModel(lfm_matrix, form, below)
 varPart
 
-plotVarPart(varPart)
-
-field_vardecomp_below_ints <- plotPercentBars(varPart)+
+field_vardecomp_below_ints <- plotPercentBars.new(varPart) + theme(legend.position = "none")+
   labs(x = "Feild data", 
        title = "Below")  
 field_vardecomp_below_ints
 ```
 
+```{r, fig.height=3, fig.width=2}
+form <- ~ water_potential*spp + (1|spp) + (1|year_month) + (1|plant)  + (1|age_new)
+
+#form <- ~ water_potential  + spp + year_month + (1|plant) + F.Group + age_new
+
+lfm_matrix <- below %>% 
+  ungroup() %>% 
+  mutate(id = row_number()) %>% 
+  select(id, log_lfm) %>% 
+  pivot_wider(names_from = id, 
+              values_from = log_lfm) 
+
+varPart <- fitExtractVarPartModel(lfm_matrix, form, below)
+varPart
+
+field_vardecomp_below_ints <- plotPercentBars.new(varPart) + theme(legend.position = "none")+
+  labs(x = "Feild data", 
+       title = "Below")  
+field_vardecomp_below_ints
+```
+
+#Legend: 
+
+```{r, fig.height=3, fig.width=2}
+# leg_nice <-  field_data_all_2.1 %>% 
+#   mutate(Species = spp, 
+#          Timing = year_month, 
+#          Plant = plant, 
+#          'Water Potential' = water_potential, 
+#          Age = age_new
+#          ) 
+# 
+# form <- ~ 'Water Potential'  + (1|Species) + (1|Timing) + (1|Plant) + (1|Age)
+
+form <- ~ water_potential + water_potential + (1|spp) + (1|year_month) + (1|plant) + (1|age_new)
+
+lfm_matrix <- field_data_all_2.1 %>% 
+  ungroup() %>% 
+  mutate(id = row_number()) %>% 
+  select(id, log_lfm) %>% 
+  pivot_wider(names_from = id, 
+              values_from = log_lfm) 
+
+varPart <- fitExtractVarPartModel(lfm_matrix, form, field_data_all_2.1)
+varPart
+
+legend <- plotPercentBars.new(varPart, col = c(vcol)) +
+  scale_fill_manual(labels=c("age_new" = "Age", 
+                               "plant" = "Plant", 
+                               "spp" = "Species", 
+                               "year_month" = "Timing", 
+                             "year" = "Timing",
+                               "water_potential" = 'Water Potential', 
+                               "Residuals" = "Residuals"), 
+             values = c(age_new = "#fac228", 
+             spp = "#9f2a63", 
+             year = "#d44842", 
+             year_month = "#d44842",
+             water_potential = "#280b53", 
+             plant = "#65156e", 
+            # F.Group = "gold", 
+             Residuals = "grey")) 
+legend
+
+cow_legend <- cowplot::get_legend(legend)
+cow_legend
+```
+
+
 #Combine:
 
-```{r}
+```{r, fig.height=3, fig.width=2}
 cowplot::plot_grid(field_vardecomp_all, flam_vardecomp, pv_vardecomp, nrow = 3)
-
 
 cowplot::plot_grid(field_vardecomp, field_vardecomp_above, field_vardecomp_below, nrow = 3)
 
 cowplot::plot_grid(field_vardecomp_ints, field_vardecomp_above_ints, field_vardecomp_below_ints, nrow = 3)
 
 cowplot::plot_grid(field_vardecomp_ints, pv_vardecomp, flam_vardecomp_ints, nrow = 3)
+
+cowplot::plot_grid(field_vardecomp_angio, pv_vardecomp_angio, flam_vardecomp_angio, nrow = 3)
+
+cowplot::plot_grid(field_vardecomp_gymno, pv_vardecomp_gymno, flam_vardecomp_gymno, nrow = 3)
 ```
 

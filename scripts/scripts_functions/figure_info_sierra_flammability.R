@@ -45,13 +45,13 @@ axis_size <- theme(axis_text = element_text(size = 24))
 
 
 #variance decomp colors: 
-  vcol <-  c(age_new = "purple", 
-             spp = "pink", 
-             year = "blue", 
-             year_month = "blue",
-             water_potential = "cyan", 
-             plant = "green", 
-             F.Group = "gold", 
+  vcol <-  c(age_new = "#fac228", 
+             spp = "#9f2a63", 
+             year = "#d44842", 
+             year_month = "#d44842",
+             water_potential = "#280b53", 
+             plant = "#65156e", 
+            # F.Group = "gold", 
              Residuals = "grey")
 
 #Met Brewer Colors
