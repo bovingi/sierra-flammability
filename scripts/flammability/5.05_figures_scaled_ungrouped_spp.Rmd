@@ -1342,10 +1342,6 @@ sjPlot::plot_model(temp_spp)
 
 ## Sig. function
 
-#HERE::
-
-Problem: does not apply function to anything beyond the first value. 
-
 ```{r}
 significance <- function(p.value.df, sig.vector) {
   
@@ -1360,38 +1356,11 @@ for(i in 1:5){
   else {
   sig.vector[i] <- 'No'
   }
+}
   return(sig.vector)
 }
-}
-
-tti.sig.lfm.new <- significance(tti.p.value.lfm.new, tti.sig.lfm.new)
 ```
 
-
-```{r}
-significance <- function(p.value.df, sig.vector) {
-  
-  sig.vector <- c(rep("NA", 5))
-  
-for(i in colnames[p.value.df]){
-  
-  if(i < 0.05){
-    
-  sig.vector[i] <- 'Yes'
-  }
-  else {
-  sig.vector[i] <- 'No'
-  }
-  
-  return(sig.vector)
-}
-}
-
-tti.p.value.lfm.new_df <- tti.p.value.lfm.new %>% as.data.frame()
-
-tti.sig.lfm.new <- significance(tti.p.value.lfm.new_df, tti.sig.lfm.new)
-tti.sig.lfm.new <- significance(tti.p.value.lfm.new, tti.sig.lfm.new)
-```
 
 ## Visualizations
 ### Function
