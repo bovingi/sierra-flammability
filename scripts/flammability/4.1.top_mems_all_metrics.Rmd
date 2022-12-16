@@ -32,7 +32,6 @@ library(psych)
 library(strengejacke)
 library(sjPlot) # table functions
 library(sjmisc) # sample data
-
 library(lme4) # fifhng models
 library(here)
 library(effects) #for plofhng model effects
@@ -146,7 +145,7 @@ performance::multicollinearity(m10)
 
  
 ```{r}
-tab_model(m10, m12, m7, m2, m1,
+tab_model(m10, m12, m7, m2,
           show.reflvl = TRUE, 
           digits = 3, 
           show.aic = TRUE, 
@@ -156,8 +155,7 @@ tab_model(m10, m12, m7, m2, m1,
             "m10", 
             "m12",
             "m7", 
-            "m2",
-            "m1"),
+            "m2"),
          string.pred = "Coeffcient", 
   string.p = "P-Value", 
   p.style = "stars"
@@ -216,7 +214,7 @@ performance::multicollinearity(m11.5)
 
 ```{r}
 sw_m12.5 <- lmer(tti ~ excess_water_scaled + mpa_scaled + lfm_scaled+ spp + site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all)
-AIC(m12.5)
+AIC(sw_m12.5)
 performance::multicollinearity(sw_m12.5) ##High correlation! Don't use
 ```
 
@@ -289,7 +287,6 @@ ggplot(aes(y = tti,
 m2 <- lmer(tti ~ spp * mpa_scaled + spp* lfm_scaled  + site + year_month + (1 | individual), data = mem_data_all)
 
 performance::multicollinearity(m2)
-plot(performance::check_collinearity(m2))
 
 qqnorm(resid(m2))
 r <- resid(m2)
@@ -849,5 +846,3 @@ tab_model(tti_mod,
   file = here('figures', 'MEM_figures', 'top_models_pretty.html'))
   
 ```
-
-

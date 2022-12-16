@@ -424,7 +424,7 @@ field_data_all_3 <- field_data_all_3 %>%
 
 field_data_all_3 %>%
   #filter(month < 10) %>% #removing post-rain values (October sample collection)
-  mutate(spp = fct_relevel(spp, "ABCO", "PIJE", "CADE", "CECO", "ARPA", "QUKE"))  %>%
+  mutate(spp = fct_relevel("ABCO", "PIJE", "CADE", "CECO", "ARPA", "QUKE"))  %>%
   mutate(month = month(date, label = TRUE, abbr = TRUE)) %>%
   ggplot(aes(
     x = midday,
@@ -457,7 +457,6 @@ field_data_all_3 %>%
   ) +
   ylim(50, 300) +
   facet_wrap( ~ spp, labeller = labeller(spp = spp.labs)) +
- color_all +
   theme(
     strip.text = element_text(face = "italic"),
     axis.title = element_text(face = "bold"),
@@ -511,119 +510,6 @@ field_data_all_3 %>%
   #scale_color_gradientn(colors=met.brewer("Morgenstern"))
 ```
 
-####LFM by MPa (date)
-NOTE: Error popping up here -- 'seg_psi_df not found'
-```{r}
-#ribbon values: 
-mpa_summs <- pv_summaries %>% 
-  filter(!(spp %in% c("CECO") & year %in% c(2020))) %>% 
-  group_by(F.Group) %>% 
-  mutate(mean_tlp = mean(ytlp_m_pa), 
-         sd_tlp = sd(ytlp_m_pa), 
-         mpa_lwr = mean_tlp - (sd_tlp/2), 
-         mpa_upr = mean_tlp + (sd_tlp/2)) %>% 
-  select(spp, year, mean_tlp, mpa_lwr, mpa_upr)
-
-unique(mpa_summs$mean_tlp)
-
-angio <- mpa_summs %>% 
-  filter(F.Group == "Angiosperm")
-
-gymno <- mpa_summs %>% 
-  filter(F.Group == "Gymnosperm")
-
-#df:
-fig_df <- field_data_all_3 %>%
-   filter(month < 10) %>%  #removing post-rain values (October sample collection)
-   mutate(spp = fct_relevel(spp, "ABCO","PIJE","CADE","CECO", "ARPA","QUKE"))  %>% 
-   mutate(Species = fct_relevel(Species,
-                              "A. concolor",
-                              "P. jeffreyi",
-                              "C. decurrens",
-                              "C. cordulatus",
-                              "A. patula", 
-                              "Q. kelloggii"
-    )) %>% 
-  filter(age != "both", 
-         age == "new") %>% 
-  mutate(month = month(date, label = TRUE, abbr = TRUE)) 
-
-#plot:
-ggplot() +
-  geom_point(
-    aes(
-      x = midday,
-      y = lfm,
-      color = as.factor(month),
-      shape = Age
-    ),
-    size = 1.1,
-    alpha = .7,
-    data = fig_df
-  ) +
-  #geom_smooth(se = F, method = 'lm', aes(lty = Species),
-  #size = .7, alpha = .7, color = 'black') +
-  geom_vline( #TLP line
-    data = mpa_summs,
-    aes(xintercept = mean_tlp,
-        lty = F.Group),
-    size = 1,
-    alpha = .6,
-    color = "purple",
-    show.legend = F
-  ) +
-  geom_vline( #lower SD
-    data = mpa_summs,
-    aes(xintercept = mpa_summs$mpa_lwr,
-        lty = F.Group, ),
-    #inherit.aes = F,
-    size = .5,
-    alpha = .6,
-    color = "darkgreen",
-    show.legend = F
-  ) +
-  geom_vline( #Upr SD
-    data = mpa_summs,
-    aes(xintercept = mpa_summs$mpa_upr,
-        lty = F.Group, ),
-    #inherit.aes = F,
-    size = .5,
-    alpha = .6,
-    color = "darkblue",
-    show.legend = F
-  ) +
-  ggplot2::geom_ribbon( #Segmented estimate
-    aes(
-      y = fig_df$midday,
-      x = fig_df$lfm,
-      ymin = seg_psi_df$lwr,
-      ymax = seg_psi_df$upr
-    ),
-    fill = "grey80",
-    color = "grey80"
-  )  +
-  geom_hline(yintercept  = seg_psi_df$lfm_psi, linetype = "dotted") +
-    geom_vline(xintercept  = -2.86 , linetype = "dotted", color = "pink") +
-xlim(-5, 0) +
-  labs(
-    y = "Live Fuel Moisture",
-    x = "Midday (-MPa)",
-    color = "Month",
-    shape = "Age"
-  ) +
-  ylim(50, 300) +
-  # facet_wrap(~strategy) +
-  color_all +
-  theme(
-    strip.text = element_text(face = "bold"),
-    axis.title = element_text(face = "bold"),
-    legend.title = element_text(face = "bold"),
-    strip.background = element_rect(fill = "gray90")
-  )
-
-ggsave(here('figures', 'lfm.x.mpa.fx.group.split.jpg'), height = 8, width = 11)
-```
-
 
 ```{r}
 field_data_all_3 %>%
@@ -652,8 +538,7 @@ field_data_all_3 %>%
         color = "Month", 
         shape = "Age") +
   ylim(50,300) +
-  facet_wrap(~strategy) +
-  color_all
+  facet_wrap(~strategy)
 ```
 ```{r}
 field_data_all_3 %>%
@@ -682,10 +567,9 @@ field_data_all_3 %>%
         color = "Month", 
         shape = "Age") +
   ylim(50,300) +
-  facet_wrap(~F.Group) +
-  color_all
+  facet_wrap(~F.Group)
 
-ggsave(here('figures', 'lfm_midday_tlplines_group.jpg'), height = 8, width = 11)
+#ggsave(here('figures', 'lfm_midday_tlplines_group.jpg'), height = 8, width = 11)
 ```
 
 ####LFM by MPa (age)
@@ -1043,6 +927,7 @@ p1 <- ggplot(data = df1, aes(x = month, y = lfm)) +
   geom_hline(aes(yintercept  = mean_lfm),
              linetype = "dotted") +
   scale_y_continuous(limits = c(0, max.y)) +
+  scale_fill_manual(values = c('#B2BEB5', '#36454F')) +
   facet_wrap(~spp, labeller = labeller(spp = spp.labs)) +
   theme(axis.ticks.x = element_blank(),
     axis.text.x = element_text(
@@ -1116,6 +1001,7 @@ p1 <- ggplot(data = df1, aes(x = month, y = lfm)) +
              linetype = "dotted") +
   scale_y_continuous(limits = c(0, 260)) +
   facet_wrap(~spp, labeller = labeller(spp = spp.labs)) +
+  scale_fill_manual(values = c('#B2BEB5', '#36454F')) +
   theme(axis.ticks.x = element_blank(),
     axis.text.x = element_text(
       angle = 30,
@@ -1170,6 +1056,7 @@ legend <- cowplot::get_legend(legend.plot)
 # Boxplot legend:
 legend.plot2 <- ggplot(data = field_data_2021, aes(x = date, y = lfm)) +
   geom_boxplot(aes(fill = age_labs)) +
+  scale_fill_manual(values = c('#B2BEB5', '#36454F')) +
   labs(fill = "Tissue Status") +
   theme(legend.position = 'top',
         legend.title = element_text(face = 'bold'))

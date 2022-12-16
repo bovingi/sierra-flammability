@@ -269,7 +269,7 @@ ggplot() +
   theme(legend.title = element_text(face = 'bold', size = 22),
         legend.text = element_text(face = 'italic', size = 20),
         legend.key = element_blank()) +
-  color_many
+  color_noceco
 leg_plot
 ```
 
@@ -345,7 +345,8 @@ tti_pred <- tti_df %>%
   filter(year == 2021) %>% 
   ggplot(aes(y = pred*-1, x = date, color = spp)) +
    geom_point(alpha = .3, size = 2) +
-   geom_smooth(se = F) +
+   #geom_smooth(se = F) +
+   geom_line() +
    geom_linerange(aes(ymin = pred*-1 - 0.5*stdev.pred, ymax = pred*-1 + 0.5*stdev.pred)) +
     theme(legend.position = "none",
         axis.text.y = element_text(size = 14),
@@ -356,7 +357,7 @@ tti_pred <- tti_df %>%
         plot.margin = unit(c(0, 0.1, 0, 0.1), 'cm')) +
     labs(y = "Ignitability", 
        x = "") +
-    color_many
+    color_noceco
 tti_pred
 ```
 
@@ -383,7 +384,8 @@ fh_pred <- fh_df %>%
   filter(year == 2021) %>% 
   ggplot(aes(y = pred, x = date, color = spp)) +
    geom_point(alpha = .3, size = 2) +
-   geom_smooth(se = F) +
+   #geom_smooth(se = F) +
+   geom_line() +
    geom_linerange(aes(ymin = pred - 0.5*stdev.pred, ymax = pred + 0.5*stdev.pred)) +
     theme(legend.position = "none",
         axis.text.y = element_text(size = 14),
@@ -394,7 +396,7 @@ fh_pred <- fh_df %>%
         plot.margin = unit(c(0, 0.1, 0, 0.5), 'cm')) +
     labs(y = "Flame Height", 
        x = "") +
-    color_many
+    color_noceco
 fh_pred
 ```
 
@@ -422,7 +424,8 @@ temp_max_pred <- temp_max_df %>%
   filter(year == 2021) %>% 
   ggplot(aes(y = pred, x = date, color = spp)) +
    geom_point(alpha = .3, size = 2) +
-   geom_smooth(se = F) +
+   #geom_smooth(se = F) +
+   geom_line() +
    geom_linerange(aes(ymin = pred - 0.5*stdev.pred, ymax = pred + 0.5*stdev.pred)) +
     theme(legend.position = "none",
         axis.text.y = element_text(size = 14),
@@ -431,7 +434,7 @@ temp_max_pred <- temp_max_df %>%
         plot.margin = unit(c(0, 0.1, 0.1, 0.2), 'cm')) +
     labs(y = "Maximum Temp.", 
        x = "") +
-    color_many
+    color_noceco
 temp_max_pred
 ```
 ## Combined
@@ -444,7 +447,7 @@ legend_plots <- cowplot::plot_grid(plots, legend,
                                    rel_widths = c(3,1))
 legend_plots
 
-ggsave(here('figures', 'predicted.flam.from.field.jpg'), height = 15, width = 8.5)
+ggsave(here('figures', 'predicted.flam.from.field.V2.jpg'), height = 15, width = 8.5)
 ```
 
 #-------

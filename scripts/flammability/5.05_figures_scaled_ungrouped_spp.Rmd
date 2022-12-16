@@ -72,12 +72,12 @@ mem_data_all_clean <- mem_data_all_raw %>%
          lfm_scaled = scale(lfm), 
          excess_water_scaled = scale(excess_water)) %>% 
   mutate(Species = case_when(
-    spp == "arpa" ~ "A. patula", 
-    spp == "abco" ~ "A. concolor",
-    spp == "cade" ~ "C. decurrens",
-    spp == "ceco" ~ "C. cordulatus",
-    spp == "pije" ~ "P. jeffreyi",
-    spp == "quke" ~ "Q. kelloggii"
+    spp == "arpa" ~ "Ar. patula", 
+    spp == "abco" ~ "Ab. concolor",
+    spp == "cade" ~ "Ca. decurrens",
+    spp == "ceco" ~ "Ce. cordulatus",
+    spp == "pije" ~ "Pi. jeffreyi",
+    spp == "quke" ~ "Qu. kelloggii"
   )) %>% 
   mutate(F.Group = case_when(
     spp == "arpa" ~ "Angiosperm", 
@@ -321,7 +321,7 @@ tti_plot_lfm_r <- mem_data_all_r %>%
                        axis.text.x = element_blank(), axis.ticks.x = element_blank()) +
   labs(x = "", 
        y = "Time to Ignition (s)") +
-  annotate(geom = "text", x = -2.6, y = 192.5, label = 'a', fontface = 'bold', size = 10)
+  annotate(geom = "text", x = -2.6, y = 192.5, label = 'b', fontface = 'bold', size = 10)
 tti_plot_lfm_r
 
 #ggarrange(tti_plot, tti_plot_r, tti_plot_lfm, tti_plot_lfm_r )
@@ -417,7 +417,7 @@ fh_plot_lfm_r <- mem_data_all_r %>%
                        axis.text.x = element_blank(), axis.ticks.x = element_blank())+
   labs(x = "", 
        y = "Flame Height (cm)") +
-  annotate(geom = "text", x = -2.6, y = 54, label = 'b', fontface = 'bold', size = 10)
+  annotate(geom = "text", x = -2.6, y = 54, label = 'c', fontface = 'bold', size = 10)
 fh_plot_lfm_r
 
 #ggarrange(fh_plot, fh_plot_r, fh_plot_lfm, fh_plot_lfm_r, nrow = 2, ncol = 2)
@@ -513,7 +513,7 @@ lower_temp_max_plot_lfm_r <- mem_data_all_r %>%
   #scale_shape_manual(values = c(16, 10)) +
   labs(x = "LFM (scaled, centered)", 
        y = "Maximum Temperature (C)") +
-  annotate(geom = "text", x = -2.6, y = 515, label = 'c', fontface = 'bold', size = 10) +
+  annotate(geom = "text", x = -2.6, y = 515, label = 'd', fontface = 'bold', size = 10) +
   annotate(geom = 'text', x = -2.3, y = 170, label = 'dry', size = 5) +
   annotate(geom = 'text', x = 3.05, y = 170, label = 'wet', size = 5) +
   geom_segment(aes(x = -2, y = 170, xend = 2.75, yend = 170),
@@ -977,25 +977,22 @@ plots_legend
 ggsave(plot=plots_legend, bg = "white" , here::here("figures", "lfm_flam_metrics_withceco.jpeg"), device="jpg")
 ```
 
-#2.5. Significance of interaction terms: 
+# 2.5. Significance of interaction terms: 
 
+## TTI
 ```{r}
 tti_mod_lfm <- lmer(tti ~ spp*lfm_scaled +  site + year_month  + (1 | individual), data = mem_data_all_r)
 em_tti_lfm <- emmeans::emtrends(tti_mod_lfm, pairwise~spp, var = c("lfm_scaled"))
 tti_lfm <- summary(em_tti_lfm, infer=c(TRUE,TRUE),null=0)
 
 emtrends_tti_lfm <- tti_lfm$emtrends %>% 
-  as.data.frame() %>% 
-   mutate(spp = forcats::fct_relevel(spp, "abco", 
-                                     "pije", 
-                                     "cade", 
-                                     "arpa", 
-                                     "quke"
-                                           ))
+  as.data.frame()
+emtrends_tti_lfm$spp <- factor(emtrends_tti_lfm$spp, levels = c("abco", "pije", "cade", "arpa", "quke"))
+emtrends_tti_lfm <- emtrends_tti_lfm %>% 
+  arrange(spp)
   
-emtrends_tti_lfm_list <- emtrends_tti_lfm %>% select(p.value) %>% as.list()
-
-
+emtrends_tti_lfm_list <- emtrends_tti_lfm %>% select(p.value) %>% as.vector()
+tti.p.value.lfm <- emtrends_tti_lfm_list$p.value
 ```
 
 ```{r}
@@ -1007,20 +1004,40 @@ summary(em_tti_lfm, infer=c(TRUE,TRUE),null=0)
 ```{r}
 tti_mod_mpa <- lmer(tti ~ spp*mpa_scaled +  site + year_month  + (1 | individual), data = mem_data_all_r)
 em_tti_mpa <- emmeans::emtrends(tti_mod_mpa, pairwise~spp, var = "mpa_scaled")
-summary(em_tti_mpa, infer=c(TRUE,TRUE),null=0)
+tti_mpa <- summary(em_tti_mpa, infer=c(TRUE,TRUE),null=0)
+
+emtrends_tti_mpa <- tti_mpa$emtrends %>% 
+  as.data.frame()
+emtrends_tti_mpa$spp <- factor(emtrends_tti_mpa$spp, levels = c("abco", "pije", "cade", "arpa", "quke"))
+emtrends_tti_mpa <- emtrends_tti_mpa %>% 
+  arrange(spp)
+  
+emtrends_tti_mpa_list <- emtrends_tti_mpa %>% select(p.value) %>% as.vector()
+tti.p.value.mpa <- emtrends_tti_mpa_list$p.value
 ```
+
 ```{r}
 tti_mod_mpa <- lmer(tti ~ F.Group*mpa_scaled +  site + year_month  + (1 | individual), data = mem_data_all_r)
 em_tti_mpa <- emmeans::emtrends(tti_mod_mpa, pairwise~F.Group, var = "mpa_scaled")
 summary(em_tti_mpa, infer=c(TRUE,TRUE),null=0)
 ```
 
-FH
+## FH
 ```{r}
 fh_mod_lfm <- lmer(fh ~ spp*lfm_scaled +  site + year_month  + (1 | individual), data = mem_data_all_r)
 em_fh_lfm <- emmeans::emtrends(fh_mod_lfm, pairwise~spp, var = c("lfm_scaled"))
-summary(em_fh_lfm, infer=c(TRUE,TRUE),null=0)
+fh_lfm <- summary(em_fh_lfm, infer=c(TRUE,TRUE),null=0)
+
+emtrends_fh_lfm <- fh_lfm$emtrends %>% 
+  as.data.frame()
+emtrends_fh_lfm$spp <- factor(emtrends_fh_lfm$spp, levels = c("abco", "pije", "cade", "arpa", "quke"))
+emtrends_fh_lfm <- emtrends_fh_lfm %>% 
+  arrange(spp)
+
+emtrends_fh_lfm_list <- emtrends_fh_lfm %>% select(p.value) %>% as.vector()
+fh.p.value.lfm <- emtrends_fh_lfm_list$p.value
 ```
+
 ```{r}
 fh_mod_lfm <- lmer(fh ~ F.Group*lfm_scaled +  site + year_month  + (1 | individual), data = mem_data_all_r)
 em_fh_lfm <- emmeans::emtrends(fh_mod_lfm, pairwise~F.Group, var = c("lfm_scaled"))
@@ -1030,8 +1047,18 @@ summary(em_fh_lfm, infer=c(TRUE,TRUE),null=0)
 ```{r}
 fh_mod_mpa <- lmer(fh ~ spp*mpa_scaled +  site + year_month  + (1 | individual), data = mem_data_all_r)
 em_fh_mpa <- emmeans::emtrends(fh_mod_mpa, pairwise~spp, var = "mpa_scaled")
-summary(em_fh_mpa, infer=c(TRUE,TRUE),null=0)
+fh_mpa <- summary(em_fh_mpa, infer=c(TRUE,TRUE),null=0)
+
+emtrends_fh_mpa <- fh_mpa$emtrends %>% 
+  as.data.frame()
+emtrends_fh_mpa$spp <- factor(emtrends_fh_mpa$spp, levels = c("abco", "pije", "cade", "arpa", "quke"))
+emtrends_fh_mpa <- emtrends_fh_mpa %>% 
+  arrange(spp)
+  
+emtrends_fh_mpa_list <- emtrends_fh_mpa %>% select(p.value) %>% as.vector()
+fh.p.value.mpa <- emtrends_fh_mpa_list$p.value
 ```
+
 ```{r}
 fh_mod_mpa <- lmer(fh ~ F.Group*mpa_scaled +  site + year_month  + (1 | individual), data = mem_data_all_r)
 em_fh_mpa <- emmeans::emtrends(fh_mod_mpa, pairwise~F.Group, var = "mpa_scaled")
@@ -1039,11 +1066,22 @@ summary(em_fh_mpa, infer=c(TRUE,TRUE),null=0)
 ```
 
 
+## Max. Temp.
 ```{r}
 tmp_mod_lfm <- lmer(lower_temp_max ~ spp*lfm_scaled +  site + year_month  + (1 | individual), data = mem_data_all_r)
 em_temp_max_lfm <- emmeans::emtrends(tmp_mod_lfm, pairwise~spp, var = c("lfm_scaled"))
-summary(em_temp_max_lfm, infer=c(TRUE,TRUE),null=0)
+temp_max_lfm <- summary(em_temp_max_lfm, infer=c(TRUE,TRUE),null=0)
+
+emtrends_temp_max_lfm <- temp_max_lfm$emtrends %>% 
+  as.data.frame()
+emtrends_temp_max_lfm$spp <- factor(emtrends_temp_max_lfm$spp, levels = c("abco", "pije", "cade", "arpa", "quke"))
+emtrends_temp_max_lfm <- emtrends_temp_max_lfm %>% 
+  arrange(spp)
+  
+emtrends_temp_max_lfm_list <- emtrends_temp_max_lfm %>% select(p.value) %>% as.vector()
+temp_max.p.value.lfm <- emtrends_temp_max_lfm_list$p.value
 ```
+
 ```{r}
 tmp_mod_lfm <- lmer(lower_temp_max ~ F.Group*lfm_scaled +  site + year_month  + (1 | individual), data = mem_data_all_r)
 em_temp_max_lfm <- emmeans::emtrends(tmp_mod_lfm, pairwise~F.Group, var = c("lfm_scaled"))
@@ -1053,13 +1091,86 @@ summary(em_temp_max_lfm, infer=c(TRUE,TRUE),null=0)
 ```{r}
 tmp_mod_mpa <- lmer(lower_temp_max ~ spp*mpa_scaled +  site + year_month  + (1 | individual), data = mem_data_all_r)
 em_temp_max_mpa <- emmeans::emtrends(tmp_mod_mpa, pairwise~spp, var = "mpa_scaled")
-summary(em_temp_max_mpa, infer=c(TRUE,TRUE),null=0)
+temp_max_mpa <- summary(em_temp_max_mpa, infer=c(TRUE,TRUE),null=0)
+
+emtrends_temp_max_mpa <- temp_max_mpa$emtrends %>% 
+  as.data.frame()
+emtrends_temp_max_mpa$spp <- factor(emtrends_temp_max_mpa$spp, levels = c("abco", "pije", "cade", "arpa", "quke"))
+emtrends_temp_max_mpa <- emtrends_temp_max_mpa %>% 
+  arrange(spp)
+  
+emtrends_temp_max_mpa_list <- emtrends_temp_max_mpa %>% select(p.value) %>% as.vector()
+temp_max.p.value.mpa <- emtrends_temp_max_mpa_list$p.value
 ```
+
 ```{r}
 tmp_mod_mpa <- lmer(lower_temp_max ~ F.Group*mpa_scaled +  site + year_month  + (1 | individual), data = mem_data_all_r)
 em_temp_max_mpa <- emmeans::emtrends(tmp_mod_mpa, pairwise~F.Group, var = "mpa_scaled")
 summary(em_temp_max_mpa, infer=c(TRUE,TRUE),null=0)
 ```
+
+## GD
+```{r}
+gd_mod_lfm <- lmer(gd ~ spp*lfm_scaled +  site + year_month  + (1 | individual), data = mem_data_all_r)
+em_gd_lfm <- emmeans::emtrends(gd_mod_lfm, pairwise~spp, var = c("lfm_scaled"))
+gd_lfm <- summary(em_gd_lfm, infer=c(TRUE,TRUE),null=0)
+
+emtrends_gd_lfm <- gd_lfm$emtrends %>% 
+  as.data.frame()
+emtrends_gd_lfm$spp <- factor(emtrends_gd_lfm$spp, levels = c("abco", "pije", "cade", "arpa", "quke"))
+emtrends_gd_lfm <- emtrends_gd_lfm %>% 
+  arrange(spp)
+  
+emtrends_gd_lfm_list <- emtrends_gd_lfm %>% select(p.value) %>% as.vector()
+gd.p.value.lfm <- emtrends_gd_lfm_list$p.value
+```
+
+```{r}
+gd_mod_mpa <- lmer(gd ~ spp*mpa_scaled +  site + year_month  + (1 | individual), data = mem_data_all_r)
+em_gd_mpa <- emmeans::emtrends(gd_mod_mpa, pairwise~spp, var = "mpa_scaled")
+gd_mpa <- summary(em_gd_mpa, infer=c(TRUE,TRUE),null=0)
+
+emtrends_gd_mpa <- gd_mpa$emtrends %>% 
+  as.data.frame()
+emtrends_gd_mpa$spp <- factor(emtrends_gd_mpa$spp, levels = c("abco", "pije", "cade", "arpa", "quke"))
+emtrends_gd_mpa <- emtrends_gd_mpa %>% 
+  arrange(spp)
+
+emtrends_gd_mpa_list <- emtrends_gd_mpa %>% select(p.value) %>% as.vector()
+gd.p.value.mpa <- emtrends_gd_mpa_list$p.value
+```
+
+## FD
+```{r}
+fd_mod_lfm <- lmer(fd ~ spp*lfm_scaled +  site + year_month  + (1 | individual), data = mem_data_all_r)
+em_fd_lfm <- emmeans::emtrends(fd_mod_lfm, pairwise~spp, var = c("lfm_scaled"))
+fd_lfm <- summary(em_fd_lfm, infer=c(TRUE,TRUE),null=0)
+
+emtrends_fd_lfm <- fd_lfm$emtrends %>% 
+  as.data.frame() 
+emtrends_fd_lfm$spp <- factor(emtrends_fd_lfm$spp, levels = c("abco", "pije", "cade", "arpa", "quke"))
+emtrends_fd_lfm <- emtrends_fd_lfm %>% 
+  arrange(spp)
+  
+emtrends_fd_lfm_list <- emtrends_fd_lfm %>% select(p.value) %>% as.vector()
+fd.p.value.lfm <- emtrends_fd_lfm_list$p.value
+```
+
+```{r}
+fd_mod_mpa <- lmer(fd ~ spp*mpa_scaled +  site + year_month  + (1 | individual), data = mem_data_all_r)
+em_fd_mpa <- emmeans::emtrends(fd_mod_mpa, pairwise~spp, var = "mpa_scaled")
+fd_mpa <- summary(em_fd_mpa, infer=c(TRUE,TRUE),null=0)
+
+emtrends_fd_mpa <- fd_mpa$emtrends %>% 
+  as.data.frame()
+emtrends_fd_mpa$spp <- factor(emtrends_fd_mpa$spp, levels = c("abco", "pije", "cade", "arpa", "quke"))
+emtrends_fd_mpa <- emtrends_fd_mpa %>% 
+  arrange(spp)
+  
+emtrends_fd_mpa_list <- emtrends_fd_mpa %>% select(p.value) %>% as.vector()
+fd.p.value.mpa <- emtrends_fd_mpa_list$p.value
+```
+
 
 
 # 3. Boxplot: % Ignition
@@ -1189,6 +1300,43 @@ boxplot.no.tlp.split <- df %>% filter(F.Group == "Angiosperm") %>%
          legend.position = 'none',
          panel.grid = element_blank())
 boxplot.no.tlp.split
+```
+
+### Dotplot
+```{r}
+df.dotplot.prop.ig <- df %>% 
+  group_by(spp) %>% 
+  mutate(med_prop_ignite = median(prop_ignite)) %>% 
+  mutate(stdev_prop_ignite = sd(prop_ignite))
+
+df.dotplot.prop.ig$Species <- factor(df.dotplot.prop.ig$Species, levels = c("Ab. concolor", "Pi. jeffreyi", "Ca. decurrens", "Ar. patula", "Ce. cordulatus", "Qu. kelloggii"))
+
+dotplot.prop.ig <- df.dotplot.prop.ig %>%
+   ggplot(aes(y = med_prop_ignite, 
+              x = Species,
+              color = Species)) +
+   geom_point(alpha = .7, size = 5) +
+   geom_linerange(aes(ymin = case_when(
+     med_prop_ignite - 2*stdev_prop_ignite < 0 ~ 0,
+     med_prop_ignite - 2*stdev_prop_ignite > 0 ~ med_prop_ignite - 2*stdev_prop_ignite),
+     ymax = case_when(
+       med_prop_ignite + 2*stdev_prop_ignite > 100 ~ 100,
+       med_prop_ignite + 2*stdev_prop_ignite < 100 ~ med_prop_ignite + 2*stdev_prop_ignite))) +
+   labs(y = "Proportion Ignited", 
+        x = "Species")  +
+   scale_y_continuous(limits = c(0, 120), breaks = c(0, 20, 40, 60, 80, 100)) +
+   #scale_x_discrete(guide = guide_axis(n.dodge=2))+ # if we want axis labelled w/ species
+   color_many2 +
+   annotate('text', x = 1, y = 115, label = 'a', fontface = 'bold', size = 10) +
+   theme(axis.title.y = element_text(face = 'bold', size = 14),
+         axis.text.y = element_text(size = 10),
+         axis.title.x = element_blank(),
+         #axis.text.x = element_text(face = 'italic', size = 11),
+         axis.text.x = element_blank(),
+         axis.ticks.x = element_blank(),
+         legend.position = 'none',
+         panel.grid = element_blank())
+dotplot.prop.ig
 ```
 
 
@@ -1324,7 +1472,6 @@ fd_mod.coef.df <- rbind(fd_mod.coef.df1, fd_mod.coef.df2)
 
 coef.df <- rbind(tti_mod.coef.df, fh_mod.coef.df, temp_mod.coef.df, gd_mod.coef.df, fd_mod.coef.df)
 ```
-
 Quick visualizations of models:
 ```{r}
 tti_spp <- lmer(tti ~ spp + lfm_scaled + (1 | individual), data = mem_data_all_r)
@@ -1430,39 +1577,25 @@ ES.plot <- function(df, y.var, sig, std.error, mpa = 'no', margins.vector = c(0.
 ### TTI
 Setup:
 ```{r}
-species <- c("A. concolor", "C. decurrens", "P. jeffreyi", "A. patula", "Q. kelloggii")
+species <- c("A. concolor", "P. jeffreyi", "C. decurrens", "A. patula", "Q. kelloggii")
 ref <- tti_mod.coef.df$estimate[6]
-tti.ES.lfm <- c(ref, ref + tti_mod.coef.df$estimate[11:12],
+tti.ES.lfm <- c(ref, ref + tti_mod.coef.df$estimate[12],
+                ref + tti_mod.coef.df$estimate[11],
                 ref + tti_mod.coef.df$estimate[10],
                 ref + tti_mod.coef.df$estimate[13])
-  # Following this order: ABCO, CADE, PIJE, ARPA, QUKE (no CECO)
-tti.SE.lfm <- c(tti_mod.coef.df$std.error[6], tti_mod.coef.df$std.error[11:12], tti_mod.coef.df$std.error[10], tti_mod.coef.df$std.error[13])
-
-#old
-tti.p.value.lfm <- c(tti_mod.coef.df$p.value[6], tti_mod.coef.df$p.value[11:12], tti_mod.coef.df$p.value[10], tti_mod.coef.df$p.value[13])
-
-#new
-tti.p.value.lfm.new <- c(emtrends_tti_lfm_list) %>% unlist() %>% unname()
-
-#old
-tti.sig.lfm <- significance(tti.p.value.lfm, tti.sig.lfm)
-
-#new
-tti.sig.lfm.new <- significance(tti.p.value.lfm.new, tti.sig.lfm.new)
-
+  # Following this order: ABCO, PIJE, CADE, ARPA, QUKE (no CECO)
+tti.SE.lfm <- c(tti_mod.coef.df$std.error[c(6, 12, 11, 10, 13)])
+tti.sig.lfm <- significance(tti.p.value.lfm, tti.sig.lfm) # Gathering p-values from vectors made in 2.5 section
 ref2 <- tti_mod.coef.df$estimate[21]
-tti.ES.mpa <- c(ref2, ref2 + tti_mod.coef.df$estimate[26:27], 
+tti.ES.mpa <- c(ref2, ref2 + tti_mod.coef.df$estimate[27],
+                ref2 + tti_mod.coef.df$estimate[26], 
                 ref2 + tti_mod.coef.df$estimate[25], 
                 ref2 + tti_mod.coef.df$estimate[28]) 
-tti.SE.mpa <- c(tti_mod.coef.df$std.error[21], tti_mod.coef.df$std.error[26:27], tti_mod.coef.df$std.error[25], tti_mod.coef.df$std.error[28])
-tti.p.value.mpa <- c(tti_mod.coef.df$p.value[21], tti_mod.coef.df$p.value[26:27], tti_mod.coef.df$p.value[25], tti_mod.coef.df$p.value[28])
-
-tti.p.value.mpa <- c(tti_mod.coef.df$p.value[21], tti_mod.coef.df$p.value[26:27], tti_mod.coef.df$p.value[25], tti_mod.coef.df$p.value[28])
-
+tti.SE.mpa <- c(tti_mod.coef.df$std.error[c(21, 27, 26, 25, 28)])
 tti.sig.mpa <- significance(tti.p.value.mpa, tti.sig.mpa)
 tti.ES.df <- data.frame(species, tti.ES.lfm, tti.SE.lfm, tti.p.value.lfm, tti.sig.lfm, tti.ES.mpa, tti.SE.mpa, tti.p.value.mpa, tti.sig.mpa)
 
-tti.ES.df$species <- factor(tti.ES.df$species, levels = c("A. concolor", "C. decurrens", "P. jeffreyi", "A. patula", "Q. kelloggii"))
+tti.ES.df$species <- factor(tti.ES.df$species, levels = c("A. concolor", "P. jeffreyi", "C. decurrens", "A. patula", "Q. kelloggii"))
 ```
 
 Plots:
@@ -1471,7 +1604,7 @@ tti.ES.lfm.plot <- ES.plot(tti.ES.df, tti.ES.lfm, tti.sig.lfm, tti.SE.lfm,
                            margins.vector = c(0.2, 0.05, 0.1, 0.1),
                            limits.vector = c(-6, 19),
                            breaks.vector = c(-5, 0, 5, 10, 15)) +
-  annotate(geom = "text", x = 0.7, y = 17.2, label = 'd',
+  annotate(geom = "text", x = 0.85, y = 17.2, label = 'e',
            fontface = 'bold', size = 10) +
   labs(title = 'LFM')
 tti.ES.lfm.plot
@@ -1481,7 +1614,7 @@ tti.ES.mpa.plot <- ES.plot(tti.ES.df, tti.ES.mpa, tti.sig.mpa, tti.SE.mpa,
                            margins.vector = c(0.2, 0.3, 0.1, 0),
                            limits.vector = c(-6, 19),
                            breaks.vector = c(-5, 0, 5, 10, 15)) +
-  annotate(geom = "text", x = 0.7, y = 17.2, label = 'g',
+  annotate(geom = "text", x = 0.85, y = 17.2, label = 'h',
            fontface = 'bold', size = 10) +
   labs(title = 'Water Potential')
 tti.ES.mpa.plot
@@ -1491,23 +1624,23 @@ tti.ES.mpa.plot
 Setup:
 ```{r}
 ref <- fh_mod.coef.df$estimate[6]
-fh.ES.lfm <- c(ref, ref + fh_mod.coef.df$estimate[11:12],
+fh.ES.lfm <- c(ref, ref + fh_mod.coef.df$estimate[12],
+                ref + fh_mod.coef.df$estimate[11],
                 ref + fh_mod.coef.df$estimate[10],
                 ref + fh_mod.coef.df$estimate[13])
-  # Following this order: ABCO, CADE, PIJE, ARPA, QUKE (no CECO)
-fh.SE.lfm <- c(fh_mod.coef.df$std.error[6], fh_mod.coef.df$std.error[11:12], fh_mod.coef.df$std.error[10], fh_mod.coef.df$std.error[13])
-fh.p.value.lfm <- c(fh_mod.coef.df$p.value[6], fh_mod.coef.df$p.value[11:12], fh_mod.coef.df$p.value[10], fh_mod.coef.df$p.value[13])
-fh.sig.lfm <- significance(fh.p.value.lfm, fh.sig.lfm)
+  # Following this order: ABCO, PIJE, CADE, ARPA, QUKE (no CECO)
+fh.SE.lfm <- c(fh_mod.coef.df$std.error[c(6, 12, 11, 10, 13)])
+fh.sig.lfm <- significance(fh.p.value.lfm, fh.sig.lfm) # Gathering p-values from vectors made in 2.5 section
 ref2 <- fh_mod.coef.df$estimate[21]
-fh.ES.mpa <- c(ref2, ref2 + fh_mod.coef.df$estimate[26:27], 
+fh.ES.mpa <- c(ref2, ref2 + fh_mod.coef.df$estimate[27],
+                ref2 + fh_mod.coef.df$estimate[26], 
                 ref2 + fh_mod.coef.df$estimate[25], 
                 ref2 + fh_mod.coef.df$estimate[28]) 
-fh.SE.mpa <- c(fh_mod.coef.df$std.error[21], fh_mod.coef.df$std.error[26:27], fh_mod.coef.df$std.error[25], fh_mod.coef.df$std.error[28])
-fh.p.value.mpa <- c(fh_mod.coef.df$p.value[21], fh_mod.coef.df$p.value[26:27], fh_mod.coef.df$p.value[25], fh_mod.coef.df$p.value[28])
+fh.SE.mpa <- c(fh_mod.coef.df$std.error[c(21, 27, 26, 25, 28)])
 fh.sig.mpa <- significance(fh.p.value.mpa, fh.sig.mpa)
 fh.ES.df <- data.frame(species, fh.ES.lfm, fh.SE.lfm, fh.p.value.lfm, fh.sig.lfm, fh.ES.mpa, fh.SE.mpa, fh.p.value.mpa, fh.sig.mpa)
 
-fh.ES.df$species <- factor(fh.ES.df$species, levels = c("A. concolor", "C. decurrens", "P. jeffreyi", "A. patula", "Q. kelloggii"))
+fh.ES.df$species <- factor(fh.ES.df$species, levels = c("A. concolor", "P. jeffreyi", "C. decurrens", "A. patula", "Q. kelloggii"))
 ```
 
 Plots:
@@ -1516,7 +1649,7 @@ fh.ES.lfm.plot <- ES.plot(fh.ES.df, fh.ES.lfm, fh.sig.lfm, fh.SE.lfm,
                            margins.vector = c(0.1, 0.05, 0.1, 0.1),
                            limits.vector = c(-5.5, 5),
                            breaks.vector = c(-4, -2, 0, 2, 4)) +
-  annotate(geom = "text", x = 0.7, y = 4.2, label = 'e',
+  annotate(geom = "text", x = 0.85, y = 4.2, label = 'f',
            fontface = 'bold', size = 10)
 fh.ES.lfm.plot
 
@@ -1526,7 +1659,7 @@ fh.ES.mpa.plot <- ES.plot(fh.ES.df, fh.ES.mpa, fh.sig.mpa, fh.SE.mpa,
                            limits.vector = c(-5.5, 5),
                            breaks.vector = c(-4, -2, 0, 2, 4),
                           axis.title = 'Hydration x Species Effect Size') +
-  annotate(geom = "text", x = 0.7, y = 4.2, label = 'h',
+  annotate(geom = "text", x = 0.85, y = 4.2, label = 'i',
            fontface = 'bold', size = 10) 
 fh.ES.mpa.plot
 ```
@@ -1534,24 +1667,25 @@ fh.ES.mpa.plot
 ### Max. Temp.
 Setup:
 ```{r}
+species <- c("A. concolor", "P. jeffreyi", "C. decurrens", "A. patula", "Q. kelloggii")
 ref <- temp_mod.coef.df$estimate[6]
-temp_max.ES.lfm <- c(ref, ref + temp_mod.coef.df$estimate[11:12],
+temp_max.ES.lfm <- c(ref, ref + temp_mod.coef.df$estimate[12],
+                ref + temp_mod.coef.df$estimate[11],
                 ref + temp_mod.coef.df$estimate[10],
                 ref + temp_mod.coef.df$estimate[13])
-  # Following this order: ABCO, CADE, PIJE, ARPA, QUKE (no CECO)
-temp_max.SE.lfm <- c(temp_mod.coef.df$std.error[6], temp_mod.coef.df$std.error[11:12], temp_mod.coef.df$std.error[10], temp_mod.coef.df$std.error[13])
-temp_max.p.value.lfm <- c(temp_mod.coef.df$p.value[6], temp_mod.coef.df$p.value[11:12], temp_mod.coef.df$p.value[10], temp_mod.coef.df$p.value[13])
-temp_max.sig.lfm <- significance(temp_max.p.value.lfm, temp_max.sig.lfm)
+  # Following this order: ABCO, PIJE, CADE, ARPA, QUKE (no CECO)
+temp_max.SE.lfm <- c(temp_mod.coef.df$std.error[c(6, 12, 11, 10, 13)])
+temp_max.sig.lfm <- significance(temp_max.p.value.lfm, temp_max.sig.lfm) # Gathering p-values from vectors made in 2.5 section
 ref2 <- temp_mod.coef.df$estimate[21]
-temp_max.ES.mpa <- c(ref2, ref2 + temp_mod.coef.df$estimate[26:27], 
+temp_max.ES.mpa <- c(ref2, ref2 + temp_mod.coef.df$estimate[27],
+                ref2 + temp_mod.coef.df$estimate[26], 
                 ref2 + temp_mod.coef.df$estimate[25], 
                 ref2 + temp_mod.coef.df$estimate[28]) 
-temp_max.SE.mpa <- c(temp_mod.coef.df$std.error[21], temp_mod.coef.df$std.error[26:27], temp_mod.coef.df$std.error[25], temp_mod.coef.df$std.error[28])
-temp_max.p.value.mpa <- c(temp_mod.coef.df$p.value[21], temp_mod.coef.df$p.value[26:27], temp_mod.coef.df$p.value[25], temp_mod.coef.df$p.value[28])
+temp_max.SE.mpa <- c(temp_mod.coef.df$std.error[c(21, 27, 26, 25, 28)])
 temp_max.sig.mpa <- significance(temp_max.p.value.mpa, temp_max.sig.mpa)
 temp_max.ES.df <- data.frame(species, temp_max.ES.lfm, temp_max.SE.lfm, temp_max.p.value.lfm, temp_max.sig.lfm, temp_max.ES.mpa, temp_max.SE.mpa, temp_max.p.value.mpa, temp_max.sig.mpa)
 
-temp_max.ES.df$species <- factor(temp_max.ES.df$species, levels = c("A. concolor", "C. decurrens", "P. jeffreyi", "A. patula", "Q. kelloggii"))
+temp_max.ES.df$species <- factor(temp_max.ES.df$species, levels = c("A. concolor", "P. jeffreyi", "C. decurrens", "A. patula", "Q. kelloggii"))
 ```
 
 Plots:
@@ -1560,7 +1694,7 @@ temp_max.ES.lfm.plot <- ES.plot(temp_max.ES.df, temp_max.ES.lfm, temp_max.sig.lf
                            margins.vector = c(0.1, 0.05, 0.1, 0.1),
                            limits.vector = c(-27, 27),
                            breaks.vector = c(-25, -12, 0, 12, 25)) +
-  annotate(geom = "text", x = 0.7, y = 23.1, label = 'f',
+  annotate(geom = "text", x = 0.85, y = 23.1, label = 'g',
            fontface = 'bold', size = 10)
 temp_max.ES.lfm.plot
 
@@ -1569,7 +1703,7 @@ temp_max.ES.mpa.plot <- ES.plot(temp_max.ES.df, temp_max.ES.mpa, temp_max.sig.mp
                            margins.vector = c(0.1, 0.2, 0.1, 0),
                           limits.vector = c(-27, 27),
                           breaks.vector = c(-25, -12, 0, 12, 25)) +
-  annotate(geom = "text", x = 0.7, y = 23.1, label = 'i',
+  annotate(geom = "text", x = 0.85, y = 23.1, label = 'j',
            fontface = 'bold', size = 10)
 temp_max.ES.mpa.plot
 ```
@@ -1577,24 +1711,25 @@ temp_max.ES.mpa.plot
 ### GD
 Setup:
 ```{r}
+species <- c("Ab. concolor", "Pi. jeffreyi", "Ca. decurrens", "Ar. patula", "Qu. kelloggii")
 ref <- gd_mod.coef.df$estimate[6]
-gd.ES.lfm <- c(ref, ref + gd_mod.coef.df$estimate[11:12],
+gd.ES.lfm <- c(ref, ref + gd_mod.coef.df$estimate[12],
+                ref + gd_mod.coef.df$estimate[11],
                 ref + gd_mod.coef.df$estimate[10],
                 ref + gd_mod.coef.df$estimate[13])
-  # Following this order: ABCO, CADE, PIJE, ARPA, QUKE (no CECO)
-gd.SE.lfm <- c(gd_mod.coef.df$std.error[6], gd_mod.coef.df$std.error[11:12], gd_mod.coef.df$std.error[10], gd_mod.coef.df$std.error[13])
-gd.p.value.lfm <- c(gd_mod.coef.df$p.value[6], gd_mod.coef.df$p.value[11:12], gd_mod.coef.df$p.value[10], gd_mod.coef.df$p.value[13])
-gd.sig.lfm <- significance(gd.p.value.lfm, gd.sig.lfm)
+  # Following this order: ABCO, PIJE, CADE, ARPA, QUKE (no CECO)
+gd.SE.lfm <- c(gd_mod.coef.df$std.error[c(6, 12, 11, 10, 13)])
+gd.sig.lfm <- significance(gd.p.value.lfm, gd.sig.lfm) # Gathering p-values from vectors made in 2.5 section
 ref2 <- gd_mod.coef.df$estimate[21]
-gd.ES.mpa <- c(ref2, ref2 + gd_mod.coef.df$estimate[26:27], 
+gd.ES.mpa <- c(ref2, ref2 + gd_mod.coef.df$estimate[27],
+                ref2 + gd_mod.coef.df$estimate[26], 
                 ref2 + gd_mod.coef.df$estimate[25], 
                 ref2 + gd_mod.coef.df$estimate[28]) 
-gd.SE.mpa <- c(gd_mod.coef.df$std.error[21], gd_mod.coef.df$std.error[26:27], gd_mod.coef.df$std.error[25], gd_mod.coef.df$std.error[28])
-gd.p.value.mpa <- c(gd_mod.coef.df$p.value[21], gd_mod.coef.df$p.value[26:27], gd_mod.coef.df$p.value[25], gd_mod.coef.df$p.value[28])
+gd.SE.mpa <- c(gd_mod.coef.df$std.error[c(21, 27, 26, 25, 28)])
 gd.sig.mpa <- significance(gd.p.value.mpa, gd.sig.mpa)
 gd.ES.df <- data.frame(species, gd.ES.lfm, gd.SE.lfm, gd.p.value.lfm, gd.sig.lfm, gd.ES.mpa, gd.SE.mpa, gd.p.value.mpa, gd.sig.mpa)
 
-gd.ES.df$species <- factor(gd.ES.df$species, levels = c("A. concolor", "C. decurrens", "P. jeffreyi", "A. patula", "Q. kelloggii"))
+gd.ES.df$species <- factor(gd.ES.df$species, levels = c("A. concolor", "P. jeffreyi", "C. decurrens", "A. patula", "Q. kelloggii"))
 ```
 
 Plots:
@@ -1622,24 +1757,25 @@ ggarrange(gd_plot_lfm_r, gd.ES.lfm.plot, gd.ES.mpa.plot, nrow = 1)
 ### FD
 Setup:
 ```{r}
+species <- c("A. concolor", "P. jeffreyi", "C. decurrens", "A. patula", "Q. kelloggii")
 ref <- fd_mod.coef.df$estimate[6]
-fd.ES.lfm <- c(ref, ref + fd_mod.coef.df$estimate[11:12],
+fd.ES.lfm <- c(ref, ref + fd_mod.coef.df$estimate[12],
+                ref + fd_mod.coef.df$estimate[11],
                 ref + fd_mod.coef.df$estimate[10],
                 ref + fd_mod.coef.df$estimate[13])
-  # Following this order: ABCO, CADE, PIJE, ARPA, QUKE (no CECO)
-fd.SE.lfm <- c(fd_mod.coef.df$std.error[6], fd_mod.coef.df$std.error[11:12], fd_mod.coef.df$std.error[10], fd_mod.coef.df$std.error[13])
-fd.p.value.lfm <- c(fd_mod.coef.df$p.value[6], fd_mod.coef.df$p.value[11:12], fd_mod.coef.df$p.value[10], fd_mod.coef.df$p.value[13])
-fd.sig.lfm <- significance(fd.p.value.lfm, fd.sig.lfm)
+  # Following this order: ABCO, PIJE, CADE, ARPA, QUKE (no CECO)
+fd.SE.lfm <- c(fd_mod.coef.df$std.error[c(6, 12, 11, 10, 13)])
+fd.sig.lfm <- significance(fd.p.value.lfm, fd.sig.lfm) # Gathering p-values from vectors made in 2.5 section
 ref2 <- fd_mod.coef.df$estimate[21]
-fd.ES.mpa <- c(ref2, ref2 + fd_mod.coef.df$estimate[26:27], 
+fd.ES.mpa <- c(ref2, ref2 + fd_mod.coef.df$estimate[27],
+                ref2 + fd_mod.coef.df$estimate[26], 
                 ref2 + fd_mod.coef.df$estimate[25], 
                 ref2 + fd_mod.coef.df$estimate[28]) 
-fd.SE.mpa <- c(fd_mod.coef.df$std.error[21], fd_mod.coef.df$std.error[26:27], fd_mod.coef.df$std.error[25], fd_mod.coef.df$std.error[28])
-fd.p.value.mpa <- c(fd_mod.coef.df$p.value[21], fd_mod.coef.df$p.value[26:27], fd_mod.coef.df$p.value[25], fd_mod.coef.df$p.value[28])
+fd.SE.mpa <- c(fd_mod.coef.df$std.error[c(21, 27, 26, 25, 28)])
 fd.sig.mpa <- significance(fd.p.value.mpa, fd.sig.mpa)
 fd.ES.df <- data.frame(species, fd.ES.lfm, fd.SE.lfm, fd.p.value.lfm, fd.sig.lfm, fd.ES.mpa, fd.SE.mpa, fd.p.value.mpa, fd.sig.mpa)
 
-fd.ES.df$species <- factor(fd.ES.df$species, levels = c("A. concolor", "C. decurrens", "P. jeffreyi", "A. patula", "Q. kelloggii"))
+fd.ES.df$species <- factor(fd.ES.df$species, levels = c("A. concolor", "P. jeffreyi", "C. decurrens", "A. patula", "Q. kelloggii"))
 ```
 
 Plots:
@@ -1667,7 +1803,7 @@ ggarrange(fd_plot_lfm_r, fd.ES.lfm.plot, fd.ES.mpa.plot, nrow = 1)
 # 5. Main Figure
 Arranging effect size plots and scatterplots into one figure
 
-For now, focusing on TTI, FH, GD until we figure out how we hope to incorporate prop_ignite 
+Focusing on TTI, FH, and Max Temp.
 
 Set up:
 ```{r}
@@ -1675,20 +1811,25 @@ blank_plot <- ggplot(data = gd.ES.df, aes(x = species, y = gd.ES.mpa)) +
   geom_point(color = 'white') +
   theme_void()
 
-tti.ES.df2 <- tti.ES.df
-tti.ES.df2$tti.sig.mpa <- factor(tti.ES.df2$tti.sig.mpa, levels = c("Yes", "No"))
+df.dotplot.prop.ig <- df.dotplot.prop.ig %>% # Making totally arbitrary column to make legend
+  mutate(holder.sig = case_when(
+    tti > 250 ~ "Yes",
+    tti < 250 ~ "No"
+  )) %>% 
+  drop_na(holder.sig)
+df.dotplot.prop.ig$holder.sig <- factor(df.dotplot.prop.ig$holder.sig, levels = c("Yes", "No"))
 
-plot_legend.ES <- ggplot(data = tti.ES.df2, aes(x = species, y = tti.ES.mpa,
-                                                color = species, shape = tti.sig.mpa)) +
+plot_legend.ES <- ggplot(data = df.dotplot.prop.ig, aes(x = Species, y = med_prop_ignite,
+                                                color = Species, shape = holder.sig)) +
   labs(y = '', color = 'Species', shape = 'Significant?') +
   geom_point(size = 4, cex = 6, alpha = 0.9) +
-  geom_linerange(aes(ymin = tti.ES.mpa - 0.5*tti.SE.mpa, ymax = tti.ES.mpa + 0.5*tti.SE.mpa), size = 0.8) +
+  geom_linerange(aes(ymin = med_prop_ignite - 2*stdev_prop_ignite, ymax = med_prop_ignite + 2*stdev_prop_ignite)) +
   theme_bw() +
-  #color_many2 +
-  color_noceco+
+  color_many2 +
   scale_shape_manual(values = c(16, 10)) +
   theme(legend.title = element_text(face = 'bold', size = 20),
         legend.text = element_text(face = 'italic', size = 17))
+plot_legend.ES
 
 plot_legend.scatterplot <- mem_data_all_r %>% 
   ggplot(aes(x = fh, y = mpa, group = F.Group)) +
@@ -1707,7 +1848,7 @@ SP_legend <- cowplot::get_legend(plot_legend.scatterplot)
 ```
 
 Arranging:
-Note: I had to do some wacky things with blank plots to get the final product to look okay. I still think we could improve it, but I felt like this was passable for now.
+Note: I had to do some wacky things with blank plots to get the final product to look okay.
 ```{r}
 scatterplots <- cowplot::plot_grid(blank_plot, tti_plot_lfm_r, fh_plot_lfm_r,
                                    lower_temp_max_plot_lfm_r,
@@ -1728,9 +1869,9 @@ main_figure_no_legend
 
 legend <- cowplot::plot_grid(ES_legend, SP_legend, ncol = 1)
 
-legend_and_boxplot <- cowplot::plot_grid(blank_plot, boxplot.no.tlp.split, blank_plot, legend, ncol = 1, rel_heights = c(0.29,4.1,0.5,6))
+legend_and_dotplot <- cowplot::plot_grid(blank_plot, dotplot.prop.ig, blank_plot, legend, ncol = 1, rel_heights = c(0.29,3.1,0.98,6))
 
-main_figure <- cowplot::plot_grid(main_figure_no_legend, legend_and_boxplot, ncol = 2, rel_widths = c(5,1.5))
+main_figure <- cowplot::plot_grid(legend_and_dotplot, main_figure_no_legend, ncol = 2, rel_widths = c(1.5,5))
 main_figure
 
 ggsave(plot = main_figure, bg = 'white', 
@@ -1761,9 +1902,61 @@ ST.df %>% kable(format = 'html', escape = F, col.names = c('Flam. Metric', 'Spec
   save_kable(here('figures', 'interspecific.differences.summary.table.html'))
 ```
 
+# 7. MEM Table
+## Kable
+Tidy:
+```{r}
+tti_est.df <- tidy(tti_mod)
+tti_est.df <- tti_est.df %>% 
+  mutate_if(is.numeric, round, digits = 3)
+fh_est.df <- tidy(fh_mod)
+fh_est.df <- fh_est.df %>% 
+  mutate_if(is.numeric, round, digits = 3)
+mt_est.df <- tidy(lower_temp_max_mod)
+mt_est.df <- mt_est.df %>% 
+  mutate_if(is.numeric, round, digits = 3)
+gd_est.df <- tidy(gd_mod)
+gd_est.df <- gd_est.df %>% 
+  mutate_if(is.numeric, round, digits = 3)
+```
+
+Setup:
+```{r}
+coef <- c("Intercept", "Live Fuel Moisture (LFM)", "Water Potential (MPa)", "Sample Weight", "Site", "Ab. concolor", "Pi. jeffreyii", "Ca. decurrens", "Ar. patula", "Qu. kelloggii", "Interaction Effects", "Pi. jeffreyii x LFM", "Pi. jeffreyii x MPa", "Ca. decurrens x LFM", "Ca. decurrens x MPa", "Ar. patula x LFM", "Ar. patula x MPa", "Qu. kelloggii x LFM", "Qu. kelloggii x MPa", "October 2020", "September 2020", "Random Effects", "Sigma Squared", "Tau00", "N", "Observations", "Marginal Rsq / Conditional Rsq", "AIC")
+tti.est <- c(tti_est.df$estimate[c(1,7,6,10,8)], 'Reference', tti_est.df$estimate[c(4,3,2,5)], ' ', tti_est.df$estimate[c(17,13,16,12,15,11, 18, 13)], 'Reference', tti_est.df$estimate[9], ' ', '440.16', '64.43individual', '101individual', '580', '0.578/0.632', '5184.092')
+tti.p <- c(tti_est.df$p.value[c(1,7,6,10,8)], 1, tti_est.df$p.value[c(4,3,2,5)], 1, tti_est.df$p.value[c(17,13,16,12,15,11, 18, 13)], 1, tti_est.df$p.value[9], 1, 1, 1, 1, 1, 1, 1)
+fh.est <- c(fh_est.df$estimate[c(1,7,6,10,8)], 'Reference', fh_est.df$estimate[c(4,3,2,5)], ' ', fh_est.df$estimate[c(17,13,16,12,15,11, 18, 13)], 'Reference', fh_est.df$estimate[9], ' ', '34.90', '6.31individual', '101individual', '580', '0.272/0.383', '3768.649')
+fh.p <- c(fh_est.df$p.value[c(1,7,6,10,8)], 1, fh_est.df$p.value[c(4,3,2,5)], 1, fh_est.df$p.value[c(17,13,16,12,15,11, 18, 13)], 1, fh_est.df$p.value[9], 1, 1, 1, 1, 1, 1, 1)
+mt.est <- c(mt_est.df$estimate[c(1,7,6,10,8)], 'Reference', mt_est.df$estimate[c(4,3,2,5)], ' ', mt_est.df$estimate[c(17,13,16,12,15,11, 18, 13)], 'Reference', mt_est.df$estimate[9], ' ', '3614.55', '167.75individual', '101individual', '580', '0.238/0.383', '6334.413')
+mt.p <- c(mt_est.df$p.value[c(1,7,6,10,8)], 1, mt_est.df$p.value[c(4,3,2,5)], 1, mt_est.df$p.value[c(17,13,16,12,15,11, 18, 13)], 1, mt_est.df$p.value[9], 1, 1, 1, 1, 1, 1, 1)
+gd.est <- c(gd_est.df$estimate[c(1,7,6,10,8)], 'Reference', gd_est.df$estimate[c(4,3,2,5)], ' ', gd_est.df$estimate[c(17,13,16,12,15,11, 18, 13)], 'Reference', gd_est.df$estimate[9], ' ', '1780.64', '16.61individual', '101individual', '580', '0.312/0.319', '5920.094')
+gd.p <- c(gd_est.df$p.value[c(1,7,6,10,8)], 1, gd_est.df$p.value[c(4,3,2,5)], 1, gd_est.df$p.value[c(17,13,16,12,15,11, 18, 13)], 1, gd_est.df$p.value[9], 1, 1, 1, 1, 1, 1, 1)
+mem.table.df <- data.frame(coef, tti.est, tti.p, fh.est, fh.p, mt.est, mt.p, gd.est, gd.p)
+```
+
+Kable:
+```{r}
+mem.table.df %>%
+  mutate(coef = cell_spec(coef, 'html', bold = ifelse(coef == c("Interaction Effects", "Random Effects"), T, F), italic = ifelse(coef == c("Ab. concolor", "Pi. jeffreyii", "Ca. decurrens", "Ar. patula", "Qu. kelloggii"), T, F), color = 'black')) %>% 
+  mutate(tti.est = cell_spec(tti.est, 'html', bold = ifelse(tti.p < 0.05, T, F), color = 'black')) %>% 
+  mutate(fh.est = cell_spec(fh.est, 'html', bold = ifelse(fh.p < 0.05, T, F), color = 'black')) %>% 
+  mutate(mt.est = cell_spec(mt.est, 'html', bold = ifelse(mt.p < 0.05, T, F), color = 'black')) %>% 
+  mutate(gd.est = cell_spec(gd.est, 'html', bold = ifelse(gd.p < 0.05, T, F), color = 'black')) %>% 
+  select(coef, tti.est, fh.est, mt.est, gd.est) %>% 
+  kable(format = 'html', escape = F, digits = 5, col.names = c('Coefficients', 'Time to Ignition', 'Flame Height', 'Maximum Temperature', 'Glow Duration')) %>% 
+  kable_styling(bootstrap_options = c('hover', 'bordered', 'condensed'), fixed_thead = T, font_size = 30) %>% 
+  row_spec(0, bold = T, color = 'black') %>% 
+  row_spec(c(6, 20), italic = T) %>% 
+  row_spec(c(11,22), background = '#D3D3D3') %>% 
+  save_kable(here('figures', 'MAIN_mem_table.html'))
+
+?cell_spec
+```
+
+
 # ------------------------------
 
-# 7. Statistical tests
+# 8. Statistical tests
 ## ANOVA Tests
 ```{r}
 # Testing Assumptions: Normally distributed residuals
@@ -1877,7 +2070,7 @@ summary(temp.max.post.hoc)
 ```
 
 # ====================
-# 8. Extra Things
+# 9. Extra Things
 
 #### ES Mpa vs. ES LFM
 ```{r}
