@@ -21,6 +21,7 @@ library(nlme)
 library(lme4)
 library(remef)
 library(kableExtra)
+library(modelr)
 
 #some weird functions:
 filter = dplyr::filter
@@ -42,11 +43,11 @@ field_data_all_6 <- read_csv(here("processed-data", "analysis 2.0","field_data_2
   select(spp, lfm, year, month, water_potential, site, wet_weight, unique_id, date) %>% 
   filter(wet_weight > 50) %>% #remove weirdly small wet weights
   mutate(mpa = water_potential,
-    lfm_scaled = scale(lfm), 
-         mpa_scaled = scale(mpa), 
+    lfm_scaled = c(scale(lfm)), 
+         mpa_scaled = c(scale(mpa)), 
         # mpa = water_potential, 
          year_month = paste(year, month, sep = "_", collapse = NULL),
-         sample_wt_scaled = scale(wet_weight), 
+         sample_wt_scaled = c(scale(wet_weight)), 
          individual = unique_id, 
          spp = tolower(spp)) %>% 
   mutate(Species = case_when(
@@ -64,17 +65,17 @@ field_data_all_6$spp <- factor(field_data_all_6$spp, levels = c("abco", "pije", 
 
 
 mem_data_all_6 <- read_csv(here("processed-data", "analysis 2.0", "sierra_flam_data_all.csv"), show_col_types = F) %>% 
-  select(lfm, mpa, fh, fh, fd, gd,tti, prop_ignite, temp_change, ignition, sample_wt, dry_wt, fresh_wt, water_wt, location, site, year_month, spp, individual, lower_temp_max) %>% 
+  select(lfm, mpa, fh, fh, fd, gd,tti, prop_ignite, temp_change, ignition, sample_wt, dry_wt, fresh_wt, water_wt, location, site, year_month, spp, individual, lower_temp_max) %>%
   mutate(dw_flam_sample = sample_wt * (dry_wt/fresh_wt),
          ww_flam_sample = sample_wt * (water_wt/fresh_wt)) %>% 
   mutate(mpa = -1*mpa,
     excess_water = (ww_flam_sample - dw_flam_sample)) %>% 
-   #group_by(spp) %>% 
-  mutate(mpa_scaled = scale(mpa),
+  #group_by(spp) %>% 
+  mutate(mpa_scaled = c(scale(mpa)),
          dw_flam_sample_scaled = scale(dw_flam_sample), 
-         sample_wt_scaled = scale(sample_wt), 
+         sample_wt_scaled = c(scale(sample_wt)), 
          ww_flam_sample_scaled = scale(ww_flam_sample),
-         lfm_scaled = scale(lfm), 
+         lfm_scaled = c(scale(lfm)), 
          excess_water_scaled = scale(excess_water)) %>% 
   filter(!year_month %in% c("2021_august")) %>% 
   drop_na(mpa_scaled, lfm_scaled, sample_wt_scaled)
@@ -116,7 +117,7 @@ summary(sw)
 TukeyHSD(sw, conf.level=.95)
 ```
 
-#TTI
+# TTI
 
 ```{r}
 #tti_mod <- lmer(tti ~ spp*mpa_scaled + spp*lfm_scaled + site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all_6)
@@ -193,9 +194,8 @@ lower_temp_max_mod <- lm(lower_temp_max ~ spp*mpa_scaled
                            + spp*lfm_scaled 
                            +  site 
                           #+ year_month 
-                           + sample_wt_scaled 
-                           #+ (1 | individual), 
-                           ,data = mem_data_all_r)
+                           + sample_wt_scaled
+                           ,data = mem_data_all_6)
 
 temp_max_df <- field_data_all_6 %>% 
   modelr::add_predictions(lower_temp_max_mod)
@@ -289,9 +289,164 @@ legend_plots <- cowplot::plot_grid(plots, legend,
                                    )
 legend_plots
 
-ggsave(here('figures', 'predicted.flam.from.field.jpg'), height = 15, width = 8.5)
+#ggsave(here('figures', 'predicted.flam.from.field.jpg'), height = 15, width = 8.5)
 ```
 #-------
+# MAIN FIGURE
+Using mean LFM, MPa, Sample Weight instead of all observations per week
+```{r}
+field_data_all_means <- field_data_all_6 %>% 
+  mutate(date = case_when(
+    date == '2021-04-24' ~ "04/24",
+    date == '2021-05-14' ~ "05/14",
+    date == '2021-05-15' ~ "05/14",
+    date == '2021-06-15' ~ "06/15",
+    date == '2021-06-16' ~ "06/15",
+    date == '2021-07-08' ~ "07/8",
+    date == '2021-07-09' ~ "07/8",
+    date == '2021-07-30' ~ "07/30",
+    date == '2021-07-31' ~ "07/30",
+    date == '2021-08-19' ~ "08/19",
+    date == '2021-08-20' ~ "08/19",
+    date == '2021-09-16' ~ "09/16",
+    date == '2021-09-17' ~ "09/16",
+    date == '2021-10-16' ~ "10/16",
+    date == '2021-10-17' ~ "10/16"
+  )) %>%
+  drop_na(lfm_scaled, mpa_scaled, sample_wt_scaled) %>% 
+  group_by(spp, month) %>% 
+  mutate(lfm_scaled = mean(lfm_scaled)) %>% 
+  mutate(mpa_scaled = mean(mpa_scaled)) %>% 
+  mutate(sample_wt_scaled = mean(sample_wt_scaled)) %>%
+  ungroup()
+field_data_all_means$date <- as.Date(field_data_all_means$date, format='%m/%d')
+```
+
+## TTI
+```{r}
+tti_df <- mem_data_all_6 %>% 
+  drop_na(mpa_scaled, lfm_scaled, sample_wt_scaled, tti)
+tti_mod <- lm(tti ~ spp*mpa_scaled + spp*lfm_scaled + sample_wt_scaled, data = tti_df)
+summary(tti_mod)
+
+tti_df <- field_data_all_means %>% 
+  modelr::add_predictions(tti_mod)
+# To get standard deviations
+tti_df_stdev <- field_data_all_6 %>% 
+  add_predictions(tti_mod)
+tti_df_stdev <- tti_df_stdev %>% 
+  drop_na(pred) %>% 
+  group_by(spp, month) %>% 
+  mutate(stdev.pred = sd(pred))
+tti_df <- tti_df %>% 
+  mutate(stdev.pred = tti_df_stdev$stdev.pred)
+
+tti_pred <- tti_df %>%
+  filter(year == 2021) %>% 
+  ggplot(aes(y = pred*-1, x = date, color = spp)) +
+   geom_point(alpha = .3, size = 2) +
+   geom_smooth(se = F) +
+   geom_linerange(aes(ymin = pred*-1 - 0.5*stdev.pred, ymax = pred*-1 + 0.5*stdev.pred)) +
+    theme(legend.position = "none",
+        axis.text.y = element_text(size = 14),
+        #axis.text.x = element_text(size = 18, angle = 20),
+        axis.title = element_text(size = 22, face = 'bold'),
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        plot.margin = unit(c(0, 0.1, 0, 0.1), 'cm')) +
+    labs(y = "Ignitability", 
+       x = "") +
+    color_many
+tti_pred
+```
+
+## FH
+```{r}
+fh_df <- mem_data_all_6 %>% 
+  drop_na(mpa, lfm, fh)
+fh_mod <- lm(fh ~ spp*mpa_scaled + spp*lfm_scaled + sample_wt_scaled, data = fh_df)
+summary(fh_mod)
+
+fh_df <- field_data_all_means %>% 
+  modelr::add_predictions(fh_mod)
+# To get standard deviations
+fh_df_stdev <- field_data_all_6 %>% 
+  add_predictions(fh_mod)
+fh_df_stdev <- fh_df_stdev %>% 
+  drop_na(pred) %>% 
+  group_by(spp, month) %>% 
+  mutate(stdev.pred = sd(pred))
+fh_df <- fh_df %>% 
+  mutate(stdev.pred = fh_df_stdev$stdev.pred)
+
+fh_pred <- fh_df %>%
+  filter(year == 2021) %>% 
+  ggplot(aes(y = pred, x = date, color = spp)) +
+   geom_point(alpha = .3, size = 2) +
+   geom_smooth(se = F) +
+   geom_linerange(aes(ymin = pred - 0.5*stdev.pred, ymax = pred + 0.5*stdev.pred)) +
+    theme(legend.position = "none",
+        axis.text.y = element_text(size = 14),
+        #axis.text.x = element_text(size = 18, angle = 20),
+        axis.title = element_text(size = 22, face = 'bold'),
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        plot.margin = unit(c(0, 0.1, 0, 0.5), 'cm')) +
+    labs(y = "Flame Height", 
+       x = "") +
+    color_many
+fh_pred
+```
+
+## Max Temp
+```{r}
+temp_max_df <- mem_data_all_6 %>% 
+  drop_na(mpa, lfm, lower_temp_max)
+temp_max_mod <- lm(lower_temp_max ~ spp*mpa_scaled + spp*lfm_scaled +
+                           sample_wt_scaled, data = temp_max_df)
+summary(temp_max_mod)
+
+temp_max_df <- field_data_all_means %>% 
+  modelr::add_predictions(temp_max_mod)
+#To get standard deviations
+temp_max_df_stdev <- field_data_all_6 %>% 
+  add_predictions(temp_max_mod)
+temp_max_df_stdev <- temp_max_df_stdev %>% 
+  drop_na(pred) %>% 
+  group_by(spp, month) %>% 
+  mutate(stdev.pred = sd(pred))
+temp_max_df <- temp_max_df %>% 
+  mutate(stdev.pred = temp_max_df_stdev$stdev.pred)
+
+temp_max_pred <- temp_max_df %>%
+  filter(year == 2021) %>% 
+  ggplot(aes(y = pred, x = date, color = spp)) +
+   geom_point(alpha = .3, size = 2) +
+   geom_smooth(se = F) +
+   geom_linerange(aes(ymin = pred - 0.5*stdev.pred, ymax = pred + 0.5*stdev.pred)) +
+    theme(legend.position = "none",
+        axis.text.y = element_text(size = 14),
+        axis.text.x = element_text(size = 18, angle = 20),
+        axis.title = element_text(size = 22, face = 'bold'),
+        plot.margin = unit(c(0, 0.1, 0.1, 0.2), 'cm')) +
+    labs(y = "Maximum Temp.", 
+       x = "") +
+    color_many
+temp_max_pred
+```
+## Combined
+```{r}
+plots <- cowplot::plot_grid(tti_pred, fh_pred, temp_max_pred, ncol = 1
+                                   ,rel_heights = c(1, 1, 1,1))
+
+legend_plots <- cowplot::plot_grid(plots, legend, 
+                                   ncol = 2,
+                                   rel_widths = c(3,1))
+legend_plots
+
+ggsave(here('figures', 'predicted.flam.from.field.jpg'), height = 15, width = 8.5)
+```
+
 #-------
 
 #Boxplots, all 2021: 

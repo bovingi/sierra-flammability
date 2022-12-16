@@ -32,7 +32,7 @@ group_by = dplyr::group_by
 
 source(here::here("scripts", "scripts_functions", "figure_info_sierra_flammability.R")) #color and theme info is here
 
-install.packages("rnpn") #https://github.com/usa-npn/rnpn
+#install.packages("rnpn") #https://github.com/usa-npn/rnpn
 library(rnpn)
 ```
 
@@ -43,8 +43,8 @@ our_spp_df <- species_list %>%
   filter(common_name %in% c("Jeffrey pine", 
                             "white fir", 
                             "whitethorn ceanothus", 
-                            "incense cedar", 
-                            "black oak", 
+                            "California black oak",
+                            "incense cedar",
                             "greenleaf manzanita"))
 our_spp_ids <- our_spp_df %>% select(species_id) %>% list()
 our_spp_ids
@@ -56,14 +56,14 @@ our_spp_list <- list(c("Jeffrey pine",
                             "white fir", 
                             "whitethorn ceanothus", 
                             "incense cedar", 
-                            "black oak", 
+                            "California black oak", 
                             "greenleaf manzanita"))
 ```
 
 #request data: 
 ```{r}
 some_data <- npn_download_status_data(request_source='UC Santa Barbara',years=c(2015, 2016, 2017,
-  2018, 2019, 2020, 2021, 2022),species_id=c(1159,				
+  2018, 2019, 2020, 2021, 2022),species_id=c(765,				
 761,		
 1723,			
 1480,				

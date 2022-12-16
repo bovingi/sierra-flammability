@@ -17,7 +17,6 @@ color_noceco <-  scale_color_manual(values = c('black', '#BD282F', '#FDD358', '#
 color_many2 <- scale_color_manual(values = c('black', '#BD282F', '#EE8739', '#FDD358', '#87B37A', '#5D5D81'))
 
 #Calecopal Colors
-
 sierra1 = c("#BD973D", "#5F5C29", "#3B7D6E", "#5792CC", "#4D5B75", "#262E43")
 
 #To get more colors, if needed:

@@ -20,6 +20,7 @@ library(cowplot)
 library(here)
 library(lubridate)
 month = lubridate::month
+week = lubridate::week
 library(janitor)
 library(tidytext)
 library(grid)
@@ -63,6 +64,8 @@ field_data_all_3 <- read_csv(here("processed-data", "analysis 2.0","field_data_2
 pheno_df <- read_csv(here("processed-data", "compiled-datasets", "phenology_czo_2021.csv"), show_col_types = FALSE) %>% 
   select(-observation_id, -observation_time, -observation_date, -raw_abundance_value) %>% 
    mutate(spp = fct_relevel(code, "ABCO","PIJE","CADE","ARPA", "CECO", "QUKE"))  
+
+npn_df <- read_csv(here("processed-data", "analysis 2.0", "npn_data.csv")) # National phenology network dataset
 ```
 
 ###PV Summaries
@@ -1231,8 +1234,9 @@ ggsave(here("figures", "phenophase.lfm.legends.jpg"),
 # MAIN FIGURE
 Adjusting the above figure by removing some of the phenophases in which we made note of mistakes in observations or have a low frequency across all observed individuals. This way the phenology presented represents the population observed rather than individual anomalies.
 
-## Histogram of phenophases
+## Histograms of phenophases
 I wrote this code to see which weeks had only a couple of observations to get a better sense of how the entire population acted as an average rather than single individuals
+### Our data
 ```{r}
 abco.hist <- pheno_fig %>% 
   filter(spp == "ABCO") %>% 
@@ -1277,8 +1281,52 @@ quke.hist <- pheno_fig %>%
 quke.hist
 ```
 
+### National phenology network data
+```{r}
+npn_df <- npn_df %>% 
+  mutate(week = week(ymd(observation_date))) %>% 
+  filter(phenophase_status == 1)
+
+npn_df %>% 
+  filter(species == "concolor") %>% 
+  ggplot(aes(x = week)) +
+  geom_histogram() +
+  facet_wrap(~phenophase_description)
+
+npn_df %>% 
+  filter(species == "decurrens") %>% 
+  ggplot(aes(x = week)) +
+  geom_histogram() +
+  facet_wrap(~phenophase_description)
+
+npn_df %>% 
+  filter(species == "jeffreyi") %>% 
+  ggplot(aes(x = week)) +
+  geom_histogram() +
+  facet_wrap(~phenophase_description)
+
+npn_df %>% 
+  filter(species == "patula") %>% 
+  ggplot(aes(x = week)) +
+  geom_histogram() +
+  facet_wrap(~phenophase_description)
+
+npn_df %>% 
+  filter(species == "cordulatus") %>% 
+  ggplot(aes(x = week)) +
+  geom_histogram() +
+  facet_wrap(~phenophase_description)
+
+npn_df %>% 
+  filter(species == "kelloggii") %>% 
+  ggplot(aes(x = week)) +
+  geom_histogram() +
+  facet_wrap(~phenophase_description)
+```
+
+
 ## Data wrangling
-Using above histogram to filter out certain values
+Using above histogram, notes from phenology notebook, and a cross-comparison with the national phenology network (NPN) data to filter out certain values:
 ```{r}
 # ABCO
 pheno_fig_abco1 <- pheno_fig2 %>% 
