@@ -94,6 +94,8 @@ mem_data_all_clean <- mem_data_all_raw %>%
 mem_data_all <- mem_data_all_clean %>% 
   filter(spp != "ceco")
 
+write.csv(mem_data_all, here("processed-data", "analysis 2.0","mem_final_from5.05.csv"))
+
 field_data_all <- read_csv(here("processed-data", "analysis 2.0","field_data_2020_2021.csv"), show_col_types = F)
 ```
 
