@@ -102,7 +102,8 @@ pv_all_df <- read_csv(here("processed-data", "analysis 2.0", "all_pv_curves_clea
     spp == "PIJE" ~ "Gymnosperm",
     spp == "QUKE" ~ "Angiosperm"
   )) %>% 
-  filter(timing == "fall")
+  filter(timing == "fall") %>% 
+  filter(!(spp == "QUKE" & sample %in% c(2,4) & year == 2020)) #these had their dry weights switched, 
 
 write_csv(pv_all_df, (here("processed-data", "analysis 2.0", "all_pv_curves_clean_vardecomp_2.csv")))
 ```
