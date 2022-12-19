@@ -324,6 +324,16 @@ figure_pca_spp <- (sierra_flamdata_pca_noceco[, c("fh", "ttfg", "tti", "fd", "gd
 spp_pc_flam <-predict(figure_prcomp_spp) 
 pca_flam_data_spp <- as_data_frame(spp_pc_flam) 
 spp_data_pca <- bind_cols(sierra_flamdata_pca_noceco, pca_flam_data_spp)
+
+spp_data_pca <- spp_data_pca %>% 
+  mutate(Species = case_when(
+    spp == 'abco' ~ 'Ab. concolor',
+    spp == 'arpa' ~ 'Ar. patula',
+    spp == 'cade' ~ 'Ca. decurrens',
+    spp == 'pije' ~ 'Pi. jeffreyii',
+    spp == 'quke' ~ 'Qu. kelloggii'
+  ))
+spp_data_pca$Species <- factor(spp_data_pca$Species, levels = c('Ab. concolor', 'Pi. jeffreyii', 'Ca. decurrens', 'Ar. patula', 'Qu. kelloggii'))
 ```
 
 ## PCA Visualization
@@ -418,6 +428,7 @@ ggplot(spp_data_pca, aes(x = PC1, y = PC2, color = F.Group)) +
      arrow = arrow(length = unit(1/2, "picas")), 
      size = .93, alpha = 0.9, color = 'black') +
   scale_color_manual(values = c('steelblue3', 'darkgreen')) +
+  #color_many2 +
   annotate("text",
           x = df.v1$PC1*1.3,
           y = df.v1$PC2*1.15,
@@ -443,7 +454,7 @@ ggplot(spp_data_pca, aes(x = PC1, y = PC2, color = F.Group)) +
 
 ggsave(here("figures/PCA.angio.vs.gymno.jpg"), height = 8, width = 10)
 #ggsave(here("figures/PCA.spp.diff.jpg"), height = 8, width = 10) 
-#change F.Group > spp to run spp.diff PCA
+# TO RUN SPP PCA: change F.Group > Species, legend.text = element_text(face = italic) and change color palette to color_many2
 ```
 
 ## PCA Table
