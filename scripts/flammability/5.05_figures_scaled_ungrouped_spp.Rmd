@@ -716,7 +716,7 @@ fd_plot_lfm_r
 ## Temp Change
 Models:
 ```{r}
-temp_change_mod <- lmer(temp_change ~ spp*mpa_scaled + spp*lfm_scaled +  site + year_month + spp*sample_wt_scaled + (1 | individual), data = mem_data_all) 
+temp_change_mod <- lmer(temp_change ~ spp*mpa_scaled + spp*lfm_scaled +  site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all) 
 
 temp_change_mod.fgroup <- lmer(temp_change ~ F.Group*mpa_scaled + F.Group*lfm_scaled +  site + year_month + spp*sample_wt_scaled + (1 | individual), data = mem_data_all)
 
@@ -802,6 +802,36 @@ temp_change_plot_lfm_r <- mem_data_all_r %>%
        y = "Temp. Change") +
   annotate(geom = "text", x = -2.6, y = 255, label = 'e', fontface = 'bold', size = 10)
 temp_change_plot_lfm_r
+
+# REMEF, For *MAIN* figure:
+temp_change_plot_lfm_r<- mem_data_all_r %>% 
+  filter(r_temp_change_lfm > 0) %>% 
+  ggplot(aes(y = r_temp_change_lfm, 
+             x = lfm_scaled, 
+             group = F.Group)) +
+  geom_point(alpha= .4, aes(color = F.Group))+
+  geom_smooth(method = "lm", se = F, aes(color = F.Group,
+                   lty = F.temp.max.lfm.sig), alpha = .75, lty = 3) +
+  scale_y_continuous(limits = c(-15, 250), breaks = c(0, 50, 100, 150, 200, 250)) +
+  theme(legend.position = "none",
+                       axis.text = element_text(size = 13),
+                       axis.title = element_text(size = 16, face = 'bold'))+
+  #color_many2 + # For color by spp w/ CECO
+  #color_noceco + # For color by spp w/o CECO
+  #scale_color_manual(values = c('black', '#FDD358', 'black', 'black', '#FDD358')) + # For color by angio vs gymno (version 1)
+  scale_color_manual(values = c('steelblue3', 'darkgreen')) + # For color by angio vs gymno; change spp > F.Group (version 2)
+  #scale_shape_manual(values = c(16, 10)) +
+  labs(x = "LFM (scaled, centered)", 
+       y = "Temp. Change (C)") +
+  annotate(geom = "text", x = -2.75, y = 250, label = 'd', fontface = 'bold', size = 10) +
+  annotate(geom = 'text', x = -2.3, y = -12, label = 'dry', size = 5) +
+  annotate(geom = 'text', x = 3.05, y = -12, label = 'wet', size = 5) +
+  geom_segment(aes(x = -2, y = -12, xend = 2.75, yend = -12),
+     arrow = arrow(ends = 'both', length = unit(1/2, "picas")), 
+      size = .5, alpha = 0.8)
+temp_change_plot_lfm_r
+
+
 
 #ggarrange(temp_change_plot, temp_change_plot_r, temp_change_plot_lfm, temp_change_plot_lfm_r, nrow = 2, ncol = 2)
 ```
@@ -1111,6 +1141,49 @@ em_temp_max_mpa <- emmeans::emtrends(tmp_mod_mpa, pairwise~F.Group, var = "mpa_s
 summary(em_temp_max_mpa, infer=c(TRUE,TRUE),null=0)
 ```
 
+## Temp change
+```{r}
+tmp_mod_lfm <- lmer(temp_change ~ spp*lfm_scaled +  site + year_month  + (1 | individual), data = mem_data_all_r)
+em_temp_change_lfm <- emmeans::emtrends(tmp_mod_lfm, pairwise~spp, var = c("lfm_scaled"))
+temp_change_lfm <- summary(em_temp_change_lfm, infer=c(TRUE,TRUE),null=0)
+
+emtrends_temp_change_lfm <- temp_change_lfm$emtrends %>% 
+  as.data.frame()
+emtrends_temp_change_lfm$spp <- factor(emtrends_temp_change_lfm$spp, levels = c("abco", "pije", "cade", "arpa", "quke"))
+emtrends_temp_change_lfm <- emtrends_temp_change_lfm %>% 
+  arrange(spp)
+  
+emtrends_temp_change_lfm_list <- emtrends_temp_change_lfm %>% select(p.value) %>% as.vector()
+temp_change.p.value.lfm <- emtrends_temp_change_lfm_list$p.value
+```
+
+```{r}
+tmp_mod_lfm <- lmer(temp_change ~ F.Group*lfm_scaled +  site + year_month  + (1 | individual), data = mem_data_all_r)
+em_temp_change_lfm <- emmeans::emtrends(tmp_mod_lfm, pairwise~F.Group, var = c("lfm_scaled"))
+summary(em_temp_change_lfm, infer=c(TRUE,TRUE),null=0)
+```
+
+```{r}
+tmp_mod_mpa <- lmer(temp_change ~ spp*mpa_scaled +  site + year_month  + (1 | individual), data = mem_data_all_r)
+em_temp_change_mpa <- emmeans::emtrends(tmp_mod_mpa, pairwise~spp, var = "mpa_scaled")
+temp_change_mpa <- summary(em_temp_change_mpa, infer=c(TRUE,TRUE),null=0)
+
+emtrends_temp_change_mpa <- temp_change_mpa$emtrends %>% 
+  as.data.frame()
+emtrends_temp_change_mpa$spp <- factor(emtrends_temp_change_mpa$spp, levels = c("abco", "pije", "cade", "arpa", "quke"))
+emtrends_temp_change_mpa <- emtrends_temp_change_mpa %>% 
+  arrange(spp)
+  
+emtrends_temp_change_mpa_list <- emtrends_temp_change_mpa %>% select(p.value) %>% as.vector()
+temp_change.p.value.mpa <- emtrends_temp_change_mpa_list$p.value
+```
+
+```{r}
+tmp_mod_mpa <- lmer(temp_change ~ F.Group*mpa_scaled +  site + year_month  + (1 | individual), data = mem_data_all_r)
+em_temp_change_mpa <- emmeans::emtrends(tmp_mod_mpa, pairwise~F.Group, var = "mpa_scaled")
+summary(em_temp_change_mpa, infer=c(TRUE,TRUE),null=0)
+```
+
 ## GD
 ```{r}
 gd_mod_lfm <- lmer(gd ~ spp*lfm_scaled +  site + year_month  + (1 | individual), data = mem_data_all_r)
@@ -1324,7 +1397,7 @@ dotplot.prop.ig <- df.dotplot.prop.ig %>%
      ymax = case_when(
        med_prop_ignite + 2*stdev_prop_ignite > 100 ~ 100,
        med_prop_ignite + 2*stdev_prop_ignite < 100 ~ med_prop_ignite + 2*stdev_prop_ignite))) +
-   labs(y = "Proportion Ignited", 
+   labs(y = "Percent Ignited (%)", 
         x = "Species")  +
    scale_y_continuous(limits = c(0, 120), breaks = c(0, 20, 40, 60, 80, 100)) +
    #scale_x_discrete(guide = guide_axis(n.dodge=2))+ # if we want axis labelled w/ species
@@ -1710,6 +1783,52 @@ temp_max.ES.mpa.plot <- ES.plot(temp_max.ES.df, temp_max.ES.mpa, temp_max.sig.mp
 temp_max.ES.mpa.plot
 ```
 
+
+
+### Temp. Change
+Setup:
+```{r}
+species <- c("A. concolor", "P. jeffreyi", "C. decurrens", "A. patula", "Q. kelloggii")
+ref <- temp_mod.coef.df$estimate[6]
+temp_change.ES.lfm <- c(ref, ref + temp_mod.coef.df$estimate[12],
+                ref + temp_mod.coef.df$estimate[11],
+                ref + temp_mod.coef.df$estimate[10],
+                ref + temp_mod.coef.df$estimate[13])
+  # Following this order: ABCO, PIJE, CADE, ARPA, QUKE (no CECO)
+temp_change.SE.lfm <- c(temp_mod.coef.df$std.error[c(6, 12, 11, 10, 13)])
+temp_change.sig.lfm <- significance(temp_change.p.value.lfm, temp_change.sig.lfm) # Gathering p-values from vectors made in 2.5 section
+ref2 <- temp_mod.coef.df$estimate[21]
+temp_change.ES.mpa <- c(ref2, ref2 + temp_mod.coef.df$estimate[27],
+                ref2 + temp_mod.coef.df$estimate[26], 
+                ref2 + temp_mod.coef.df$estimate[25], 
+                ref2 + temp_mod.coef.df$estimate[28]) 
+temp_change.SE.mpa <- c(temp_mod.coef.df$std.error[c(21, 27, 26, 25, 28)])
+temp_change.sig.mpa <- significance(temp_change.p.value.mpa, temp_change.sig.mpa)
+temp_change.ES.df <- data.frame(species, temp_change.ES.lfm, temp_change.SE.lfm, temp_change.p.value.lfm, temp_change.sig.lfm, temp_change.ES.mpa, temp_change.SE.mpa, temp_change.p.value.mpa, temp_change.sig.mpa)
+
+temp_change.ES.df$species <- factor(temp_change.ES.df$species, levels = c("A. concolor", "P. jeffreyi", "C. decurrens", "A. patula", "Q. kelloggii"))
+```
+
+Plots:
+```{r}
+temp_change.ES.lfm.plot <- ES.plot(temp_change.ES.df, temp_change.ES.lfm, temp_change.sig.lfm, temp_change.SE.lfm,
+                           margins.vector = c(0.1, 0.05, 0.1, 0.1),
+                           limits.vector = c(-27, 27),
+                           breaks.vector = c(-25, -12, 0, 12, 25)) +
+  annotate(geom = "text", x = 0.85, y = 23.1, label = 'g',
+           fontface = 'bold', size = 10)
+temp_change.ES.lfm.plot
+
+temp_change.ES.mpa.plot <- ES.plot(temp_change.ES.df, temp_change.ES.mpa, temp_change.sig.mpa, temp_change.SE.mpa,
+                           mpa = 'y',
+                           margins.vector = c(0.1, 0.2, 0.1, 0),
+                          limits.vector = c(-27, 27),
+                          breaks.vector = c(-25, -12, 0, 12, 25)) +
+  annotate(geom = "text", x = 0.85, y = 23.1, label = 'j',
+           fontface = 'bold', size = 10)
+temp_change.ES.mpa.plot
+```
+
 ### GD
 Setup:
 ```{r}
@@ -1853,14 +1972,16 @@ Arranging:
 Note: I had to do some wacky things with blank plots to get the final product to look okay.
 ```{r}
 scatterplots <- cowplot::plot_grid(blank_plot, tti_plot_lfm_r, fh_plot_lfm_r,
-                                   lower_temp_max_plot_lfm_r,
+                                  # lower_temp_max_plot_lfm_r,
+                                  temp_change_plot_lfm_r,
                                    ncol = 1, rel_heights = c(0.78, 10, 9.95, 10))
 
 ES.plots <- cowplot::plot_grid(tti.ES.lfm.plot, tti.ES.mpa.plot,
                               blank_plot, blank_plot,
                               fh.ES.lfm.plot, fh.ES.mpa.plot,
                               blank_plot, blank_plot,
-                              temp_max.ES.lfm.plot, temp_max.ES.mpa.plot,
+                             # temp_max.ES.lfm.plot, temp_max.ES.mpa.plot,
+                               temp_change.ES.lfm.plot, temp_change.ES.mpa.plot,
                               blank_plot, blank_plot,
                               ncol = 2, nrow = 6,
                               rel_widths = c(6,7.5),
