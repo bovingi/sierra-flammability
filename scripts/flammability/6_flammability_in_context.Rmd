@@ -22,6 +22,7 @@ library(lme4)
 library(remef)
 library(kableExtra)
 library(modelr)
+library(lubridate)
 
 #some weird functions:
 filter = dplyr::filter
@@ -58,17 +59,17 @@ field_data_all_6 <-  field_data_all_6_raw %>%
          individual = unique_id, 
          spp = tolower(spp)) %>% 
   mutate(Species = case_when(
-    spp == "arpa" ~ "A. patula", 
-    spp == "abco" ~ "A. concolor",
-    spp == "cade" ~ "C. decurrens",
-    spp == "ceco" ~ "C. cordulatus",
-    spp == "pije" ~ "P. jeffreyi",
-    spp == "quke" ~ "Q. kelloggii"
+    spp == "arpa" ~ "Ar. patula", 
+    spp == "abco" ~ "Ab. concolor",
+    spp == "cade" ~ "Ca. decurrens",
+    spp == "ceco" ~ "Ce. cordulatus",
+    spp == "pije" ~ "Pi. jeffreyi",
+    spp == "quke" ~ "Qu. kelloggii"
   )) %>% 
   filter(spp != "ceco") %>% 
   drop_na(spp) 
 
-field_data_all_6$Species <- factor(field_data_all_6$Species, levels = c('A. concolor',  'P. jeffreyi', 'C. decurrens', 'A. patula', 'Q. kelloggii'))
+field_data_all_6$Species <- factor(field_data_all_6$Species, levels = c('Ab. concolor',  'Pi. jeffreyi', 'Ca. decurrens', 'Ar. patula', 'Qu. kelloggii'))
 field_data_all_6$spp <- factor(field_data_all_6$spp, levels = c("abco", "pije", "cade", "arpa", "quke"))
 
  mem_data_all_6 <- read_csv(here("processed-data", "analysis 2.0","mem_final_from5.05.csv"))
@@ -341,6 +342,16 @@ field_data_all_means <- field_data_all_6 %>%
 field_data_all_means$date <- as.Date(field_data_all_means$date, format='%m/%d')
 ```
 
+For labels:
+```{r}
+x <- as.Date(c(rep('2022-04-24', 5)))
+y <- c(-34, 49.5, 44.2, 365, 90)
+labs <- c('a', 'b', 'c', ' ', 'd')
+plot <- c('tti', 'fh', 'fd', 'mt', 'tc')
+labelData <- data.frame(x, y, labs, plot)
+```
+
+
 ## TTI
 ```{r}
 tti_df <- mem_data_all_6 %>% 
@@ -368,15 +379,19 @@ tti_pred <- tti_df %>%
    #geom_smooth(se = F) +
    geom_line() +
    geom_linerange(aes(ymin = pred*-1 - 0.5*stdev.pred, ymax = pred*-1 + 0.5*stdev.pred)) +
+   scale_y_continuous(breaks = c(-100, -80, -60, -40)) +
     theme(legend.position = "none",
         axis.text.y = element_text(size = 14),
         #axis.text.x = element_text(size = 18, angle = 20),
         axis.title = element_text(size = 22, face = 'bold'),
         axis.text.x = element_blank(),
         axis.ticks.x = element_blank(),
-        plot.margin = unit(c(0, 0.1, 0, 0.1), 'cm')) +
+        plot.margin = unit(c(0.05, 0.1, 0, 0.1), 'cm')) +
     labs(y = "Ignitability (-1*sec)", 
        x = "") +
+    geom_text(data = subset(labelData, subset = plot == 'tti'),
+              aes(x, y, label = labs, group = NULL, color = NULL),
+              size = 12, fontface = 'bold') +
     color_noceco
 tti_pred
 ```
@@ -407,7 +422,8 @@ fh_pred <- fh_df %>%
    #geom_smooth(se = F) +
    geom_line() +
    geom_linerange(aes(ymin = pred - 0.5*stdev.pred, ymax = pred + 0.5*stdev.pred)) +
-    theme(legend.position = "none",
+   scale_y_continuous(limits = c(25, 51), breaks = c(30, 35, 40, 45)) +
+   theme(legend.position = "none",
         axis.text.y = element_text(size = 14),
         #axis.text.x = element_text(size = 18, angle = 20),
         axis.title = element_text(size = 22, face = 'bold'),
@@ -416,6 +432,9 @@ fh_pred <- fh_df %>%
         plot.margin = unit(c(0, 0.1, 0, 0.5), 'cm')) +
     labs(y = "Flame Height (cm)", 
        x = "") +
+   geom_text(data = subset(labelData, subset = plot == 'fh'),
+              aes(x, y, label = labs, group = NULL, color = NULL),
+              size = 12, fontface = 'bold') +
     color_noceco
 fh_pred
 ```
@@ -446,6 +465,7 @@ fd_pred <- fd_df %>%
    #geom_smooth(se = F) +
    geom_line() +
    geom_linerange(aes(ymin = pred - 0.5*stdev.pred, ymax = pred + 0.5*stdev.pred)) +
+   scale_y_continuous(limits = c(16, 46), breaks = c(20, 25, 30, 35, 40)) +
     theme(legend.position = "none",
         axis.text.y = element_text(size = 14),
         #axis.text.x = element_text(size = 18, angle = 20),
@@ -455,6 +475,9 @@ fd_pred <- fd_df %>%
         plot.margin = unit(c(0, 0.1, 0, 0.5), 'cm')) +
     labs(y = "Flame Duration (sec)", 
        x = "") +
+    geom_text(data = subset(labelData, subset = plot == 'fd'),
+              aes(x, y, label = labs, group = NULL, color = NULL),
+              size = 12, fontface = 'bold') +
     color_noceco
 fd_pred
 ```
@@ -493,6 +516,9 @@ temp_max_pred <- temp_max_df %>%
         plot.margin = unit(c(0, 0.1, 0.1, 0.2), 'cm')) +
     labs(y = "Maximum Temp. (C)", 
        x = "") +
+    geom_text(data = subset(labelData, subset = plot == 'mt'),
+              aes(x, y, label = labs, group = NULL, color = NULL),
+              size = 12, fontface = 'bold') +
     color_noceco
 temp_max_pred
 ```
@@ -532,20 +558,23 @@ temp_change_pred <- temp_change_df %>%
         plot.margin = unit(c(0, 0.1, 0.1, 0.2), 'cm')) +
     labs(y = "Temp. Change (C)", 
        x = "") +
+    geom_text(data = subset(labelData, subset = plot == 'tc'),
+              aes(x, y, label = labs, group = NULL, color = NULL),
+              size = 12, fontface = 'bold') +
     color_noceco
 temp_change_pred
 ```
 ## Combined
 ```{r}
 plots <- cowplot::plot_grid(tti_pred, fh_pred, fd_pred, temp_change_pred, ncol = 1
-                                   ,rel_heights = c(1, 1, 1,1,1))
+                                   ,rel_heights = c(1, 1, 1, 1))
 
 legend_plots <- cowplot::plot_grid(plots, legend, 
                                    ncol = 2,
-                                   rel_widths = c(3,1))
+                                   rel_widths = c(2.8,1))
 legend_plots
 
-ggsave(here('figures', 'predicted.flam.from.field.V2.jpg'), height = 15, width = 8.5)
+ggsave(here('figures', 'predicted.flam.from.field.V2.jpg'), height = 15, width = 9)
 ```
 
 #-------
