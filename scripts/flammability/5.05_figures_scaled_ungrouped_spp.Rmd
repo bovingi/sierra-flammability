@@ -722,6 +722,15 @@ temp_change_mod.fgroup <- lmer(temp_change ~ F.Group*mpa_scaled + F.Group*lfm_sc
 
 temp_change_mod <- lmer(temp_change ~ spp*mpa_scaled + spp*lfm_scaled +  site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all_r) 
 #temp_change_mod_noints <- lmer(temp_change ~ spp + mpa_scaled + lfm_scaled +  site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all)
+
+temp_change_mod.lfm <- lmer(temp_change ~ spp*lfm_scaled + site + year_month 
+                    + sample_wt_scaled 
+                    + (1 | individual), data = mem_data_all_r)
+
+temp_change_mod.mpa <- lmer(temp_change ~ spp*mpa_scaled + site + year_month 
+                    + sample_wt_scaled 
+                    + (1 | individual), data = mem_data_all_r)
+
 ```
 
 Remef:
@@ -812,7 +821,7 @@ temp_change_plot_lfm_r<- mem_data_all_r %>%
   geom_point(alpha= .4, aes(color = F.Group))+
   geom_smooth(method = "lm", se = F, aes(color = F.Group,
                    lty = F.temp.max.lfm.sig), alpha = .75, lty = 3) +
-  scale_y_continuous(limits = c(-15, 250), breaks = c(0, 50, 100, 150, 200, 250)) +
+  scale_y_continuous(limits = c(-20, 250), breaks = c(0, 50, 100, 150, 200, 250)) +
   theme(legend.position = "none",
                        axis.text = element_text(size = 13),
                        axis.title = element_text(size = 16, face = 'bold'))+
@@ -823,15 +832,13 @@ temp_change_plot_lfm_r<- mem_data_all_r %>%
   #scale_shape_manual(values = c(16, 10)) +
   labs(x = "LFM (scaled, centered)", 
        y = "Temp. Change (C)") +
-  annotate(geom = "text", x = -2.75, y = 250, label = 'd', fontface = 'bold', size = 10) +
-  annotate(geom = 'text', x = -2.3, y = -12, label = 'dry', size = 5) +
-  annotate(geom = 'text', x = 3.05, y = -12, label = 'wet', size = 5) +
-  geom_segment(aes(x = -2, y = -12, xend = 2.75, yend = -12),
+  annotate(geom = "text", x = -2.75, y = 230, label = 'd', fontface = 'bold', size = 10) +
+  annotate(geom = 'text', x = -2.3, y = -13, label = 'dry', size = 5) +
+  annotate(geom = 'text', x = 3.05, y = -13, label = 'wet', size = 5) +
+  geom_segment(aes(x = -2, y = -13, xend = 2.75, yend = -13),
      arrow = arrow(ends = 'both', length = unit(1/2, "picas")), 
       size = .5, alpha = 0.8)
 temp_change_plot_lfm_r
-
-
 
 #ggarrange(temp_change_plot, temp_change_plot_r, temp_change_plot_lfm, temp_change_plot_lfm_r, nrow = 2, ncol = 2)
 ```
@@ -1141,10 +1148,10 @@ em_temp_max_mpa <- emmeans::emtrends(tmp_mod_mpa, pairwise~F.Group, var = "mpa_s
 summary(em_temp_max_mpa, infer=c(TRUE,TRUE),null=0)
 ```
 
-## Temp change
+## Temp Change
 ```{r}
-tmp_mod_lfm <- lmer(temp_change ~ spp*lfm_scaled +  site + year_month  + (1 | individual), data = mem_data_all_r)
-em_temp_change_lfm <- emmeans::emtrends(tmp_mod_lfm, pairwise~spp, var = c("lfm_scaled"))
+temp_change_mod_lfm <- lmer(temp_change ~ spp*lfm_scaled +  site + year_month  + (1 | individual), data = mem_data_all_r)
+em_temp_change_lfm <- emmeans::emtrends(temp_change_mod_lfm, pairwise~spp, var = c("lfm_scaled"))
 temp_change_lfm <- summary(em_temp_change_lfm, infer=c(TRUE,TRUE),null=0)
 
 emtrends_temp_change_lfm <- temp_change_lfm$emtrends %>% 
@@ -1158,14 +1165,14 @@ temp_change.p.value.lfm <- emtrends_temp_change_lfm_list$p.value
 ```
 
 ```{r}
-tmp_mod_lfm <- lmer(temp_change ~ F.Group*lfm_scaled +  site + year_month  + (1 | individual), data = mem_data_all_r)
-em_temp_change_lfm <- emmeans::emtrends(tmp_mod_lfm, pairwise~F.Group, var = c("lfm_scaled"))
-summary(em_temp_change_lfm, infer=c(TRUE,TRUE),null=0)
+#temp_change_mod_lfm <- lmer(temp_change ~ F.Group*lfm_scaled +  site + year_month  + (1 | individual), data = mem_data_all_r)
+#em_temp_change_lfm <- emmeans::emtrends(temp_change_mod_lfm, pairwise~F.Group, var = c("lfm_scaled"))
+#summary(em_temp_change_lfm, infer=c(TRUE,TRUE),null=0)
 ```
 
 ```{r}
-tmp_mod_mpa <- lmer(temp_change ~ spp*mpa_scaled +  site + year_month  + (1 | individual), data = mem_data_all_r)
-em_temp_change_mpa <- emmeans::emtrends(tmp_mod_mpa, pairwise~spp, var = "mpa_scaled")
+temp_change_mod_mpa <- lmer(temp_change ~ spp*mpa_scaled +  site + year_month  + (1 | individual), data = mem_data_all_r)
+em_temp_change_mpa <- emmeans::emtrends(temp_change_mod_mpa, pairwise~spp, var = "mpa_scaled")
 temp_change_mpa <- summary(em_temp_change_mpa, infer=c(TRUE,TRUE),null=0)
 
 emtrends_temp_change_mpa <- temp_change_mpa$emtrends %>% 
@@ -1179,9 +1186,9 @@ temp_change.p.value.mpa <- emtrends_temp_change_mpa_list$p.value
 ```
 
 ```{r}
-tmp_mod_mpa <- lmer(temp_change ~ F.Group*mpa_scaled +  site + year_month  + (1 | individual), data = mem_data_all_r)
-em_temp_change_mpa <- emmeans::emtrends(tmp_mod_mpa, pairwise~F.Group, var = "mpa_scaled")
-summary(em_temp_change_mpa, infer=c(TRUE,TRUE),null=0)
+#temp_change_mod_mpa <- lmer(temp_change ~ F.Group*mpa_scaled +  site + year_month  + (1 | individual), data = mem_data_all_r)
+#em_temp_change_mpa <- emmeans::emtrends(temp_change_mod_mpa, pairwise~F.Group, var = "mpa_scaled")
+#summary(em_temp_change_mpa, infer=c(TRUE,TRUE),null=0)
 ```
 
 ## GD
@@ -1468,7 +1475,7 @@ tab_model(tti_mod_fgroup, fh_mod_fgroup, gd_mod_fgroup,lower_temp_max_mod_fgroup
 # #  a_non_used_label = "We don't care"
 # )
 
-tab_model(tti_mod, fh_mod, gd_mod, lower_temp_max_mod
+tab_model(tti_mod, fh_mod, gd_mod, lower_temp_max_mod, fd_mod, temp_change_mod
          # , prop_ignite_mod
           ,
 #           terms = c("`(Intercept)`","lfm_scaled","mpa_scaled","sample_wt_scaled","site", 
@@ -1485,7 +1492,8 @@ tab_model(tti_mod, fh_mod, gd_mod, lower_temp_max_mod
           show.icc = FALSE, 
          string.pred = "Coefficient", 
         # pred.labels = pl, 
-        dv.labels = c("Time to Ignition", "Flame Height", "Max Temp", "Glow Duration"
+        dv.labels = c("Time to Ignition", "Flame Height", "Max Temp", "Glow Duration",
+                      "Flame Duration", "Temp Change"
                       #, "Proportion  Ignited"
                       ),
          title = "Effect Size Plots: MEM Table",
@@ -1544,6 +1552,16 @@ fd_mod.coef.df2 <- tidy(fd_mod.mpa) %>%
   mutate(metric = 'FD') %>% 
   mutate(pred = 'mpa')
 fd_mod.coef.df <- rbind(fd_mod.coef.df1, fd_mod.coef.df2)
+
+temp_change_mod.coef.df1 <- tidy(temp_change_mod.lfm) %>% 
+  select(term, estimate, std.error, p.value)%>% 
+  mutate(metric = 'Temp Change') %>% 
+  mutate(pred = 'lfm')
+temp_change_mod.coef.df2 <- tidy(temp_change_mod.mpa) %>% 
+  select(term, estimate, std.error, p.value)%>% 
+  mutate(metric = 'Temp Change') %>% 
+  mutate(pred = 'mpa')
+temp_change_mod.coef.df <- rbind(temp_change_mod.coef.df1, temp_change_mod.coef.df2)
 
 coef.df <- rbind(tti_mod.coef.df, fh_mod.coef.df, temp_mod.coef.df, gd_mod.coef.df, fd_mod.coef.df)
 ```
@@ -1789,20 +1807,20 @@ temp_max.ES.mpa.plot
 Setup:
 ```{r}
 species <- c("A. concolor", "P. jeffreyi", "C. decurrens", "A. patula", "Q. kelloggii")
-ref <- temp_mod.coef.df$estimate[6]
-temp_change.ES.lfm <- c(ref, ref + temp_mod.coef.df$estimate[12],
-                ref + temp_mod.coef.df$estimate[11],
-                ref + temp_mod.coef.df$estimate[10],
-                ref + temp_mod.coef.df$estimate[13])
+ref <- temp_change_mod.coef.df$estimate[6]
+temp_change.ES.lfm <- c(ref, ref + temp_change_mod.coef.df$estimate[12],
+                ref + temp_change_mod.coef.df$estimate[11],
+                ref + temp_change_mod.coef.df$estimate[10],
+                ref + temp_change_mod.coef.df$estimate[13])
   # Following this order: ABCO, PIJE, CADE, ARPA, QUKE (no CECO)
-temp_change.SE.lfm <- c(temp_mod.coef.df$std.error[c(6, 12, 11, 10, 13)])
+temp_change.SE.lfm <- c(temp_change_mod.coef.df$std.error[c(6, 12, 11, 10, 13)])
 temp_change.sig.lfm <- significance(temp_change.p.value.lfm, temp_change.sig.lfm) # Gathering p-values from vectors made in 2.5 section
-ref2 <- temp_mod.coef.df$estimate[21]
-temp_change.ES.mpa <- c(ref2, ref2 + temp_mod.coef.df$estimate[27],
-                ref2 + temp_mod.coef.df$estimate[26], 
-                ref2 + temp_mod.coef.df$estimate[25], 
-                ref2 + temp_mod.coef.df$estimate[28]) 
-temp_change.SE.mpa <- c(temp_mod.coef.df$std.error[c(21, 27, 26, 25, 28)])
+ref2 <- temp_change_mod.coef.df$estimate[21]
+temp_change.ES.mpa <- c(ref2, ref2 + temp_change_mod.coef.df$estimate[27],
+                ref2 + temp_change_mod.coef.df$estimate[26], 
+                ref2 + temp_change_mod.coef.df$estimate[25], 
+                ref2 + temp_change_mod.coef.df$estimate[28]) 
+temp_change.SE.mpa <- c(temp_change_mod.coef.df$std.error[c(21, 27, 26, 25, 28)])
 temp_change.sig.mpa <- significance(temp_change.p.value.mpa, temp_change.sig.mpa)
 temp_change.ES.df <- data.frame(species, temp_change.ES.lfm, temp_change.SE.lfm, temp_change.p.value.lfm, temp_change.sig.lfm, temp_change.ES.mpa, temp_change.SE.mpa, temp_change.p.value.mpa, temp_change.sig.mpa)
 
@@ -1813,18 +1831,18 @@ Plots:
 ```{r}
 temp_change.ES.lfm.plot <- ES.plot(temp_change.ES.df, temp_change.ES.lfm, temp_change.sig.lfm, temp_change.SE.lfm,
                            margins.vector = c(0.1, 0.05, 0.1, 0.1),
-                           limits.vector = c(-27, 27),
-                           breaks.vector = c(-25, -12, 0, 12, 25)) +
-  annotate(geom = "text", x = 0.85, y = 23.1, label = 'g',
+                           limits.vector = c(-16, 10),
+                           breaks.vector = c(-10, -5, 0, 5, 10)) +
+  annotate(geom = "text", x = 0.85, y = 8.6, label = 'g',
            fontface = 'bold', size = 10)
 temp_change.ES.lfm.plot
 
 temp_change.ES.mpa.plot <- ES.plot(temp_change.ES.df, temp_change.ES.mpa, temp_change.sig.mpa, temp_change.SE.mpa,
                            mpa = 'y',
                            margins.vector = c(0.1, 0.2, 0.1, 0),
-                          limits.vector = c(-27, 27),
-                          breaks.vector = c(-25, -12, 0, 12, 25)) +
-  annotate(geom = "text", x = 0.85, y = 23.1, label = 'j',
+                          limits.vector = c(-16, 10),
+                          breaks.vector = c(-10, -5, 0, 5, 10)) +
+  annotate(geom = "text", x = 0.85, y = 8.6, label = 'j',
            fontface = 'bold', size = 10)
 temp_change.ES.mpa.plot
 ```
@@ -1973,7 +1991,7 @@ Note: I had to do some wacky things with blank plots to get the final product to
 ```{r}
 scatterplots <- cowplot::plot_grid(blank_plot, tti_plot_lfm_r, fh_plot_lfm_r,
                                   # lower_temp_max_plot_lfm_r,
-                                  temp_change_plot_lfm_r,
+                                   temp_change_plot_lfm_r,
                                    ncol = 1, rel_heights = c(0.78, 10, 9.95, 10))
 
 ES.plots <- cowplot::plot_grid(tti.ES.lfm.plot, tti.ES.mpa.plot,
@@ -1981,7 +1999,7 @@ ES.plots <- cowplot::plot_grid(tti.ES.lfm.plot, tti.ES.mpa.plot,
                               fh.ES.lfm.plot, fh.ES.mpa.plot,
                               blank_plot, blank_plot,
                              # temp_max.ES.lfm.plot, temp_max.ES.mpa.plot,
-                               temp_change.ES.lfm.plot, temp_change.ES.mpa.plot,
+                              temp_change.ES.lfm.plot, temp_change.ES.mpa.plot,
                               blank_plot, blank_plot,
                               ncol = 2, nrow = 6,
                               rel_widths = c(6,7.5),
@@ -2041,39 +2059,49 @@ mt_est.df <- mt_est.df %>%
 gd_est.df <- tidy(gd_mod)
 gd_est.df <- gd_est.df %>% 
   mutate_if(is.numeric, round, digits = 3)
+fd_est.df <- tidy(fd_mod)
+fd_est.df <- fd_est.df %>% 
+  mutate_if(is.numeric, round, digits = 3)
+temp_change_est.df <- tidy(temp_change_mod)
+temp_change_est.df <- temp_change_est.df %>% 
+  mutate_if(is.numeric, round, digits = 3)
 ```
 
 Setup:
 ```{r}
-coef <- c("Intercept", "Live Fuel Moisture (LFM)", "Water Potential (MPa)", "Sample Weight", "Site", "Ab. concolor", "Pi. jeffreyii", "Ca. decurrens", "Ar. patula", "Qu. kelloggii", "Interaction Effects", "Pi. jeffreyii x LFM", "Pi. jeffreyii x MPa", "Ca. decurrens x LFM", "Ca. decurrens x MPa", "Ar. patula x LFM", "Ar. patula x MPa", "Qu. kelloggii x LFM", "Qu. kelloggii x MPa", "October 2020", "September 2020", "Random Effects", "Sigma Squared", "Tau00", "N", "Observations", "Marginal Rsq / Conditional Rsq", "AIC")
-tti.est <- c(tti_est.df$estimate[c(1,7,6,10,8)], 'Reference', tti_est.df$estimate[c(4,3,2,5)], ' ', tti_est.df$estimate[c(17,13,16,12,15,11, 18, 13)], 'Reference', tti_est.df$estimate[9], ' ', '440.16', '64.43individual', '101individual', '580', '0.578/0.632', '5184.092')
-tti.p <- c(tti_est.df$p.value[c(1,7,6,10,8)], 1, tti_est.df$p.value[c(4,3,2,5)], 1, tti_est.df$p.value[c(17,13,16,12,15,11, 18, 13)], 1, tti_est.df$p.value[9], 1, 1, 1, 1, 1, 1, 1)
-fh.est <- c(fh_est.df$estimate[c(1,7,6,10,8)], 'Reference', fh_est.df$estimate[c(4,3,2,5)], ' ', fh_est.df$estimate[c(17,13,16,12,15,11, 18, 13)], 'Reference', fh_est.df$estimate[9], ' ', '34.90', '6.31individual', '101individual', '580', '0.272/0.383', '3768.649')
-fh.p <- c(fh_est.df$p.value[c(1,7,6,10,8)], 1, fh_est.df$p.value[c(4,3,2,5)], 1, fh_est.df$p.value[c(17,13,16,12,15,11, 18, 13)], 1, fh_est.df$p.value[9], 1, 1, 1, 1, 1, 1, 1)
-mt.est <- c(mt_est.df$estimate[c(1,7,6,10,8)], 'Reference', mt_est.df$estimate[c(4,3,2,5)], ' ', mt_est.df$estimate[c(17,13,16,12,15,11, 18, 13)], 'Reference', mt_est.df$estimate[9], ' ', '3614.55', '167.75individual', '101individual', '580', '0.238/0.383', '6334.413')
-mt.p <- c(mt_est.df$p.value[c(1,7,6,10,8)], 1, mt_est.df$p.value[c(4,3,2,5)], 1, mt_est.df$p.value[c(17,13,16,12,15,11, 18, 13)], 1, mt_est.df$p.value[9], 1, 1, 1, 1, 1, 1, 1)
-gd.est <- c(gd_est.df$estimate[c(1,7,6,10,8)], 'Reference', gd_est.df$estimate[c(4,3,2,5)], ' ', gd_est.df$estimate[c(17,13,16,12,15,11, 18, 13)], 'Reference', gd_est.df$estimate[9], ' ', '1780.64', '16.61individual', '101individual', '580', '0.312/0.319', '5920.094')
-gd.p <- c(gd_est.df$p.value[c(1,7,6,10,8)], 1, gd_est.df$p.value[c(4,3,2,5)], 1, gd_est.df$p.value[c(17,13,16,12,15,11, 18, 13)], 1, gd_est.df$p.value[9], 1, 1, 1, 1, 1, 1, 1)
-mem.table.df <- data.frame(coef, tti.est, tti.p, fh.est, fh.p, mt.est, mt.p, gd.est, gd.p)
+coef <- c("Intercept", "Live Fuel Moisture (LFM)", "Water Potential (MPa)", "Sample Weight", "Site", "Ab. concolor", "Pi. jeffreyii", "Ca. decurrens", "Ar. patula", "Qu. kelloggii", "October 2020", "September 2020", "Interaction Effects", "Pi. jeffreyii x LFM", "Pi. jeffreyii x MPa", "Ca. decurrens x LFM", "Ca. decurrens x MPa", "Ar. patula x LFM", "Ar. patula x MPa", "Qu. kelloggii x LFM", "Qu. kelloggii x MPa", "Random Effects", paste("\U03C3", "\U00B2"), paste("\U03C4", "\U2080", "\U2080"), "N", "Model Summary Statistics", "Observations", paste("Marginal R", "\U00B2", "/", "Conditional R", "\U00B2"))
+tti.est <- c(tti_est.df$estimate[c(1,7,6,10,8)], 'Reference', tti_est.df$estimate[c(4,3,2,5)],'Reference', tti_est.df$estimate[9], ' ', tti_est.df$estimate[c(17,13,16,12,15,11, 18, 13)], ' ', '440.16', paste('64.43', "\U1D62"), paste('101', "\U1D62"), ' ', '580', '0.578 / 0.632')
+tti.p <- c(tti_est.df$p.value[c(1,7,6,10,8)], 1, tti_est.df$p.value[c(4,3,2,5)],1, tti_est.df$p.value[9], 1, tti_est.df$p.value[c(17,13,16,12,15,11, 18, 13)], 1, 1, 1, 1, 1, 1, 1)
+fh.est <- c(fh_est.df$estimate[c(1,7,6,10,8)], 'Reference', fh_est.df$estimate[c(4,3,2,5)],'Reference', fh_est.df$estimate[9], ' ', fh_est.df$estimate[c(17,13,16,12,15,11, 18, 13)],  ' ', '34.90', paste('6.31', "\U1D62"), paste('101', "\U1D62"),' ', '580', '0.272 / 0.383')
+fh.p <- c(fh_est.df$p.value[c(1,7,6,10,8)], 1, fh_est.df$p.value[c(4,3,2,5)],1, fh_est.df$p.value[9], 1, fh_est.df$p.value[c(17,13,16,12,15,11, 18, 13)], 1, 1, 1, 1, 1, 1, 1)
+gd.est <- c(gd_est.df$estimate[c(1,7,6,10,8)], 'Reference', gd_est.df$estimate[c(4,3,2,5)], 'Reference', gd_est.df$estimate[9], ' ', gd_est.df$estimate[c(17,13,16,12,15,11, 18, 13)], ' ', '1780.64', paste('16.61', "\U1D62"), paste('101', "\U1D62"), ' ', '580', '0.312 / 0.319')
+gd.p <- c(gd_est.df$p.value[c(1,7,6,10,8)], 1, gd_est.df$p.value[c(4,3,2,5)], 1, gd_est.df$p.value[9], 1, gd_est.df$p.value[c(17,13,16,12,15,11, 18, 13)], 1, 1, 1, 1, 1, 1, 1)
+fd.est <- c(fd_est.df$estimate[c(1,7,6,10,8)], 'Reference', fd_est.df$estimate[c(4,3,2,5)], 'Reference', fd_est.df$estimate[9], ' ', fd_est.df$estimate[c(17,13,16,12,15,11, 18, 13)], ' ', '85.58', paste('10.65', "\U1D62"), paste('101', "\U1D62"), ' ', '580', '0.474 / 0.533')
+fd.p <- c(fd_est.df$p.value[c(1,7,6,10,8)], 1, fd_est.df$p.value[c(4,3,2,5)], 1, fd_est.df$p.value[9], 1, fd_est.df$p.value[c(17,13,16,12,15,11, 18, 13)], 1, 1, 1, 1, 1, 1, 1)
+temp_change.est <- c(temp_change_est.df$estimate[c(1,7,6,10,8)], 'Reference', temp_change_est.df$estimate[c(4,3,2,5)], 'Reference', temp_change_est.df$estimate[9], ' ', temp_change_est.df$estimate[c(17,13,16,12,15,11, 18, 13)], ' ', '1337.42', paste('40.95', "\U1D62"), paste('101', "\U1D62"), ' ', '580', '0.255 / 0.277')
+temp_change.p <- c(temp_change_est.df$p.value[c(1,7,6,10,8)], 1, temp_change_est.df$p.value[c(4,3,2,5)], 1, temp_change_est.df$p.value[9], 1, temp_change_est.df$p.value[c(17,13,16,12,15,11, 18, 13)], 1, 1, 1, 1, 1, 1, 1)
+# Decided against max. temp. and instead used temp. change
+mt.est <- c(mt_est.df$estimate[c(1,7,6,10,8)], 'Reference', mt_est.df$estimate[c(4,3,2,5)],'Reference', mt_est.df$estimate[9], ' ', mt_est.df$estimate[c(17,13,16,12,15,11, 18, 13)], ' ', '3614.55', paste('167.75', "\U1D62"), paste('101', "\U1D62"), ' ', '580', '0.238 / 0.383')
+mt.p <- c(mt_est.df$p.value[c(1,7,6,10,8)], 1, mt_est.df$p.value[c(4,3,2,5)], 1, mt_est.df$p.value[9], 1, mt_est.df$p.value[c(17,13,16,12,15,11, 18, 13)], 1, 1, 1, 1, 1, 1, 1)
+mem.table.df <- data.frame(coef, tti.est, tti.p, fh.est, fh.p, gd.est, gd.p, fd.est, fd.p, temp_change.est, temp_change.p)
 ```
 
 Kable:
 ```{r}
 mem.table.df %>%
-  mutate(coef = cell_spec(coef, 'html', bold = ifelse(coef == c("Interaction Effects", "Random Effects"), T, F), italic = ifelse(coef == c("Ab. concolor", "Pi. jeffreyii", "Ca. decurrens", "Ar. patula", "Qu. kelloggii"), T, F), color = 'black')) %>% 
+  mutate(coef = cell_spec(coef, 'html', italic = ifelse(coef == c("Ab. concolor", "Pi. jeffreyii", "Ca. decurrens", "Ar. patula", "Qu. kelloggii"), T, F), color = 'black')) %>% 
   mutate(tti.est = cell_spec(tti.est, 'html', bold = ifelse(tti.p < 0.05, T, F), color = 'black')) %>% 
   mutate(fh.est = cell_spec(fh.est, 'html', bold = ifelse(fh.p < 0.05, T, F), color = 'black')) %>% 
-  mutate(mt.est = cell_spec(mt.est, 'html', bold = ifelse(mt.p < 0.05, T, F), color = 'black')) %>% 
   mutate(gd.est = cell_spec(gd.est, 'html', bold = ifelse(gd.p < 0.05, T, F), color = 'black')) %>% 
-  select(coef, tti.est, fh.est, mt.est, gd.est) %>% 
-  kable(format = 'html', escape = F, digits = 5, col.names = c('Coefficients', 'Time to Ignition', 'Flame Height', 'Maximum Temperature', 'Glow Duration')) %>% 
+  mutate(fd.est = cell_spec(fd.est, 'html', bold = ifelse(fd.p < 0.05, T, F), color = 'black')) %>% 
+  mutate(temp_change.est = cell_spec(temp_change.est, 'html', bold = ifelse(temp_change.p < 0.05, T, F), color = 'black')) %>% 
+  select(coef, tti.est, fh.est, gd.est, fd.est, temp_change.est) %>% 
+  kable(format = 'html', escape = F, digits = 5, col.names = c('Coefficients', 'Time to Ignition', 'Flame Height', 'Glow Duration', 'Flame Duration', 'Temperature Change')) %>% 
   kable_styling(bootstrap_options = c('hover', 'bordered', 'condensed'), fixed_thead = T, font_size = 30) %>% 
-  row_spec(0, bold = T, color = 'black') %>% 
-  row_spec(c(6, 20), italic = T) %>% 
-  row_spec(c(11,22), background = '#D3D3D3') %>% 
+  row_spec(0, background = '#B3B3B3', bold = T, color = 'black') %>% 
+  row_spec(c(6, 11), italic = T) %>% 
+  row_spec(c(13,22,26), bold = T, background = '#D3D3D3') %>% 
   save_kable(here('figures', 'MAIN_mem_table.html'))
-
-?cell_spec
 ```
 
 
