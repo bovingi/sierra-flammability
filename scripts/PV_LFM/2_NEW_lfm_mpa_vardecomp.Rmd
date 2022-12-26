@@ -60,7 +60,7 @@ field_data_all <- read_csv(here("processed-data", "analysis 2.0", "field_data_va
 ```
 
 Vardecomps:
-```{r, fig.height=3, fig.width=2}
+```{r, fig.height=3, fig.width=1}
 flam_curve_df_2.1 <- read_csv(here("processed-data", "analysis 2.0", "flam_curve_vardecomp_2.csv"), show_col_types = FALSE) %>% 
   drop_na(lfm, water_potential, spp, plant, year_month, F.Group) %>% 
   mutate(plant = as.factor(plant), 
@@ -101,7 +101,7 @@ gymno_field <- field_data_all_2.1 %>%
 
 #Var Decomps:
 
-```{r, fig.height=3, fig.width=2}
+```{r, fig.height=3, fig.width=1.5}
 form <- ~ water_potential + (1|year) + (1|plant)  + (1|spp)
 
 lfm_matrix <- angio_pv %>% 
