@@ -1104,6 +1104,51 @@ em_fh_mpa <- emmeans::emtrends(fh_mod_mpa, pairwise~F.Group, var = "mpa_scaled")
 summary(em_fh_mpa, infer=c(TRUE,TRUE),null=0)
 ```
 
+## FD
+```{r}
+fd_mod_lfm <- lmer(fd ~ spp*lfm_scaled +  site + year_month  + (1 | individual), data = mem_data_all_r)
+em_fd_lfm <- emmeans::emtrends(fd_mod_lfm, pairwise~spp, var = c("lfm_scaled"))
+fd_lfm <- summary(em_fd_lfm, infer=c(TRUE,TRUE),null=0)
+
+emtrends_fd_lfm <- fd_lfm$emtrends %>% 
+  as.data.frame()
+emtrends_fd_lfm$spp <- factor(emtrends_fd_lfm$spp, levels = c("abco", "pije", "cade", "arpa", "quke"))
+emtrends_fd_lfm <- emtrends_fd_lfm %>% 
+  arrange(spp)
+
+emtrends_fd_lfm
+
+emtrends_fd_lfm_list <- emtrends_fd_lfm %>% select(p.value) %>% as.vector()
+fd.p.value.lfm <- emtrends_fd_lfm_list$p.value
+```
+
+```{r}
+fd_mod_lfm <- lmer(fd ~ F.Group*lfm_scaled +  site + year_month  + (1 | individual), data = mem_data_all_r)
+em_fd_lfm <- emmeans::emtrends(fd_mod_lfm, pairwise~F.Group, var = c("lfm_scaled"))
+summary(em_fd_lfm, infer=c(TRUE,TRUE),null=0)
+```
+
+```{r}
+fd_mod_mpa <- lmer(fd ~ spp*mpa_scaled +  site + year_month  + (1 | individual), data = mem_data_all_r)
+em_fd_mpa <- emmeans::emtrends(fd_mod_mpa, pairwise~spp, var = "mpa_scaled")
+fd_mpa <- summary(em_fd_mpa, infer=c(TRUE,TRUE),null=0)
+
+emtrends_fd_mpa <- fd_mpa$emtrends %>% 
+  as.data.frame()
+emtrends_fd_mpa$spp <- factor(emtrends_fd_mpa$spp, levels = c("abco", "pije", "cade", "arpa", "quke"))
+emtrends_fd_mpa <- emtrends_fd_mpa %>% 
+  arrange(spp)
+  
+emtrends_fd_mpa_list <- emtrends_fd_mpa %>% select(p.value) %>% as.vector()
+fd.p.value.mpa <- emtrends_fd_mpa_list$p.value
+```
+
+```{r}
+fd_mod_mpa <- lmer(fd ~ F.Group*mpa_scaled +  site + year_month  + (1 | individual), data = mem_data_all_r)
+em_fd_mpa <- emmeans::emtrends(fd_mod_mpa, pairwise~F.Group, var = "mpa_scaled")
+summary(em_fd_mpa, infer=c(TRUE,TRUE),null=0)
+```
+
 
 ## Max. Temp.
 ```{r}
@@ -1565,6 +1610,7 @@ temp_change_mod.coef.df <- rbind(temp_change_mod.coef.df1, temp_change_mod.coef.
 
 coef.df <- rbind(tti_mod.coef.df, fh_mod.coef.df, temp_mod.coef.df, gd_mod.coef.df, fd_mod.coef.df)
 ```
+
 Quick visualizations of models:
 ```{r}
 tti_spp <- lmer(tti ~ spp + lfm_scaled + (1 | individual), data = mem_data_all_r)
@@ -1651,7 +1697,8 @@ ES.plot <- function(df, y.var, sig, std.error, mpa = 'no', margins.vector = c(0.
  # geom_vline(xintercept = 3.4, alpha = 0.5, size = 0.3, lty = 2) +
  # annotate(geom = "text", x = 2, y = 14, label = 'Gymnosperms', size = 4) +
  # annotate(geom = "text", x = 4.52, y = 14, label = 'Angiosperms', size = 4) +
-  theme(axis.title.x = element_blank(), axis.text.x = element_blank(),
+  theme(axis.title.x = element_blank(), 
+        axis.text.x = element_blank(),
         axis.ticks.y.left = element_blank(), 
         axis.title.y.left = element_blank(),
         axis.text.y.left = element_blank(),

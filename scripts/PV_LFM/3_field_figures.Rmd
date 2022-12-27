@@ -50,6 +50,22 @@ field_data_all_3 <- read_csv(here("processed-data", "analysis 2.0","field_data_2
   filter(lfm < 350)
 ```
 
+```{r}
+field_data_all_3 %>% 
+  filter(year == 2021, 
+         month == 9, 
+        # age_new == "new"
+         ) %>% 
+  ggplot(aes(y = lfm, 
+             x = site,
+             color = pod, 
+            # fill = age_new
+             )) +
+  geom_boxplot() +
+  facet_wrap(~spp, scales = "free") +
+  labs(title = "September 2021 CZO LFM data, variation across plants")
+```
+
 ###Phenology Data
 
 ```{r}
