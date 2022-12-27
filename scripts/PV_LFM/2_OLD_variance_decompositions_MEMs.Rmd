@@ -171,6 +171,8 @@ fgroup_pv_summaries <- pv_summaries_2 %>%
   distinct()
 fgroup_pv_summaries
 
+write_csv(fgroup_pv_summaries, (here("processed-data", "analysis 2.0", "fgroup_pv_summaries_2.csv")))
+
 stats_df <- pv_summaries_2 %>% 
   select(spp, lfmtlp, tlp, F.Group, year, spp, date)
 
