@@ -61,7 +61,8 @@ flam_curve_phys_all_raw <- read_csv(here("processed-data", "analysis 2.0", "flam
 field_data_all <- read_csv(here("processed-data", "analysis 2.0", "field_data_vardecomp_2.csv")) %>% 
     filter(lfm < 300, 
          lfm > 50, 
-         age == "new") %>% 
+        # age == "new"
+         ) %>% 
   mutate(Species = case_when(
     spp == "ARPA" ~ "Ar. patula", 
     spp == "ABCO" ~ "Ab. concolor",
