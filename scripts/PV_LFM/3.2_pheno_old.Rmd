@@ -29,6 +29,7 @@ library(ggbeeswarm)
 library(wesanderson)
 library(MetBrewer)
 library(RColorBrewer)
+select = dplyr::select
 
 source(here::here("scripts", "scripts_functions", "figure_info_sierra_flammability.R")) #color and theme info is here
 ```
@@ -1019,7 +1020,7 @@ p1
 
 p2 <- ggplot2::ggplot(data = df3, aes(x = date, y = lfm, color = phenophase_name)) +
   geom_line(alpha = 1, size = 3) +
-  scale_color_manual(values = c("#4ECDC4", "#2B3E37", "#4B4975")) +
+  scale_color_manual(values = c("#4ECDC4", "#2B3E37", "#070093")) +
   theme(aspect.ratio = 1/13,
         legend.position = 'none',
         panel.grid.major = element_blank(),
@@ -1046,10 +1047,12 @@ legend.plot <- ggplot() +
   geom_line(aes(y = lfm, x = date, color = phenophase_name), alpha = 1, 
             data = df.leg, size = 4, position=position_dodge(w=1)) +
   labs(color = "Phenophase") +
-  scale_color_manual(values = c("#4ECDC4", "#3A5C3E", "#2B3E37", "#E69512", "#6B91BD", "#4B4975", "#D3225D")) + #Holder color palette, matched to the phenophase vector above
+  scale_color_manual(values = c("#4ECDC4", "#52E764", "#2B3E37", "#E69512", "#6B91BD", "#070093", "#F03D79")) + #Holder color palette, matched to the phenophase vector above
   theme(legend.position = 'top',
         legend.title = element_text(face = 'bold'))
 legend.plot
+
+#replace: #52E764 for #52E764, #070093 for #070093
 
 legend <- cowplot::get_legend(legend.plot)
 
@@ -1065,15 +1068,15 @@ legend.plot2
 legend2 <- cowplot::get_legend(legend.plot2)
 ```
 
-
+# Other Species
 ```{r}
 abco.phenophases <- c("Breaking buds", "Young leaves")
-abco.colors <- c("#4ECDC4", "#3A5C3E") # Based on above vector
+abco.colors <- c("#4ECDC4", "#52E764") # Based on above vector
 p.abco <- pheno.boxplot.vis(species = "ABCO", phenophases = abco.phenophases,
                             colors = abco.colors)
 
 pije.phenophases <- c("Increasing leaf size", "Young leaves")
-pije.colors <- c("#2B3E37", "#3A5C3E")
+pije.colors <- c("#2B3E37", "#52E764")
 p.pije <- pheno.boxplot.vis(species = "PIJE", phenophases = pije.phenophases,
                             colors = pije.colors)
 
@@ -1083,12 +1086,12 @@ p.cade <- pheno.boxplot.vis(species = "CADE", phenophases = cade.phenophases,
                             max.y = 150, colors = cade.colors)
 
 arpa.phenophases <- c("Breaking buds", "Flowers or flower buds", "Ripe fruits", "Young leaves")
-arpa.colors <- c("#4ECDC4", "#D3225D", "#4B4975", "#3A5C3E")
+arpa.colors <- c("#4ECDC4", "#F03D79", "#070093", "#52E764")
 p.arpa <-pheno.boxplot.vis(species = "ARPA", phenophases = arpa.phenophases,
                            max.y = 210, colors = arpa.colors, no.phenophases = four)
 
 ceco.phenophases <- c("Flowers or flower buds", "Ripe fruits", "Young leaves")
-ceco.colors <- c("#D3225D", "#4B4975", "#3A5C3E")
+ceco.colors <- c("#F03D79", "#070093", "#52E764")
 p.ceco <- pheno.boxplot.vis(species = "CECO", phenophases = ceco.phenophases,
                             max.y = 260, colors = ceco.colors, no.phenophases = three)
 
@@ -1294,7 +1297,7 @@ df3 <- pheno_fig_main %>%
 
 p2 <- ggplot2::ggplot(data = df3, aes(x = date, y = lfm, color = phenophase_name)) +
   geom_line(alpha = 1, size = 3) +
-  scale_color_manual(values = c("#4ECDC4", "#2B3E37", "#4B4975")) +
+  scale_color_manual(values = c("#4ECDC4", "#2B3E37", "#070093")) +
   theme(aspect.ratio = 1/13,
         legend.position = 'none',
         panel.grid.major = element_blank(),

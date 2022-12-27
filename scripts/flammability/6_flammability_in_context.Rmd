@@ -555,7 +555,7 @@ temp_change_pred <- temp_change_df %>%
         axis.text.y = element_text(size = 14),
         axis.text.x = element_text(size = 18, angle = 20),
         axis.title = element_text(size = 22, face = 'bold'),
-        plot.margin = unit(c(0, 0.1, 0.1, 0.2), 'cm')) +
+        plot.margin = unit(c(0, 0.1, 0.1, 0.55), 'cm')) +
     labs(y = "Temp. Change (C)", 
        x = "") +
     geom_text(data = subset(labelData, subset = plot == 'tc'),
