@@ -424,19 +424,26 @@ field_data_all_3 <- field_data_all_3 %>%
   mutate(Age = case_when(
     age == 'new' ~ 'New',
     age == 'old' ~ 'Old'
+  )) %>% 
+  mutate(Species = case_when(
+    spp == "ARPA" ~ "Ar. patula", 
+    spp == "ABCO" ~ "Ab. concolor",
+    spp == "CADE" ~ "Ca. decurrens",
+    spp == "CECO" ~ "Ce. cordulatus",
+    spp == "PIJE" ~ "Pi. jeffreyi",
+    spp == "QUKE" ~ "Qu. kelloggii"
   ))
 
+
 field_data_all_3 %>%
-  #filter(month < 10) %>% #removing post-rain values (October sample collection)
-  mutate(spp = fct_relevel(spp, "ABCO", "PIJE", "CADE", "CECO", "ARPA", "QUKE"))  %>%
+  mutate(Species = fct_relevel(Species, c('Ab. concolor', 'Pi. jeffreyi', 'Ca. decurrens', 'Ar. patula', 'Qu. kelloggii')))  %>%
   mutate(month = month(date, label = TRUE, abbr = TRUE)) %>%
   ggplot(aes(
     x = midday,
     y = lfm,
     shape = Age
   )) +
-  geom_point(size = 1.4, alpha = .65, aes(color = as.factor(month))) +
- # geom_smooth(se = F, method = 'lm', size = 0.5, alpha = .6, color = 'black', aes(lty = Age), show_guide = F) +
+  geom_point(size = 1.4, alpha = .65, aes(color = Species)) +
   geom_vline(
     aes(xintercept = mean_tlp_spp, #lty = Species
         ),
@@ -445,30 +452,23 @@ field_data_all_3 %>%
     alpha = .6,
     show_guide = F
   ) +
-  # geom_hline(
-  #   aes(yintercept = mean_lfm_fall_spp, lty = Species),
-  #   size = 0.7,
-  #   color = 'black',
-  #   alpha = .6,
-  #   show_guide = F
-  # ) +
-  #stat_smooth(aes(x = LFM, y = predawn, colour = Date, linetype = "Linear Fit"), method = "lm")
   xlim(-5, 0) +
   labs(
-    y = "Live Fuel Moisture",
+    y = "Live Fuel Moisture (%)",
     x = "Midday Water Potential (MPa)",
-    color = "Month"
+    color = "Species"
   ) +
   ylim(50, 300) +
-  facet_wrap( ~ spp, labeller = labeller(spp = spp.labs)) +
- color_all +
+  facet_wrap(~Species) +
+  color_many2 +
   theme(
     strip.text = element_text(face = "italic"),
     axis.title = element_text(face = "bold"),
     legend.title = element_text(face = "bold"),
+    legend.text = element_text(face = 'italic'),
+    legend.key = element_rect(fill = 'white'),
     strip.background = element_rect(fill = "gray90")
   ) 
-  #scale_color_gradientn(colors=met.brewer("Morgenstern"))
 ```
 #### LFM by MPa (species, age)
 ```{r}

@@ -571,7 +571,7 @@ tti_plot_lfm_r_spp <- mem_data_all_r %>%
                        axis.text.x = element_blank(), axis.ticks.x = element_blank()) +
   labs(x = "", 
        y = "Time to Ignition (s)") +
-  annotate(geom = "text", x = -2.3, y = 230, label = 'a', fontface = 'bold', size = 10)
+  annotate(geom = "text", x = -2.4, y = 230, label = 'a', fontface = 'bold', size = 10)
 tti_plot_lfm_r_spp
 ```
 
@@ -605,7 +605,7 @@ fh_plot_r_spp <- mem_data_all_r %>%
         axis.title = element_text(size = 16, face = 'bold'))+
   labs(x = "", 
        y = "Flame Height (cm)") +
-  annotate(geom = "text", x = -2.9, y = 55, label = 'b', fontface = 'bold', size = 10)
+  annotate(geom = "text", x = -2.8, y = 55, label = 'b', fontface = 'bold', size = 10)
 fh_plot_r_spp
 
 # For MAIN figure:
@@ -657,7 +657,7 @@ lower_temp_max_plot_r_spp <- mem_data_all_r %>%
         axis.title = element_text(size = 16, face = 'bold'))+
   labs(x = "", 
        y = "Maximum Temperature") +
-  annotate(geom = "text", x = -2.9, y = 500, label = 'd', fontface = 'bold', size = 10)
+  annotate(geom = "text", x = -2.9, y = 480, label = 'd', fontface = 'bold', size = 10)
 lower_temp_max_plot_r_spp
 
 # For MAIN figure:
@@ -675,7 +675,7 @@ lower_temp_max_plot_lfm_r_spp <- mem_data_all_r %>%
                        axis.text.x = element_blank(), axis.ticks.x = element_blank()) +
   labs(x = "", 
        y = "Maximum Temperature") +
-  annotate(geom = "text", x = -2.3, y = 500, label = 'd', fontface = 'bold', size = 10)
+  annotate(geom = "text", x = -2.4, y = 480, label = 'd', fontface = 'bold', size = 10)
 lower_temp_max_plot_lfm_r_spp
 ```
 
@@ -725,7 +725,7 @@ gd_plot_lfm_r_spp <- mem_data_all_r %>%
                        axis.title = element_text(size = 16, face = 'bold')) +
   labs(x = "Live Fuel Moisture (scaled)", 
        y = "Glow Duration (s)") +
-  annotate(geom = "text", x = -2.3, y = 400, label = 'e', fontface = 'bold', size = 10)
+  annotate(geom = "text", x = -2.4, y = 400, label = 'e', fontface = 'bold', size = 10)
 gd_plot_lfm_r_spp
 ```
 
@@ -777,7 +777,7 @@ temp_change_plot_lfm_r_spp <- mem_data_all_r %>%
                        axis.text.x = element_blank(), axis.ticks.x = element_blank()) +
   labs(x = "", 
        y = "Temperature Change (C)") +
-  annotate(geom = "text", x = -2.3, y = 220, label = 'c', fontface = 'bold', size = 10)
+  annotate(geom = "text", x = -2.4, y = 220, label = 'c', fontface = 'bold', size = 10)
 temp_change_plot_lfm_r_spp
 ```
 
