@@ -17,12 +17,6 @@ ggplot <- function(...) { ggplot2::ggplot(...) +
 color_noceco <-  scale_color_manual(values = c('#42401D', '#5DA493', '#D8AB43', '#5792CC', '#6E406E')) 
 color_many2 <- scale_color_manual(values = c('#42401D', '#5DA493', '#D8AB43', '#5792CC', '#4D5B75', '#6E406E'))
 
-color_many3 <- scale_color_manual(values = c('#BD973D', '#3D3B1B', '#3B7D6E', '#5B9CDD', '#546380', '#4A3147'))
-
-color_many4 <- scale_color_manual(values = c('#DDB65B', '#514F21', '#438978', '#6399D0', '#576682', '#1D2331'))
-
-color_many5 <- scale_color_manual(values = c('#CBE896', '#5F5C29', '#3B7D6E', '#5792CC', '#4D5B75', '#523249'))
-
 #Calecopal Colors
 sierra1 = c("#BD973D", "#5F5C29", "#3B7D6E", "#5792CC", "#4D5B75", "#262E43")
 

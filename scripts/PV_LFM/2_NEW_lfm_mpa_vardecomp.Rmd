@@ -33,6 +33,8 @@ library(kableExtra)
 library(janitor)
 library(lubridate)
 library(specr)
+library(gridExtra)
+library(grid)
 
 filter = dplyr::filter
 mutate = dplyr::mutate
@@ -105,7 +107,21 @@ field_data_all_2.1 <- read_csv(here("processed-data", "analysis 2.0", "field_dat
   drop_na(lfm, water_potential, spp, plant, year_month, age_new) %>% 
   mutate(plant = as.factor(plant), 
          log_lfm = as.numeric(log(lfm))) %>% 
-  drop_na(log_lfm)
+  mutate(plant = case_when(
+    str_detect(unique_id2, "1.1_1") | str_detect(unique_id2, "_1_1") ~ 1,
+    str_detect(unique_id2, "1.2_1") | str_detect(unique_id2, "_2_1") ~ 2,
+    str_detect(unique_id2, "1.3_1") | str_detect(unique_id2, "_3_1") ~ 3,
+    str_detect(unique_id2, "1.4_1") | str_detect(unique_id2, "_4_1") ~ 4,
+    str_detect(unique_id2, "1.5_1") | str_detect(unique_id2, "_5_1") ~ 5,
+    str_detect(unique_id2, "1.6_1") | str_detect(unique_id2, "_6_1") ~ 6,
+    str_detect(unique_id2, "2.1_2") | str_detect(unique_id2, "_1_2") ~ 7,
+    str_detect(unique_id2, "2.2_2") | str_detect(unique_id2, "_2_2") ~ 8,
+    str_detect(unique_id2, "2.3_2") | str_detect(unique_id2, "_3_2") ~ 9,
+    str_detect(unique_id2, "2.4_2") | str_detect(unique_id2, "_4_2") ~ 10,
+    str_detect(unique_id2, "2.5_2") | str_detect(unique_id2, "_5_2") ~ 11
+  )) %>% 
+  mutate(plant = as.factor(plant)) %>% 
+  drop_na(log_lfm) 
 
 angio_field <- field_data_all_2.1 %>% 
   filter(F.Group == "Angiosperm")
@@ -117,7 +133,7 @@ gymno_field <- field_data_all_2.1 %>%
 #Var Decomps:
 
 ```{r, fig.height=1, fig.width=.6}
-form <- ~ water_potential + (1|year) + (1|plant)  + (1|spp)
+form <- ~ water_potential + (1|year_month) + (1|plant) + (1|spp)
 
 lfm_matrix <- angio_pv %>% 
   ungroup() %>% 
@@ -129,12 +145,14 @@ lfm_matrix <- angio_pv %>%
 varPart <- fitExtractVarPartModel(lfm_matrix, form, angio_pv )
 varPart
 
+source(here::here("scripts", "scripts_functions", "plotPercentBars_IB.R"))
+
 pv_vardecomp_angio <- plotPercentBars.new(varPart, col = c(vcol)) + theme(legend.position = "none")
 pv_vardecomp_angio
 
 ggsave(plot=pv_vardecomp_angio, bg = "white" , here::here("figures", "pv_vardecomp_angio"), device="jpg")
 
-form <- ~ water_potential + (1|year)+ (1|spp) + (1|plant)
+form <- ~ water_potential + (1|year_month)+ (1|spp) + (1|plant)
 
 lfm_matrix <- gymno_pv %>% 
   ungroup() %>% 
@@ -153,7 +171,7 @@ ggsave(plot=pv_vardecomp_gymno, bg = "white" , here::here("figures", "pv_vardeco
 
 #------
 
-form <- ~ water_potential  + (1|spp) + (1|year) + (1|plant)  
+form <- ~ water_potential  + (1|spp) + (1|year_month) + (1|plant)  
 
 lfm_matrix <- angio_flam %>% 
   ungroup() %>% 
@@ -165,7 +183,6 @@ lfm_matrix <- angio_flam %>%
 varPart <- fitExtractVarPartModel(lfm_matrix, form, angio_flam)
 varPart
 
-
 flam_vardecomp_angio <- plotPercentBars.new(varPart, col = c(vcol)) + theme(legend.position = "none")
 flam_vardecomp_angio
 
@@ -173,7 +190,7 @@ ggsave(plot=flam_vardecomp_angio, bg = "white" , here::here("figures", "flam_var
 
 #------
 
-form <- ~ water_potential  + (1|spp) + (1|year) + (1|plant)  
+form <- ~ water_potential  + (1|spp) + (1|year_month) + (1|plant)  
 
 lfm_matrix <- gymno_flam %>% 
   ungroup() %>% 
@@ -192,10 +209,9 @@ ggsave(plot=flam_vardecomp_gymno, bg = "white" , here::here("figures", "flam_var
 
 #------
 
+form <- ~ water_potential + (1|spp) + (1|year_month) + (1|plant) + (1|age_new)
 
-form <- ~ water_potential + water_potential + (1|spp) + (1|year_month) + (1|plant) + (1|age_new)
-
-lfm_matrix <-angio_field %>% 
+lfm_matrix <- angio_field %>% 
   ungroup() %>% 
   mutate(id = row_number()) %>% 
   select(id, log_lfm) %>% 
@@ -212,7 +228,7 @@ ggsave(plot=field_vardecomp_angio, bg = "white" , here::here("figures", "field_v
 
 #------
 
-form <- ~ water_potential + water_potential + (1|spp) + (1|year_month) + (1|plant) + (1|age_new)
+form <- ~ water_potential + (1|spp) + (1|year_month) + (1|plant) + (1|age_new)
 
 lfm_matrix <- gymno_field %>% 
   ungroup() %>% 
@@ -234,138 +250,145 @@ ggsave(plot=field_vardecomp_gymno, bg = "white" , here::here("figures", "field_v
 
 #Scatterplots:
 
+#### Function
+```{r}
+lfm.vs.mpa.scatterplot <- function(f.group.lab = " ", f.group, y.lab = " ", df, y.axis = F, x.axis = F, y.max) {
+  
+# For color palette
+if(f.group == "Angiosperm") {color_pal <- c('#5792CC', '#4D5B75', '#6E406E')}
+if(f.group == "Gymnosperm") {color_pal <- c('#42401D', '#5DA493', '#D8AB43')}
+  
+# For TLP linetype
+if(f.group == "Angiosperm") {fgr_lty <- 1}
+if(f.group == "Gymnosperm") {fgr_lty <- 2}
+  
+# For axis text and ticks
+if(y.axis == T) {y.text <- element_text(size = 13)}
+if(y.axis == T) {y.tick <- NULL}
+if(y.axis == F) {y.text <- element_blank()}
+if(y.axis == F) {y.tick <- element_blank()}
+if(x.axis == T) {x.text <- element_text(size = 13)}
+if(x.axis == T) {x.tick <- NULL}
+if(x.axis == F) {x.text <- element_blank()}
+if(x.axis == F) {x.tick <- element_blank()}
+
+fgroup_pv_summaries <- fgroup_pv_summaries %>% 
+  filter(F.Group == f.group)
+  
+plot <- df %>% 
+  filter(lfm < 300, 
+         lfm > 50) %>% 
+  filter(F.Group == f.group) %>% 
+  ggplot(aes(y = lfm, 
+             x = -1*water_potential, 
+             color = spp)) +
+  geom_vline(aes(xintercept = -1*mean_tlp_group), lty = fgr_lty, data = fgroup_pv_summaries) +
+  geom_jitter(alpha = .5, 
+              size = 2,
+             aes(shape = as.factor(year))) +
+  scale_color_manual(values = color_pal) +
+  scale_y_continuous(limits = c(50, y.max), breaks = c(y.max/5, 2*y.max/5, 3*y.max/5, 4*y.max/5)) +
+  labs(title = f.group.lab,
+       x = " ", 
+       y = y.lab) +
+   theme(legend.position = "none",
+         plot.title = element_text(face = 'bold', size = 20, hjust = 0.5),
+         axis.title = element_text(face = 'bold', size = 16),
+         axis.text.y = y.text,
+         axis.text.x = x.text,
+         axis.ticks.y = y.tick,
+         axis.ticks.x = x.tick,
+         strip.background = element_blank(),
+         strip.text = element_text(size  = 16, face = "bold"),
+         plot.margin = unit(c(0.05, 0, 0, 0.1), 'cm')) +
+  xlim(0, 10)
+
+return(plot)
+}
+```
+
 
 #####- Field plot (a)
 
 ```{r}
-dat_text <- data.frame(
-  F.Group = c("Angiosperm", "Gymnosperm"),
-  label   = c("a", NA)
-)
+field_data_all$spp <- factor(field_data_all$spp, levels = c('ABCO', 'PIJE', 'CADE', 'ARPA', 'CECO', 'QUKE'))
 
-field_plot <- field_data_all %>% 
-  filter(lfm < 300, 
-         lfm > 50) %>% 
-  ggplot(aes(y = lfm, 
-             x = -1*water_potential, 
-             color = spp)) +
-  geom_vline(aes(xintercept = -1*mean_tlp_group, 
-                 lty = F.Group), data = fgroup_pv_summaries) +
-  geom_jitter(alpha = .5, 
-              size = 2,
-             aes(shape = as.factor(year))
-             )+
-  facet_wrap(~F.Group) +
- # geom_smooth(method = "lm", se = F) +
-  color_many +
-  theme(legend.position = "none") +
-  labs(#title = "Field", 
-       x = "", 
-       y = "LFM") +
-   theme(plot.margin = unit(c(.2, .5, .3, .25), "cm"),
-         axis.title = element_text(face = 'bold', size = 16),
-        axis.text = element_text(size = 13),
-         strip.background = element_blank(),
-         strip.text = element_text(size  = 16, face = "bold"))+
-  xlim(0, 10) +
-  geom_text(
-  data    = dat_text,
-  color = "black",
-  fontface = 'bold', size = 10,
-  mapping = aes(x = 0.2, 
-                y = 300, 
-                #y = 2,
-                label = label)
- )
-  #annotate(geom = "text", x = 9, y = 300, label = 'a', fontface = 'bold', size = 10) 
-field_plot
+field_plot_angio <- lfm.vs.mpa.scatterplot(f.group.lab = "Angiosperm", f.group = "Angiosperm", y.lab = "Field Data", y.axis = T, y.max = 300, df = field_data_all_2.1) +
+  annotate(geom = "text", x = 0.5, y = 280, label = 'a', fontface = 'bold', size = 10)
+field_plot_angio
+
+field_vd_sp_angio <- field_plot_angio + annotation_custom(ggplotGrob(field_vardecomp_angio),
+                                     xmin = 7.25, xmax = 10,
+                                     ymin = 100, ymax = 280)
+field_vd_sp_angio
+
+field_plot_gymno <- lfm.vs.mpa.scatterplot(f.group.lab = "Gymnosperm", f.group = "Gymnosperm", y.max = 300, df = field_data_all_2.1) +
+  annotate(geom = "text", x = 0.5, y = 280, label = 'b', fontface = 'bold', size = 10)
+field_plot_gymno
+
+field_vd_sp_gymno <- field_plot_gymno + annotation_custom(ggplotGrob(field_vardecomp_gymno),
+                                     xmin = 7.45, xmax = 10,
+                                     ymin = 100, ymax = 280)
+field_vd_sp_gymno
 ```
 
-####- PV plot (b)
+##### - PV plot (b)
 
 ```{r}
-dat_text <- data.frame(
-  F.Group = c("Angiosperm", "Gymnosperm"),
-  label   = c("b", NA)
-)
+pv_plot_df <- pv_all_df %>% 
+  filter(!spp %in% c("ADFA", "CEME"))
 
-pv_plot <- pv_all_df %>%
-  filter(!spp %in% c("ADFA", "CEME")) %>% 
-  ggplot(aes(y = lfm, 
-             x = -1*water_potential, 
-             color = spp)) +
-  geom_vline(aes(xintercept = -1*mean_tlp_group, 
-                 lty = F.Group), data = fgroup_pv_summaries) +
-  geom_point(size = 2,alpha = .5, 
-             aes(shape = as.factor(year))
-             ) +
- # geom_smooth(method = "lm", se = F) +
-  color_many +
-  theme(legend.position = "none",
-         strip.background = element_blank(),
-  strip.text.x = element_blank())+
-  labs(#title = "Benchtop, multiple branches", 
-       x = "", 
-       y = "LFM")+
-  theme(plot.margin = unit(c(.2, .5, .3, .25), "cm"),
-         axis.title = element_text(face = 'bold', size = 16),
-        axis.text = element_text(size = 13)) +
- # xlim(0, 9) + 
-  geom_text(
-  data    = dat_text,
-  color = "black",
-  fontface = 'bold', size = 10,
-  mapping = aes(x = 0.2, y = 230, label = label))+
-  xlim(0, 10) +
- # annotate(geom = "text", x = 9, y = 225, label = 'c', fontface = 'bold', size = 10)+
-  facet_wrap(~F.Group)
-  
-pv_plot
+pv_plot_df$spp <- factor(pv_plot_df$spp, levels = c('ABCO', 'PIJE', 'CADE', 'ARPA', 'CECO', 'QUKE'))
+
+pv_plot_angio <- lfm.vs.mpa.scatterplot(f.group = "Angiosperm", y.lab = "PV Curves", y.axis = T, y.max = 250, df = pv_plot_df) +
+  annotate(geom = "text", x = 0.5, y = 230, label = 'c', fontface = 'bold', size = 10)
+pv_plot_angio
+
+pv_vd_sp_angio <- pv_plot_angio + annotation_custom(ggplotGrob(pv_vardecomp_angio),
+                                     xmin = 7.25, xmax = 10,
+                                     ymin = 85, ymax = 230)
+pv_vd_sp_angio
+
+pv_plot_gymno <- lfm.vs.mpa.scatterplot(f.group = "Gymnosperm", y.max = 250, df = pv_plot_df) +
+  annotate(geom = "text", x = 0.5, y = 230, label = 'd', fontface = 'bold', size = 10)
+pv_plot_gymno
+
+pv_vd_sp_gymno <- pv_plot_gymno + annotation_custom(ggplotGrob(pv_vardecomp_gymno),
+                                     xmin = 7.45, xmax = 10,
+                                     ymin = 85, ymax = 230)
+pv_vd_sp_gymno
 ```
+
 #####- Flam plot (c)
 ```{r}
-dat_text <- data.frame(
-  F.Group = c("Angiosperm", "Gymnosperm"),
-  label   = c("c", NA)
-)
+flam_all_df <- flam_curve_phys_all_raw %>% 
+  filter(!spp %in% c("ADFA", "CEME"))
 
-flam_plot <- flam_curve_phys_all_raw %>% 
-  filter(lfm < 300, 
-         lfm > 50) %>% 
-  filter(!spp %in% c("ADFA", "CEME")) %>% 
-  ggplot(aes(y = lfm, 
-             x = -1*water_potential, 
-             color = spp)) +
-  geom_vline(aes(xintercept = -1*mean_tlp_group, 
-                 lty = F.Group), data = fgroup_pv_summaries) +
-  geom_point(size = 2,alpha = .5, 
-             aes(shape = as.factor(year))
-             ) +
- # geom_smooth(method = "lm", se = F) +
-  color_many +
-  theme(legend.position = "none",
-         strip.background = element_blank(),
-  strip.text.x = element_blank())+
-  labs(#title = "Benchtop, multiple branches", 
-       x = "Water Potential", 
-       y = "LFM")+
-  theme(plot.margin = unit(c(.2, .5, .3, .25), "cm"),
-         axis.title = element_text(face = 'bold', size = 16),
-        axis.text = element_text(size = 13)) +
- # xlim(0, 9) + 
-  geom_text(
-  data    = dat_text,
-  color = "black",
-  fontface = 'bold', size = 10,
-  mapping = aes(x = 0.2, y = 237, label = label))+
- # annotate(geom = "text", x = 9, y = 225, label = 'c', fontface = 'bold', size = 10)+
-  facet_wrap(~F.Group)
-flam_plot
+flam_plot_angio <- lfm.vs.mpa.scatterplot(f.group = "Angiosperm", y.lab = "Flam. Data", y.axis = T, y.max = 250, x.axis = T, df = flam_all_df) +
+  annotate(geom = "text", x = 0.5, y = 230, label = 'e', fontface = 'bold', size = 10)
+flam_plot_angio
+
+flam_vd_sp_angio <- flam_plot_angio + annotation_custom(ggplotGrob(flam_vardecomp_angio),
+                                     xmin = 7.25, xmax = 10,
+                                     ymin = 85, ymax = 230)
+flam_vd_sp_angio
+
+flam_plot_gymno <- lfm.vs.mpa.scatterplot(f.group = "Gymnosperm", y.max = 250, x.axis = T, df = flam_all_df) +
+  annotate(geom = "text", x = 0.5, y = 230, label = 'f', fontface = 'bold', size = 10)
+flam_plot_gymno
+
+flam_vd_sp_gymno <- flam_plot_gymno + annotation_custom(ggplotGrob(flam_vardecomp_gymno),
+                                     xmin = 7.45, xmax = 10,
+                                     ymin = 85, ymax = 230)
+flam_vd_sp_gymno
 ```
 
 #- Scatterplots, combine
 
+Legend 1 - Scatterplot:
 ```{r}
+field_data_all$Species <- factor(field_data_all$Species, levels = c("Ab. concolor", "Pi. jeffreyi", "Ca. decurrens", "Ar. patula", "Ce. cordulatus", "Qu. kelloggii"))
+
 field_plot_leg <- ggplot(aes(y = lfm, 
              x = -1*water_potential, 
              color = Species), 
@@ -373,8 +396,8 @@ field_plot_leg <- ggplot(aes(y = lfm,
   geom_vline(aes(xintercept = -1*mean_tlp_group, 
                  lty = F.Group), 
              data = fgroup_pv_summaries) +
-  geom_point(size = 2,
-             alpha = .5, 
+  geom_point(size = 3,
+             alpha = .7, 
              aes(shape = as.factor(year)),
              data = field_data_all) +
   labs(color = "Species", 
@@ -383,19 +406,20 @@ field_plot_leg <- ggplot(aes(y = lfm,
    theme(plot.margin = unit(c(.2, .5, .3, .25), "cm"),
          axis.title = element_text(face = 'bold', size = 16),
         axis.text = element_text(size = 13),
-        legend.title = element_text(face = 'bold', size = 16),
-        legend.text = element_text(face = 'italic', size = 13)) +
-  color_many 
+        legend.title = element_text(face = 'bold', size = 18),
+        legend.text = element_text(face = 'italic', size = 16),
+        legend.key = element_rect(fill = 'white')) +
+  color_many2 
 
 field_plot_leg
 legend_dots <- cowplot::get_legend(field_plot_leg)
 ```
 
-
+Legend 2 - Var. Decomp.
 ```{r}
 #-------
 
-form <- ~ water_potential + water_potential + (1|spp) + (1|year_month) + (1|plant) + (1|age_new)
+form <- ~ water_potential + (1|spp) + (1|year_month) + (1|plant) + (1|age_new)
 
 lfm_matrix <- field_data_all_2.1 %>% 
   ungroup() %>% 
@@ -410,26 +434,21 @@ varPart
 legend_title <- "Predictor"
 
 legend <- plotPercentBars.legend(varPart, col = c(vcol)) +
-  scale_fill_manual(labels=c("age_new" = "Age", 
-                               "plant" = "Plant", 
-                               "spp" = "Species", 
-                               "year_month" = "Timing", 
+  scale_fill_discrete(labels=c("Residuals" = "Residuals",
+                             "water_potential" = 'Water Pot.',
+                             "year_month" = "Timing", 
                              "year" = "Timing",
-                               "water_potential" = 'Water Pot.', 
-                               "Residuals" = "Residuals"), 
-             values = c(age_new = "#fac228", 
-             spp = "#9f2a63", 
-             year = "#d44842", 
-             year_month = "#d44842",
-             water_potential = "#280b53", 
-             plant = "#65156e", 
-            # F.Group = "gold", 
-             Residuals = "grey")) +
+                             "spp" = "Species", 
+                             "plant" = "Plant", 
+                             "age_new" = "Age"), 
+             limits = c("Residuals", "Water Pot.", "Timing",
+                       "Species", "Plant", "Age"),
+             type = c('grey', '#280b53',  '#d44842', "#9f2a63", '#65156e', '#fac228')) +
    theme(plot.margin = unit(c(.2, .5, .3, .25), "cm"),
          axis.title = element_text(face = 'bold', size = 16),
         axis.text = element_text(size = 13),
-        legend.title = element_text(face = 'bold', size = 16),
-       legend.text = element_text(size = 13)
+        legend.title = element_text(face = 'bold', size = 18),
+       legend.text = element_text(size = 16)
         ) +
   labs(fill = "Predictor")
 legend
@@ -437,21 +456,34 @@ legend
 cow_legend <- cowplot::get_legend(legend)
 cow_legend
 
-legend <- cowplot::plot_grid(legend_dots,cow_legend, ncol = 1, rel_heights = c(1, 1), rel_widths = c(1,1))
+blank_plot <- ggplot(data = field_data_all_2.1, aes(x = lfm, y = mpa)) +
+  geom_point(color = 'white') +
+  theme_void()
+
+legend <- cowplot::plot_grid(blank_plot, legend_dots, cow_legend, blank_plot, ncol = 1, rel_heights = c(0.6, 1, 1.1, 0.4))
 legend
 ```
 
-```{r, fig.height=6, fig.width=5.5}
-#Mpas:
-plots <- cowplot::plot_grid(field_plot, pv_plot, flam_plot,
-          ncol = 1, 
-         nrow = 3
-          )
-plots_legend <- cowplot::plot_grid(plots, legend, rel_widths = c(5, 1.25), rel_heights = c(1,.5))
+Combining
+```{r}
+y.grob <- textGrob("Live Fuel Moisture (%)", 
+                   rot = 90,
+                   gp=gpar(fontface="bold", 
+                           col="black", 
+                           fontsize=24))
+x.grob <- textGrob("Water Potential (-MPa)",
+                   gp=gpar(fontface="bold", 
+                           col="black", 
+                           fontsize=24))
+
+plots <- cowplot::plot_grid(field_vd_sp_angio, field_vd_sp_gymno, pv_vd_sp_angio, pv_vd_sp_gymno, flam_vd_sp_angio, flam_vd_sp_gymno,
+         ncol = 2, 
+         nrow = 3)
+
+plots2 <- gridExtra::grid.arrange(arrangeGrob(plots, left = y.grob, bottom = x.grob))
+
+plots_legend <- cowplot::plot_grid(plots2, legend, rel_widths = c(5, 1.25), rel_heights = c(1,.5))
 plots_legend
 
-#ggsave(plot=plots_legend, bg = "white" , here::here("figures", "mpa_flam_metrics_unscaled"), device="jpg")
-
-ggsave(plot=plots_legend, bg = "white" , here::here("figures", "flam_pv_field"), device="jpg")
-#ggsave(plot=plots_legend, bg = "white" , here::here("figures", "flam_pv_field_fgroups"), device="jpg")
+ggsave(plot=plots_legend, bg = "white" , here::here("figures", "flam_pv_field"), device="jpg", height = 10.5, width = 14)
 ```

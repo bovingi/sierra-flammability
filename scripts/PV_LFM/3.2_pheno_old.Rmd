@@ -935,8 +935,8 @@ p1 <- ggplot(data = df1, aes(x = month, y = lfm)) +
       angle = 30,
       hjust = 1,
       size = 16),
-    axis.title.x = element_blank(),
-    axis.title.y = element_text(face = "bold", size = 16),
+    axis.title = element_blank(),
+    #axis.title.y = element_text(face = "bold", size = 16),
     axis.text.y = element_text(size = 12),
     legend.title = element_text(face = "bold"),
     strip.text = element_text(face = "italic", size = 14),
@@ -1008,9 +1008,9 @@ p1 <- ggplot(data = df1, aes(x = month, y = lfm)) +
       angle = 30,
       hjust = 1,
       size = 16),
-    axis.title.y = element_text(face = "bold", size = 16),
+    #axis.title.y = element_text(face = "bold", size = 16),
     axis.text.y = element_text(size = 12),
-    axis.title.x = element_blank(),
+    axis.title = element_blank(),
     legend.title = element_text(face = "bold"),
     strip.text = element_text(face = "italic", size = 14),
     legend.position = 'none') +
@@ -1337,11 +1337,20 @@ p.ceco.main <- pheno.boxplot.vis(species = "CECO", phenophases = ceco.phenophase
 ## Arrange
 ```{r}
 # I ended up doing some odd cowplot stuff here to get the final product we wanted
+y.grob <- textGrob("Live Fuel Moisture (%)", 
+                   rot = 90,
+                   gp=gpar(fontface="bold", 
+                           col="black", 
+                           fontsize=24))
+
 p.spp.main <- cowplot::plot_grid(p.abco.main, p.pije.main, p.cade.main, p.ceco.main, p.arpa.main, p.quke.main, ncol = 3)
 p.spp.main
+
+p.spp.w.grob <- gridExtra::grid.arrange(arrangeGrob(p.spp.main, left = y.grob))
+
 ggsave(here("figures", "phenophase.lfm.boxplot.main.jpg"),
        height = 10, width = 15,
-       plot = p.spp.main)
+       plot = p.spp.w.grob)
 # For some strange reason, I could not get the legends and the plots to mesh together with cowplot or ggarrange... I ended up just stitching them together on Google Slides
 ```
 # --------------
