@@ -487,3 +487,11 @@ plots_legend
 
 ggsave(plot=plots_legend, bg = "white" , here::here("figures", "flam_pv_field"), device="jpg", height = 10.5, width = 14)
 ```
+
+
+#Split at TLP for field data: 
+
+```{r}
+
+```
+
