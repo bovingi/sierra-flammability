@@ -23,11 +23,11 @@ source(here("scripts", "scripts_functions", "figure_info_sierra_flammability.R")
 source(here("scripts", "scripts_functions", "outlierKD2.R"))
 ```
 
-# Overview: 
+# Overview:
 
-This script organizes the compiled PV Curve data and does some basic visualizations. Additionally, it compiles water-relations data from the flammability testing and organizes to compare with PV Curves (saturated water content and lfm). Lastly, it approximates saturated water content and RWC from the field-collected data. 
+This script organizes the compiled PV Curve data and does some basic visualizations. Additionally, it compiles water-relations data from the flammability testing and organizes to compare with PV Curves (saturated water content and lfm). Lastly, it approximates saturated water content and RWC from the field-collected data.
 
-**Goal**: see how PV curves (which use RWC) compare to benchtop or field (where need to convert all values to RWC) 
+**Goal**: see how PV curves (which use RWC) compare to benchtop or field (where need to convert all values to RWC)
 #--------------------------
 ### Species data from literature:
 
@@ -48,7 +48,7 @@ datatable(lit_values)
 #--------------------------
 ### Section 1: Pressure Volume Curves:
 
-This section is to summarise all of our PV curve data 
+This section is to summarise all of our PV curve data
 
 Read in data and clean names, remove any odd curves
 
@@ -58,7 +58,7 @@ Sys.setenv("VROOM_CONNECTION_SIZE" = 500073)
 
 #pv_allcurves_data_txt <- readr::read_delim(here("raw-data", "allcurves_copy_txt.txt"), show_col_types = FALSE)
 
-# pv_allcurves_data_old <- read.csv(here("raw-data", "allcurves.csv")) %>% 
+# pv_allcurves_data_old <- read.csv(here("raw-data", "allcurves.csv")) %>%
 #   clean_names() %>%
 #   mutate(lfm = (((fresh_weight - dry_weight)/dry_weight)* 100)) %>%
 #   mutate(neg_mpa = -1/water_potential) %>%
@@ -68,103 +68,103 @@ Sys.setenv("VROOM_CONNECTION_SIZE" = 500073)
 #   mutate(month = month(date))
 
 pv_allcurves_data <- read_csv(here("raw-data", "allcurves.csv")) %>%
-  clean_names() %>% 
-  select(-swc) %>% 
-  mutate(fresh_weight_saturated = as.numeric(fresh_weight_saturated)) %>% 
-  dplyr::mutate(water_weight = fresh_weight - dry_weight, 
-         lfm = (((fresh_weight - dry_weight)/dry_weight)* 100), 
-         swc = fresh_weight_saturated - dry_weight, 
-         rwc = fresh_weight/fresh_weight_saturated, 
-         rwd = 100 - rwc, 
-         tlp = tlp,
-         neg_mpa = -1/water_potential,
-         sample = as.character(sample), 
-         date = mdy(date),
-        # date = as.Date(date, format = '%m.%d.%Y'), 
-         year = year(date),
-         month = month(date)
-         ) 
+  clean_names() %>%
+  select(-swc) %>%
+  mutate(fresh_weight_saturated = as.numeric(fresh_weight_saturated)) %>%
+  dplyr::mutate(water_weight = fresh_weight - dry_weight,
+     	lfm = (((fresh_weight - dry_weight)/dry_weight)* 100),
+     	swc = fresh_weight_saturated - dry_weight,
+     	rwc = fresh_weight/fresh_weight_saturated,
+     	rwd = 100 - rwc,
+     	tlp = tlp,
+     	neg_mpa = -1/water_potential,
+     	sample = as.character(sample),
+     	date = mdy(date),
+    	# date = as.Date(date, format = '%m.%d.%Y'),
+     	year = year(date),
+     	month = month(date)
+     	)
 
-  #deal with bag added to CECO in 2020: 
+  #deal with bag added to CECO in 2020:
 
-#pv curve data without CECO: 
-pv_allcurves_noceco <- pv_allcurves_data %>% 
-  filter(!(spp %in% c("CECO") & year == 2020)) 
+#pv curve data without CECO:
+pv_allcurves_noceco <- pv_allcurves_data %>%
+  filter(!(spp %in% c("CECO") & year == 2020))
 
 #Just CECO TLP information:
-pv_tlp_data_ceco <- read_csv(here("raw-data", "PV_sierra_summaries.csv")) %>% 
-  clean_names() %>% 
-  mutate(fresh_weight_saturated = swc, 
-         po = po_m_pa, 
-         tlp = ytlp_m_pa, 
-         rwc_at_tlp = rwctlp, 
-         lfm_at_tlp = lf_mtlp, 
-         date = mdy(date), 
-         year = year(date), 
-         month = month(date), 
-         #timing = "fall", 
-         sample = replicate,
-         .keep = "unused"
-         ) %>% 
-  filter(species %in% c("CECO") & year == 2020) %>% 
+pv_tlp_data_ceco <- read_csv(here("raw-data", "PV_sierra_summaries.csv")) %>%
+  clean_names() %>%
+  mutate(fresh_weight_saturated = swc,
+     	po = po_m_pa,
+     	tlp = ytlp_m_pa,
+     	rwc_at_tlp = rwctlp,
+     	lfm_at_tlp = lf_mtlp,
+     	date = mdy(date),
+     	year = year(date),
+     	month = month(date),
+     	#timing = "fall",
+     	sample = replicate,
+     	.keep = "unused"
+     	) %>%
+  filter(species %in% c("CECO") & year == 2020) %>%
   select(-date, -e_m_pa, - cft_m_pa_1, -ctlp_m_pa_1, -cft_mol_m_2_m_pa_1)
 
-#Just CECO full curve data: 
-pv_ceco_2020 <- pv_allcurves_data %>% 
-  filter(spp %in% c("CECO") & year == 2020) %>% 
-  select(-lfm, swc, rwc, rwd, water_weight) %>% 
+#Just CECO full curve data:
+pv_ceco_2020 <- pv_allcurves_data %>%
+  filter(spp %in% c("CECO") & year == 2020) %>%
+  select(-lfm, swc, rwc, rwd, water_weight) %>%
   mutate(fresh_weight = fresh_weight - 0.8754, #<- avg. weight of plastic bags used during analysis (bag was used and not accounted for)
-         #fresh_weight_saturated = fresh_weight_saturated - 0.8754, 
-         water_weight = fresh_weight - dry_weight, 
-         lfm = (((fresh_weight - dry_weight)/dry_weight)* 100), 
-        # swc = fresh_weight_saturated - dry_weight, 
-         #rwc = fresh_weight/fresh_weight_saturated, 
-         #rwd = 100 - rwc
-        ) %>% 
+     	#fresh_weight_saturated = fresh_weight_saturated - 0.8754,
+     	water_weight = fresh_weight - dry_weight,
+     	lfm = (((fresh_weight - dry_weight)/dry_weight)* 100),
+    	# swc = fresh_weight_saturated - dry_weight,
+     	#rwc = fresh_weight/fresh_weight_saturated,
+     	#rwd = 100 - rwc
+    	) %>%
   select(-po, -tlp, -rwc_at_tlp, -lfm_at_tlp, -fresh_weight_saturated)
 
-pv_ceco_2020_tlp_data <- merge(pv_ceco_2020, pv_tlp_data_ceco, 
-                               by = c("sample", "month", "year"), 
-                               all.x = T) %>% 
-  mutate( water_weight = fresh_weight - dry_weight, 
-         lfm = (((fresh_weight - dry_weight)/dry_weight)* 100), 
-         swc = fresh_weight_saturated - dry_weight, 
-         rwc = fresh_weight/fresh_weight_saturated, 
-         rwd = 100 - rwc
-        )
+pv_ceco_2020_tlp_data <- merge(pv_ceco_2020, pv_tlp_data_ceco,
+                           	by = c("sample", "month", "year"),
+                           	all.x = T) %>%
+  mutate( water_weight = fresh_weight - dry_weight,
+     	lfm = (((fresh_weight - dry_weight)/dry_weight)* 100),
+     	swc = fresh_weight_saturated - dry_weight,
+     	rwc = fresh_weight/fresh_weight_saturated,
+     	rwd = 100 - rwc
+    	)
 
-#put fixed CECO back into dataset: 
+#put fixed CECO back into dataset:
 
 pv_allcurves_data_fixed <- bind_rows(pv_allcurves_noceco, pv_ceco_2020_tlp_data)
 
-#Need to also do something like this: 
- # group_by("spp", "sample") %>% 
+#Need to also do something like this:
+ # group_by("spp", "sample") %>%
  #  mutate(rwc_at_tlp_r = rwc from the row where tlp is equal to tlp_excel)
 
 data.not.adfa <- pv_allcurves_data_fixed %>% #deal wirh some weird outliners in ADFA
    filter(spp != "ADFA")
 
-data.adfa <- pv_allcurves_data_fixed %>% 
+data.adfa <- pv_allcurves_data_fixed %>%
   filter(lfm < 300, spp == "ADFA") #remove outlier ADFAs (not sure why this is how it is?)
 
 pv_allcurves_data_clean  <- rbind(data.adfa, data.not.adfa)
 
-pv_allcurves_data_clean  %>% 
+pv_allcurves_data_clean  %>%
 write_csv(here("processed-data", "analysis 2.0", "all_pv_curves_clean_v2.csv"))
 ```
 
 Visualize to make sure everything makes sense:
 
 ```{r, warning = F}
-pv_allcurves_data_clean%>% 
-  filter(timing == "fall", 
-         year != 2016) %>% 
-ggplot(aes(y = neg_mpa, x = rwd, color = spp)) + 
+pv_allcurves_data_clean%>%
+  filter(timing == "fall",
+     	year != 2016) %>%
+ggplot(aes(y = neg_mpa, x = rwd, color = spp)) +
   geom_jitter(alpha = .5, size = 1) +
   labs(title = "Pressure Volume Curves",
-         y = "-1/Mpa", 
-       x = "Relative Water Deficit (%)") +
-  color_all +
+     	y = "-1/Mpa",
+   	x = "Relative Water Deficit (%)") +
+  #color_all +
   facet_wrap(~year)
 ```
 
@@ -173,34 +173,68 @@ Visualize LFM and Mpa ("Pressure Moisture Curves"):
 ```{r, warning = F}
 pv_allcurves_data_clean %>%
   filter(timing == "fall",
-         year != 2016) %>%
+     	year != 2016) %>%
   ggplot(aes(y = neg_mpa, x = lfm, color = spp)
   ) +
   geom_jitter(alpha = .5, size = 1) +
   labs(title = "Pressure Moisture Curves",
-       y = "-1/Mpa",
-       x = "Live Fuel Moisture (%)") +
+   	y = "-1/Mpa",
+   	x = "Live Fuel Moisture (%)") +
   facet_wrap( ~ year, scales = "free") +
   color_all
 ```
 
-Summaries: 
+#***JOE!**Summaries:
+
+
+THIS:
+
 ```{r}
-table <- pv_allcurves_data_clean %>% 
-  filter(timing == "fall", year != 2016) %>% 
-  drop_na(swc) %>% 
-  group_by(spp, year) %>% 
-  summarise(lfm = mean(lfm_at_tlp), 
-            #sd_lfm = sd(lfm_at_tlp),
-            tlp = mean(tlp), 
-            #sd_tlp = sd(tlp),
-            rwc_tlp = mean(rwc_at_tlp), 
-            #sd_rwc = sd(rwc_tlp),
-            po = mean(po), 
-           # sd_po = sd(po),
-            swc = mean(fresh_weight_saturated), 
-            #sd_swc = sd(swc)
-            )
+pv_segs <- read_csv(here("raw-data",  "PV_sierra_summaries.csv")) %>%
+  clean_names() %>%
+  mutate(date = mdy(date),
+     	year = year(date)) %>%
+ # filter(timing == "fall", !year %in% c(2016, 2020)) %>%
+  #drop_na(swc) %>%
+  group_by(species, year
+       	) %>%
+  summarise(lfm = mean(lf_mtlp),
+        	sd_lfm = sd(lf_mtlp),
+        	tlp = mean(ytlp_m_pa),
+        	sd_tlp = sd(ytlp_m_pa),
+        	rwc_tlp = mean(rwctlp),
+        	sd_rwc = sd(rwctlp),
+        	po = mean(po_m_pa),
+        	sd_po = sd(po_m_pa),
+       	# swc = mean(swc),
+       	# sd_swc = sd(swc),
+        	e = mean(e_m_pa),
+        	sd_e = sd(e_m_pa)
+        	)
+pv_segs
+
+datatable(pv_segs)
+```
+
+#------
+
+NOT this:
+```{r}
+table <- pv_allcurves_data_clean %>%
+  filter(timing == "fall", year != 2016) %>%
+  drop_na(swc) %>%
+  group_by(spp, year) %>%
+  summarise(lfm = mean(lfm_at_tlp),
+        	#sd_lfm = sd(lfm_at_tlp),
+        	tlp = mean(tlp),
+        	#sd_tlp = sd(tlp),
+        	rwc_tlp = mean(rwc_at_tlp),
+        	#sd_rwc = sd(rwc_tlp),
+        	po = mean(po),
+       	# sd_po = sd(po),
+        	swc = mean(fresh_weight_saturated),
+        	#sd_swc = sd(swc)
+        	)
 table
 
 #kableExtra::kable(table)
@@ -213,133 +247,134 @@ datatable(table)
 Non-transformed Mpa:
 
 ```{r}
-all <- pv_allcurves_data_clean %>% 
-ggplot(aes(y = water_potential, x = lfm, color = spp)) + 
+all <- pv_allcurves_data_clean %>%
+ggplot(aes(y = water_potential, x = lfm, color = spp)) +
   geom_jitter(alpha = .5, size = 1) +
-  labs(title = "Pressure Volume Curves", 
-       y = "Mpa", 
-       x = "Live Fuel Moisture (%)") +
+  labs(title = "Pressure Volume Curves",
+   	y = "Mpa",
+   	x = "Live Fuel Moisture (%)") +
   color_all
 all
-#ggplotly(all, tooltip = c("spp")) 
+#ggplotly(all, tooltip = c("spp"))
 ```
 
 Working with all species again, what is the relationship between RWC and TLP?
 
 ```{r}
-ggplot(data= pv_allcurves_data_clean, aes(y = tlp, 
-                                          x = rwc_at_tlp, 
-                                          color = spp, 
-                                          #shape = timing
-                                          )) +
+ggplot(data= pv_allcurves_data_clean, aes(y = tlp,
+                                      	x = rwc_at_tlp,
+                                      	color = spp,
+                                      	#shape = timing
+                                      	)) +
   geom_point(alpha = .8, size = 1) +
   labs(title = "TLP and RWC at TLP",
-       y = "TLP (-Mpa)", 
-       x = "RWC (%)")  +
+   	y = "TLP (-Mpa)",
+   	x = "RWC (%)")  +
   color_all+
   geom_smooth(method='lm', se = F)
 ```
 
 ```{r}
-ggplot(data = pv_allcurves_data_clean, aes(y = tlp, 
-                                           x = lfm_at_tlp, 
-                                           color = spp)) +
+ggplot(data = pv_allcurves_data_clean, aes(y = tlp,
+                                       	x = lfm_at_tlp,
+                                       	color = spp)) +
   geom_point(alpha = .8, size = 1) +
   labs(title = "TLP and LFM at TLP",
-       y = "TLP (-Mpa)", 
-       x = "LFM (%)") +
+   	y = "TLP (-Mpa)",
+   	x = "LFM (%)") +
   geom_smooth(method='lm', se = F) +
   color_all
-  
+ 
 ```
 
 Remove CECO, since that spp is strange...(result of using branchlet? Impossible to do leaves??)
 
 ```{r}
-pv_allcurves_data_clean %>% 
-  filter(spp != "CECO") %>% 
+pv_allcurves_data_clean %>%
+  filter(spp != "CECO") %>%
 ggplot(aes(y = tlp, x = lfm_at_tlp, color = spp)) +
   geom_point(alpha = .8, size = 1) +
   labs(title = "TLP and LFM at TLP, all spp together",
-       y = "TLP (-Mpa)", 
-       x = "LFM at TLP (%)") +
+   	y = "TLP (-Mpa)",
+   	x = "LFM at TLP (%)") +
   geom_smooth(method='lm') +
   color_all
 ```
 
 ```{r}
-pv_allcurves_data_clean %>% 
-  filter(spp != "CECO") %>% 
-ggplot(aes(y = rwc_at_tlp, 
-           x = lfm_at_tlp, 
-           color = spp)) +
+pv_allcurves_data_clean %>%
+  filter(spp != "CECO") %>%
+ggplot(aes(y = rwc_at_tlp,
+       	x = lfm_at_tlp,
+       	color = spp)) +
   geom_point(alpha = .8, size = 1) +
   labs(title = "RWC and LFM at TLP",
-       y = "RWC at TLP (%)", 
-       x = "LFM at TLP (%)") +
+   	y = "RWC at TLP (%)",
+   	x = "LFM at TLP (%)") +
   geom_smooth(method='lm', se = F) +
   color_all
 ```
 
-##### PV summaries 
+
+PV summaries
 Get TLPs into dataframe so we can look at them more closely:
 
 ```{r}
-tlp_summary_spp_date <- pv_allcurves_data_clean %>% 
-  group_by(spp, date) %>% 
-  summarise(mean_tlp_date = mean(tlp), sd_date = sd(tlp), 
-            mean_po_date = mean(po), sd_date = sd(po))
+tlp_summary_spp_date <- pv_allcurves_data_clean %>%
+  group_by(spp, date) %>%
+  summarise(mean_tlp_date = mean(tlp), sd_date = sd(tlp),
+        	mean_po_date = mean(po), sd_date = sd(po))
 tlp_summary_spp_date
 
-tlp_summary_spp <- pv_allcurves_data_clean %>% 
-  group_by(spp) %>% 
-  summarise(mean_tlp_spp = mean(tlp), sd_spp = sd(tlp), 
-            mean_po_date = mean(po), sd_date = sd(po))
+tlp_summary_spp <- pv_allcurves_data_clean %>%
+  group_by(spp) %>%
+  summarise(mean_tlp_spp = mean(tlp), sd_spp = sd(tlp),
+        	mean_po_date = mean(po), sd_date = sd(po))
 tlp_summary_spp
 
 tlp_summary_month <-pv_allcurves_data_clean %>%
-  mutate(month_char = as.character(month)) %>% 
-  group_by(month_char, spp) %>% 
-  summarise(n=n(), mean_tlp_month =mean(tlp),sd_month=sd(tlp), 
-            mean_po_month =mean(po),sd_month=sd(po))
+  mutate(month_char = as.character(month)) %>%
+  group_by(month_char, spp) %>%
+  summarise(n=n(), mean_tlp_month =mean(tlp),sd_month=sd(tlp),
+        	mean_po_month =mean(po),sd_month=sd(po))
 
 tlp_summary_timing <- pv_allcurves_data_clean %>%
-  group_by(timing, spp) %>% 
-  summarise(n=n(), mean_tlp_timing=mean(tlp),sd_timing=sd(tlp), 
-            mean_po_month =mean(po),sd_month=sd(po))
+  group_by(timing, spp) %>%
+  summarise(n=n(), mean_tlp_timing=mean(tlp),sd_timing=sd(tlp),
+        	mean_po_month =mean(po),sd_month=sd(po))
 
 pv_summary_spp <- pv_allcurves_data_clean %>%
-  filter(timing == "fall", 
-         #year == 2021
-         ) %>% 
-  group_by(spp) %>% 
-  summarise(n=n(), mean_tlp_fall_spp=mean(tlp),sd_fall_spp=sd(tlp), 
-             mean_po_fall_spp=mean(po),sd_fall_spp=sd(po))
+  filter(timing == "fall",
+     	#year == 2021
+     	) %>%
+  group_by(spp) %>%
+  summarise(n=n(), mean_tlp_fall_spp=mean(tlp),sd_fall_spp=sd(tlp),
+         	mean_po_fall_spp=mean(po),sd_fall_spp=sd(po))
 
-#LFM based on the above: 
+#LFM based on the above:
 
 
 tlp_summary_timing_lfm <- pv_allcurves_data_clean %>%
-  group_by(timing, spp) %>% 
+  group_by(timing, spp) %>%
   summarise(n=n(), mean_lfm_timing=mean(lfm),sd_lfm_timing=sd(lfm))
 
 tlp_summary_spp_lfm <- pv_allcurves_data_clean %>%
-  filter(timing == "fall", 
-        # year == 2021
-         ) %>% 
-  group_by(spp) %>% 
+  filter(timing == "fall",
+    	# year == 2021
+     	) %>%
+  group_by(spp) %>%
   summarise(n=n(), mean_lfm_fall_spp=mean(lfm),sd_lfm_fall_spp=sd(lfm))
 ```
 
 
 ```{r}
 ggplot(tlp_summary_timing, aes(y = mean_tlp_timing, x = spp, fill = timing)) +
-    geom_bar(stat = "identity", position ="dodge") +
-    geom_errorbar(aes(x = spp, ymin=mean_tlp_timing-sd_timing, ymax=mean_tlp_timing+sd_timing), 
-                  position=position_dodge(0.9), 
-                  width=.5, 
-                  color = "black",
-                  size = .5) +
+	geom_bar(stat = "identity", position ="dodge") +
+	geom_errorbar(aes(x = spp, ymin=mean_tlp_timing-sd_timing, ymax=mean_tlp_timing+sd_timing),
+              	position=position_dodge(0.9),
+              	width=.5,
+              	color = "black",
+              	size = .5) +
    labs(title = "TLP with sd", y = "TLP", x = "Species") +
    color_fill
 ```
@@ -355,38 +390,38 @@ ggplot(tlp_summary_timing, aes(y = mean_tlp_timing, x = spp, fill = timing)) +
 These were constructed via simultaneous measurements on LFM and Mpa during flammability testing.
 
 ```{r warning=FALSE, message=FALSE}
-flam_curve_phys_czo <- readr::read_csv(here("raw-data", "czo.flam.curve.physiological.data.csv"), 
-                                       show_col_types = FALSE) %>% 
-  clean_names() %>% 
+flam_curve_phys_czo <- readr::read_csv(here("raw-data", "czo.flam.curve.physiological.data.csv"),
+                                   	show_col_types = FALSE) %>%
+  clean_names() %>%
   mutate(location = "czo")
 
-flam_curve_phys_seki <- readr::read_csv(here("raw-data", "seki.flam.curve.physiological.data.csv"), 
-                                        show_col_types = FALSE) %>% 
-  clean_names() %>% 
+flam_curve_phys_seki <- readr::read_csv(here("raw-data", "seki.flam.curve.physiological.data.csv"),
+                                    	show_col_types = FALSE) %>%
+  clean_names() %>%
   mutate(location = "seki")
 
-flam_curve_phys_local <- readr::read_csv(here("raw-data", "local.flam.curve.physiological.data.csv"), 
-                                         show_col_types = FALSE) %>%
-  clean_names() %>% 
+flam_curve_phys_local <- readr::read_csv(here("raw-data", "local.flam.curve.physiological.data.csv"),
+                                     	show_col_types = FALSE) %>%
+  clean_names() %>%
   mutate(location = "local")
 
-flam_curve_phys_all_notlp <- rbind(flam_curve_phys_czo, flam_curve_phys_local, flam_curve_phys_seki) %>% 
-  mutate(lfm = lfm_n_as_imputed, water_potential = mpa) %>% 
-  mutate(pos_mpa = -1*water_potential) %>% 
+flam_curve_phys_all_notlp <- rbind(flam_curve_phys_czo, flam_curve_phys_local, flam_curve_phys_seki) %>%
+  mutate(lfm = lfm_n_as_imputed, water_potential = mpa) %>%
+  mutate(pos_mpa = -1*water_potential) %>%
   mutate(month = case_when(
-    year_month == "2020_September" ~ 9, 
-    year_month == "2020_January" ~ 1, 
-    year_month == "2020_October" ~ 10, 
-    year_month == "2016_December" ~ 12,
-    year_month == "2019_December" ~ 9, 
-    year_month == "2028_January" ~ 1)) %>% 
+	year_month == "2020_September" ~ 9,
+	year_month == "2020_January" ~ 1,
+	year_month == "2020_October" ~ 10,
+	year_month == "2016_December" ~ 12,
+	year_month == "2019_December" ~ 9,
+	year_month == "2028_January" ~ 1)) %>%
   mutate(timing = case_when(
-     year_month == "2020_September" ~ "fall", 
-    year_month == "2020_January" ~ "spring", 
-    year_month == "2020_October" ~ "fall", 
-    year_month == "2016_December" ~ "fall",
-    year_month == "2019_December" ~ "fall", 
-    year_month == "2028_January" ~ "spring")) %>% 
+ 	year_month == "2020_September" ~ "fall",
+	year_month == "2020_January" ~ "spring",
+	year_month == "2020_October" ~ "fall",
+	year_month == "2016_December" ~ "fall",
+	year_month == "2019_December" ~ "fall",
+	year_month == "2028_January" ~ "spring")) %>%
   select(individual, year_month, month, timing, dry_wt, spp, model, rwc, lfm, max_mpa_sample, mpa, gww_gdw, gww_gdw_saturated, fresh_wt, site, sample, location, pos_mpa, water_potential)
 
 diagnostics <- dlookr::diagnose(flam_curve_phys_all_notlp)
@@ -395,40 +430,40 @@ diagnostics
 ```
 
 ```{r warning=FALSE, message=FALSE}
-#merge the tlps from the PV curve summary into the flam curve dataset: 
+#merge the tlps from the PV curve summary into the flam curve dataset:
 
 ##note: TLPs are species means, NOT from specific sampling times (should only matter for ABCO)
-flam_curve_phys_all <- merge(flam_curve_phys_all_notlp, pv_summary_spp, by = "spp", all = T) %>% 
-  mutate(tlp = mean_tlp_fall_spp, 
-         po = mean_po_fall_spp) %>% 
+flam_curve_phys_all <- merge(flam_curve_phys_all_notlp, pv_summary_spp, by = "spp", all = T) %>%
+  mutate(tlp = mean_tlp_fall_spp,
+     	po = mean_po_fall_spp) %>%
   select(-mean_tlp_fall_spp)
 ```
 
-This is effectively what we're trying to do to get the saturated water content except we'll do it for each individual, not for each species. 
+This is effectively what we're trying to do to get the saturated water content except we'll do it for each individual, not for each species.
 
 ```{r}
-ggplot(flam_curve_phys_all, aes(x = pos_mpa, 
-                                y = gww_gdw, 
-                                color = spp)) +
+ggplot(flam_curve_phys_all, aes(x = pos_mpa,
+                            	y = gww_gdw,
+                            	color = spp)) +
   geom_point(alpha = .3) +
   geom_smooth(method = "lm", se = FALSE, size = .5) +
   color_all +
-  labs(title = "Intercept = saturated water content", 
-       y = "water:dry matter", 
-       x = "water potential (+Mpa)") 
+  labs(title = "Intercept = saturated water content",
+   	y = "water:dry matter",
+   	x = "water potential (+Mpa)")
 ```
 
-We need the extrapolated saturated water content so that we can determine the relative water content. We do that here by: 
+We need the extrapolated saturated water content so that we can determine the relative water content. We do that here by:
 1. Finding a lm for each indvidual that relates **water content:dry matter** with **water potential**.
-2. Extracting the y-intercept. This is the extrapolated saturated water content. 
-3. Add that value back into the dataset so it is useful. 
+2. Extracting the y-intercept. This is the extrapolated saturated water content.
+3. Add that value back into the dataset so it is useful.
 
 ```{r, warning= FALSE}
 #get the extrapolated saturated water content:
-swc_all <- flam_curve_phys_all %>% 
+swc_all <- flam_curve_phys_all %>%
   filter(mpa > tlp) %>% #for points above the tlp (estimated to be around ~2)
-  group_by(individual) %>% 
-  summarise(swc_sat = lm(formula = gww_gdw ~ pos_mpa)$coefficients[["(Intercept)"]]) 
+  group_by(individual) %>%
+  summarise(swc_sat = lm(formula = gww_gdw ~ pos_mpa)$coefficients[["(Intercept)"]])
 
 # try.broom <- flam_curve_phys_all %>%
 #   filter(mpa > -2) %>%
@@ -436,10 +471,10 @@ swc_all <- flam_curve_phys_all %>%
 #   do(broom::tidy(lm(gww_gdw ~ pos_mpa, .))) %>%
 #   filter(term == "(Intercept)") %>%
 #   select(individual, estimate)
-# 
+#
 # merged <- merge(try.broom, swc_all, by = "individual", all = T)
-# 
-# merged %>% 
+#
+# merged %>%
 #   ggplot(aes(y = estimate, x = swc_sat)) +
 #   geom_point()
 
@@ -448,68 +483,68 @@ flam_curve_phys_all <- merge(flam_curve_phys_all, swc_all, by="individual", all 
   mutate(rwc_new = 100 * (gww_gdw/swc_sat))
 ```
 
-Make a smaller df to see what that looks like: 
+Make a smaller df to see what that looks like:
 
 ```{r, warning= FALSE}
-subset <- flam_curve_phys_all %>% 
- # select(individual, dry_wt, lfm, mpa,pos_mpa, gww_gdw, tlp, swc_sat, rwc_new, spp) %>% 
+subset <- flam_curve_phys_all %>%
+ # select(individual, dry_wt, lfm, mpa,pos_mpa, gww_gdw, tlp, swc_sat, rwc_new, spp) %>%
   filter(rwc_new < 100)
 
 unique(subset$individual)
 
-#See if those swc values make sense: 
-# ggplot(subset, aes(x = pos_mpa, 
-#                    y = gww_gdw)) +
+#See if those swc values make sense:
+# ggplot(subset, aes(x = pos_mpa,
+#                	y = gww_gdw)) +
 #   geom_point(alpha = .3) +
 #   geom_smooth(method = "lm", se = FALSE) +
-#   labs(title = "Intercept = saturated water content", 
-#        y = "water:dry matter", 
-#        x = "water potential (+Mpa)") +
+#   labs(title = "Intercept = saturated water content",
+#    	y = "water:dry matter",
+#    	x = "water potential (+Mpa)") +
 #   facet_wrap(~spp)
-rwc_at_tlp_mean <- pv_allcurves_data_clean %>% 
-  select(rwc_at_tlp) %>% 
-  drop_na() %>% 
-  mutate(rwc_at_tlp = mean(rwc_at_tlp)) %>% 
-  distinct() %>% 
-  pull() 
+rwc_at_tlp_mean <- pv_allcurves_data_clean %>%
+  select(rwc_at_tlp) %>%
+  drop_na() %>%
+  mutate(rwc_at_tlp = mean(rwc_at_tlp)) %>%
+  distinct() %>%
+  pull()
 
-subset %>% 
-  ggplot(aes(y = mpa, 
-             x = rwc_new, 
-             color = spp)) +
+subset %>%
+  ggplot(aes(y = mpa,
+         	x = rwc_new,
+         	color = spp)) +
   geom_point(size = .5) +
  # geom_smooth(method = "lm", se = FALSE) +
   geom_smooth(method = loess, se = F, size = .5, color = "black") +
   color_all +
   ylim(-10, 0) +
-  labs(y = "MPa", 
-       x = "RWC", 
-       title= "Estimated RWC and MPa: Drydown 'PV-Curves'"
-         ) +
+  labs(y = "MPa",
+   	x = "RWC",
+   	title= "Estimated RWC and MPa: Drydown 'PV-Curves'"
+     	) +
   geom_vline(xintercept = rwc_at_tlp_mean, linetype = "dotted")
 ```
 
 
 ```{r, warning= FALSE}
-subset %>% 
-  ggplot(aes(y = -1/mpa, 
-             x = 100 - rwc_new, 
-             color = spp)) +
+subset %>%
+  ggplot(aes(y = -1/mpa,
+         	x = 100 - rwc_new,
+         	color = spp)) +
   geom_point(size = .5) +
   #geom_smooth(method = "lm", se = FALSE) +
   color_all +
   geom_smooth(method = loess, se = F, size = .5, color = "black") +
   geom_vline(xintercept = 100 - rwc_at_tlp_mean, linetype = "dotted") +
-  labs(y = "-1/MPa", 
-       x = "RWD", 
-       title= "Estimated RWC and MPa: Drydown 'PV-Curves'",
-       caption = "dotted line is TLP"
-         ) +
+  labs(y = "-1/MPa",
+   	x = "RWD",
+   	title= "Estimated RWC and MPa: Drydown 'PV-Curves'",
+   	caption = "dotted line is TLP"
+     	) +
   facet_wrap(~spp, scales = "free")
 ```
 
 ```{r}
-#for just 1 individual- looks kinda bad? 
+#for just 1 individual- looks kinda bad?
 flam_curve_phys_all %>%
   filter(individual == "2020_September_CEME_1.3") %>%
   ggplot(aes(x = pos_mpa, y = gww_gdw, color = individual)) +
@@ -517,16 +552,16 @@ flam_curve_phys_all %>%
   geom_smooth(method = "lm")
 ```
 
-New dataset with calculated RWC: 
+New dataset with calculated RWC:
 
 ###Write .csv
 ```{r}
-flam_curve_phys_all %>% 
+flam_curve_phys_all %>%
   write_csv(here("processed-data", "analysis 2.0", "flam_curve_phys_all.csv"))
 ```
 
 #--------------------------
-##Section 3: Field-collected data: 
+##Section 3: Field-collected data:
 
 ###2021
 
@@ -534,44 +569,44 @@ Saturated content here is the wettest LFM observed during the field season/100. 
 
 ```{r, message = FALSE}
 field_data_2021_raw <- read.csv(here("raw-data", "CZO_alldata_compiled.csv")) %>%
-  clean_names() %>% 
-  select(-spp_1) %>% 
-  mutate(lfm_tlp = lf_mtlp, 
-         age = new_old) %>% 
-  select(-new_old) %>% 
+  clean_names() %>%
+  select(-spp_1) %>%
+  mutate(lfm_tlp = lf_mtlp,
+     	age = new_old) %>%
+  select(-new_old) %>%
   mutate(age_new = case_when(
-    age %in% c("O") & spp %in% c("QUKE") ~ "new",
-    age %in% c("N") & spp %in% c("QUKE") ~ "new", 
-    age %in% c("old") & spp %in% c("QUKE") ~ "new",
-    age %in% c("new") & spp %in% c("QUKE") ~ "new", 
-    age %in% c("O") ~ "old", 
-    age %in% c("N") ~ "new", 
-    TRUE ~ as.character(age))
+	age %in% c("O") & spp %in% c("QUKE") ~ "new",
+	age %in% c("N") & spp %in% c("QUKE") ~ "new",
+	age %in% c("old") & spp %in% c("QUKE") ~ "new",
+	age %in% c("new") & spp %in% c("QUKE") ~ "new",
+	age %in% c("O") ~ "old",
+	age %in% c("N") ~ "new",
+	TRUE ~ as.character(age))
   )
 
-field_data_2021 <- field_data_2021_raw %>% 
- # select(bottle_number:location) %>% 
-  mutate(date = mdy(date), 
-         month = month(date), 
-         month = month(date), 
-         g_ww = wet_weight - bottle_weight, 
-         g_dw = dry_weight - bottle_weight, 
-         gww_gdw = g_ww/g_dw) %>%
+field_data_2021 <- field_data_2021_raw %>%
+ # select(bottle_number:location) %>%
+  mutate(date = mdy(date),
+     	month = month(date),
+     	month = month(date),
+     	g_ww = wet_weight - bottle_weight,
+     	g_dw = dry_weight - bottle_weight,
+     	gww_gdw = g_ww/g_dw) %>%
   mutate(timing = case_when(
-    month <= 7 ~ "spring", 
-    month > 7 ~ "fall" ))  %>% 
-  unite(unique_id, c("spp", "age", "site", "pod"), remove = FALSE) %>% 
-  group_by(unique_id) %>% 
+	month <= 7 ~ "spring",
+	month > 7 ~ "fall" ))  %>%
+  unite(unique_id, c("spp", "age", "site", "pod"), remove = FALSE) %>%
+  group_by(unique_id) %>%
   dplyr::mutate(wettest_lfm = max((lfm))) %>%
-  mutate(rwc_wettest = 100 * (lfm/wettest_lfm)) %>% 
-  mutate(rwd_wettest = 100 - rwc_wettest) %>% 
-  mutate(water_potential = midday) %>% 
+  mutate(rwc_wettest = 100 * (lfm/wettest_lfm)) %>%
+  mutate(rwd_wettest = 100 - rwc_wettest) %>%
+  mutate(water_potential = midday) %>%
   mutate(swc = wettest_lfm/100)
 
 # for (i in unique(field_data_2021$spp)) {
 #   
-#   df <- field_data_2021 %>% 
-#     filter(spp == i)
+#   df <- field_data_2021 %>%
+# 	filter(spp == i)
 #   
 #   outlierKD(df, lfm)
 # }
@@ -580,62 +615,62 @@ field_data_2021 <- field_data_2021_raw %>%
 
 ###2020
 
-Saturated content here is the wettest LFM observed during the field season/100. 
+Saturated content here is the wettest LFM observed during the field season/100.
 
 ```{r, message = FALSE}
-#LFM data: 
-field_data_2020_lfm_raw <- read_csv(here("raw-data", "LFM_Sierra_AllDates.csv"), show_col_types = FALSE) %>% 
-  clean_names()  %>% 
+#LFM data:
+field_data_2020_lfm_raw <- read_csv(here("raw-data", "LFM_Sierra_AllDates.csv"), show_col_types = FALSE) %>%
+  clean_names()  %>%
   mutate(age_new = case_when(
-    #age %in% c("O") & spp %in% c("QUKE", "CECO") ~ "new",
-   # age %in% c("N") & spp %in% c("QUKE", "CECO") ~ "old", 
+	#age %in% c("O") & spp %in% c("QUKE", "CECO") ~ "new",
+   # age %in% c("N") & spp %in% c("QUKE", "CECO") ~ "old",
    # age %in% c("old") & spp %in% c("QUKE", "CECO") ~ "new",
-  #  age %in% c("new") & spp %in% c("QUKE", "CECO") ~ "old", 
-    age %in% c("O", "old", "Old") ~ "old", 
-    age %in% c("N", "new", "New") ~ "new", 
-    TRUE ~ as.character(age))
+  #  age %in% c("new") & spp %in% c("QUKE", "CECO") ~ "old",
+	age %in% c("O", "old", "Old") ~ "old",
+	age %in% c("N", "new", "New") ~ "new",
+	TRUE ~ as.character(age))
   )
 
-field_data_2020_lfm <- field_data_2020_lfm_raw %>% 
- # select(bottle_number:location) %>% 
-  mutate(date = mdy(date), 
-         month = month(date), 
-         g_ww = wet_with_bottle - bottle_weight, 
-         g_dw = dry_with_bottle - bottle_weight, 
-         gww_gdw = g_ww/g_dw) %>%
+field_data_2020_lfm <- field_data_2020_lfm_raw %>%
+ # select(bottle_number:location) %>%
+  mutate(date = mdy(date),
+     	month = month(date),
+     	g_ww = wet_with_bottle - bottle_weight,
+     	g_dw = dry_with_bottle - bottle_weight,
+     	gww_gdw = g_ww/g_dw) %>%
   mutate(timing = case_when(
-    month <= 7 ~ "spring", 
-    month > 7 ~ "fall" ))  %>% 
-  unite(unique_id, c("spp", "age", "site", "pod"), remove = FALSE) %>% 
-  group_by(unique_id) %>% 
+	month <= 7 ~ "spring",
+	month > 7 ~ "fall" ))  %>%
+  unite(unique_id, c("spp", "age", "site", "pod"), remove = FALSE) %>%
+  group_by(unique_id) %>%
   dplyr::mutate(wettest_lfm = max((lfm))) %>%
-  mutate(rwc_wettest = 100 * (lfm/wettest_lfm)) %>% 
-  mutate(rwd_wettest = 100 - rwc_wettest) %>% 
- # mutate(water_potential = midday) %>% 
+  mutate(rwc_wettest = 100 * (lfm/wettest_lfm)) %>%
+  mutate(rwd_wettest = 100 - rwc_wettest) %>%
+ # mutate(water_potential = midday) %>%
   mutate(swc_wettest = wettest_lfm/100)
 
-field_data_2020_mpa_raw <- read_csv(here("raw-data", "field.summer.2020.csv"), show_col_types = FALSE) 
+field_data_2020_mpa_raw <- read_csv(here("raw-data", "field.summer.2020.csv"), show_col_types = FALSE)
 
-field_data_2020_mpa  <- field_data_2020_mpa_raw  %>% 
-  clean_names() %>% 
-  select(spp:location) %>% 
-  unite(unique_id, c("spp","age", "site", "pod"), remove = FALSE) %>% 
-  mutate(date = mdy(date), 
-         month = month(date), 
-         mpa = midday)%>% 
+field_data_2020_mpa  <- field_data_2020_mpa_raw  %>%
+  clean_names() %>%
+  select(spp:location) %>%
+  unite(unique_id, c("spp","age", "site", "pod"), remove = FALSE) %>%
+  mutate(date = mdy(date),
+     	month = month(date),
+     	mpa = midday)%>%
  select(-predawn1, -predawn2, -midday1, -midday2, -lfm)
 
 field_data_2020 <- merge(field_data_2020_lfm, field_data_2020_mpa,
-                        # by = c("unique_id", "spp", "pod", "type", "site", "date", "location", 
-                               # "month", "doy", "age"),
-                         all.y = T) %>% 
+                    	# by = c("unique_id", "spp", "pod", "type", "site", "date", "location",
+                           	# "month", "doy", "age"),
+                     	all.y = T) %>%
   mutate(water_potential = mpa)
 
 for (i in unique(field_data_2020$spp)) {
-  
-  df <- field_data_2020 %>% 
-    filter(spp == i)
-  
+ 
+  df <- field_data_2020 %>%
+	filter(spp == i)
+ 
   outlierKD(df, lfm)
 }
 
@@ -643,8 +678,8 @@ for (i in unique(field_data_2020$spp)) {
 
 # for (i in unique(field_data_2020_pv$spp)) {
 #   
-#   df <- field_data_2020_pv %>% 
-#     filter(spp == i)
+#   df <- field_data_2020_pv %>%
+# 	filter(spp == i)
 #   
 #   outlierKD(df, mpa)
 # }
@@ -657,109 +692,109 @@ for (i in unique(field_data_2020$spp)) {
 
 ###All dates
 ```{r}
-field_data_all_nopv <- merge(field_data_2020, field_data_2021, all = T) %>% 
-  mutate(year = year(date)) 
+field_data_all_nopv <- merge(field_data_2020, field_data_2021, all = T) %>%
+  mutate(year = year(date))
 
 
 field_data_all_tlps <- merge(merge(tlp_summary_spp, tlp_summary_spp_lfm, by = "spp", all = T), field_data_all_nopv, by = "spp", all = T)
 
 field_data_all_pv <- merge(merge(tlp_summary_timing, tlp_summary_timing_lfm, by = c("spp", "timing"), all = T), field_data_all_tlps, by = c("spp", "timing"), all =T) #add in mean TLP for each species
 
-field_data_all_pv <- merge(tlp_summary_spp_lfm, field_data_all_tlps, 
-                           #by = "spp", 
-                           all = T) %>% 
+field_data_all_pv <- merge(tlp_summary_spp_lfm, field_data_all_tlps,
+                       	#by = "spp",
+                       	all = T) %>%
   filter(!spp %in% c("ADFA", "CEME"))# %>% #add in mean LFM at TLP for each spp
  # select(-lf_mtlp, -bottle, -n)
 
-field_data_all <- field_data_all_pv %>% 
-   mutate(month = month(date), 
-          year = year(date)) %>% 
+field_data_all <- field_data_all_pv %>%
+   mutate(month = month(date),
+      	year = year(date)) %>%
    mutate(age = case_when(
-     age == "New" ~ "new", 
-     age == "Old" ~ "old", 
-     age == "new" ~ "new", 
-     age == "old" ~ "old", 
-     age == "both" ~ "both",
-     TRUE ~ as.character(age)
-   )) %>% 
-   mutate(spp = fct_relevel(spp, "ABCO","PIJE","CADE","CECO", "ARPA","QUKE"))  %>% 
+ 	age == "New" ~ "new",
+ 	age == "Old" ~ "old",
+ 	age == "new" ~ "new",
+ 	age == "old" ~ "old",
+ 	age == "both" ~ "both",
+ 	TRUE ~ as.character(age)
+   )) %>%
+   mutate(spp = fct_relevel(spp, "ABCO","PIJE","CADE","CECO", "ARPA","QUKE"))  %>%
   mutate(strategy = case_when( #based on slope of predawn~midday line
-    spp == "ABCO" ~ "Isohydric", 
-    spp == "PIJE" ~ "Isohydric", 
-     spp == "CADE" ~ "Isohydric", 
-    spp == "CECO" ~ "Anisohydric", 
-    spp == "ARPA" ~ "Anisohydric", 
-    spp == "QUKE" ~ "Anisohydric"
-  )) %>% 
+	spp == "ABCO" ~ "Isohydric",
+	spp == "PIJE" ~ "Isohydric",
+ 	spp == "CADE" ~ "Isohydric",
+	spp == "CECO" ~ "Anisohydric",
+	spp == "ARPA" ~ "Anisohydric",
+	spp == "QUKE" ~ "Anisohydric"
+  )) %>%
    mutate(strategy_binary = case_when( #based on slope of predawn~midday line
-    spp == "ABCO" ~ "1", 
-    spp == "ARPA" ~ "2", 
-    spp == "CADE" ~ "1", 
-    spp == "CECO" ~ "2", 
-    spp == "PIJE" ~ "1", 
-    spp == "QUKE" ~ "2"
-  )) %>% 
-   mutate(spp = fct_relevel(spp, "ABCO","PIJE","CADE","CECO", "ARPA","QUKE"))  %>% 
+	spp == "ABCO" ~ "1",
+	spp == "ARPA" ~ "2",
+	spp == "CADE" ~ "1",
+	spp == "CECO" ~ "2",
+	spp == "PIJE" ~ "1",
+	spp == "QUKE" ~ "2"
+  )) %>%
+   mutate(spp = fct_relevel(spp, "ABCO","PIJE","CADE","CECO", "ARPA","QUKE"))  %>%
    mutate(Species = case_when(
-     spp == "ABCO" ~ "A. concolor",
-    spp == "PIJE" ~ "P. jeffreyi", 
-    spp == "CADE" ~ "C. decurrens", 
-    spp == "CECO" ~ "C. cordulatus", 
-    spp == "ARPA" ~ "A. patula", 
-    spp == "QUKE" ~ "Q. kelloggii"
-    )) %>% 
+ 	spp == "ABCO" ~ "A. concolor",
+	spp == "PIJE" ~ "P. jeffreyi",
+	spp == "CADE" ~ "C. decurrens",
+	spp == "CECO" ~ "C. cordulatus",
+	spp == "ARPA" ~ "A. patula",
+	spp == "QUKE" ~ "Q. kelloggii"
+	)) %>%
   mutate(type = case_when(
-    spp == "PIJE" ~ "tree", 
-    spp == "QUKE" ~ "tree", 
-    spp == "CECO" ~ "shrub", 
-    spp == "ARPA" ~ "shrub", 
-    spp == "ABCO" ~ "tree", 
-    spp == "CADE" ~ "tree"
-  )) %>% 
+	spp == "PIJE" ~ "tree",
+	spp == "QUKE" ~ "tree",
+	spp == "CECO" ~ "shrub",
+	spp == "ARPA" ~ "shrub",
+	spp == "ABCO" ~ "tree",
+	spp == "CADE" ~ "tree"
+  )) %>%
   mutate(F.Group = case_when(
-    spp == "ARPA" ~ "Angiosperm", 
-    spp == "ABCO" ~ "Gymnosperm",
-    spp == "CADE" ~ "Gymnosperm",
-    spp == "CECO" ~ "Angiosperm",
-    spp == "PIJE" ~ "Gymnosperm",
-    spp == "QUKE" ~ "Angiosperm"
-  )) 
+	spp == "ARPA" ~ "Angiosperm",
+	spp == "ABCO" ~ "Gymnosperm",
+	spp == "CADE" ~ "Gymnosperm",
+	spp == "CECO" ~ "Angiosperm",
+	spp == "PIJE" ~ "Gymnosperm",
+	spp == "QUKE" ~ "Angiosperm"
+  ))
 ```
 
 We probably also want to get swc to be the extrapolated value, so....
 
 
-This is effectively what we're trying to do to get the saturated water content except we'll do it for each individual, not for each species. 
+This is effectively what we're trying to do to get the saturated water content except we'll do it for each individual, not for each species.
 
 ```{r}
-ggplot(field_data_all_pv, aes(x = -1*water_potential, 
-                              y = gww_gdw, 
-                              color = spp)) +
+ggplot(field_data_all_pv, aes(x = -1*water_potential,
+                          	y = gww_gdw,
+                          	color = spp)) +
   geom_point(alpha = .3) +
   geom_smooth(method = "lm", se = FALSE, size = .5) +
  # color_all +
-  labs(title = "Intercept = saturated water content", 
-       y = "water:dry matter", 
-       x = "water potential (+Mpa)") #+
- # theme(legend.position = "none") 
+  labs(title = "Intercept = saturated water content",
+   	y = "water:dry matter",
+   	x = "water potential (+Mpa)") #+
+ # theme(legend.position = "none")
 #+
  # facet_wrap(~year)
 ```
 
-We need the extrapolated saturated water content so that we can determine the relative water content. We do that here by: 
+We need the extrapolated saturated water content so that we can determine the relative water content. We do that here by:
 1. Finding a lm for each indvidual that relates **water content:dry matter** with **water potential**.
-2. Extracting the y-intercept. This is the extrapolated saturated water content. 
-3. Add that value back into the dataset so it is useful. 
+2. Extracting the y-intercept. This is the extrapolated saturated water content.
+3. Add that value back into the dataset so it is useful.
 
-NOTE: This isn't working -- 'subscript out of bounds error'; not sure why? 
+NOTE: This isn't working -- 'subscript out of bounds error'; not sure why?
 
 
 ```{r, warning= FALSE}
 #get the extrapolated saturated water content:
-# swc_field_data_all <- field_data_all %>% 
+# swc_field_data_all <- field_data_all %>%
 #   filter(water_potential > mean_tlp_spp) %>% #for points above the tlp (estimated to be around ~2)
-#   #group_by(spp) %>% 
-#   summarise(swc_sat = lm(formula = gww_gdw ~ (-1 * water_potential))$coefficients[["(Intercept)"]]) 
+#   #group_by(spp) %>%
+#   summarise(swc_sat = lm(formula = gww_gdw ~ (-1 * water_potential))$coefficients[["(Intercept)"]])
 
 # try.broom <- flam_curve_phys_all %>%
 #   filter(mpa > -2) %>%
@@ -767,10 +802,10 @@ NOTE: This isn't working -- 'subscript out of bounds error'; not sure why?
 #   do(broom::tidy(lm(gww_gdw ~ pos_mpa, .))) %>%
 #   filter(term == "(Intercept)") %>%
 #   select(individual, estimate)
-# 
+#
 # merged <- merge(try.broom, swc_all, by = "individual", all = T)
-# 
-# merged %>% 
+#
+# merged %>%
 #   ggplot(aes(y = estimate, x = swc_sat)) +
 #   geom_point()
 
@@ -784,38 +819,38 @@ NOTE: This isn't working -- 'subscript out of bounds error'; not sure why?
 ```{r}
 field_data_all %>%
   mutate(age = case_when(
-    age_new %in% c("O", "both") ~ "old", 
-    age_new %in% c("N") ~ "new",
-    TRUE ~ as.character(age_new)
-  )) %>% 
+	age_new %in% c("O", "both") ~ "old",
+	age_new %in% c("N") ~ "new",
+	TRUE ~ as.character(age_new)
+  )) %>%
 write_csv(here("processed-data", "analysis 2.0","field_data_2020_2021.csv"))
 ```
 #--------------------------
 
-#Combine all dfs: 
+#Combine all dfs:
 
 #HERE: Dec 1. 2022. WIP.
 
 ```{r}
 
-# tmp_field_data_all <- field_data_all %>% 
-#   mutate(analysis = "field", 
-#          site = as.character(site)) %>% 
-#   select(spp, age, pod, site, date, type, 
-#          location, month, lfm, mpa, lfm_tlp, mpa_tlp, Species,
-#          predawn, midday, analysis) 
+# tmp_field_data_all <- field_data_all %>%
+#   mutate(analysis = "field",
+#      	site = as.character(site)) %>%
+#   select(spp, age, pod, site, date, type,
+#      	location, month, lfm, mpa, lfm_tlp, mpa_tlp, Species,
+#      	predawn, midday, analysis)
 #   
-# 
+#
 # tmp_flam_curve_phys_all <- flam_curve_phys_all %>%  
-#   mutate(analysis = "flamcurve", 
-#          site = as.character(site)) %>% 
+#   mutate(analysis = "flamcurve",
+#      	site = as.character(site)) %>%
 #   select(spp, rwc, lfm, mpa, site, mpatlp, analysis)
-# 
-# tmp_flam_field <- bind_rows(tmp_field_data_all, 
-#                             tmp_flam_curve_phys_all)
-# 
+#
+# tmp_flam_field <- bind_rows(tmp_field_data_all,
+#                         	tmp_flam_curve_phys_all)
+#
 # tmp_pv_allcurves_data_clean <- pv_allcurves_data_clean %>%  
-#   mutate(analysis = "pv") 
+#   mutate(analysis = "pv")
 ```
 
 #--------------------------
@@ -823,16 +858,18 @@ write_csv(here("processed-data", "analysis 2.0","field_data_2020_2021.csv"))
 #Section 4: Stems v. leaves
 
 ```{r}
-stems_leaves_2021 <- readr::read_csv(here("raw-data", "CZO_October_StemsLeaves_2.csv")) %>% 
-  clean_names() %>% 
-  mutate(date = mdy(date), 
-         month = month(date), 
-         year = year(date), 
-         age = new_old) %>% 
-  unite(unique_id, c("spp", "age", "site", "pod"), remove = FALSE) 
-  
-stems_leaves_2021 %>% 
+stems_leaves_2021 <- readr::read_csv(here("raw-data", "CZO_October_StemsLeaves_2.csv")) %>%
+  clean_names() %>%
+  mutate(date = mdy(date),
+     	month = month(date),
+     	year = year(date),
+     	age = new_old) %>%
+  unite(unique_id, c("spp", "age", "site", "pod"), remove = FALSE)
+ 
+stems_leaves_2021 %>%
 write_csv(here("processed-data", "analysis 2.0","stems_leaves_2021.csv"))
 ```
+
+
 
 
