@@ -43,6 +43,8 @@ here = here::here
 
 source(here::here("scripts", "scripts_functions", "figure_info_sierra_flammability.R")) #color and theme info is here
 
+source(here::here("scripts", "scripts_functions", "plotPercentBars_IB.R"))
+
 # if (!require("BiocManager", quietly = TRUE))
 #     install.packages("BiocManager")
 # 
@@ -491,7 +493,117 @@ ggsave(plot=plots_legend, bg = "white" , here::here("figures", "flam_pv_field"),
 
 #Split at TLP for field data: 
 
-```{r}
+Angio, above: 
+both angiosperms (breakpoint = -2.6 +/- .152 MPa, TLP = -2.6 +/- .27 MPa), and for gymnosperms (breakpoint = -2.05 +/- .102 MPa, p = 0.278, TLP = -2.3 +/- .142 MPa). 
 
+```{r, fig.height=1, fig.width=.6}
+angio_above <- angio_field %>% 
+  filter(water_potential > -2.6)
+
+form <- ~ water_potential + (1|spp) + (1|year_month) + (1|plant) + (1|age_new)
+
+lfm_matrix <- angio_above %>% 
+  ungroup() %>% 
+  mutate(id = row_number()) %>% 
+  select(id, lfm) %>% 
+  pivot_wider(names_from = id, 
+              values_from = lfm) 
+
+varPart <- fitExtractVarPartModel(lfm_matrix, form, angio_above )
+varPart
+
+above_vardecomp_angio <- plotPercentBars.new(varPart, col = c(vcol)) + theme(legend.position = "none")+
+  labs(title = "Angiosperm, above")
+above_vardecomp_angio
+
+ggsave(plot=pv_vardecomp_angio, bg = "white" , here::here("figures", "above_vardecomp_angio"), device="jpg")
+
+angio_below <- angio_field %>% 
+  filter(water_potential < -2.6)
+
+#below
+
+lfm_matrix <- angio_below %>% 
+  ungroup() %>% 
+  mutate(id = row_number()) %>% 
+  select(id, lfm) %>% 
+  pivot_wider(names_from = id, 
+              values_from = lfm) 
+
+varPart <- fitExtractVarPartModel(lfm_matrix, form, angio_below )
+varPart
+
+below_vardecomp_angio <- plotPercentBars.new(varPart, col = c(vcol)) + theme(legend.position = "none")+
+  labs(title = "Angiosperm, below")
+below_vardecomp_angio
+
+ggsave(plot=pv_vardecomp_angio, bg = "white" , here::here("figures", "below_vardecomp_angio"), device="jpg")
+
+
+
+#gymno above
+
+gymno_above <- gymno_field %>% 
+  filter(water_potential > -2.3)
+
+
+lfm_matrix <- gymno_above %>% 
+  ungroup() %>% 
+  mutate(id = row_number()) %>% 
+  select(id, lfm) %>% 
+  pivot_wider(names_from = id, 
+              values_from = lfm) 
+
+varPart <- fitExtractVarPartModel(lfm_matrix, form, gymno_above )
+varPart
+
+above_vardecomp_gymno <- plotPercentBars.new(varPart, col = c(vcol)) + theme(legend.position = "none")+
+  labs(title = "Gymnosperm, above")
+above_vardecomp_gymno
+
+ggsave(plot=pv_vardecomp_gymno, bg = "white" , here::here("figures", "above_vardecomp_gymno"), device="jpg")
+
+#gymno below
+
+gymno_below <- gymno_field %>% 
+  filter(water_potential < -2.3)
+
+
+lfm_matrix <- gymno_below %>% 
+  ungroup() %>% 
+  mutate(id = row_number()) %>% 
+  select(id, lfm) %>% 
+  pivot_wider(names_from = id, 
+              values_from = lfm) 
+
+varPart <- fitExtractVarPartModel(lfm_matrix, form, gymno_below )
+varPart
+
+below_vardecomp_gymno <- plotPercentBars.new(varPart, col = c(vcol)) + 
+  theme(legend.position = "none") +
+  labs(title = "Gymnosperm, below")
+
+
+below_vardecomp_gymno+
+  theme(strip.text = element_text("Gymnosperm, below"))
+
+ggsave(plot=pv_vardecomp_gymno, bg = "white" , here::here("figures", "below_vardecomp_gymno"), device="jpg")
+```
+
+
+```{r, fig.height= 4, fig.width=4}
+plots_stacked <- cowplot::plot_grid(above_vardecomp_angio, 
+                                    above_vardecomp_gymno, 
+                                    below_vardecomp_angio, 
+                                    below_vardecomp_gymno, 
+                                    ncol = 2,
+                                    labels=c('a', 'b', 'c', 'd'))
+
+plots_stacked
+
+plots_stacked_legend <- cowplot::plot_grid(plots_stacked, cow_legend, ncol = 2, rel_widths = c(4,1))
+plots_stacked_legend
+
+ggsave(plot=pv_vardecomp_gymno, bg = "white" , here::here("figures", "all_vardecomp"), device="jpg")
 ```
 
