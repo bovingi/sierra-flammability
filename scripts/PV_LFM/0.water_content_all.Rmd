@@ -180,8 +180,7 @@ pv_allcurves_data_clean %>%
   labs(title = "Pressure Moisture Curves",
    	y = "-1/Mpa",
    	x = "Live Fuel Moisture (%)") +
-  facet_wrap( ~ year, scales = "free") +
-  color_all
+  facet_wrap( ~ year, scales = "free") 
 ```
 
 # Summaries:
@@ -226,13 +225,20 @@ pv_segs_kable <- pv_segs %>%
     species == "ARPA" ~ "Ar. patula",
     species == "QUKE" ~ "Qu. kelloggii",
   )) %>% 
-  mutate_if(is.numeric, round, digits = 2)
+  mutate_if(is.numeric, round, digits = 2) %>% 
+  mutate(lfm.kable = paste(lfm, "+/-", sd_lfm)) %>% 
+  mutate(tlp.kable = paste(tlp, "+/-", sd_tlp)) %>% 
+  mutate(rwc.kable = paste(rwc_tlp, "+/-", sd_rwc)) %>% 
+  mutate(po.kable = paste(po, "+/-", sd_po)) %>% 
+  mutate(e.kable = paste(e, "+/-", sd_e)) %>% 
+  select(species, year, lfm.kable, tlp.kable, rwc.kable, po.kable, e.kable)
+
 pv_segs_kable$species <- factor(pv_segs_kable$species, levels = c("Ab. concolor", "Pi. jeffreyii", "Ca. decurrens", "Ar. patula", "Ce. cordulatus", "Qu. kelloggii"))
 ```
 
 Kable
 ```{r}
-pv_segs_kable %>% kable(format = 'html', escape = F, col.names = c('Species', 'Year', 'LFM @ TLP', 'Standard Dev.', 'TLP', 'Standard Dev.', 'RWC @ TLP', 'Standard Dev.', paste('P', "\U2080"), 'Standard Dev.', 'e', 'Standard Dev.')) %>% 
+pv_segs_kable %>% kable(format = 'html', escape = F, col.names = c('Species', 'Year', 'LFM', 'TLP', 'RWC',  paste('P', "\U2080"), 'e')) %>% 
   kable_styling(bootstrap_options = c('hover', 'bordered', 'condensed'), fixed_thead = T, font_size = 30) %>% 
   row_spec(c(1:2, 5:6, 9:10), background = '#EEEEEE') %>% 
   column_spec(1, italic = T) %>% 

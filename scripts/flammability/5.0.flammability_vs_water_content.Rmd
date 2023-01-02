@@ -1,5 +1,5 @@
 ---
-title: "5.0.flammability_vs_water_content"
+title: "Flammability vs. Water Content"
 author: "Indra Boving and Joe Celebrezze"
 date: "2022-12-27"
 output: html_document
@@ -546,14 +546,16 @@ tti_plot_r_spp <- mem_data_all_r %>%
              group = spp)) +
   geom_point(alpha= .4, aes(color = Species))+
   geom_smooth(method = "lm", se = F, aes(color = Species, lty = tti.sig), alpha = .75) + 
+  scale_y_continuous(limits = c(0, 250), breaks = c(0, 50, 100, 150, 200)) +
   color_noceco+ # For color by species w/o CECO
   scale_linetype_manual(values = c(3, 1)) +
   theme(legend.position = "none", 
-        axis.text = element_text(size = 13),
-        axis.title = element_text(size = 16, face = 'bold'))+
+        axis.text = element_blank(),#element_text(size = 13),
+        axis.title = element_blank(),#element_text(size = 16, face = 'bold'),
+        axis.ticks = element_blank()) + 
   labs(x = "", 
        y = "Time to Ignition") +
-  annotate(geom = "text", x = -2.9, y = 225, label = 'a', fontface = 'bold', size = 10)
+  annotate(geom = "text", x = -2.9, y = 225, label = 'f', fontface = 'bold', size = 10)
 tti_plot_r_spp
 
 # For MAIN figure:
@@ -563,15 +565,17 @@ tti_plot_lfm_r_spp <- mem_data_all_r %>%
              group = spp)) +
   geom_point(alpha= .4, aes(color = Species))+
   geom_smooth(method = "lm", se = F, aes(color = Species, lty = tti.sig), alpha = .75) + 
+  scale_y_continuous(limits = c(0, 250), breaks = c(0, 50, 100, 150, 200)) +
   color_noceco + # For color by spp w/o CECO
   scale_linetype_manual(values = c(3, 1)) +
   theme(legend.position = "none",
                        axis.text.y = element_text(size = 13),
-                       axis.title = element_text(size = 16, face = 'bold'),
+                       axis.title.y = element_text(size = 16, face = 'bold'),
+                       axis.title.x = element_blank(),
                        axis.text.x = element_blank(), axis.ticks.x = element_blank()) +
   labs(x = "", 
        y = "Time to Ignition (s)") +
-  annotate(geom = "text", x = -2.4, y = 230, label = 'a', fontface = 'bold', size = 10)
+  annotate(geom = "text", x = -2.4, y = 225, label = 'a', fontface = 'bold', size = 10)
 tti_plot_lfm_r_spp
 ```
 
@@ -598,14 +602,16 @@ fh_plot_r_spp <- mem_data_all_r %>%
              group = spp)) +
   geom_point(alpha= .4, aes(color = Species))+
   geom_smooth(method = "lm", se = F, aes(color = Species, lty = fh.mpa.sig), alpha = .75) + 
+  scale_y_continuous(limits = c(8, 70), breaks = c(10, 20, 30, 40, 50, 60)) +
   color_noceco+ # For color by species w/o CECO
   scale_linetype_manual(values = c(3, 1)) +
   theme(legend.position = "none",
-        axis.text = element_text(size = 13),
-        axis.title = element_text(size = 16, face = 'bold'))+
+        axis.ticks = element_blank(),
+        axis.text = element_blank(),#element_text(size = 13),
+        axis.title = element_blank()) + #element_text(size = 16, face = 'bold'))+
   labs(x = "", 
        y = "Flame Height (cm)") +
-  annotate(geom = "text", x = -2.8, y = 55, label = 'b', fontface = 'bold', size = 10)
+  annotate(geom = "text", x = -2.9, y = 60, label = 'g', fontface = 'bold', size = 10)
 fh_plot_r_spp
 
 # For MAIN figure:
@@ -615,15 +621,18 @@ fh_plot_lfm_r_spp <- mem_data_all_r %>%
              group = spp)) +
   geom_point(alpha= .4, aes(color = Species))+
   geom_smooth(method = "lm", se = F, aes(color = Species, lty = fh.lfm.sig), alpha = .75) + 
+  scale_y_continuous(limits = c(8, 70), breaks = c(10, 20, 30, 40, 50, 60)) +
   color_noceco + # For color by spp w/o CECO
   scale_linetype_manual(values = c(3, 1)) +
   theme(legend.position = "none",
                        axis.text.y = element_text(size = 13),
-                       axis.title = element_text(size = 16, face = 'bold'),
-                       axis.text.x = element_blank(), axis.ticks.x = element_blank()) +
+                       axis.title.y = element_text(size = 16, face = 'bold'),
+                       axis.title.x = element_blank(),
+                       axis.text.x = element_blank(), axis.ticks.x = element_blank(),
+                       plot.margin = unit(c(0.17, 0.17, 0.17, 0.44), 'cm')) +
   labs(x = "", 
        y = "Flame Height (cm)") +
-  annotate(geom = "text", x = -2.3, y = 60, label = 'b', fontface = 'bold', size = 10)
+  annotate(geom = "text", x = -2.4, y = 60, label = 'b', fontface = 'bold', size = 10)
 fh_plot_lfm_r_spp
 ```
 
@@ -653,11 +662,12 @@ lower_temp_max_plot_r_spp <- mem_data_all_r %>%
   color_noceco+ # For color by species w/o CECO
   scale_linetype_manual(values = c(3, 1)) +
   theme(legend.position = "none",                                   
-        axis.text = element_text(size = 13),
-        axis.title = element_text(size = 16, face = 'bold'))+
+        axis.text = element_blank(), #element_text(size = 13),
+        axis.title = element_blank(), # element_text(size = 16, face = 'bold'))+
+        axis.ticks = element_blank()) +
   labs(x = "", 
-       y = "Maximum Temperature") +
-  annotate(geom = "text", x = -2.9, y = 480, label = 'd', fontface = 'bold', size = 10)
+       y = "Maximum Temperature (C)") +
+  annotate(geom = "text", x = -2.9, y = 480, label = 'i', fontface = 'bold', size = 10)
 lower_temp_max_plot_r_spp
 
 # For MAIN figure:
@@ -671,10 +681,11 @@ lower_temp_max_plot_lfm_r_spp <- mem_data_all_r %>%
   scale_linetype_manual(values = c(3, 1)) +
   theme(legend.position = "none",
                        axis.text.y = element_text(size = 13),
-                       axis.title = element_text(size = 16, face = 'bold'),
+                       axis.title.y = element_text(size = 16, face = 'bold'),
+                       axis.title.x = element_blank(),
                        axis.text.x = element_blank(), axis.ticks.x = element_blank()) +
   labs(x = "", 
-       y = "Maximum Temperature") +
+       y = "Maximum Temperature (C)") +
   annotate(geom = "text", x = -2.4, y = 480, label = 'd', fontface = 'bold', size = 10)
 lower_temp_max_plot_lfm_r_spp
 ```
@@ -705,11 +716,14 @@ gd_plot_r_spp <- mem_data_all_r %>%
   color_noceco+ # For color by species w/o CECO
   scale_linetype_manual(values = c(3, 1)) +
   theme(legend.position = "none",                                   
-        axis.text = element_text(size = 13), 
-        axis.title = element_text(size = 16, face = 'bold'))+
+        axis.text.x = element_text(size = 13), 
+        axis.title.x = element_text(size = 16, face = 'bold'),
+        axis.text.y = element_blank(),
+        axis.title.y = element_blank(),
+        axis.ticks.y = element_blank())+
   labs(x = "Water Potential (scaled)", 
        y = "Glow Duration (s)") +
-  annotate(geom = "text", x = -2.9, y = 400, label = 'e', fontface = 'bold', size = 10)
+  annotate(geom = "text", x = -2.9, y = 400, label = 'j', fontface = 'bold', size = 10)
 gd_plot_r_spp
 
 gd_plot_lfm_r_spp <- mem_data_all_r %>%
@@ -721,7 +735,7 @@ gd_plot_lfm_r_spp <- mem_data_all_r %>%
   color_noceco + # For color by spp w/o CECO
   scale_linetype_manual(values = c(3, 1)) +
   theme(legend.position = "none",
-                       axis.text.y = element_text(size = 13),
+                       axis.text = element_text(size = 13),
                        axis.title = element_text(size = 16, face = 'bold')) +
   labs(x = "Live Fuel Moisture (scaled)", 
        y = "Glow Duration (s)") +
@@ -755,11 +769,12 @@ temp_change_plot_r_spp <- mem_data_all_r %>%
   color_noceco+ # For color by species w/o CECO
   scale_linetype_manual(values = c(3, 1)) +
   theme(legend.position = "none",                                   
-        axis.text = element_text(size = 13),
-        axis.title = element_text(size = 16, face = 'bold'))+
+        axis.text = element_blank(),#element_text(size = 13),
+        axis.title = element_blank(),#element_text(size = 16, face = 'bold'),
+        axis.ticks = element_blank()) + 
   labs(x = "", 
        y = "Temperature Change (C)") +
-  annotate(geom = "text", x = -2.9, y = 220, label = 'c', fontface = 'bold', size = 10)
+  annotate(geom = "text", x = -2.9, y = 220, label = 'h', fontface = 'bold', size = 10)
 temp_change_plot_r_spp
 
 # For MAIN figure:
@@ -773,7 +788,8 @@ temp_change_plot_lfm_r_spp <- mem_data_all_r %>%
   scale_linetype_manual(values = c(3, 1)) +
   theme(legend.position = "none",
                        axis.text.y = element_text(size = 13),
-                       axis.title = element_text(size = 16, face = 'bold'),
+                       axis.title.y = element_text(size = 16, face = 'bold'),
+                       axis.title.x = element_blank(),
                        axis.text.x = element_blank(), axis.ticks.x = element_blank()) +
   labs(x = "", 
        y = "Temperature Change (C)") +
@@ -820,6 +836,16 @@ mpa_spp_plots <- cowplot::plot_grid(tti_plot_r_spp, fh_plot_r_spp, temp_change_p
 mpa_spp_plots_w_legend <- cowplot::plot_grid(mpa_spp_plots, spp_legend, ncol = 2, rel_widths = c(3, 1))
 
 ggsave(here('figures', 'mpa_flam_metrics.jpeg'), plot = mpa_spp_plots_w_legend, height = 15, width = 8)
+```
+
+#### Both
+```{r}
+both_spp_plots <- cowplot::plot_grid(tti_plot_lfm_r_spp, tti_plot_r_spp, fh_plot_lfm_r_spp, fh_plot_r_spp, temp_change_plot_lfm_r_spp, temp_change_plot_r_spp, lower_temp_max_plot_lfm_r_spp, lower_temp_max_plot_r_spp, gd_plot_lfm_r_spp, gd_plot_r_spp, ncol = 2, rel_widths = c(12,11))
+
+both_spp_plots_w_legend <- cowplot::plot_grid(both_spp_plots, spp_legend, ncol = 2, rel_widths = c(6, 1))
+both_spp_plots_w_legend
+
+ggsave(here('figures', 'spp_flam_metrics.jpeg'), plot = both_spp_plots_w_legend, height = 15, width = 15)
 ```
 
 
