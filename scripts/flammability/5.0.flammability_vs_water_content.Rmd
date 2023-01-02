@@ -104,19 +104,22 @@ The below is based on the mixed effects models used for each flam metric. The tt
 ```{r}
 # Significance by species
 mem_data_all <- mem_data_all %>% 
-  mutate(tti.sig = case_when(
-    spp == "arpa" ~ "No", spp == "abco" ~ "No", spp == "cade" ~ "No", spp == "ceco" ~ "No", 
-    spp == "pije" ~ "No", spp == "quke" ~ "No")) %>% 
-  mutate(fh.mpa.sig = case_when(
-    spp == "arpa" ~ "Yes", spp == "abco" ~ "Yes", spp == "cade" ~ "No", spp == "ceco" ~ "Yes", 
+  mutate(tti.mpa.sig = case_when(
+    spp == "arpa" ~ "Yes", spp == "abco" ~ "Yes", spp == "cade" ~ "No", spp == "ceco" ~ "No", 
+    spp == "pije" ~ "Yes", spp == "quke" ~ "Yes")) %>% 
+  mutate(tti.lfm.sig = case_when(
+    spp == "arpa" ~ "No", spp == "abco" ~ "Yes", spp == "cade" ~ "No", spp == "ceco" ~ "No", 
+    spp == "pije" ~ "Yes", spp == "quke" ~ "Yes")) %>% 
+  mutate(fh.sig = case_when(
+    spp == "arpa" ~ "No", spp == "abco" ~ "No", spp == "cade" ~ "Yes", spp == "ceco" ~ "No", 
     spp == "pije" ~ "No", spp == "quke" ~ "Yes")) %>% 
-  mutate(fh.lfm.sig = case_when(
-    spp == "arpa" ~ "Yes", spp == "abco" ~ "Yes", spp == "cade" ~ "No", spp == "ceco" ~ "Yes", 
-    spp == "pije" ~ "No", spp == "quke" ~ "No")) %>% 
   mutate(fd.sig = case_when(
-    spp == "arpa" ~ "Yes", spp == "abco" ~ "No", spp == "cade" ~ "No", spp == "ceco" ~ "No", 
+    spp == "arpa" ~ "No", spp == "abco" ~ "No", spp == "cade" ~ "No", spp == "ceco" ~ "No", 
+    spp == "pije" ~ "No", spp == "quke" ~ "No")) %>%  
+  mutate(gd.mpa.sig = case_when(
+    spp == "arpa" ~ "No", spp == "abco" ~ "No", spp == "cade" ~ "No", spp == "ceco" ~ "Yes", 
     spp == "pije" ~ "No", spp == "quke" ~ "No")) %>% 
-  mutate(gd.sig = case_when(
+  mutate(gd.lfm.sig = case_when(
     spp == "arpa" ~ "No", spp == "abco" ~ "No", spp == "cade" ~ "No", spp == "ceco" ~ "Yes", 
     spp == "pije" ~ "No", spp == "quke" ~ "Yes")) %>% 
   mutate(prop.ig.mpa.sig = case_when(
@@ -127,28 +130,28 @@ mem_data_all <- mem_data_all %>%
     spp == "pije" ~ "No", spp == "quke" ~ "Yes")) %>% 
   mutate(temp.change.sig = case_when(
     spp == "arpa" ~ "No", spp == "abco" ~ "No", spp == "cade" ~ "No", spp == "ceco" ~ "No", 
-    spp == "pije" ~ "No", spp == "quke" ~ "No")) %>% 
+    spp == "pije" ~ "No", spp == "quke" ~ "Yes")) %>% 
   mutate(temp.max.sig = case_when(
-      spp == "arpa" ~ "No", spp == "abco" ~ "No", spp == "cade" ~ "No",
-      spp == "ceco" ~ "No", spp == "pije" ~ "No", spp == "quke" ~ "No"
+      spp == "arpa" ~ "Yes", spp == "abco" ~ "No", spp == "cade" ~ "No",
+      spp == "ceco" ~ "No", spp == "pije" ~ "Yes", spp == "quke" ~ "Yes"
     ))
 
 # Significance by functional group
 mem_data_all <- mem_data_all %>% 
   mutate(F.tti.sig = case_when(
+    F.Group == "Angiosperm" ~ "Yes", F.Group == "Gymnosperm" ~ "Yes")) %>% 
+  mutate(F.fh.sig.lfm = case_when(
+    F.Group == "Angiosperm" ~ "Yes", F.Group == "Gymnosperm" ~ "Yes")) %>% 
+   mutate(F.fh.sig.mpa = case_when(
     F.Group == "Angiosperm" ~ "Yes", F.Group == "Gymnosperm" ~ "No")) %>% 
-  mutate(F.fh.sig = case_when(
+  mutate(F.gd.sig = case_when(
+    F.Group == "Angiosperm" ~ "No", F.Group == "Gymnosperm" ~ "No")) %>%  # Note: the significance here is out of date
+  mutate(F.temp.max.sig = case_when(
     F.Group == "Angiosperm" ~ "No", F.Group == "Gymnosperm" ~ "Yes")) %>% 
-  mutate(F.gd.lfm.sig = case_when(
-    F.Group == "Angiosperm" ~ "No", F.Group == "Gymnosperm" ~ "No")) %>% 
-  mutate(F.gd.mpa.sig = case_when(
-    F.Group == "Angiosperm" ~ "No", F.Group == "Gymnosperm" ~ "No")) %>% 
-  mutate(F.temp.max.lfm.sig = case_when(
-    F.Group == "Angiosperm" ~ "No", F.Group == "Gymnosperm" ~ "No")) %>% 
-  mutate(F.temp.max.mpa.sig = case_when(
-    F.Group == "Angiosperm" ~ "No", F.Group == "Gymnosperm" ~ "No")) %>% 
+  mutate(F.temp.change.sig = case_when(
+     F.Group == "Angiosperm" ~ "No", F.Group == "Gymnosperm" ~ "No")) %>%
   mutate(F.fd.sig = case_when(
-    F.Group == "Angiosperm" ~ "Yes", F.Group == "Gymnosperm" ~ "No"))
+    F.Group == "Angiosperm" ~ "Yes", F.Group == "Gymnosperm" ~ "No")) # Note: the significance hrrere is out of date
 ```
 
 # -----------------------------
@@ -196,7 +199,7 @@ tti_plot_r <- mem_data_all_r %>%
              x = mpa_scaled, 
              group = F.Group)) +
   geom_point(alpha= .4, aes(color = F.Group))+
-  geom_smooth(method = "lm", se = F, aes(color = F.Group, lty = tti.sig), alpha = .75) + 
+  geom_smooth(method = "lm", se = F, aes(color = F.Group, lty = F.tti.sig), alpha = .75) + 
   scale_color_manual(values = c('steelblue3', 'darkgreen'))+
   theme(legend.position = "none",                                   
         axis.text = element_text(size = 14),
@@ -251,7 +254,7 @@ fh_plot_r <- mem_data_all_r %>%
              x = mpa_scaled, 
              group = F.Group)) +
   geom_point(alpha= .4, aes(color = F.Group))+
-  geom_smooth(method = "lm", se = F, aes(color = F.Group, lty = fh.mpa.sig), alpha = .75) +
+  geom_smooth(method = "lm", se = F, aes(color = F.Group, lty = F.fh.sig.mpa), alpha = .75) +
   scale_color_manual(values = c('steelblue3', 'darkgreen'))+
   theme(legend.position = "none",
         axis.text = element_text(size = 14),
@@ -267,7 +270,7 @@ fh_plot_lfm_r <- mem_data_all_r %>%
              x = lfm_scaled, 
              group = F.Group)) +
   geom_point(alpha= .4, aes(color = F.Group))+
-  geom_smooth(method = "lm", se = F, aes(color = F.Group, lty = F.fh.sig), alpha = .75) +
+  geom_smooth(method = "lm", se = F, aes(color = F.Group, lty = F.fh.sig.lfm), alpha = .75) +
   scale_color_manual(values = c('steelblue3', 'darkgreen')) + 
   scale_linetype_manual(values = c(3, 1)) +
   theme(legend.position = "none",
@@ -325,7 +328,7 @@ lower_temp_max_plot_lfm_r <- mem_data_all_r %>%
              group = F.Group)) +
   geom_point(alpha= .4, aes(color = F.Group))+
   geom_smooth(method = "lm", se = F, aes(color = F.Group,
-                   lty = F.temp.max.lfm.sig), alpha = .75, lty = 3) +
+                   lty = F.temp.max.sig), alpha = .75, lty = 3) +
   scale_y_continuous(limits = c(150,550), breaks = c(200, 300, 400, 500)) +
   theme(legend.position = "none",
                        axis.text = element_text(size = 13),
@@ -370,7 +373,7 @@ gd_plot_r <- mem_data_all_r %>%
              x = mpa_scaled, 
              group = F.Group)) +
   geom_point(alpha= .4, aes(color = F.Group))+
-  geom_smooth(method = "lm", se = F, aes(color = F.Group, lty = gd.sig), alpha = .75) +
+  geom_smooth(method = "lm", se = F, aes(color = F.Group, lty = F.gd.sig), alpha = .75) +
   scale_color_manual(values = c('steelblue3', 'darkgreen'))+
   theme(legend.position = "none",
         axis.text = element_text(size = 14),
@@ -386,7 +389,7 @@ gd_plot_lfm_r <- mem_data_all_r %>%
              x = lfm_scaled, 
              group = F.Group)) +
   geom_point(alpha= .4, aes(color = F.Group))+
-  geom_smooth(method = "lm", se = F, aes(color = F.Group, lty = F.gd.lfm.sig),
+  geom_smooth(method = "lm", se = F, aes(color = F.Group, lty = F.gd.sig),
               alpha = .75, lty = 3) +
   theme(legend.position = "none",
                        axis.text = element_text(size = 13),
@@ -486,7 +489,7 @@ temp_change_plot_r <- mem_data_all_r %>%
              x = mpa_scaled, 
              group = F.Group)) +
   geom_point(alpha= .4, aes(color = F.Group))+
-  geom_smooth(method = "lm", se = F, aes(color = F.Group, lty = temp.change.sig), alpha = .75) + 
+  geom_smooth(method = "lm", se = F, aes(color = F.Group, lty = F.temp.change.sig), alpha = .75) + 
   scale_color_manual(values = c('steelblue3', 'darkgreen'))+ # For color by F.Group w/o CECO
   theme(legend.position = "none",
         axis.text = element_text(size = 14),
@@ -505,7 +508,7 @@ temp_change_plot_lfm_r<- mem_data_all_r %>%
              group = F.Group)) +
   geom_point(alpha= .4, aes(color = F.Group))+
   geom_smooth(method = "lm", se = F, aes(color = F.Group,
-                   lty = F.temp.max.lfm.sig), alpha = .75, lty = 3) +
+                   lty = F.temp.change.sig), alpha = .75, lty = 3) +
   scale_y_continuous(limits = c(-20, 250), breaks = c(0, 50, 100, 150, 200, 250)) +
   theme(legend.position = "none",
                        axis.text = element_text(size = 13),
@@ -545,7 +548,7 @@ tti_plot_r_spp <- mem_data_all_r %>%
              x = mpa_scaled, 
              group = spp)) +
   geom_point(alpha= .4, aes(color = Species))+
-  geom_smooth(method = "lm", se = F, aes(color = Species, lty = tti.sig), alpha = .75) + 
+  geom_smooth(method = "lm", se = F, aes(color = Species, lty = tti.mpa.sig), alpha = .75) + 
   scale_y_continuous(limits = c(0, 250), breaks = c(0, 50, 100, 150, 200)) +
   color_noceco+ # For color by species w/o CECO
   scale_linetype_manual(values = c(3, 1)) +
@@ -564,7 +567,7 @@ tti_plot_lfm_r_spp <- mem_data_all_r %>%
              x = lfm_scaled, 
              group = spp)) +
   geom_point(alpha= .4, aes(color = Species))+
-  geom_smooth(method = "lm", se = F, aes(color = Species, lty = tti.sig), alpha = .75) + 
+  geom_smooth(method = "lm", se = F, aes(color = Species, lty = tti.lfm.sig), alpha = .75) + 
   scale_y_continuous(limits = c(0, 250), breaks = c(0, 50, 100, 150, 200)) +
   color_noceco + # For color by spp w/o CECO
   scale_linetype_manual(values = c(3, 1)) +
@@ -601,7 +604,7 @@ fh_plot_r_spp <- mem_data_all_r %>%
              x = mpa_scaled, 
              group = spp)) +
   geom_point(alpha= .4, aes(color = Species))+
-  geom_smooth(method = "lm", se = F, aes(color = Species, lty = fh.mpa.sig), alpha = .75) + 
+  geom_smooth(method = "lm", se = F, aes(color = Species, lty = fh.sig), alpha = .75) + 
   scale_y_continuous(limits = c(8, 70), breaks = c(10, 20, 30, 40, 50, 60)) +
   color_noceco+ # For color by species w/o CECO
   scale_linetype_manual(values = c(3, 1)) +
@@ -620,7 +623,7 @@ fh_plot_lfm_r_spp <- mem_data_all_r %>%
              x = lfm_scaled, 
              group = spp)) +
   geom_point(alpha= .4, aes(color = Species))+
-  geom_smooth(method = "lm", se = F, aes(color = Species, lty = fh.lfm.sig), alpha = .75) + 
+  geom_smooth(method = "lm", se = F, aes(color = Species, lty = fh.sig), alpha = .75) + 
   scale_y_continuous(limits = c(8, 70), breaks = c(10, 20, 30, 40, 50, 60)) +
   color_noceco + # For color by spp w/o CECO
   scale_linetype_manual(values = c(3, 1)) +
@@ -712,7 +715,7 @@ gd_plot_r_spp <- mem_data_all_r %>%
              x = mpa_scaled, 
              group = spp)) +
   geom_point(alpha= .4, aes(color = Species))+
-  geom_smooth(method = "lm", se = F, aes(color = Species, lty = gd.sig), alpha = .75) + 
+  geom_smooth(method = "lm", se = F, aes(color = Species, lty = gd.mpa.sig), alpha = .75) + 
   color_noceco+ # For color by species w/o CECO
   scale_linetype_manual(values = c(3, 1)) +
   theme(legend.position = "none",                                   
@@ -731,7 +734,7 @@ gd_plot_lfm_r_spp <- mem_data_all_r %>%
              x = lfm_scaled, 
              group = spp)) +
   geom_point(alpha= .4, aes(color = Species))+
-  geom_smooth(method = "lm", se = F, aes(color = Species, lty = gd.sig), alpha = .75) + 
+  geom_smooth(method = "lm", se = F, aes(color = Species, lty = gd.lfm.sig), alpha = .75) + 
   color_noceco + # For color by spp w/o CECO
   scale_linetype_manual(values = c(3, 1)) +
   theme(legend.position = "none",
@@ -800,14 +803,14 @@ temp_change_plot_lfm_r_spp
 ### Arranging
 Legend:
 ```{r}
-mem_data_all_r$gd.sig <- factor(mem_data_all_r$gd.sig, levels = c("Yes", "No"))
+mem_data_all_r$gd.lfm.sig <- factor(mem_data_all_r$gd.lfm.sig, levels = c("Yes", "No"))
 
 spp_legend_plot <- mem_data_all_r %>%
   ggplot(aes(y = r_gd_lfm_spp, 
              x = lfm_scaled, 
              group = spp)) +
   geom_point(alpha= .6, size = 2.5, aes(color = Species))+
-  geom_smooth(method = "lm", se = F, aes(color = Species, lty = gd.sig), alpha = .75) + 
+  geom_smooth(method = "lm", se = F, aes(color = Species, lty = gd.lfm.sig), alpha = .75) + 
   color_noceco +
   scale_linetype_manual(values = c(1, 3)) +
   guides(lty = guide_legend(override.aes = list(color = 'black'))) +
@@ -1719,7 +1722,7 @@ plot_legend.ES
 plot_legend.scatterplot <- mem_data_all_r %>% 
   ggplot(aes(x = fh, y = mpa, group = F.Group)) +
   geom_point(aes(color = F.Group), size = 2.2) +
-  geom_smooth(se = F, method = 'lm', aes(color = F.Group, lty = F.fh.sig)) +
+  geom_smooth(se = F, method = 'lm', aes(color = F.Group, lty = F.fh.sig.mpa)) +
   scale_color_manual(values = c('steelblue3', 'darkgreen')) + # For color by angio vs gymno
   scale_linetype_manual(values = c(3, 1)) +
   labs(color = "Functional Group", lty = "Significant?") +
