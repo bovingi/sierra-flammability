@@ -190,7 +190,7 @@ pv_allcurves_data_clean %>%
 THIS:
 
 ```{r}
-pv_segs <- read_csv(here("raw-data",  "PV_sierra_summaries.csv")) %>%
+pv_segs <- read_csv(here("raw-data",  "PV_sierra_summaries_fixed.csv")) %>%
   clean_names() %>%
   mutate(date = mdy(date),
      	year = year(date)) %>%
