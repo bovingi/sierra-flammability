@@ -184,10 +184,8 @@ pv_allcurves_data_clean %>%
   color_all
 ```
 
-#***JOE!**Summaries:
+# Summaries:
 
-
-THIS:
 
 ```{r}
 pv_segs <- read_csv(here("raw-data",  "PV_sierra_summaries_fixed.csv")) %>%
@@ -214,6 +212,31 @@ pv_segs <- read_csv(here("raw-data",  "PV_sierra_summaries_fixed.csv")) %>%
 pv_segs
 
 datatable(pv_segs)
+```
+
+##### PV Curve Kable
+Setup
+```{r}
+pv_segs_kable <- pv_segs %>% 
+  mutate(species = case_when(
+    species == "ABCO" ~ "Ab. concolor",
+    species == "CADE" ~ "Ca. decurrens",
+    species == "PIJE" ~ "Pi. jeffreyii",
+    species == "CECO" ~ "Ce. cordulatus",
+    species == "ARPA" ~ "Ar. patula",
+    species == "QUKE" ~ "Qu. kelloggii",
+  )) %>% 
+  mutate_if(is.numeric, round, digits = 2)
+pv_segs_kable$species <- factor(pv_segs_kable$species, levels = c("Ab. concolor", "Pi. jeffreyii", "Ca. decurrens", "Ar. patula", "Ce. cordulatus", "Qu. kelloggii"))
+```
+
+Kable
+```{r}
+pv_segs_kable %>% kable(format = 'html', escape = F, col.names = c('Species', 'Year', 'LFM @ TLP', 'Standard Dev.', 'TLP', 'Standard Dev.', 'RWC @ TLP', 'Standard Dev.', paste('P', "\U2080"), 'Standard Dev.', 'e', 'Standard Dev.')) %>% 
+  kable_styling(bootstrap_options = c('hover', 'bordered', 'condensed'), fixed_thead = T, font_size = 30) %>% 
+  row_spec(c(1:2, 5:6, 9:10), background = '#EEEEEE') %>% 
+  column_spec(1, italic = T) %>% 
+  save_kable(here('figures', 'pv.curve.summary.html'))
 ```
 
 #------
