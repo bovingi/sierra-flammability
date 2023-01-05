@@ -18,6 +18,7 @@ library(lubridate)
 library(udpipe)
 library(dlookr)
 library(tidyverse)
+library(kableExtra)
 
 source(here("scripts", "scripts_functions", "figure_info_sierra_flammability.R"))
 source(here("scripts", "scripts_functions", "outlierKD2.R"))
@@ -281,14 +282,11 @@ ggplot(aes(y = water_potential, x = lfm, color = spp)) +
   geom_jitter(alpha = .5, size = 1) +
   labs(title = "Pressure Volume Curves",
    	y = "Mpa",
-   	x = "Live Fuel Moisture (%)") +
-  color_all
+   	x = "Live Fuel Moisture (%)")
 all
-#ggplotly(all, tooltip = c("spp"))
 ```
 
 Working with all species again, what is the relationship between RWC and TLP?
-
 ```{r}
 ggplot(data= pv_allcurves_data_clean, aes(y = tlp,
                                       	x = rwc_at_tlp,
@@ -299,7 +297,6 @@ ggplot(data= pv_allcurves_data_clean, aes(y = tlp,
   labs(title = "TLP and RWC at TLP",
    	y = "TLP (-Mpa)",
    	x = "RWC (%)")  +
-  color_all+
   geom_smooth(method='lm', se = F)
 ```
 
@@ -311,9 +308,7 @@ ggplot(data = pv_allcurves_data_clean, aes(y = tlp,
   labs(title = "TLP and LFM at TLP",
    	y = "TLP (-Mpa)",
    	x = "LFM (%)") +
-  geom_smooth(method='lm', se = F) +
-  color_all
- 
+  geom_smooth(method='lm', se = F)
 ```
 
 Remove CECO, since that spp is strange...(result of using branchlet? Impossible to do leaves??)
@@ -326,8 +321,7 @@ ggplot(aes(y = tlp, x = lfm_at_tlp, color = spp)) +
   labs(title = "TLP and LFM at TLP, all spp together",
    	y = "TLP (-Mpa)",
    	x = "LFM at TLP (%)") +
-  geom_smooth(method='lm') +
-  color_all
+  geom_smooth(method='lm')
 ```
 
 ```{r}
@@ -340,14 +334,12 @@ ggplot(aes(y = rwc_at_tlp,
   labs(title = "RWC and LFM at TLP",
    	y = "RWC at TLP (%)",
    	x = "LFM at TLP (%)") +
-  geom_smooth(method='lm', se = F) +
-  color_all
+  geom_smooth(method='lm', se = F)
 ```
 
 
 PV summaries
 Get TLPs into dataframe so we can look at them more closely:
-
 ```{r}
 tlp_summary_spp_date <- pv_allcurves_data_clean %>%
   group_by(spp, date) %>%
@@ -381,8 +373,6 @@ pv_summary_spp <- pv_allcurves_data_clean %>%
          	mean_po_fall_spp=mean(po),sd_fall_spp=sd(po))
 
 #LFM based on the above:
-
-
 tlp_summary_timing_lfm <- pv_allcurves_data_clean %>%
   group_by(timing, spp) %>%
   summarise(n=n(), mean_lfm_timing=mean(lfm),sd_lfm_timing=sd(lfm))
@@ -394,7 +384,6 @@ tlp_summary_spp_lfm <- pv_allcurves_data_clean %>%
   group_by(spp) %>%
   summarise(n=n(), mean_lfm_fall_spp=mean(lfm),sd_lfm_fall_spp=sd(lfm))
 ```
-
 
 ```{r}
 ggplot(tlp_summary_timing, aes(y = mean_tlp_timing, x = spp, fill = timing)) +
@@ -409,7 +398,6 @@ ggplot(tlp_summary_timing, aes(y = mean_tlp_timing, x = spp, fill = timing)) +
 ```
 
 #--------------------------
-
 ## Section 2: Saturated water and RWC content from flam curves
 
 - Read in data
@@ -476,7 +464,6 @@ ggplot(flam_curve_phys_all, aes(x = pos_mpa,
                             	color = spp)) +
   geom_point(alpha = .3) +
   geom_smooth(method = "lm", se = FALSE, size = .5) +
-  color_all +
   labs(title = "Intercept = saturated water content",
    	y = "water:dry matter",
    	x = "water potential (+Mpa)")
@@ -494,19 +481,6 @@ swc_all <- flam_curve_phys_all %>%
   group_by(individual) %>%
   summarise(swc_sat = lm(formula = gww_gdw ~ pos_mpa)$coefficients[["(Intercept)"]])
 
-# try.broom <- flam_curve_phys_all %>%
-#   filter(mpa > -2) %>%
-#   group_by(individual) %>%
-#   do(broom::tidy(lm(gww_gdw ~ pos_mpa, .))) %>%
-#   filter(term == "(Intercept)") %>%
-#   select(individual, estimate)
-#
-# merged <- merge(try.broom, swc_all, by = "individual", all = T)
-#
-# merged %>%
-#   ggplot(aes(y = estimate, x = swc_sat)) +
-#   geom_point()
-
 #add that back to the master dataset:
 flam_curve_phys_all <- merge(flam_curve_phys_all, swc_all, by="individual", all = T) %>%
   mutate(rwc_new = 100 * (gww_gdw/swc_sat))
@@ -521,15 +495,6 @@ subset <- flam_curve_phys_all %>%
 
 unique(subset$individual)
 
-#See if those swc values make sense:
-# ggplot(subset, aes(x = pos_mpa,
-#                	y = gww_gdw)) +
-#   geom_point(alpha = .3) +
-#   geom_smooth(method = "lm", se = FALSE) +
-#   labs(title = "Intercept = saturated water content",
-#    	y = "water:dry matter",
-#    	x = "water potential (+Mpa)") +
-#   facet_wrap(~spp)
 rwc_at_tlp_mean <- pv_allcurves_data_clean %>%
   select(rwc_at_tlp) %>%
   drop_na() %>%
@@ -544,7 +509,6 @@ subset %>%
   geom_point(size = .5) +
  # geom_smooth(method = "lm", se = FALSE) +
   geom_smooth(method = loess, se = F, size = .5, color = "black") +
-  color_all +
   ylim(-10, 0) +
   labs(y = "MPa",
    	x = "RWC",
@@ -560,8 +524,6 @@ subset %>%
          	x = 100 - rwc_new,
          	color = spp)) +
   geom_point(size = .5) +
-  #geom_smooth(method = "lm", se = FALSE) +
-  color_all +
   geom_smooth(method = loess, se = F, size = .5, color = "black") +
   geom_vline(xintercept = 100 - rwc_at_tlp_mean, linetype = "dotted") +
   labs(y = "-1/MPa",
@@ -631,15 +593,6 @@ field_data_2021 <- field_data_2021_raw %>%
   mutate(rwd_wettest = 100 - rwc_wettest) %>%
   mutate(water_potential = midday) %>%
   mutate(swc = wettest_lfm/100)
-
-# for (i in unique(field_data_2021$spp)) {
-#   
-#   df <- field_data_2021 %>%
-# 	filter(spp == i)
-#   
-#   outlierKD(df, lfm)
-# }
-#hit n probably
 ```
 
 ###2020
@@ -702,20 +655,6 @@ for (i in unique(field_data_2020$spp)) {
  
   outlierKD(df, lfm)
 }
-
-#hit n, n, n, n, y, n (seems that PIJE has 1 weird outlier)
-
-# for (i in unique(field_data_2020_pv$spp)) {
-#   
-#   df <- field_data_2020_pv %>%
-# 	filter(spp == i)
-#   
-#   outlierKD(df, mpa)
-# }
-# #hit n, n, n, n, n, n (seems that PIJE has 1 weird outlier)
-
-#unique(field_data_2020_pv$spp)
-#unique(field_data_2020_pv$date)
 ```
 
 
@@ -815,35 +754,7 @@ We need the extrapolated saturated water content so that we can determine the re
 2. Extracting the y-intercept. This is the extrapolated saturated water content.
 3. Add that value back into the dataset so it is useful.
 
-NOTE: This isn't working -- 'subscript out of bounds error'; not sure why?
-
-
-```{r, warning= FALSE}
-#get the extrapolated saturated water content:
-# swc_field_data_all <- field_data_all %>%
-#   filter(water_potential > mean_tlp_spp) %>% #for points above the tlp (estimated to be around ~2)
-#   #group_by(spp) %>%
-#   summarise(swc_sat = lm(formula = gww_gdw ~ (-1 * water_potential))$coefficients[["(Intercept)"]])
-
-# try.broom <- flam_curve_phys_all %>%
-#   filter(mpa > -2) %>%
-#   group_by(individual) %>%
-#   do(broom::tidy(lm(gww_gdw ~ pos_mpa, .))) %>%
-#   filter(term == "(Intercept)") %>%
-#   select(individual, estimate)
-#
-# merged <- merge(try.broom, swc_all, by = "individual", all = T)
-#
-# merged %>%
-#   ggplot(aes(y = estimate, x = swc_sat)) +
-#   geom_point()
-
-#add that back to the master dataset:
-# flam_curve_phys_all <- merge(flam_curve_phys_all, swc_all, by="unique_id", all = T) %>%
-#   mutate(rwc_new = 100 * (gww_gdw/swc_sat))
-```
-
-#Write .csv
+# Write .csv
 
 ```{r}
 field_data_all %>%
@@ -898,7 +809,3 @@ stems_leaves_2021 <- readr::read_csv(here("raw-data", "CZO_October_StemsLeaves_2
 stems_leaves_2021 %>%
 write_csv(here("processed-data", "analysis 2.0","stems_leaves_2021.csv"))
 ```
-
-
-
-

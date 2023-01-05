@@ -1,4 +1,4 @@
-plotPercentBars.new = function( varPart, col = c(ggColorHue(ncol(varPart)-1), "grey85") ){
+plotPercentBars.new = function(varPart, col = c(ggColorHue(ncol(varPart)-1), "grey85") ){
   
   if( !is.matrix(varPart) && !is.data.frame(varPart)){
     stop("Argument must be a matrix or data.frame")
@@ -79,11 +79,6 @@ plotPercentBars.new = function( varPart, col = c(ggColorHue(ncol(varPart)-1), "g
   
   fig	
 }
-
-
-#test: 
-plotPercentBars.new(varPart) + theme(legend.position = "none")
-
 
 plotPercentBars.legend = function( varPart, col = c(ggColorHue(ncol(varPart)-1), "grey85") ){
   
@@ -170,6 +165,3 @@ plotPercentBars.legend = function( varPart, col = c(ggColorHue(ncol(varPart)-1),
   fig	
 }
 
-
-#test: 
-plotPercentBars.legend(varPart) 

@@ -5,6 +5,8 @@ date: "1/29/2022"
 output: html_document
 ---
 
+This script contains the phenology x LFM boxplots figure as well as exploratory analyses necessary to make the figure. Two versions of this figure are in this script -- the first version uses unedited phenology data, while the second version uses edited phenology data informed by the average phenophases of each of the species as a population rather than focusing on individual plants. Also included in this script is the LFM vs. MPa figures and exploratory analyses looking at hydroscapes, thus investigating drought strategies of our species-of-interest.
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```

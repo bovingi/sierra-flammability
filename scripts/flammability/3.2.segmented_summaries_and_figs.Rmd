@@ -1,5 +1,5 @@
 ---
-title: "Untitled"
+title: "Segmented Summaries and Figures"
 author: "Indra Boving"
 date: "10/31/2022"
 output: html_document
@@ -23,6 +23,8 @@ library(webshot)
 library(magick)
 #webshot::install_phantomjs()
 library(kableExtra)
+
+select = dplyr::select
 ```
 
 
@@ -50,29 +52,6 @@ seg_results_df$flam_metric <- factor(seg_results_df$flam_metric, levels =
 ```
 
 #Visualize: 
-
-```{r}
-# seg_results_df %>% 
-#   ggplot(aes(y = psi, 
-#              x = flam_metric
-#              )) + 
-#   geom_bar(position = "dodge", 
-#            stat = identity,
-#            aes(fill = analysis)) +
-#   #geom_bar(position="dodge", stat="identity") +
-#       geom_bar_pattern(#stat = "identity",
-#                    pattern_color = "white",
-#                    pattern_fill = "black",
-#                    aes(pattern = significant)
-#                   ) + 
-#   facet_wrap(~water_variable, scales = "free") +
-#   scale_pattern_manual(values = c("stripe","none")) +
-#   scale_fill_discrete(
-#     guide = guide_legend(override.aes = list(pattern = "none")) # <- hide pattern
-#   )
-```
-
-
 ```{r}
 for (i in unique(seg_results_df$spp)) {
 

@@ -41,15 +41,15 @@ mutate = dplyr::mutate
 select = dplyr::select
 here = here::here
 
-source(here::here("scripts", "scripts_functions", "figure_info_sierra_flammability.R")) #color and theme info is here
-
-source(here::here("scripts", "scripts_functions", "plotPercentBars_IB.R"))
-
 # if (!require("BiocManager", quietly = TRUE))
 #     install.packages("BiocManager")
 # 
 # BiocManager::install("variancePartition")
 library('variancePartition')
+
+source(here::here("scripts", "scripts_functions", "figure_info_sierra_flammability.R")) #color and theme info is here
+
+source(here::here("scripts", "scripts_functions", "plotPercentBars_IB.R"))
 ```
 
 #Data: 
@@ -152,7 +152,7 @@ source(here::here("scripts", "scripts_functions", "plotPercentBars_IB.R"))
 pv_vardecomp_angio <- plotPercentBars.new(varPart, col = c(vcol)) + theme(legend.position = "none")
 pv_vardecomp_angio
 
-ggsave(plot=pv_vardecomp_angio, bg = "white" , here::here("figures", "pv_vardecomp_angio"), device="jpg")
+ggsave(plot=pv_vardecomp_angio, bg = "white" , here::here("figures", "var_decomp", "pv_vardecomp_angio"), device="jpg")
 
 form <- ~ water_potential + (1|year_month)+ (1|spp) + (1|plant)
 
@@ -169,7 +169,7 @@ varPart
 pv_vardecomp_gymno <- plotPercentBars.new(varPart, col = c(vcol)) + theme(legend.position = "none")
 pv_vardecomp_gymno
 
-ggsave(plot=pv_vardecomp_gymno, bg = "white" , here::here("figures", "pv_vardecomp_gymno"), device="jpg")
+ggsave(plot=pv_vardecomp_gymno, bg = "white" , here::here("figures", "var_decomp", "pv_vardecomp_gymno"), device="jpg")
 
 #------
 
@@ -188,7 +188,7 @@ varPart
 flam_vardecomp_angio <- plotPercentBars.new(varPart, col = c(vcol)) + theme(legend.position = "none")
 flam_vardecomp_angio
 
-ggsave(plot=flam_vardecomp_angio, bg = "white" , here::here("figures", "flam_vardecomp_angio"), device="jpg")
+ggsave(plot=flam_vardecomp_angio, bg = "white" , here::here("figures", "var_decomp", "flam_vardecomp_angio"), device="jpg")
 
 #------
 
@@ -207,7 +207,7 @@ varPart
 flam_vardecomp_gymno <- plotPercentBars.new(varPart, col = c(vcol)) + theme(legend.position = "none")
 flam_vardecomp_gymno
 
-ggsave(plot=flam_vardecomp_gymno, bg = "white" , here::here("figures", "flam_vardecomp_gymno"), device="jpg")
+ggsave(plot=flam_vardecomp_gymno, bg = "white" , here::here("figures", "var_decomp", "flam_vardecomp_gymno"), device="jpg")
 
 #------
 
@@ -226,7 +226,7 @@ varPart
 field_vardecomp_angio <- plotPercentBars.new(varPart, col = c(vcol))+ theme(legend.position = "none")  
 field_vardecomp_angio
 
-ggsave(plot=field_vardecomp_angio, bg = "white" , here::here("figures", "field_vardecomp_angio"), device="jpg")
+ggsave(plot=field_vardecomp_angio, bg = "white" , here::here("figures", "var_decomp", "field_vardecomp_angio"), device="jpg")
 
 #------
 
@@ -245,7 +245,7 @@ varPart
 field_vardecomp_gymno <- plotPercentBars.new(varPart, col = c(vcol))+ theme(legend.position = "none")
 field_vardecomp_gymno
 
-ggsave(plot=field_vardecomp_gymno, bg = "white" , here::here("figures", "field_vardecomp_gymno"), device="jpg")
+ggsave(plot=field_vardecomp_gymno, bg = "white" , here::here("figures", "var_decomp", "field_vardecomp_gymno"), device="jpg")
 
 #------
 ```
@@ -487,7 +487,7 @@ plots2 <- gridExtra::grid.arrange(arrangeGrob(plots, left = y.grob, bottom = x.g
 plots_legend <- cowplot::plot_grid(plots2, legend, rel_widths = c(5, 1.25), rel_heights = c(1,.5))
 plots_legend
 
-ggsave(plot=plots_legend, bg = "white" , here::here("figures", "flam_pv_field"), device="jpg", height = 10.5, width = 14)
+ggsave(plot=plots_legend, bg = "white" , here::here("figures", "var_decomp", "flam_pv_field"), device="jpg", height = 10.5, width = 14)
 ```
 
 
@@ -516,7 +516,7 @@ above_vardecomp_angio <- plotPercentBars.new(varPart, col = c(vcol)) + theme(leg
   labs(title = "Angiosperm, above")
 above_vardecomp_angio
 
-ggsave(plot=pv_vardecomp_angio, bg = "white" , here::here("figures", "above_vardecomp_angio"), device="jpg")
+ggsave(plot=pv_vardecomp_angio, bg = "white" , here::here("figures", "var_decomp", "above_vardecomp_angio"), device="jpg")
 
 angio_below <- angio_field %>% 
   filter(water_potential < -2.6)
@@ -537,7 +537,7 @@ below_vardecomp_angio <- plotPercentBars.new(varPart, col = c(vcol)) + theme(leg
   labs(title = "Angiosperm, below")
 below_vardecomp_angio
 
-ggsave(plot=pv_vardecomp_angio, bg = "white" , here::here("figures", "below_vardecomp_angio"), device="jpg")
+ggsave(plot=pv_vardecomp_angio, bg = "white" , here::here("figures", "var_decomp", "below_vardecomp_angio"), device="jpg")
 
 
 
@@ -561,7 +561,7 @@ above_vardecomp_gymno <- plotPercentBars.new(varPart, col = c(vcol)) + theme(leg
   labs(title = "Gymnosperm, above")
 above_vardecomp_gymno
 
-ggsave(plot=pv_vardecomp_gymno, bg = "white" , here::here("figures", "above_vardecomp_gymno"), device="jpg")
+ggsave(plot=pv_vardecomp_gymno, bg = "white" , here::here("figures", "var_decomp", "above_vardecomp_gymno"), device="jpg")
 
 #gymno below
 
@@ -587,7 +587,7 @@ below_vardecomp_gymno <- plotPercentBars.new(varPart, col = c(vcol)) +
 below_vardecomp_gymno+
   theme(strip.text = element_text("Gymnosperm, below"))
 
-ggsave(plot=pv_vardecomp_gymno, bg = "white" , here::here("figures", "below_vardecomp_gymno"), device="jpg")
+ggsave(plot=pv_vardecomp_gymno, bg = "white" , here::here("figures", "var_decomp", "below_vardecomp_gymno"), device="jpg")
 ```
 
 
@@ -604,6 +604,6 @@ plots_stacked
 plots_stacked_legend <- cowplot::plot_grid(plots_stacked, cow_legend, ncol = 2, rel_widths = c(4,1))
 plots_stacked_legend
 
-ggsave(plot=pv_vardecomp_gymno, bg = "white" , here::here("figures", "all_vardecomp"), device="jpg")
+ggsave(plot=pv_vardecomp_gymno, bg = "white" , here::here("figures", "var_decomp", "all_vardecomp"), device="jpg")
 ```
 

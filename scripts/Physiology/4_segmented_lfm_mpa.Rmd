@@ -241,7 +241,7 @@ ggplot(aes(y = mpa,
 ```
 
 ```{r}
-fied_data_above <- field_data_all_4 %>% 
+field_data_above <- field_data_all_4 %>% 
   filter(lfm > seg_psi_norand_df$lfm_psi)
 
 mod_all <- lm(water_potential~lfm, data = field_data_above)
@@ -255,7 +255,7 @@ mpa_seg <- predict(mod_all, lfm_psi)
 mpa_seg
 
 #below
-fied_data_below <- field_data_all_4 %>% 
+field_data_below <- field_data_all_4 %>% 
   filter(lfm < seg_psi_norand_df$lfm_psi)
 
 mod_all <- lm(water_potential~lfm, data = field_data_below)
@@ -589,7 +589,7 @@ ggplot(aes(x = mpa,
 
 
 ```{r}
-field_data_all %>%
+field_data_all_4 %>%
    mutate(spp = fct_relevel(spp, "ABCO","PIJE","CADE","CECO", "ARPA","QUKE"))  %>% 
    mutate(Species = fct_relevel(Species,
                               "A. concolor",
@@ -616,8 +616,7 @@ field_data_all %>%
         color = "Month", 
         shape = "Age") +
   ylim(50,300) +
-  facet_wrap(~strategy) +
-  color_all
+  facet_wrap(~strategy)
 ```
 
 ####With functional groups: 

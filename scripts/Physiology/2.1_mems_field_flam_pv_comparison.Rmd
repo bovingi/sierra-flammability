@@ -381,7 +381,7 @@ write_csv(flam_curve_df, here("processed-data", "analysis 2.0", "flam_curve_vard
 
 ```{r}
 m11.5 <- lmer(lfm~ water_potential + F.Group + (1|plant), data = flam_curve_df)
-summary(m11)
+summary(m11.5)
 
 m11 <- lmer(lfm~ water_potential*F.Group + (1|plant), data = flam_curve_df)
 
@@ -444,7 +444,7 @@ flam_plot <- flam_curve_df %>%
 flam_plot
 ```
 
-#####- Flam plot, neg
+##### - Flam plot, neg
 ```{r}
 dat_text <- data.frame(
   F.Group = c("Angiosperm", "Gymnosperm"),
@@ -476,7 +476,7 @@ flam_plot_neg <- flam_curve_df %>%
   mapping = aes(x = 14, y = 210, label = label))+
  # annotate(geom = "text", x = 9, y = 225, label = 'c', fontface = 'bold', size = 10)+
   facet_wrap(~F.Group)
-flam_plotNeg
+flam_plot_neg
 ```
 
 
