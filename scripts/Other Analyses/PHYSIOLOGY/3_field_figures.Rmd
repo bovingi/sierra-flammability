@@ -130,7 +130,8 @@ Based on Hartmann 2020
 
 ```{r}
 p1 <- field_data_all_3 %>% 
- filter(age == "new", strategy == "Isohydric") %>% #filtering to 'old' so that we dont have duplicate MPa datapoints
+ filter(#
+   age == "new", strategy == "Isohydric") %>% #filtering to 'old' so that we dont have duplicate MPa datapoints
   #filter(site == 1) %>% 
 
    mutate(Species = fct_relevel(spp,
@@ -138,7 +139,7 @@ p1 <- field_data_all_3 %>%
     "P. jeffreyi", 
     "C. decurrens")) %>% 
   ggplot(aes(y = midday, x = predawn,
-            # shape = as.factor(site)
+             color = as.factor(year)
              )) +
   geom_point(size = 1, 
              alpha = .5
@@ -155,10 +156,10 @@ p1 <- field_data_all_3 %>%
              color = "#db8872", 
              linetype = "dotted")+
   
-  labs(y= "", 
+  labs(y= "Midday", 
       x = "", 
       # color = "Day of Year",
-       title = "More Isohydric"
+       #title = "More Isohydric"
       ) +
   theme(legend.position = "none", plot.margin = unit(c(0,0,0,0), "cm"))  + 
   scale_x_continuous(labels = NULL, breaks = NULL) +
@@ -166,14 +167,15 @@ p1 <- field_data_all_3 %>%
 p1
 
 p2 <- field_data_all_3 %>% 
- filter(age == "new", strategy == "Anisohydric") %>% #filtering to 'old' so that we dont have duplicate MPa datapoints
+ filter(#age == "new", strategy == "Anisohydric"
+   ) %>% #filtering to 'old' so that we dont have duplicate MPa datapoints
   #filter(site == 1) %>% 
    mutate(Species = fct_relevel(spp,
          "C. cordulatus", 
          "A. patula", 
         "Q. kelloggii")) %>% 
   ggplot(aes(y = midday, x = predawn,
-            # shape = as.factor(site)
+             color = as.factor(year)
              )) +
   geom_point(size = 1, 
              alpha = .5
@@ -188,12 +190,13 @@ p2 <- field_data_all_3 %>%
              linewidth = 1, 
              color = "#db8872", 
              linetype = "dotted")+
-  labs(y= "", 
-       x = "", 
-      # color = "Day of Year", 
-       title = "More Anisohydric"
+  labs(y= "Midday", 
+       x = "Predawn", 
+       #shape = "Year",
+       color = "Year", 
+       #title = "More Anisohydric"
       ) +
-  theme(legend.position = "none", 
+  theme(#legend.position = "none", 
         plot.margin = unit(c(0,0,0,0), "cm"), 
         plot.title = element_text(hjust = 1)) +
   coord_equal()
