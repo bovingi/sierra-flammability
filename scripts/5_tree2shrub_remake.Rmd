@@ -1,0 +1,310 @@
+---
+title: "tree2shrub figures 2020"
+author: "Indra Boving"
+date: "2023-01-19"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+library(here)
+```
+```{r}
+fct_case_when <- function(...) {
+  args <- as.list(match.call())
+  levels <- sapply(args[-1], function(f) f[[3]])  # extract RHS of formula
+  levels <- levels[!is.na(levels)]
+  factor(dplyr::case_when(...), levels=levels)
+}
+```
+
+
+```{r}
+field_data <- read_csv(here("processed-data", "analysis 2.0","field_data_2020_2021.csv"), show_col_types = FALSE) %>% 
+  select(year, spp, month, site, predawn, midday, type, date) %>% 
+  drop_na(year) %>% 
+  mutate(month_char = month(date,label=TRUE), 
+         day = day(date)) %>%  
+  mutate(month_split = fct_case_when(
+    month %in% 4 & day < 15 ~ "early April", 
+    month %in% 4 & day >= 15 ~ "late April", 
+     month %in% 5 & day < 15 ~ "early May", 
+    month %in% 5 & day >= 15 ~ "late May", 
+    month %in% 6 & day < 15 ~ "early June", 
+    month %in% 6 & day >= 15 ~ "late June", 
+    month %in% 7 & day < 15 ~ "early July", 
+    month %in% 7 & day >= 15 ~ "late July", 
+    month %in% 8 & day < 15 ~ "early August", 
+    month %in% 8 & day >= 15 ~ "late August",
+    month %in% 9 & day < 15 ~ "early Sept.", 
+    month %in% 9 & day >= 15 ~ "late Sept.", 
+    month %in% 10 & day < 15 ~ "early Oct.", 
+    month %in% 10 & day >= 15 ~ "late Oct.", 
+   # month %in% 4 & day >= 15 ~ "late April", 
+    TRUE ~ "month"
+  )) %>% 
+  pivot_longer(cols = c(midday, predawn), names_to = "timing", values_to = "mpa") %>% 
+  drop_na(mpa) %>% 
+  group_by(month_split, year, type, timing) %>% 
+ # select(-month_char) %>% 
+  mutate(sd_mpa = sd(mpa), 
+         mean_mpa = mean(mpa)) %>% 
+  filter(!spp %in% c("QUKE", "PIJE"))
+
+levels(field_data$month_split)
+```
+
+```{r}
+field_data %>% 
+  filter(timing == "predawn") %>% 
+  filter(year == 2021) %>% 
+ggplot(aes(y = mean_mpa, 
+            #x = week,
+           x = month_split, 
+           fill = type)) +
+  geom_bar(position=position_dodge(), stat="identity", colour = "black") +
+  #geom_bar(position = position_dodge(), 
+         #  stat = "summary", 
+         #  fun.y = "mean") +
+  geom_errorbar(aes(ymin= mean_mpa- sd_mpa, 
+                    ymax= mean_mpa + sd_mpa,
+                    x = month_split), width=.3,
+                 position=position_dodge(1)) +
+ # facet_wrap(~year) +
+  scale_fill_manual(values = c("white","darkgrey")) +
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, size = 16),
+        axis.text.y = element_text(size = 12), 
+         axis.title.y = element_text(size= 16)) +
+  labs(x = "", 
+       y = "Predawn leaf water potential (MPa)", 
+       fill = "")
+```
+```{r}
+field_data %>% 
+  filter(timing == "midday") %>% 
+  filter(year == 2021) %>% 
+ggplot(aes(y = mean_mpa, 
+            #x = week,
+           x = month_split, 
+           fill = type)) +
+  geom_bar(position=position_dodge(), stat="identity", colour = "black") +
+  #geom_bar(position = position_dodge(), 
+         #  stat = "summary", 
+         #  fun.y = "mean") +
+  geom_errorbar(aes(ymin= mean_mpa- sd_mpa, 
+                    ymax= mean_mpa + sd_mpa,
+                    x = month_split), width=.3,
+                 position=position_dodge(1)) +
+ # facet_wrap(~year) +
+  scale_fill_manual(values = c("white","darkgrey")) + 
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5)) +
+  labs(x = "", 
+       y = "Midday leaf water potential (MPa)" )
+```
+
+```{r}
+field_data %>% 
+  filter(timing == "midday") %>% 
+  filter(month == c(7,8,9,10)) %>% 
+  filter(year == 2021) %>% 
+  select(-sd_mpa, -mean_mpa) %>% 
+  group_by(month_char, year, type, timing) %>% 
+  mutate(sd_mpa = sd(mpa), 
+         mean_mpa = mean(mpa)) %>% 
+ggplot(aes(y = mean_mpa, 
+            #x = week,
+           x = month_char, 
+           fill = type)) +
+  geom_bar(position=position_dodge(), stat="identity", colour = "black") +
+  #geom_bar(position = position_dodge(), 
+         #  stat = "summary", 
+         #  fun.y = "mean") +
+  geom_errorbar(aes(ymin= mean_mpa- sd_mpa, 
+                    ymax= mean_mpa + sd_mpa,
+                    x = month_char), width=.3,
+                 position=position_dodge(1)) +
+ # facet_wrap(~year) +
+  scale_fill_manual(values = c("white","darkgrey")) + 
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, size = 16),
+        axis.text.y = element_text(size = 12), 
+         axis.title.y = element_text(size= 16)) +
+  labs(x = "", 
+       y = "Midday leaf water potential (MPa)" )
+```
+
+Predawn - midday leaf water potential: 
+
+```{r}
+field_data_wide <- read_csv(here("processed-data", "analysis 2.0","field_data_2020_2021.csv"), show_col_types = FALSE) %>% 
+  select(year, spp, month, site, predawn, midday, type, date) %>% 
+  drop_na(year) %>% 
+  mutate(month_char = month(date,label=TRUE), 
+         day = day(date),
+         diff = predawn - midday) %>%  
+  mutate(month_split = fct_case_when(
+    month %in% 4 & day < 15 ~ "early April", 
+    month %in% 4 & day >= 15 ~ "late April", 
+     month %in% 5 & day < 15 ~ "early May", 
+    month %in% 5 & day >= 15 ~ "late May", 
+    month %in% 6 & day < 15 ~ "early June", 
+    month %in% 6 & day >= 15 ~ "late June", 
+    month %in% 7 & day < 15 ~ "early July", 
+    month %in% 7 & day >= 15 ~ "late July", 
+    month %in% 8 & day < 15 ~ "early August", 
+    month %in% 8 & day >= 15 ~ "late August",
+    month %in% 9 & day < 15 ~ "early Sept.", 
+    month %in% 9 & day >= 15 ~ "late Sept.", 
+    month %in% 10 & day < 15 ~ "early Oct.", 
+    month %in% 10 & day >= 15 ~ "late Oct.", 
+   # month %in% 4 & day >= 15 ~ "late April", 
+    TRUE ~ "month"
+  )) %>% 
+  filter(!spp %in% c("QUKE", "PIJE")) %>% 
+  group_by(month_split, year, type) %>% 
+ # select(-month_char) %>% 
+  drop_na(diff) %>% 
+  mutate(sd_diff = sd(diff), 
+         mean_diff = mean(diff)) %>% 
+  filter(!spp %in% c("QUKE", "PIJE"))
+```
+
+```{r}
+field_data_wide %>% 
+  filter(year == 2021) %>% 
+ # select(-sd_mpa, -mean_mpa) %>% 
+ggplot(aes(y = mean_diff, 
+            #x = week,
+           x = month_split, 
+           fill = type)) +
+  geom_bar(position=position_dodge(), stat="identity", colour = "black") +
+  #geom_bar(position = position_dodge(), 
+         #  stat = "summary", 
+         #  fun.y = "mean") +
+  geom_errorbar(aes(ymin= mean_diff- sd_diff, 
+                    ymax= mean_diff + sd_diff,
+                    x = month_split), width=.3,
+                 position=position_dodge(1)) +
+ # facet_wrap(~year) +
+  scale_fill_manual(values = c("white","darkgrey")) + 
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, size = 16),
+        axis.text.y = element_text(size = 12), 
+         axis.title.y = element_text(size= 16)) +
+  labs(x = "", 
+       y = "Midday leaf water potential (MPa)" )
+```
+
+```{r}
+field_data_wide <- read_csv(here("processed-data", "analysis 2.0","field_data_2020_2021.csv"), show_col_types = FALSE) %>% 
+  select(year, spp, month, site, predawn, midday, type, date) %>% 
+  drop_na(year) %>% 
+  mutate(month_char = month(date,label=TRUE), 
+         day = day(date),
+         diff = predawn - midday) %>%  
+  mutate(month_split = fct_case_when(
+    month %in% 4 & day < 15 ~ "early April", 
+    month %in% 4 & day >= 15 ~ "late April", 
+     month %in% 5 & day < 15 ~ "early May", 
+    month %in% 5 & day >= 15 ~ "late May", 
+    month %in% 6 & day < 15 ~ "early June", 
+    month %in% 6 & day >= 15 ~ "late June", 
+    month %in% 7 & day < 15 ~ "early July", 
+    month %in% 7 & day >= 15 ~ "late July", 
+    month %in% 8 & day < 15 ~ "early August", 
+    month %in% 8 & day >= 15 ~ "late August",
+    month %in% 9 & day < 15 ~ "early Sept.", 
+    month %in% 9 & day >= 15 ~ "late Sept.", 
+    month %in% 10 & day < 15 ~ "early Oct.", 
+    month %in% 10 & day >= 15 ~ "late Oct.", 
+   # month %in% 4 & day >= 15 ~ "late April", 
+    TRUE ~ "month"
+  )) %>% 
+  filter(!spp %in% c("QUKE", "PIJE")) %>% 
+  group_by(month_char, year, type) %>% 
+ # select(-month_char) %>% 
+  drop_na(diff) %>% 
+  mutate(sd_diff = sd(diff), 
+         mean_diff = mean(diff)) %>% 
+  filter(!spp %in% c("QUKE", "PIJE"))
+
+field_data_wide %>% 
+  filter(year == 2021) %>% 
+ # select(-sd_mpa, -mean_mpa) %>% 
+ggplot(aes(y = mean_diff, 
+            #x = week,
+           x = month_char, 
+           fill = type)) +
+  geom_bar(position=position_dodge(), stat="identity", colour = "black") +
+  #geom_bar(position = position_dodge(), 
+         #  stat = "summary", 
+         #  fun.y = "mean") +
+  geom_errorbar(aes(ymin= mean_diff- sd_diff, 
+                    ymax= mean_diff + sd_diff,
+                    x = month_char), width=.3,
+                 position=position_dodge(1)) +
+ # facet_wrap(~year) +
+  scale_fill_manual(values = c("white","darkgrey")) + 
+  scale_y_continuous(breaks = seq(0, 1.6, by = 0.2)) +
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, size = 16),
+        axis.text.y = element_text(size = 12), 
+         axis.title.y = element_text(size= 16)) +
+  labs(x = "", 
+       y = "Predawn - Midday (MPa)" )
+```
+```{r}
+field_data_wide <- read_csv(here("processed-data", "analysis 2.0","field_data_2020_2021.csv"), show_col_types = FALSE) %>% 
+  filter(month == c(7,8,9,10)) %>% 
+  select(year, spp, month, site, predawn, midday, type, date) %>% 
+  drop_na(year) %>% 
+  mutate(month_char = month(date,label=TRUE), 
+         day = day(date),
+         diff = predawn - midday) %>%  
+  mutate(month_split = fct_case_when(
+    month %in% 4 & day < 15 ~ "early April", 
+    month %in% 4 & day >= 15 ~ "late April", 
+     month %in% 5 & day < 15 ~ "early May", 
+    month %in% 5 & day >= 15 ~ "late May", 
+    month %in% 6 & day < 15 ~ "early June", 
+    month %in% 6 & day >= 15 ~ "late June", 
+    month %in% 7 & day < 15 ~ "early July", 
+    month %in% 7 & day >= 15 ~ "late July", 
+    month %in% 8 & day < 15 ~ "early August", 
+    month %in% 8 & day >= 15 ~ "late August",
+    month %in% 9 & day < 15 ~ "early Sept.", 
+    month %in% 9 & day >= 15 ~ "late Sept.", 
+    month %in% 10 & day < 15 ~ "early Oct.", 
+    month %in% 10 & day >= 15 ~ "late Oct.", 
+   # month %in% 4 & day >= 15 ~ "late April", 
+    TRUE ~ "month"
+  )) %>% 
+  filter(!spp %in% c("QUKE", "PIJE")) %>% 
+  group_by(month_char, year, type) %>% 
+ # select(-month_char) %>% 
+  drop_na(diff) %>% 
+  mutate(sd_diff = sd(diff), 
+         mean_diff = mean(diff)) %>% 
+  filter(!spp %in% c("QUKE", "PIJE"))
+
+field_data_wide %>% 
+  filter(year == 2021) %>% 
+ # select(-sd_mpa, -mean_mpa) %>% 
+ggplot(aes(y = mean_diff, 
+            #x = week,
+           x = month_char, 
+           fill = type)) +
+  geom_bar(position=position_dodge(), stat="identity", colour = "black") +
+  #geom_bar(position = position_dodge(), 
+         #  stat = "summary", 
+         #  fun.y = "mean") +
+  geom_errorbar(aes(ymin= mean_diff- sd_diff, 
+                    ymax= mean_diff + sd_diff,
+                    x = month_char), width=.3,
+                 position=position_dodge(1)) +
+ # facet_wrap(~year) +
+  scale_fill_manual(values = c("white","darkgrey")) + 
+  scale_y_continuous(breaks = seq(0, 1.6, by = 0.2)) +
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, size = 16),
+        axis.text.y = element_text(size = 12), 
+         axis.title.y = element_text(size= 16)) +
+  labs(x = "", 
+       y = "Predawn - Midday (MPa)" )
+```
