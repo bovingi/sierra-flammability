@@ -170,6 +170,7 @@ flam_sierra_df %>%
                alpha = .4) +
   facet_wrap(~ var, scales = "free") 
 ```
+
 ```{r}
 plot_mpa_df <- flam_sierra_df %>% 
   filter(ignition == 1, 

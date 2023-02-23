@@ -8,6 +8,8 @@ output: html_document
 ```{r}
 library(tidyverse)
 library(here)
+library(lubridate)
+library(janitor)
 ```
 ```{r}
 fct_case_when <- function(...) {
@@ -47,7 +49,7 @@ field_data <- read_csv(here("processed-data", "analysis 2.0","field_data_2020_20
   drop_na(mpa) %>% 
   group_by(month_split, year, type, timing, site) %>% 
  # select(-month_char) %>% 
-  mutate(sd_mpa = sd(mpa), 
+  mutate(se_mpa = plotrix::std.error(mpa), 
          mean_mpa = mean(mpa)) %>% 
   filter(!spp %in% c("QUKE", "PIJE")) 
 
@@ -85,7 +87,7 @@ field_data_2020_t2s <-read_csv(here("raw-data", "field.summer.2020.csv"), show_c
   drop_na(mpa) %>% 
   group_by(month_split, year, type, timing, site) %>% 
  # select(-month_char) %>% 
-  mutate(sd_mpa = sd(mpa), 
+  mutate(se_mpa = plotrix::std.error(mpa), 
          mean_mpa = mean(mpa)) %>% 
   filter(!spp %in% c("QUKE", "PIJE"))
 ```
@@ -106,8 +108,8 @@ ggplot(aes(y = mean_mpa,
   #geom_bar(position = position_dodge(), 
          #  stat = "summary", 
          #  fun.y = "mean") +
-  geom_errorbar(aes(ymin= mean_mpa- sd_mpa, 
-                    ymax= mean_mpa + sd_mpa,
+  geom_errorbar(aes(ymin= mean_mpa- se_mpa, 
+                    ymax= mean_mpa + se_mpa,
                     x = month_split), width=.3,
                  position=position_dodge(1)) +
  # facet_wrap(~year) +
@@ -134,8 +136,8 @@ ggplot(aes(y = mean_mpa,
   #geom_bar(position = position_dodge(), 
          #  stat = "summary", 
          #  fun.y = "mean") +
-  geom_errorbar(aes(ymin= mean_mpa- sd_mpa, 
-                    ymax= mean_mpa + sd_mpa,
+  geom_errorbar(aes(ymin= mean_mpa- se_mpa, 
+                    ymax= mean_mpa + se_mpa,
                     x = month_split), width=.3,
                  position=position_dodge(1)) +
  # facet_wrap(~year) +
@@ -162,8 +164,8 @@ ggplot(aes(y = mean_mpa,
   #geom_bar(position = position_dodge(), 
          #  stat = "summary", 
          #  fun.y = "mean") +
-  geom_errorbar(aes(ymin= mean_mpa- sd_mpa, 
-                    ymax= mean_mpa + sd_mpa,
+  geom_errorbar(aes(ymin= mean_mpa- se_mpa, 
+                    ymax= mean_mpa + se_mpa,
                     x = month_split), width=.3,
                  position=position_dodge(1)) +
  # facet_wrap(~year) +
@@ -186,8 +188,8 @@ ggplot(aes(y = mean_mpa,
   #geom_bar(position = position_dodge(), 
          #  stat = "summary", 
          #  fun.y = "mean") +
-  geom_errorbar(aes(ymin= mean_mpa- sd_mpa, 
-                    ymax= mean_mpa + sd_mpa,
+  geom_errorbar(aes(ymin= mean_mpa- se_mpa, 
+                    ymax= mean_mpa + se_mpa,
                     x = month_split), width=.3,
                  position=position_dodge(1)) +
  # facet_wrap(~year) +
@@ -196,6 +198,33 @@ ggplot(aes(y = mean_mpa,
   labs(x = "", 
        y = "Midday leaf water potential (MPa)" )
 ```
+
+
+```{r}
+field_data %>% 
+  filter(timing == "midday",
+          site == 1) %>% 
+  filter(year == 2020) %>% 
+ggplot(aes(y = mean_mpa, 
+            #x = week,
+           x = month_split, 
+           fill = type)) +
+  geom_bar(position=position_dodge(), stat="identity", colour = "black") +
+  #geom_bar(position = position_dodge(), 
+         #  stat = "summary", 
+         #  fun.y = "mean") +
+  geom_errorbar(aes(ymin= mean_mpa- se_mpa, 
+                    ymax= mean_mpa + se_mpa,
+                    x = month_split), width=.3,
+                 position=position_dodge(1)) +
+ # facet_wrap(~year) +
+  scale_fill_manual(values = c("white","darkgrey")) + 
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5)) +
+  labs(x = "", 
+       y = "Midday leaf water potential (MPa)" )
+```
+
+
 ####2021 Middays, end of Summer:
 ```{r}
 field_data %>% 
@@ -203,9 +232,9 @@ field_data %>%
          site == 1) %>% 
   filter(month == c(7,8,9,10)) %>% 
   filter(year == 2021) %>% 
-  select(-sd_mpa, -mean_mpa) %>% 
+  select(-se_mpa, -mean_mpa) %>% 
   group_by(month_char, year, type, timing) %>% 
-  mutate(sd_mpa = sd(mpa), 
+  mutate(se_mpa = plotrix::std.error(mpa), 
          mean_mpa = mean(mpa)) %>% 
 ggplot(aes(y = mean_mpa, 
             #x = week,
@@ -215,8 +244,8 @@ ggplot(aes(y = mean_mpa,
   #geom_bar(position = position_dodge(), 
          #  stat = "summary", 
          #  fun.y = "mean") +
-  geom_errorbar(aes(ymin= mean_mpa- sd_mpa, 
-                    ymax= mean_mpa + sd_mpa,
+  geom_errorbar(aes(ymin= mean_mpa- se_mpa, 
+                    ymax= mean_mpa + se_mpa,
                     x = month_char), width=.3,
                  position=position_dodge(1)) +
  # facet_wrap(~year) +
@@ -234,9 +263,9 @@ field_data_2020_t2s %>%
   filter(timing == "midday") %>% 
   filter(month == c(7,8,9,10)) %>% 
   filter(year == 2020) %>% 
-  select(-sd_mpa, -mean_mpa) %>% 
+  select(-se_mpa, -mean_mpa) %>% 
   group_by(month_char, year, type, timing) %>% 
-  mutate(sd_mpa = sd(mpa), 
+  mutate(se_mpa = plotrix::std.error(mpa), 
          mean_mpa = mean(mpa)) %>% 
 ggplot(aes(y = mean_mpa, 
             #x = week,
@@ -246,8 +275,8 @@ ggplot(aes(y = mean_mpa,
   #geom_bar(position = position_dodge(), 
          #  stat = "summary", 
          #  fun.y = "mean") +
-  geom_errorbar(aes(ymin= mean_mpa- sd_mpa, 
-                    ymax= mean_mpa + sd_mpa,
+  geom_errorbar(aes(ymin= mean_mpa- se_mpa, 
+                    ymax= mean_mpa + se_mpa,
                     x = month_char), width=.3,
                  position=position_dodge(1)) +
  # facet_wrap(~year) +
@@ -289,7 +318,7 @@ field_data_wide <- read_csv(here("processed-data", "analysis 2.0","field_data_20
   group_by(month_split, year, type, site) %>% 
  # select(-month_char) %>% 
   drop_na(diff) %>% 
-  mutate(sd_diff = sd(diff), 
+  mutate(se_diff = plotrix::std.error(diff), 
          mean_diff = mean(diff)) %>% 
   filter(!spp %in% c("QUKE", "PIJE"))
 ```
@@ -304,7 +333,8 @@ field_data_wide_2020_t2s <-read_csv(here("raw-data", "field.summer.2020.csv"), s
          month = month(date),
          year = year(date),
          month_char = month(date,label=TRUE), 
-         day = day(date)) %>%  
+         day = day(date), 
+         diff = predawn - midday) %>%  
   mutate(month_split = fct_case_when(
     month %in% 4 & day < 15 ~ "early April", 
     month %in% 4 & day >= 15 ~ "late April", 
@@ -327,7 +357,7 @@ field_data_wide_2020_t2s <-read_csv(here("raw-data", "field.summer.2020.csv"), s
   group_by(month_split, year, type, site) %>% 
  # select(-month_char) %>% 
   drop_na(diff) %>% 
-  mutate(sd_diff = sd(diff), 
+  mutate(se_diff = plotrix::std.error(diff), 
          mean_diff = mean(diff)) %>% 
   filter(!spp %in% c("QUKE", "PIJE"))
 ```
@@ -337,7 +367,7 @@ field_data_wide_2020_t2s <-read_csv(here("raw-data", "field.summer.2020.csv"), s
 field_data_wide %>% 
   filter(year == 2021, 
          site == 1) %>% 
- # select(-sd_mpa, -mean_mpa) %>% 
+ # select(-se_mpa, -mean_mpa) %>% 
 ggplot(aes(y = mean_diff, 
             #x = week,
            x = month_split, 
@@ -346,8 +376,8 @@ ggplot(aes(y = mean_diff,
   #geom_bar(position = position_dodge(), 
          #  stat = "summary", 
          #  fun.y = "mean") +
-  geom_errorbar(aes(ymin= mean_diff- sd_diff, 
-                    ymax= mean_diff + sd_diff,
+  geom_errorbar(aes(ymin= mean_diff- se_diff, 
+                    ymax= mean_diff + se_diff,
                     x = month_split), width=.3,
                  position=position_dodge(1)) +
  # facet_wrap(~year) +
@@ -388,7 +418,7 @@ field_data_wide <- read_csv(here("processed-data", "analysis 2.0","field_data_20
   group_by(month_char, year, type, site) %>% 
  # select(-month_char) %>% 
   drop_na(diff) %>% 
-  mutate(sd_diff = sd(diff), 
+  mutate(se_diff = plotrix::std.error(diff), 
          mean_diff = mean(diff)) %>% 
   filter(!spp %in% c("QUKE", "PIJE"))
 
@@ -396,7 +426,7 @@ field_data_wide %>%
    filter(month == c(7,8,9,10)) %>% 
   filter(year == 2021, 
          site == 1) %>% 
- # select(-sd_mpa, -mean_mpa) %>% 
+ # select(-se_mpa, -mean_mpa) %>% 
 ggplot(aes(y = mean_diff, 
             #x = week,
            x = month_char, 
@@ -405,8 +435,8 @@ ggplot(aes(y = mean_diff,
   #geom_bar(position = position_dodge(), 
          #  stat = "summary", 
          #  fun.y = "mean") +
-  geom_errorbar(aes(ymin= mean_diff- sd_diff, 
-                    ymax= mean_diff + sd_diff,
+  geom_errorbar(aes(ymin= mean_diff- se_diff, 
+                    ymax= mean_diff + se_diff,
                     x = month_char), width=.3,
                  position=position_dodge(1)) +
  # facet_wrap(~year) +
