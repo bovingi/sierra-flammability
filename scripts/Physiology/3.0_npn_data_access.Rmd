@@ -1,4 +1,3 @@
-
 ---
 title: "National Phenology Network Data"
 author: "Indra Boving & Joe Celebrezze"

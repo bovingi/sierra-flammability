@@ -5,16 +5,10 @@ date: "6/20/2022"
 output: html_document
 ---
 
-OCT 29 NOTES: Probably will not use PCA - doesn't really tell as nice of a story with all species.
-DEC 14 NOTES: Actually we might! 
-
+# Setup
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-```
 
-# Setup
-Necessary packages:
-```{r}
 library(here)
 library(kableExtra)
 #remotes::install_github("vqv/ggbiplot")
@@ -33,12 +27,13 @@ select = dplyr::select
 source(here::here("scripts", "scripts_functions", "figure_info_sierra_flammability.R")) #color and theme info is here
 ```
 
+
 # 1.1. PCA Figure
 
 Plot setup:
 ```{r warning=FALSE}
 ### Note: This dataset includes only Epiradiator and Ignited samples
-sierra_flamdata_pca_all <- read_csv(here("processed-data", "analysis 2.0", "sierra_flam_data_all.csv"), show_col_types = FALSE) 
+sierra_flamdata_pca_all <- read_csv(here("processed-data", "sierra_flam_data_all.csv"), show_col_types = FALSE) 
 
 sierra_flamdata_pca <- sierra_flamdata_pca_all %>% 
   filter(ignition == 1 
@@ -239,7 +234,7 @@ all_data_withnoignitions <- bind_rows(all_data_pca, sierra_flamdata_pca_noigniti
 #dataset with the above columns, PCA using imputed NAs (medians), and flam metrics with NAs still in there:
 mem_data <- all_data_withnoignitions
 
-write_csv(mem_data, here("processed-data", "analysis 2.0", "mem_data_sierra_alldates.csv"))
+write_csv(mem_data, here("processed-data", "mem_data_sierra_alldates.csv"))
 ```
 
 # 1.2. PCA Table

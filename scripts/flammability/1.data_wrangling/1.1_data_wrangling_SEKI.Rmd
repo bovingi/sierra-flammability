@@ -1,0 +1,4134 @@
+---
+title: 'Data Wrangling: SEKI Flam. Curves'
+author: "Indra Boving"
+date: "2/19/2021"
+output: html_document
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+```{r, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+```
+
+```{r}
+#To load in necessary packages:
+library(gapminder)
+library(data.table)
+library(purrr)
+library(naniar)
+library(tidyverse)
+library(ggpubr)
+library(simputation)
+library(visdat)
+library(here)
+library(psych)
+library(kableExtra)
+filter = dplyr::filter #correct filter problem (gets confused with stats::filter)
+here = here::here
+```
+
+```{r warning=FALSE}
+#Read in data:
+raw.data.seki <- read.csv(here("raw-data", "SEKI_flammability.csv")) 
+kbl(raw.data.seki) %>%
+  kable_styling(bootstrap_options = c("striped"))
+```
+
+# Clean up data:
+
+### LFM: Deal with outlier
+
+First, deal with values that don't make sense due to missingness (for
+example, if the temp probe turned off and temp.max is listed as 0, or if
+the weight is listed as 0, or if LFM is negative due to missing dry or
+wet weight).
+
+Do this to manipulated/controlled variables (weight, temp, mpa) as well
+as with flammability metrics.
+
+```{r}
+#(need weird extra 0 types here for some reason?)
+data.with.na.seki <- raw.data.seki %>% 
+  replace_with_na(replace = list(temp.max = c(0, 0.0))) %>% #for missing temp maxs, make NA
+  replace_with_na(replace = list(ignition.temp = c(0, 0.0))) %>% #for missing temp at ignition, make NA (all 2016 & 2018 trials)
+  replace_with_na(replace = list(start.temp = c(0, 0.0))) %>% #for missing starting temp, make na
+  replace_with_na(replace = list(sample.wt = c(0, 0.0))) %>% #for sample weight...
+  replace_with_na(replace = list(lfm = c(0.00000))) #for missing lfm 
+
+#To make any odd values due to lack of ignition 'NA':
+data.with.na.seki[c("ttfg", "tti", "fd", "gd", "pfg", "fh", "mpa",  "prop.new", "water.wt", "fresh.wt", "dry.wt", "ttms")][(data.with.na.seki[c("ttfg", "tti", "fd", "gd", "pfg", "fh", "mpa", "prop.new", "water.wt", "fresh.wt", "dry.wt", "ttms")] == 0)] <- NA
+data.with.na.seki[c("ttfg", "tti", "fd", "gd", "pfg", "gti",  "dry.wt", "water.wt", "fresh.wt", "lfm", "ttms")][(data.with.na.seki[c("ttfg", "tti", "fd", "gd", "pfg", "gti",  "dry.wt", "water.wt", "fresh.wt", "lfm", "ttms")] < 0)] <- NA
+data.with.na.seki[c("ttfg", "tti", "fd", "gd", "pfg", "gti", "ttms")][(data.with.na.seki[c("ttfg", "tti", "fd", "gd", "pfg", "gti", "ttms")] > 1000)] <- NA
+```
+
+Next, visualize the impact of outliers in LFM with outlierKD function
+
+(NOTE: outlierKD slightly changed here to NOT require yes/no input when
+run. Instead, it is performed on a new column to retain unremoved data)
+
+Details on OutlierKD: "To detect the outliers I use the command
+boxplot.stats()\$out which use the Tukey's method to identify the
+outliers ranged above and below the 1.5\*IQR."
+(<https://www.r-bloggers.com/2016/04/identify-describe-plot-and-remove-the-outliers-from-the-dataset/>)
+
+```{r}
+##make column to take out outliers from lfm, while keeping column with original lfms too
+data.with.na.seki <- data.with.na.seki %>%
+  mutate(lfm.outliers.out = lfm)
+```
+
+```{r}
+#source("http://goo.gl/UUyEzD") #outlier KD (original function)
+
+    #The following function is derived from outlierKD (from above)
+outlierKD2 <- function(dt, var) {
+  var_name <- eval(substitute(var),eval(dt))
+  tot <- sum(!is.na(var_name))
+  na1 <- sum(is.na(var_name))
+  m1 <- mean(var_name, na.rm = T)
+  par(mfrow=c(2, 2), oma=c(0,0,3,0))
+  boxplot(var_name, main="With outliers")
+  hist(var_name, main="With outliers", xlab=NA, ylab=NA)
+  outlier <- boxplot.stats(var_name)$out
+  mo <- mean(outlier)
+  var_name <- ifelse(var_name %in% outlier, NA, var_name)
+  boxplot(var_name, main="Without outliers")
+  hist(var_name, main="Without outliers", xlab=NA, ylab=NA)
+  title("Outlier Check", outer=TRUE)
+  na2 <- sum(is.na(var_name))
+  message("Outliers identified: ", na2 - na1, " from ", tot, " observations")
+  message("Proportion (%) of outliers: ", (na2 - na1) / tot*100)
+  message("Mean of the outliers: ", mo)
+  m2 <- mean(var_name, na.rm = T)
+  message("Mean without removing outliers: ", m1)
+  message("Mean if we remove outliers: ", m2)
+    dt[as.character(substitute(var))] <- invisible(var_name)
+    assign(as.character(as.list(match.call())$dt), dt, envir = .GlobalEnv)
+    message("Outliers successfully removed", "\n")
+    return(invisible(dt))
+}
+```
+
+#### ARPA
+
+```{r}
+data.with.na.seki.arpa <- data.with.na.seki %>% 
+  filter(spp == "ARPA")
+
+outlierKD2(data.with.na.seki.arpa, lfm.outliers.out) #check for outliers and remove (happens in outliers.out column, lfm column still contains outliers)
+```
+
+#### ABCO
+
+```{r}
+data.with.na.seki.abco <- data.with.na.seki %>% 
+  filter(spp == "ABCO")
+
+outlierKD2(data.with.na.seki.abco, lfm.outliers.out) #check for outliers and remove (happens in outliers.out column, lfm column still contains outliers)
+```
+#### CADE
+
+```{r}
+data.with.na.seki.cade <- data.with.na.seki %>% 
+  filter(spp == "CADE")
+
+outlierKD2(data.with.na.seki.cade, lfm.outliers.out) #check for outliers and remove (happens in outliers.out column, lfm column still contains outliers)
+```
+
+#### CECO
+
+```{r}
+data.with.na.seki.ceco <- data.with.na.seki %>% 
+  filter(spp == "CECO")
+
+outlierKD2(data.with.na.seki.ceco, lfm.outliers.out) #check for outliers and remove (happens in outliers.out column, lfm column still contains outliers)
+```
+
+#### PIJE
+
+```{r}
+data.with.na.seki.pije <- data.with.na.seki %>% 
+  filter(spp == "PIJE")
+
+outlierKD2(data.with.na.seki.pije, lfm.outliers.out) #check for outliers and remove (happens in outliers.out column, lfm column still contains outliers)
+```
+
+#### QUKE
+
+```{r}
+data.with.na.seki.quke <- data.with.na.seki %>% 
+  filter(spp == "QUKE")
+
+outlierKD2(data.with.na.seki.quke, lfm.outliers.out) #check for outliers and remove (happens in outliers.out column, lfm column still contains outliers)
+```
+
+```{r}
+data.with.na.seki <- rbind(data.with.na.seki.arpa, 
+                           data.with.na.seki.pije, 
+                           data.with.na.seki.abco, 
+                           data.with.na.seki.cade, 
+                           data.with.na.seki.quke, 
+                           data.with.na.seki.ceco)
+```
+
+# Impute missing values:
+
+Our data are MAR (missing at random) or MCAR (missing completely at
+random), and can therefore be dealt with in a few ways: complete case
+analysis, single, or multiple imputation (see:
+<https://doi.org/10.1093/icvts/ivy102> )
+
+For MAR, missing values ARE related to observed values, i.e., their
+missingness could be related to something else that we measured, and
+could therefor be determined from those values. Improper handling could
+skew data).
+
+### Our missing values and their type of missingness:
+
+-   ***LFM:*** MCAR (i.e. missing values ARE NOT related to observed
+    values: missingness is not due to something else that we measured
+    (for example, we didn't skip measuring LFM at the driest
+    timepoints). Missing samples can be treated as random (likelihood of
+    being missing is the same for all missing values)).
+
+-   ***Flam metrics:*** MCAR (except flame height which is MAR (taller
+    flame heights more likely to be missing if they went out of frame)).
+
+### Dealing with the missing values:
+
+For MCAR, we can use single imputation (insert mean/median/mode) or
+multiple imputation to deal with missings.
+
+***mean/median/mode:*** can reduce variation, but easiest and ok to use
+if number of missings are small enough not to impact data --- which is
+where our data falls.
+
+***More information on missing values:***
+
+Multiple imputation options in R:
+<https://www.analyticsvidhya.com/blog/2016/03/tutorial-powerful-packages-imputing-missing-values/>
+
+Multiple imputation information:
+<https://bookdown.org/mwheymans/bookmi/multiple-imputation.html>
+
+MICE: (Multivariate Imputation by Chained Equations; See:
+<https://data.library.virginia.edu/getting-started-with-multiple-imputation-in-r/>).
+This requires that we perform the analysis on each of multiple imputed
+datasets (usually 5), and then combine the values at the end.
+
+```{r}
+#If we want to go the more complicated MICE route, here is the initial dataset:
+# library(mice)
+# imp <- mice(data.with.na.seki, m=5, maxit=10, method="pmm")
+# data.mice <- complete(imp, action = "long", include = TRUE) 
+```
+
+Using single imputation (mean/median/mode): can reduce variation, but
+easiest and ok to use if number of missings are small enough not to
+impact data --- which is where our data falls). To do this, the
+"simputation" package is useful for grouping and visualizing (See:
+<https://cran.r-project.org/web/packages/simputation/vignettes/intro.html>)
+
+Paper using rlm for imputation:
+<https://pubmed.ncbi.nlm.nih.gov/22994905/>
+
+Overview of missingness:
+<https://towardsdatascience.com/all-about-missing-data-handling-b94b8b5d2184>
+
+Using naniar: (package for visualizing missings)
+<https://cran.r-project.org/web/packages/naniar/vignettes/getting-started-w-naniar.html>)
+
+Information on single imputation:
+<https://thomaselove.github.io/431-notes/missing-data-mechanisms-and-simple-imputation.html#missing-data-mechanisms>
+
+Also see: Nakagawa, S., & Freckleton, R. P. (2011). Model averaging,
+missing data and multiple imputation: A case study for behavioural
+ecology. Behavioral Ecology and Sociobiology, 65(1), 103--116.
+<https://doi.org/10.1007/s00265-010-1044-7>
+
+### Visualize missing data:
+
+```{r, include = FALSE}
+as_shadow(data.with.na.seki)
+aq_shadow <- bind_shadow(data.with.na.seki)
+aq_nab <- nabular(data.with.na.seki)
+all.equal(aq_shadow, aq_nab)
+#glimpse(aq_nab)
+```
+
+```{r}
+data.with.na.seki %>%
+  bind_shadow() %>%
+  ggplot(aes(x = mpa, fill = lfm.outliers.out_NA)) +
+  geom_histogram()
+
+NA.pmm <- aq_shadow %>%
+  impute_pmm(lfm.outliers.out ~ mpa | spp) %>%
+  ggplot(aes(x = mpa,
+             y = lfm.outliers.out, 
+             colour = lfm.outliers.out_NA, shape = spp)) + 
+  geom_point() +
+  ggtitle("impute LFM using parametric means matching")
+NA.pmm
+
+#imputed missing lfm values:
+NA.median <- aq_shadow %>%
+  impute_median(lfm.outliers.out ~ spp) %>%
+  ggplot(aes(x = mpa,
+             y = lfm.outliers.out, 
+             colour = lfm.outliers.out_NA,shape = spp)) + 
+  geom_point() +
+  ggtitle("impute LFM using median")
+NA.median
+#head(aq_shadow)
+
+NA.rlm <- aq_shadow %>%
+  impute_rlm(lfm.outliers.out ~ mpa |spp) %>%
+  ggplot(aes(x = mpa,
+             y = lfm.outliers.out, 
+             colour = lfm.outliers.out_NA,shape = spp)) + 
+  geom_point() +
+  ggtitle("impute LFM using robust linear model (LFM ~ Mpa | Spp)")
+NA.rlm
+```
+
+Based on the visualizations above and the fact that our data are MCAR,
+we will use the rlm imputed values for LFM. This means that, for each
+species, LFM will be imputed based on its associated water potential.
+
+```{r}
+#impute rlm for each spp. 
+data.with.na.seki <- data.with.na.seki %>%
+  mutate(lfm.NAs.imputed = lfm.outliers.out) %>%
+  impute_rlm(lfm.NAs.imputed ~ mpa | spp)
+```
+
+# Add new variables:
+
+Add some columns to the dataframe and manipulate some variables:
+
+-   Add precip columns with 2 month previous precipitation -- NEED TO DO THIS, currently using average from historical data. 
+-   Proportion ignite columns: for each increase in LFM of 10%, what
+    proportion of the attempted burns ignited?
+
+##### Precip
+```{r ,include=FALSE}
+data.seki.precip <- data.with.na.seki %>% 
+  group_by(gr = cut(lfm.NAs.imputed, breaks= seq(0, 400, by = 10))) %>% #create 10 lfm.NAs.imputed segments, indicate these in new column called "gr"
+  ungroup() %>% #ungroup - this will stop issues in the future (we can always regroup again)
+  group_by(year, model, spp, gr) %>% #create groups based on trial, model, species, and lfm segment
+  add_tally %>% #column with n for each of these groups
+  ungroup() %>% #ungroup so r doesnt get confused
+  unite(model.spp.gr, c("year", "month", "model", "spp", "gr"), remove = FALSE) %>% #create column for each group as above, which will be associated with the n of each group based on the above add_tally step. 
+  unite(model.spp.gr.sample, c("year", "month", "model", "spp", "gr", "sample"), remove = FALSE) %>% #create column with group for each indvidual sample (this is a unique ID)
+  mutate(individual = model.spp.gr.sample) %>% 
+  unite(year.month, c("year", "month"), remove = FALSE) %>% #group for month and year
+  mutate(precip.2month = year.month) %>%
+ mutate(precip.2mo = recode(precip.2month, "2020_October" = 0.61)) %>% #this is an estimate based on historical averages for August and September
+  mutate(season = year.month) %>%
+  mutate(season = recode(season, "2020_October" = "Dry"))  #group for month and year
+
+```
+
+#### Prop. ignite
+
+```{r ,include=FALSE}
+data.seki.props <-  data.seki.precip %>%
+  mutate(ignition_no_double = ignition) %>% #deal with instances where we did a manual ignition
+  mutate(ignition_no_double = case_when(
+    ignition_no_double == "2" ~ "NA",
+    TRUE ~ as.character(ignition_no_double)
+  )) %>% 
+  mutate(ignition_no_double = as.numeric(ignition_no_double)) %>% 
+  group_by(model.spp.gr) %>% #group by year, model, spp, group column
+  mutate(total = sum(ignition_no_double)) %>% 
+  mutate(prop.ignite = paste0(round(100 * total/n))) %>% #for each group, divide total ignitions ("total" column) by total number burn attempts (n column), as a percentage
+  ungroup() %>% #ungroup so r doesnt get confused
+  #create Rate of Spread column (only relevant for HP metrics, but we'll do it for all and just ignore that column when we do EPI analysis):
+  mutate(ros = 10/fd) %>% ##this returns Inf for those missing flame duration (i.e., no burn columns. Shouldnt be an issue when we filter out only those that burned); not relevant for Epiradiator samples, but we'll do it to those anyway and then ignore or filter out that column later. 
+  select(-n, -total, -lfm) #remove columns we aren't interested in anymore
+
+data.seki.props$prop.ignite <- as.numeric(data.seki.props$prop.ignite) #Since, otherwise, it would be a character vector
+
+#hist(data.seki.props$prop.ignite) #visualize to see if values make sense....yay!
+```
+-   Categorical "dry" vs. "wet" vs. "moderate" column for season, based
+    on prior precip and date (dry = <1 in rain, wet = >3 in rain)
+-   Various categorical groups based on LFM, spp., models, date, etc.
+    used in grouping later on or in creating the above columns.
+-   Column labeled "hydration" with break at 60% LFM for dry, 60 - 90%
+    for moderate, and \> 100% for hydrated
+-   Make bins of varying lfm sizes (5, 10, 20)
+
+```{r, include= FALSE}
+#impute lfm based on relationship with Mpa, grouping by species:
+data.seki.bins <- data.seki.props %>%
+  group_by(spp) %>%
+#then create bins for LFM, in case we want to compare via bins
+  mutate(hydration = cut(lfm.NAs.imputed, breaks = c(0, 60, 90, 400), labels = c("dry", "moderate", "hydrated"))) %>% 
+  ungroup() %>%
+  group_by(bins5lfm= cut(lfm.NAs.imputed, breaks= seq(0, 400, by = 5))) %>% #create 10 LFM segments, indicate these in new column called "bins5lfm"
+  ungroup() %>% #ungroup - this will stop issues in the future (we can always regroup again)
+  group_by(bins10lfm= cut(lfm.NAs.imputed, breaks= seq(0, 400, by = 10))) %>% #create 10 LFM segments, indicate these in new column called "bins10lfm"
+  ungroup() %>% #ungroup - this will stop issues in the future (we can always regroup again)
+  group_by(bins20lfm = cut(lfm.NAs.imputed, breaks= seq(0, 400, by = 20))) %>% #create 20 LFM segments, indicate these in new column called "bins20lfm"
+  ungroup()
+```
+
+### Other missing values: weights and temps
+
+-   Visualize missing weights and temps:
+
+```{r, include=FALSE}
+#### For all trials (both ignition and non-ignition):
+
+vis_miss(data.seki.bins)
+gg_miss_var(data.seki.bins, facet = year.month)
+```
+
+#### For trials that ignited without manual ignition:
+
+```{r}
+data.seki.bins %>% 
+  filter(ignition == "1") %>% 
+  vis_miss
+
+data.seki.bins %>% 
+  filter(ignition == "1") %>% 
+  gg_miss_var
+```
+
+#### Dry weights:
+
+```{r}
+ggplot(data.seki.bins, 
+       aes(x = lfm.outliers.out, 
+           y = dry.wt)) + 
+  geom_miss_point() +
+  facet_wrap(~year.month)
+```
+
+#### Fresh weights:
+
+```{r}
+ggplot(data.seki.bins, 
+       aes(x = lfm.outliers.out, 
+           y = fresh.wt)) + 
+  geom_miss_point() +
+  facet_wrap(~year.month)
+```
+
+#### Water weights:
+
+```{r}
+ggplot(data.seki.bins, 
+       aes(x = lfm.outliers.out, 
+           y = water.wt)) + 
+  geom_miss_point() +
+  facet_wrap(~year.month)
+```
+
+#### Sample weights:
+
+```{r}
+ggplot(data.seki.bins, 
+       aes(x = lfm.outliers.out, 
+           y = sample.wt)) + 
+  geom_miss_point() +
+  facet_wrap(~year.month)
+```
+
+#### Start temps:
+
+```{r}
+ggplot(data.seki.bins, 
+       aes(x = lfm.outliers.out, 
+           y = start.temp)) + 
+  geom_miss_point() +
+  facet_wrap(~year.month)
+```
+
+#### Time to max spread:
+
+```{r}
+ggplot(data.seki.bins, 
+       aes(x = lfm.outliers.out, 
+           y = ttms)) + 
+  geom_miss_point() +
+  facet_wrap(~year.month)
+```
+
+A lot of these are missing, so maybe we should't use this metric for these trials? Keep in, but we won't impute the missing values and we wont use them in our PCA. 
+
+```{r, include = FALSE}
+as_shadow(data.seki.bins)
+aq_shadow <- bind_shadow(data.seki.bins)
+aq_nab <- nabular(data.seki.bins)
+all.equal(aq_shadow, aq_nab)
+#glimpse(aq_nab)
+```
+
+We're not missing a ton of data, so imputing the median should not
+effect distribution...
+
+```{r include=FALSE}
+#view: 
+##multi.hist(data.seki.bins[,sapply(data.seki.bins, is.numeric)]) 
+
+#impute values for missing weights:
+data.seki.imputed <- data.seki.bins %>%
+  unite(individual, c("year", "month", "spp", "sample"), remove = FALSE) %>% #create 'individual' column
+  dplyr::group_by(model.spp.gr) %>%
+  impute_median_at(c("dry.wt", "fresh.wt", "water.wt", "sample.wt")) %>%
+  ungroup() %>%
+  impute_median_at("start.temp") %>%
+  mutate(temp.change = temp.max - start.temp)
+
+range(data.seki.imputed$dry.wt)  
+range(data.seki.imputed$sample.wt) 
+range(data.seki.imputed$water.wt)
+range(data.seki.imputed$fresh.wt)
+#...No NAs, good!
+
+#colSums(is.na(data))
+
+```
+
+We also make a dataset to use in PV curve from flam curve analysis.
+
+```{r}
+# # Make dry weight columns, etc. for PV comparison: 
+
+# (EDIT: PV Sat.weight stuff needs to happen in excel due to need for extrapolation..this is still interesting though)
+
+#calculate metrics for weight values (read . as "per", i.e. gdw.gfw is "gram dry weight per gram fresh weight"):
+data.seki.imputed <- data.seki.imputed %>%
+  dplyr::mutate(gdw.gfw = dry.wt/fresh.wt) %>%
+  dplyr:::mutate(gww.gdw = lfm.NAs.imputed/100) %>%
+  dplyr::mutate(gdw.gww = dry.wt/water.wt) %>%
+  dplyr::mutate(dw.flam.sample = sample.wt * gdw.gfw) %>%
+  dplyr::mutate(ww.flam.sample = sample.wt - dw.flam.sample) %>%
+  replace_with_na_at(.vars = c("ww.flam.sample"), condition = ~.x < 0) # oe was below 0 (due to missing lfm), so remove that one 
+
+# range(data$gdw.gfw)
+# range(data$ww.flam.sample)
+
+
+#deal with weight values from the above (should actually not be needed)
+data.seki.imputed <- data.seki.imputed %>%
+  #replace_with_na(replace = list(dw.flam.sample = c(0, " ", "  ", "", "   ", "    "))) %>%
+  #replace_with_na(replace = list(dw.flam.sample = c(0))) %>% #when dw flam is zero (i.e. missing sample weight or missing lfm)
+  #replace_with_na_at(.vars = c("dw.flam.sample"), condition = ~.x < 0) %>%
+  dplyr::group_by(model.spp.gr) %>%
+  #impute_lm(dw.flam.sample ~ lfm.NAs.imputed) %>%
+  impute_median_at("ww.flam.sample") %>%
+  dplyr::group_by(model.spp.gr) %>%
+  dplyr::group_by(individual) %>% 
+  dplyr::mutate(gww.gdw.saturated = max((gww.gdw), na.rm = TRUE)) %>%
+  dplyr::mutate(gdw.gww.saturated = min((gdw.gww), na.rm = TRUE)) %>%
+  mutate(RWC = (gww.gdw/gww.gdw.saturated)*100) %>%
+  mutate(RWD = 100 - RWC) %>%
+  mutate(max.mpa.sample = max((mpa), na.rm = TRUE)) 
+  #select(order(colnames())) #make columns in alphabetical order
+
+#write.csv(data.seki.imputed, here("processed-data", "seki.data.halfwayprocessed.csv"))
+
+rwc.data <- data.seki.imputed %>% select(individual, year.month, dry.wt, spp, model, lfm.NAs.imputed, RWC, max.mpa.sample, mpa, gww.gdw, gww.gdw.saturated, fresh.wt, dry.wt, site, sample)
+
+write_csv(rwc.data, here("processed-data", "compiled-datasets", "SEKI", "seki_flam_curve_physiological_data.csv"))
+
+# rwc.lfm.plot <- rwc.data %>%
+#   ggplot(aes(x = lfm.NAs.imputed, y = RWC, color = spp)) +
+#   geom_point()
+# rwc.lfm.plot
+```
+
+------------------------------------------------------------------------
+
+# ********ARPA:
+
+## Other missing values: Flam metrics
+
+### EPI: only
+
+```{r}
+data.arpa<- data.seki.imputed %>% 
+  filter(spp == "ARPA")
+```
+
+`
+```{r}
+ignite.only.seki.arpa.epi <- data.arpa %>%
+  filter(ignition == "1") %>% #only look at ignited samples
+  filter(model == "EPI")
+```
+
+### Outliers in flam metrics:
+
+These run and remove outliers automatically, need to quiet the code if
+that is not what we want.
+
+#### tti
+
+```{r}
+outlierKD2(ignite.only.seki.arpa.epi, tti)
+```
+
+#### gti
+
+```{r}
+outlierKD2(ignite.only.seki.arpa.epi, gti)
+```
+
+#### gd
+
+```{r}
+outlierKD2(ignite.only.seki.arpa.epi, gd)
+```
+
+#### fd
+
+```{r}
+outlierKD2(ignite.only.seki.arpa.epi, fd)
+```
+
+#### pfg
+
+```{r}
+outlierKD2(ignite.only.seki.arpa.epi, pfg)
+```
+
+#### fh
+
+```{r}
+outlierKD2(ignite.only.seki.arpa.epi, fh)
+```
+
+#### temp max
+
+```{r}
+outlierKD2(ignite.only.seki.arpa.epi, temp.max)
+```
+
+#### ignition temp
+
+```{r}
+outlierKD2(ignite.only.seki.arpa.epi, ignition.temp)
+```
+
+Look at distributions of flammability metrics so we can think about how
+to deal with NAs in those variables, and then deal with them.
+
+- Ignited samples only,
+both models
+
+```{r, include=FALSE}
+vis_miss(ignite.only.seki.arpa.epi)
+gg_miss_var(ignite.only.seki.arpa.epi, facet = year.month)
+```
+
+### Outliers in flam metrics:
+
+#### EPI NAs: flame height
+
+```{r}
+ggplot(ignite.only.seki.arpa.epi, 
+       aes(x = lfm.outliers.out, 
+           y = fh)) + 
+  geom_miss_point() +
+  facet_wrap(~year.month)
+```
+
+#### EPI NAs: glow duration
+
+```{r}
+ggplot(ignite.only.seki.arpa.epi, 
+       aes(x = lfm.outliers.out, 
+           y = gd)) + 
+  geom_miss_point() +
+  facet_wrap(~year.month)
+```
+
+#### EPI NAs: temp change
+
+```{r}
+ggplot(ignite.only.seki.arpa.epi, 
+       aes(x = lfm.outliers.out, 
+           y = temp.change)) + 
+  geom_miss_point() +
+  facet_wrap(~year.month)
+```
+
+#### EPI NAs: glow duration
+
+```{r}
+ggplot(ignite.only.seki.arpa.epi, 
+       aes(x = lfm.outliers.out, 
+           y = gd)) + 
+  geom_miss_point() +
+  facet_wrap(~year.month)
+```
+
+```{r, include=FALSE}
+as_shadow(ignite.only.seki.arpa.epi)
+aq_shadow <- bind_shadow(ignite.only.seki.arpa.epi)
+aq_nab <- nabular(ignite.only.seki.arpa.epi)
+all.equal(aq_shadow, aq_nab)
+#glimpse(aq_nab)
+```
+
+Overall, not too many missing values, so maybe we dont need to go too
+crazy with this. Also, flame height can be considered MCAR here due to
+flame heights not going out of screen in Epi trials.
+
+So. we impute missing values with the median: 
+
+#### Distribution following imputation: 
+
+```{r, include=FALSE}
+### Subset data and perform imputations (median):
+#str(data)
+ignite.only.seki.arpa.epi %>%
+  mutate(gti = as.numeric(gti)) 
+
+ignite.only.seki.arpa.epi <- ignite.only.seki.arpa.epi %>%
+  group_by(year.month) %>% 
+  group_by(spp) %>% #this makes us take the median of based on the species, the model, and the lfm bins (of 10 lfm) the missing value is in. Preserves species differences, and lfm impact. 
+  impute_median_at(c("ttfg", "ttms", "gd", "gti", "fd", "pfg","temp.max", "start.temp", "ros", "ignition.temp", "temp.change", "prop.ignite", "fh", "tti")) 
+
+colSums(is.na(ignite.only.seki.arpa.epi)) #should not be any NAs except in LFM.outliers.out
+
+dist.epi <- ignite.only.seki.arpa.epi %>%
+  select(fd, fh, gd, gti, pfg, prop.ignite, temp.max, ttfg, tti, temp.change)
+
+
+```
+
+```{r}
+##multi.hist(dist.epi[,sapply(dist.epi, is.numeric)])
+```
+
+# Repeat with hotplate trials:
+
+```{r}
+ignite.only.seki.arpa.hp <- data.arpa %>%
+  filter(model == "HP") %>% 
+  filter(ignition == "1") %>% 
+  dplyr::mutate(gti = replace(gti, gti == "0", "0.5")) %>% #replace when gti is zero to .5 seconds, so we can take the log later
+  mutate(gti = as.numeric(gti))
+```
+
+### Outliers in flam metrics:
+
+These run and remove outliers automatically, need to quiet the code if
+that is not what we want.
+
+#### tti
+
+```{r}
+outlierKD2(ignite.only.seki.arpa.hp, tti)
+```
+
+#### gti
+
+```{r}
+#outlierKD2(ignite.only.seki.arpa.hp, gti)
+```
+
+#### gd
+
+```{r}
+outlierKD2(ignite.only.seki.arpa.hp, gd)
+```
+
+#### fd
+
+```{r}
+outlierKD2(ignite.only.seki.arpa.hp, fd)
+```
+
+#### pfg
+
+```{r}
+outlierKD2(ignite.only.seki.arpa.hp, pfg)
+```
+
+#### fd
+
+```{r}
+outlierKD2(ignite.only.seki.arpa.hp, fh)
+```
+
+#### temp.max
+
+```{r}
+outlierKD2(ignite.only.seki.arpa.hp, temp.max)
+```
+
+#### ignition.temp
+
+```{r}
+outlierKD2(ignite.only.seki.arpa.hp, ignition.temp)
+```
+
+#### prop.ignite
+
+```{r}
+#outlierKD2(ignite.only.seki.arpa.hp, prop.ignite)
+```
+
+```{r}
+vis_miss(ignite.only.seki.arpa.hp)
+gg_miss_var(ignite.only.seki.arpa.hp, facet = year.month)
+```
+
+#### HP NAs: flame height
+
+none missing
+
+```{r}
+ggplot(ignite.only.seki.arpa.hp,
+       aes(x = lfm.outliers.out,
+           y = fh)) +
+  geom_miss_point() +
+  facet_wrap(~year.month)
+```
+
+#### HP NAs: glow duration
+
+```{r}
+ggplot(ignite.only.seki.arpa.hp,
+       aes(x = lfm.outliers.out,
+           y = gd)) +
+  geom_miss_point() +
+  facet_wrap(~year.month)
+```
+
+#### HP NAs: temp. change
+
+```{r}
+ggplot(ignite.only.seki.arpa.hp, 
+       aes(x = lfm.outliers.out, 
+           y = temp.change)) + 
+  geom_miss_point() +
+  facet_wrap(~year.month)
+```
+
+#### HP NAs: time to ignition
+
+```{r}
+ggplot(ignite.only.seki.arpa.hp,
+       aes(x = lfm.outliers.out,
+           y = tti)) +
+  geom_miss_point() +
+  facet_wrap(~year.month)
+```
+
+#### HP NAs: glow to ignition
+
+```{r}
+ggplot(ignite.only.seki.arpa.hp,
+       aes(x = lfm.outliers.out,
+           y = gti)) +
+  geom_miss_point() +
+  facet_wrap(~year.month)
+```
+
+#### HP NAs: rate of spread
+
+```{r}
+ggplot(ignite.only.seki.arpa.hp,
+       aes(x = lfm.outliers.out,
+           y = ros)) +
+  geom_miss_point() +
+  facet_wrap(~year.month)
+```
+
+#### HP NAs: flame duration
+
+```{r}
+ggplot(ignite.only.seki.arpa.hp,
+       aes(x = lfm.outliers.out,
+           y = fd)) +
+  geom_miss_point() +
+  facet_wrap(~year.month)
+```
+
+#### HP NAs: proportion ignited
+
+```{r}
+# ggplot(ignite.only.seki.arpa.hp,
+#        aes(x = lfm.outliers.out,
+#            y = prop.ignite)) +
+#   geom_miss_point() +
+#   facet_wrap(~year.month)
+```
+
+#### HP NAs: time to first glow
+
+```{r}
+ggplot(ignite.only.seki.arpa.hp,
+       aes(x = lfm.outliers.out,
+           y = ttfg)) +
+  geom_miss_point() +
+  facet_wrap(~year.month)
+```
+
+```{r, include=FALSE}
+as_shadow(ignite.only.seki.arpa.hp)
+aq_shadow <- bind_shadow(ignite.only.seki.arpa.hp)
+aq_nab <- nabular(ignite.only.seki.arpa.hp)
+all.equal(aq_shadow, aq_nab)
+#glimpse(aq_nab)
+```
+
+Not many missing, which is good!
+
+### ***}}****Deal with NAs for hotplate:
+
+-   impute medians at each missing flam metric
+
+```{r, include = FALSE}
+#str(data)
+ignite.only.seki.arpa.hp %>%
+  mutate(gti = as.numeric(gti)) 
+
+ignite.only.seki.arpa.hp <- ignite.only.seki.arpa.hp %>%
+  mutate(fh_nas_imputed = fh) %>% 
+  group_by(year.month) %>% 
+  group_by(spp) %>% #this makes us take the median of based on the species, the model, and the lfm bins (of 10 lfm) the missing value is in. Preserves species differences, and lfm impact. 
+  impute_median_at(c("ttfg", "ttms", "gd", "gti", "fd", "pfg","temp.max", "start.temp", "ros", "ignition.temp", "temp.change", "prop.ignite", "fh_nas_imputed", "ros", "tti"))   #since fh may have gone out of top of frame for some larger flame height trials, use existing information to impute those values (BUT doesn't really matter since so few fh's are actually missing)
+
+colSums(is.na(ignite.only.seki.arpa.hp)) #should not be any NAs except in LFM.outliers.out
+
+dist.hp <- ignite.only.seki.arpa.hp %>%
+  select(fd, fh, gd, gti, pfg, prop.ignite, temp.max, ttfg, tti, temp.change)
+```
+
+
+
+```{r}
+##multi.hist(dist.epi[,sapply(dist.epi, is.numeric)])
+```
+
+# Look at flam characteristics to see if they make sense:
+
+#### For EPI only:
+
+```{r, include=FALSE}
+#chack for NAs
+range(ignite.only.seki.arpa.epi$gti)
+range(ignite.only.seki.arpa.epi$gd) 
+range(ignite.only.seki.arpa.epi$pfg) 
+range(ignite.only.seki.arpa.epi$ttfg)
+range(ignite.only.seki.arpa.epi$dw.flam.sample)
+range(ignite.only.seki.arpa.epi$ww.flam.sample)
+
+range(ignite.only.seki.arpa.epi$tti)
+range(ignite.only.seki.arpa.epi$fh)
+
+ignite.only.seki.arpa.epi <- ignite.only.seki.arpa.epi %>%
+  mutate(flam.index = 7.6*((45+tti)/(20+tti))*exp(fh/(fh+22.5))) #using max tti and max fh, becomes a scale of least (1) to most (20) flammable 
+
+range(ignite.only.seki.arpa.epi$flam.index)
+```
+
+```{r}
+ttiplot <- ignite.only.seki.arpa.epi %>% 
+ggplot(aes(y = tti, x = lfm.NAs.imputed, color = spp)) +
+  geom_point(size = 1) + 
+  theme_bw() +
+  geom_smooth(method = lm) +
+  ylab("Time to Ignition") + 
+  xlab("LFM (%)")
+ttiplot
+
+fhplot <- ignite.only.seki.arpa.epi %>% 
+ggplot(aes(y = fh, x = lfm.NAs.imputed, color = spp)) +
+  geom_point(size = 1) + 
+  theme_bw() +
+  geom_smooth(method = lm) +
+  ylab("Flame Height") + 
+  xlab("LFM (%)")
+fhplot
+
+fiplot <- ignite.only.seki.arpa.epi %>% 
+ggplot(aes(y = flam.index, x = lfm.NAs.imputed, color = spp)) +
+  geom_point(size = 1) + 
+  theme_bw() +
+  geom_smooth(method = lm) +
+  ylab("Flamability Index") + 
+  xlab("LFM (%)")
+fiplot
+```
+
+#### For HP only:
+
+```{r, include = FALSE}
+range(ignite.only.seki.arpa.hp$gti)
+range(ignite.only.seki.arpa.hp$tti)
+range(ignite.only.seki.arpa.hp$fh)
+range(ignite.only.seki.arpa.hp$gd) #some high glow durations, but that is likely to be expected
+range(ignite.only.seki.arpa.hp$pfg)
+range(ignite.only.seki.arpa.hp$ttfg)
+range(ignite.only.seki.arpa.hp$ros)
+range(ignite.only.seki.arpa.hp$dw.flam.sample)
+
+ignite.only.seki.arpa.hp <- ignite.only.seki.arpa.hp %>%
+  mutate(flam.index = 3.45*((214+tti)/(12.5+tti))*exp(fh_nas_imputed/(fh_nas_imputed+38))) #using max tti and max fh, becomes a scale of least (1) to most (20) flammable
+
+range(ignite.only.seki.arpa.hp$flam.index)
+```
+
+```{r}
+ttiplot <- ignite.only.seki.arpa.hp %>% 
+ggplot(aes(y = tti, x = lfm.NAs.imputed, color = spp)) +
+  geom_point(size = 1) + 
+  theme_bw() +
+  geom_smooth(method = lm) +
+  ylab("Time to Ignition") + 
+  xlab("LFM (%)")
+ttiplot
+
+fhplot <- ignite.only.seki.arpa.hp %>% 
+ggplot(aes(y = fh, x = lfm.NAs.imputed, color = spp)) +
+  geom_point(size = 1) + 
+  theme_bw() +
+  geom_smooth(method = lm) +
+  ylab("Flame Height") + 
+  xlab("LFM (%)")
+fhplot
+
+fiplot <- ignite.only.seki.arpa.hp %>% 
+ggplot(aes(y = flam.index, x = lfm.NAs.imputed, color = spp)) +
+  geom_point(size = 1) + 
+  theme_bw() +
+  geom_smooth(method = lm) +
+  ylab("Flamability Index") + 
+  xlab("LFM (%)")
+fiplot
+```
+
+Combine both EPI and HP back into master dataset called
+"ignite.only.seki.arpa.all"
+
+```{r, include=FALSE}
+ignite.only.seki.arpa.epi
+ignite.only.seki.arpa.hp
+
+ignite.only.seki.arpa.all <- rbind(ignite.only.seki.arpa.epi, ignite.only.seki.arpa.hp)
+```
+
+### EPI only:
+
+Here we are normalizing by the dry weight of the flammability sample,
+which was calculated by multiplying the weight of the burned sample by
+the ratio of dry weight to fresh weight in the samples used for lfm
+measurements.
+
+(Assumptions here: that the ratio of water to dry weight in burned and
+lfm samples was the same)
+
+```{r}
+distributions.lfm <- ignite.only.seki.arpa.epi %>%
+  ggplot() +
+  geom_density(aes(x = sample.wt, color = spp)) 
+distributions.lfm  
+
+ignite.only.seki.arpa.epi <- ignite.only.seki.arpa.epi %>%  #Dealing with only EPI trials that ignited (can change later)
+  dplyr::mutate(mean.wt = mean(sample.wt, na.rm = TRUE)) %>% #take the mean of all sample weights for each model
+  ungroup() %>% 
+  mutate_if(is.integer, as.numeric) 
+
+ignite.only.seki.arpa.epi$gti <- as.numeric(as.character(ignite.only.seki.arpa.epi$gti)) #not sure why this became a character...
+#str(ignite.only.seki.arpa.epi)
+
+distributions.lfm <- ignite.only.seki.arpa.epi %>%
+  ggplot() +
+  geom_density(aes(x = lfm.NAs.imputed, color = spp))
+distributions.lfm 
+
+distributions.lfm <- ignite.only.seki.arpa.epi %>%
+  ggplot() +
+  geom_density(aes(x = ww.flam.sample, color = spp))
+distributions.lfm
+```
+
+```{r, include=FALSE}
+ignite.only.seki.arpa.epi <- ignite.only.seki.arpa.epi %>%
+  mutate(gti = replace(gti, gti == "0", "0.5")) %>% 
+  mutate(gti = as.numeric(gti)) %>%
+  mutate("dry.norm.fh" = fh/dw.flam.sample) %>% #create new columns, etc.
+  mutate("dry.norm.gd" = gd/dw.flam.sample) %>%
+  mutate("dry.norm.fd" = fd/dw.flam.sample) %>%
+  mutate("dry.norm.pfg" = pfg/dw.flam.sample) %>%
+  mutate("dry.norm.ttfg" = ttfg/dw.flam.sample) %>%
+  mutate("dry.norm.tti" = tti/dw.flam.sample) %>% 
+  mutate("dry.norm.gti" = gti/dw.flam.sample) 
+
+range(ignite.only.seki.arpa.epi$dry.norm.gti)
+range(ignite.only.seki.arpa.epi$dry.norm.tti)
+range(ignite.only.seki.arpa.epi$dry.norm.fh)
+range(ignite.only.seki.arpa.epi$dry.norm.gd) 
+range(ignite.only.seki.arpa.epi$dry.norm.pfg) 
+range(ignite.only.seki.arpa.epi$dry.norm.ttfg)
+range(ignite.only.seki.arpa.epi$dw.flam.sample)
+
+colSums(is.na(ignite.only.seki.arpa.epi))
+#str(ignite.only.seki.arpa.epi)
+```
+
+```{r}
+distributions <- ignite.only.seki.arpa.epi %>%
+  select(spp, dry.norm.fh, dry.norm.gd, dry.norm.fd, dry.norm.pfg, dry.norm.gti, dry.norm.ttfg, dry.norm.tti) %>%
+  gather(-spp, key = "var", value = "value") %>%
+  ggplot() +
+  geom_density(aes(x = value, color = spp)) +
+  facet_wrap(~ var, scales = "free")
+distributions +
+  ggtitle("Epiradiator")
+```
+
+### EPI (USE THIS FOR PCA): Mirroring Max's PCA dataset (Mac_PCA_DATE.Rmd)
+
+```{r, include=FALSE}
+epi.ignite.only.seki.arpa.pca <- ignite.only.seki.arpa.epi %>%
+  mutate(mpa = mpa * -1) 
+  # select (individual, hydration, spp, sample, model, year.month, mpa, lfm.outliers.out, lfm.NAs.imputed, dw.flam.sample, ww.flam.sample, sample.wt, ttfg, gd, gti, tti, fh, pfg, fd, temp.max, prop.ignite, dry.norm.fh, dry.norm.gd, dry.norm.fd, dry.norm.pfg, dry.norm.gti, dry.norm.ttfg, dry.norm.tti, site,temp.change, flam.index, bins5lfm)  %>%
+  # arrange(individual, hydration, spp, sample, model, year.month, mpa, lfm.outliers.out, lfm.NAs.imputed, sample.wt, dw.flam.sample, ww.flam.sample, ttfg, gd, gti, tti, fh, pfg, fd, temp.max, prop.ignite, dry.norm.fh, dry.norm.gd, dry.norm.fd, dry.norm.pfg, dry.norm.gti, dry.norm.ttfg, dry.norm.tti, site, temp.change, flam.index, bins5lfm) %>%
+  # relocate("hydration")
+colSums(is.na(epi.ignite.only.seki.arpa.pca))
+
+#write.csv(x = epi.ignite.only.seki.arpa.pca, (here("processed-data", "epi.ignite.only.seki.ARPA.csv")))
+```
+
+### HP only:
+
+Here we are normalizing by the dry weight of the flammability sample,
+which was calculated by multiplying the weight of the burned sample by
+the ratio of dry weight to fresh weight in the samples used for lfm
+measurements. (Assumptions here: that the ratio of water to dry weight
+in burned and lfm samples was the same)
+
+```{r}
+#colSums(is.na(ignite.only.seki.arpa.hp))
+#str(ignite.only.seki.arpa.hp)
+ignite.only.seki.arpa.hp <- ignite.only.seki.arpa.hp %>%  #Dealing with only EPI trials that ignited (can change later)
+  dplyr::mutate(mean.wt = mean(sample.wt, na.rm = TRUE)) %>% #take the mean of all sample weights for each model
+  ungroup() %>% 
+  mutate_if(is.integer, as.numeric) 
+
+ignite.only.seki.arpa.hp$gti <- as.numeric(as.character(ignite.only.seki.arpa.hp$gti)) #not sure why this became a character...
+#str(ignite.only.seki.arpa.hp)
+
+#range(ignite.only.seki.arpa.hp$dw.flam.sample) #range gets low for some samples (with very low lfm, maybe?)
+```
+
+```{r, include=FALSE}
+ignite.only.seki.arpa.hp <- ignite.only.seki.arpa.hp %>%
+  mutate(gti = replace(gti, gti == "0", "0.5")) %>% 
+  mutate(gti = as.numeric(gti)) %>%
+  mutate("dry.norm.fh" = fh/dw.flam.sample) %>% #create new columns, etc.
+  mutate("dry.norm.gd" = gd/dw.flam.sample) %>%
+  mutate("dry.norm.fd" = fd/dw.flam.sample) %>%
+  mutate("dry.norm.pfg" = pfg/dw.flam.sample) %>%
+  mutate("dry.norm.ttfg" = ttfg/dw.flam.sample) %>%
+  mutate("dry.norm.tti" = tti/dw.flam.sample) %>% 
+  mutate("dry.norm.gti" = gti/dw.flam.sample) %>%
+  mutate("temp.change" = temp.max - start.temp) 
+
+colSums(is.na(ignite.only.seki.arpa.hp))
+#str(ignite.only.seki.arpa.hp)
+```
+
+```{r}
+distributions <- ignite.only.seki.arpa.hp %>%
+  select(spp, dry.norm.fh, dry.norm.gd, dry.norm.fd, dry.norm.pfg, dry.norm.gti, dry.norm.ttfg, dry.norm.tti) %>%
+  gather(-spp, key = "var", value = "value") %>%
+  ggplot() +
+  geom_density(aes(x = value, color = spp)) +
+  facet_wrap(~ var, scales = "free")
+distributions +
+  ggtitle("Epiradiator")
+```
+
+### HP (USE THIS FOR PCA): Mirroring Max's PCA dataset (Mac_PCA_DATE.Rmd)
+
+```{r, include=FALSE}
+str(ignite.only.seki.arpa.hp)
+hp.ignite.only.seki.arpa.pca <- ignite.only.seki.arpa.hp %>%
+  mutate(mpa = mpa * -1) %>%
+  # mutate(gti = replace(dry.norm.gti, dry.norm.gti == "0", "0.5")) %>% 
+  # select (hydration, spp, sample, model, year.month, mpa, lfm.outliers.out, lfm.NAs.imputed, dw.flam.sample, ww.flam.sample, sample.wt, ttfg, gd, gti, tti, fh, pfg, fd, temp.max, prop.ignite, dry.norm.fh, dry.norm.gd, dry.norm.fd, dry.norm.pfg, dry.norm.gti, dry.norm.ttfg, dry.norm.tti, ros, site, temp.change, flam.index, bins5lfm)  %>%
+  # arrange(hydration, spp, sample, model, year.month, mpa, lfm.outliers.out, lfm.NAs.imputed, sample.wt, dw.flam.sample, ww.flam.sample, ttfg, gd, gti, tti, fh, pfg, fd, temp.max, prop.ignite, dry.norm.fh, dry.norm.gd, dry.norm.fd, dry.norm.pfg, dry.norm.gti, dry.norm.ttfg, dry.norm.tti, ros, site, temp.change, flam.index, bins5lfm) %>%
+  relocate("hydration")
+colSums(is.na(hp.ignite.only.seki.arpa.pca))
+
+str(hp.ignite.only.seki.arpa.pca) 
+
+#write.csv(x = hp.ignite.only.seki.arpa.pca, (here("processed-data", "hp.ignite.only.seki.ARPA.csv")))
+```
+
+------------------------------------------------------------------------
+
+# ************ABCO only:
+
+## Other missing values: Flam metrics
+
+### EPI: only
+
+```{r}
+data.ABCO <- data.seki.imputed %>%
+  filter(spp == "ABCO")
+```
+
+```{r}
+ignite.only.seki.ABCO.epi <- data.ABCO %>%
+  filter(ignition == "1") %>% #only look at ignited samples
+  filter(model == "EPI")
+
+str(ignite.only.seki.ABCO.epi)
+```
+
+### Outliers in flam metrics:
+
+These run and remove outliers automatically, need to quiet the code if
+that is not what we want.
+
+#### tti
+
+```{r}
+outlierKD2(ignite.only.seki.ABCO.epi, tti)
+```
+
+#### gti
+
+```{r}
+outlierKD2(ignite.only.seki.ABCO.epi, gti)
+```
+
+#### gd
+
+```{r}
+outlierKD2(ignite.only.seki.ABCO.epi, gd)
+```
+
+#### fd
+
+```{r}
+outlierKD2(ignite.only.seki.ABCO.epi, fd)
+```
+
+#### pfg
+
+```{r}
+outlierKD2(ignite.only.seki.ABCO.epi, pfg)
+```
+
+#### fh
+
+```{r}
+outlierKD2(ignite.only.seki.ABCO.epi, fh)
+```
+
+#### temp max
+
+```{r}
+outlierKD2(ignite.only.seki.ABCO.epi, temp.max)
+```
+
+#### ignition temp
+
+```{r}
+outlierKD2(ignite.only.seki.ABCO.epi, ignition.temp)
+```
+
+Look at distributions of flammability metrics so we can think about how
+to deal with NAs in those variables, and then deal with them:
+
+First, to visualize NA values in flam metrics: - Ignited samples only,
+both models
+
+```{r, include=FALSE}
+vis_miss(ignite.only.seki.ABCO.epi)
+gg_miss_var(ignite.only.seki.ABCO.epi, facet = year.month)
+```
+
+### Outliers in flam metrics:
+
+#### EPI NAs: flame height
+
+```{r}
+ggplot(ignite.only.seki.ABCO.epi, 
+       aes(x = lfm.outliers.out, 
+           y = fh)) + 
+  geom_miss_point() +
+  facet_wrap(~year.month)
+```
+
+#### EPI NAs: glow duration
+
+```{r}
+ggplot(ignite.only.seki.ABCO.epi, 
+       aes(x = lfm.outliers.out, 
+           y = gd)) + 
+  geom_miss_point() +
+  facet_wrap(~year.month)
+```
+
+#### EPI NAs: temp change
+
+```{r}
+ggplot(ignite.only.seki.ABCO.epi, 
+       aes(x = lfm.outliers.out, 
+           y = temp.change)) + 
+  geom_miss_point() +
+  facet_wrap(~year.month)
+```
+
+#### EPI NAs: glow duration
+
+```{r}
+ggplot(ignite.only.seki.ABCO.epi, 
+       aes(x = lfm.outliers.out, 
+           y = gd)) + 
+  geom_miss_point() +
+  facet_wrap(~year.month)
+```
+
+```{r, include=FALSE}
+as_shadow(ignite.only.seki.ABCO.epi)
+aq_shadow <- bind_shadow(ignite.only.seki.ABCO.epi)
+aq_nab <- nabular(ignite.only.seki.ABCO.epi)
+all.equal(aq_shadow, aq_nab)
+#glimpse(aq_nab)
+```
+
+Overall, not too many missing values, so maybe we dont need to go too
+crazy with this. Also, flame height can be considered MCAR here due to
+flame heights not going out of screen in Epi trials.
+
+### Subset data and perform imputations (median):
+
+```{r, include=FALSE}
+#str(data)
+ignite.only.seki.ABCO.epi %>%
+  mutate(gti = as.numeric(gti)) 
+
+ignite.only.seki.ABCO.epi <- ignite.only.seki.ABCO.epi %>%
+  group_by(year.month) %>% 
+  group_by(spp) %>% #this makes us take the median of based on the species, the model, and the lfm bins (of 10 lfm) the missing value is in. Preserves species differences, and lfm impact. 
+  impute_median_at(c("ttfg", "ttms", "gd", "gti", "fd", "pfg","temp.max", "start.temp", "ros", "ignition.temp", "temp.change", "prop.ignite", "fh", "tti")) 
+
+colSums(is.na(ignite.only.seki.ABCO.epi)) #should not be any NAs except in LFM.outliers.out
+
+dist.epi <- ignite.only.seki.ABCO.epi %>%
+  select(fd, fh, gd, gti, pfg, prop.ignite, temp.max, ttfg, tti, temp.change)
+```
+
+```{r}
+##multi.hist(dist.epi[,sapply(dist.epi, is.numeric)])
+```
+
+# Repeat with hotplate trials:
+
+```{r}
+ignite.only.seki.ABCO.hp <- data.ABCO %>%
+  filter(model == "HP") %>% 
+  filter(ignition == "1") %>% 
+  dplyr::mutate(gti = replace(gti, gti == "0", "0.5")) %>% #replace when gti is zero to .5 seconds, so we can take the log later
+  mutate(gti = as.numeric(gti))
+```
+
+### Outliers in flam metrics:
+
+These run and remove outliers automatically, need to quiet the code if
+that is not what we want.
+
+#### tti
+
+```{r}
+outlierKD2(ignite.only.seki.ABCO.hp, tti)
+```
+
+#### gti
+
+```{r}
+outlierKD2(ignite.only.seki.ABCO.hp, gti)
+```
+
+#### gd
+
+```{r}
+outlierKD2(ignite.only.seki.ABCO.hp, gd)
+```
+
+#### fd
+
+```{r}
+outlierKD2(ignite.only.seki.ABCO.hp, fd)
+```
+
+#### pfg
+
+```{r}
+outlierKD2(ignite.only.seki.ABCO.hp, pfg)
+```
+
+#### fd
+
+```{r}
+outlierKD2(ignite.only.seki.ABCO.hp, fh)
+```
+
+#### temp.max
+
+```{r}
+outlierKD2(ignite.only.seki.ABCO.hp, temp.max)
+```
+
+#### ignition.temp
+
+```{r}
+outlierKD2(ignite.only.seki.ABCO.hp, ignition.temp)
+```
+
+#### prop.ignite
+
+Dont do this one because there shouldnt be outliers
+```{r}
+#outlierKD2(ignite.only.seki.ABCO.hp, prop.ignite)
+```
+
+```{r}
+vis_miss(ignite.only.seki.ABCO.hp)
+gg_miss_var(ignite.only.seki.ABCO.hp, facet = year.month)
+```
+
+#### HP NAs: flame height
+
+none missing
+
+```{r}
+ggplot(ignite.only.seki.ABCO.hp,
+       aes(x = lfm.outliers.out,
+           y = fh)) +
+  geom_miss_point() +
+  facet_wrap(~year.month)
+```
+
+#### HP NAs: glow duration
+
+none missing
+
+```{r}
+ggplot(ignite.only.seki.ABCO.hp,
+       aes(x = lfm.outliers.out,
+           y = gd)) +
+  geom_miss_point() +
+  facet_wrap(~year.month)
+```
+
+#### HP NAs: temp. change
+
+```{r}
+ggplot(ignite.only.seki.ABCO.hp, 
+       aes(x = lfm.outliers.out, 
+           y = temp.change)) + 
+  geom_miss_point() +
+  facet_wrap(~year.month)
+```
+
+#### HP NAs: time to ignition
+
+none missing
+
+```{r}
+ggplot(ignite.only.seki.ABCO.hp,
+       aes(x = lfm.outliers.out,
+           y = tti)) +
+  geom_miss_point() +
+  facet_wrap(~year.month)
+```
+
+#### HP NAs: glow to ignition
+
+none missing
+
+```{r}
+ggplot(ignite.only.seki.ABCO.hp,
+       aes(x = lfm.outliers.out,
+           y = gti)) +
+  geom_miss_point() +
+  facet_wrap(~year.month)
+```
+
+#### HP NAs: rate of spread
+
+none missing
+
+```{r}
+ggplot(ignite.only.seki.ABCO.hp,
+       aes(x = lfm.outliers.out,
+           y = ros)) +
+  geom_miss_point() +
+  facet_wrap(~year.month)
+```
+
+#### HP NAs: flame duration
+
+none missing
+
+```{r}
+ggplot(ignite.only.seki.ABCO.hp,
+       aes(x = lfm.outliers.out,
+           y = fd)) +
+  geom_miss_point() +
+  facet_wrap(~year.month)
+```
+
+#### HP NAs: proportion ignited
+
+none missing
+
+```{r}
+# ggplot(ignite.only.seki.ABCO.hp,
+#        aes(x = lfm.outliers.out,
+#            y = prop.ignite)) +
+#   geom_miss_point() +
+#   facet_wrap(~year.month)
+```
+
+#### HP NAs: time to first glow
+
+none missing
+
+```{r}
+ggplot(ignite.only.seki.ABCO.hp,
+       aes(x = lfm.outliers.out,
+           y = ttfg)) +
+  geom_miss_point() +
+  facet_wrap(~year.month)
+```
+
+```{r, include=FALSE}
+as_shadow(ignite.only.seki.ABCO.hp)
+aq_shadow <- bind_shadow(ignite.only.seki.ABCO.hp)
+aq_nab <- nabular(ignite.only.seki.ABCO.hp)
+all.equal(aq_shadow, aq_nab)
+#glimpse(aq_nab)
+```
+
+Not many missing, which is good!
+
+### ****}}***Deal with NAs for hotplate:
+
+-   impute medians at each missing flam metric
+
+```{r, include = FALSE}
+#str(data)
+ignite.only.seki.ABCO.hp %>%
+  mutate(gti = as.numeric(gti)) 
+
+ignite.only.seki.ABCO.hp <- ignite.only.seki.ABCO.hp %>%
+  mutate(fh_nas_imputed = fh) %>% 
+  group_by(year.month) %>% 
+  group_by(spp) %>% #this makes us take the median of based on the species, the model, and the lfm bins (of 10 lfm) the missing value is in. Preserves species differences, and lfm impact. 
+  impute_median_at(c("ttfg", "ttms", "gd", "gti", "fd", "pfg","temp.max", "start.temp", "ros", "ignition.temp", "temp.change", "prop.ignite", "fh_nas_imputed", "ros", "tti"))  #since fh may have gone out of top of frame for some larger flame height trials, use existing information to impute those values (BUT doesn't really matter since so few fh's are actually missing)
+
+colSums(is.na(ignite.only.seki.ABCO.hp)) #should not be any NAs except in LFM.outliers.out
+
+dist.hp <- ignite.only.seki.ABCO.hp %>%
+  select(fd, fh, gd, gti, pfg, prop.ignite, temp.max, ttfg, tti, temp.change)
+```
+
+```{r}
+#multi.hist(dist.hp[,sapply(dist.hp, is.numeric)])
+```
+
+# Look at flam characteristics to see if they make sense:
+
+#### For EPI only:
+
+```{r, include=FALSE}
+#chack for NAs
+range(ignite.only.seki.ABCO.epi$gti)
+range(ignite.only.seki.ABCO.epi$gd) 
+range(ignite.only.seki.ABCO.epi$pfg) 
+range(ignite.only.seki.ABCO.epi$ttfg)
+range(ignite.only.seki.ABCO.epi$dw.flam.sample)
+range(ignite.only.seki.ABCO.epi$ww.flam.sample)
+
+range(ignite.only.seki.ABCO.epi$tti)
+range(ignite.only.seki.ABCO.epi$fh)
+
+ignite.only.seki.ABCO.epi <- ignite.only.seki.ABCO.epi %>%
+  mutate(flam.index = 9.1*((25+tti)/(12.5+tti))*exp(fh/(fh+5.5))) #using max tti and max fh, becomes a scale of least (1) to most (20) flammable 
+
+range(ignite.only.seki.ABCO.epi$flam.index)
+```
+
+```{r}
+ttiplot <- ignite.only.seki.ABCO.epi %>% 
+ggplot(aes(y = tti, x = lfm.NAs.imputed, color = spp)) +
+  geom_point(size = 1) + 
+  theme_bw() +
+  geom_smooth(method = lm) +
+  ylab("Time to Ignition") + 
+  xlab("LFM (%)")
+ttiplot
+
+fhplot <- ignite.only.seki.ABCO.epi %>% 
+ggplot(aes(y = fh, x = lfm.NAs.imputed, color = spp)) +
+  geom_point(size = 1) + 
+  theme_bw() +
+  geom_smooth(method = lm) +
+  ylab("Flame Height") + 
+  xlab("LFM (%)")
+fhplot
+
+fiplot <- ignite.only.seki.ABCO.epi %>% 
+ggplot(aes(y = flam.index, x = lfm.NAs.imputed, color = spp)) +
+  geom_point(size = 1) + 
+  theme_bw() +
+  geom_smooth(method = lm) +
+  ylab("Flamability Index") + 
+  xlab("LFM (%)")
+fiplot
+```
+
+#### For HP only:
+
+```{r, include = FALSE}
+range(ignite.only.seki.ABCO.hp$gti)
+range(ignite.only.seki.ABCO.hp$gd) #some high glow durations, but that is likely to be expected
+range(ignite.only.seki.ABCO.hp$pfg)
+range(ignite.only.seki.ABCO.hp$ttfg)
+range(ignite.only.seki.ABCO.hp$ros)
+range(ignite.only.seki.ABCO.hp$dw.flam.sample)
+
+range(ignite.only.seki.ABCO.hp$tti)
+range(ignite.only.seki.ABCO.hp$fh)
+
+ignite.only.seki.ABCO.hp <- ignite.only.seki.ABCO.hp %>%
+  mutate(flam.index = 4.30*((144+tti)/(12.5+tti))*exp(fh_nas_imputed/(fh_nas_imputed+53))) #using max tti and max fh, becomes a scale of least (1) to most (20) flammable
+
+range(ignite.only.seki.ABCO.hp$flam.index)
+```
+
+```{r}
+ttiplot <- ignite.only.seki.ABCO.hp %>% 
+ggplot(aes(y = tti, x = lfm.NAs.imputed, color = spp)) +
+  geom_point(size = 1) + 
+  theme_bw() +
+  geom_smooth(method = lm) +
+  ylab("Time to Ignition") + 
+  xlab("LFM (%)")
+ttiplot
+
+fhplot <- ignite.only.seki.ABCO.hp %>% 
+ggplot(aes(y = fh, x = lfm.NAs.imputed, color = spp)) +
+  geom_point(size = 1) + 
+  theme_bw() +
+  geom_smooth(method = lm) +
+  ylab("Flame Height") + 
+  xlab("LFM (%)")
+fhplot
+
+fiplot <- ignite.only.seki.ABCO.hp %>% 
+ggplot(aes(y = flam.index, x = lfm.NAs.imputed, color = spp)) +
+  geom_point(size = 1) + 
+  theme_bw() +
+  geom_smooth(method = lm) +
+  ylab("Flamability Index") + 
+  xlab("LFM (%)")
+fiplot
+```
+
+Combine both EPI and HP back into master dataset called
+"ignite.only.seki.ABCO.all"
+
+```{r, include=FALSE}
+ignite.only.seki.ABCO.epi
+ignite.only.seki.ABCO.hp
+
+ignite.only.seki.ABCO.all <- rbind(ignite.only.seki.ABCO.epi, ignite.only.seki.ABCO.hp)
+```
+
+### EPI only:
+
+Here we are normalizing by the dry weight of the flammability sample,
+which was calculated by multiplying the weight of the burned sample by
+the ratio of dry weight to fresh weight in the samples used for lfm
+measurements.
+
+(Assumptions here: that the ratio of water to dry weight in burned and
+lfm samples was the same)
+
+```{r}
+distributions.lfm <- ignite.only.seki.ABCO.epi %>%
+  ggplot() +
+  geom_density(aes(x = sample.wt, color = spp)) 
+distributions.lfm  
+
+ignite.only.seki.ABCO.epi <- ignite.only.seki.ABCO.epi %>%  #Dealing with only EPI trials that ignited (can change later)
+  dplyr::mutate(mean.wt = mean(sample.wt, na.rm = TRUE)) %>% #take the mean of all sample weights for each model
+  ungroup() %>% 
+  mutate_if(is.integer, as.numeric) 
+
+ignite.only.seki.ABCO.epi$gti <- as.numeric(as.character(ignite.only.seki.ABCO.epi$gti)) #not sure why this became a character...
+#str(ignite.only.seki.ABCO.epi)
+
+distributions.dw <- ignite.only.seki.ABCO.epi %>%
+  ggplot() +
+  geom_density(aes(x = dw.flam.sample, color = spp))
+distributions.dw 
+
+distributions.lfm <- ignite.only.seki.ABCO.epi %>%
+  ggplot() +
+  geom_density(aes(x = lfm.NAs.imputed, color = spp))
+distributions.lfm 
+
+distributions.lfm <- ignite.only.seki.ABCO.epi %>%
+  ggplot() +
+  geom_density(aes(x = ww.flam.sample, color = spp))
+distributions.lfm
+```
+
+```{r, include=FALSE}
+ignite.only.seki.ABCO.epi <- ignite.only.seki.ABCO.epi %>%
+  mutate(gti = replace(gti, gti == "0", "0.5")) %>% 
+  mutate(gti = as.numeric(gti)) %>%
+  mutate("dry.norm.fh" = fh/dw.flam.sample) %>% #create new columns, etc.
+  mutate("dry.norm.gd" = gd/dw.flam.sample) %>%
+  mutate("dry.norm.fd" = fd/dw.flam.sample) %>%
+  mutate("dry.norm.pfg" = pfg/dw.flam.sample) %>%
+  mutate("dry.norm.ttfg" = ttfg/dw.flam.sample) %>%
+  mutate("dry.norm.tti" = tti/dw.flam.sample) %>% 
+  mutate("dry.norm.gti" = gti/dw.flam.sample) 
+
+range(ignite.only.seki.ABCO.epi$dry.norm.gti)
+range(ignite.only.seki.ABCO.epi$dry.norm.tti)
+range(ignite.only.seki.ABCO.epi$dry.norm.fh)
+range(ignite.only.seki.ABCO.epi$dry.norm.gd) 
+range(ignite.only.seki.ABCO.epi$dry.norm.pfg) 
+range(ignite.only.seki.ABCO.epi$dry.norm.ttfg)
+range(ignite.only.seki.ABCO.epi$dw.flam.sample)
+
+colSums(is.na(ignite.only.seki.ABCO.epi))
+#str(ignite.only.seki.ABCO.epi)
+```
+
+```{r}
+distributions <- ignite.only.seki.ABCO.epi %>%
+  select(spp, dry.norm.fh, dry.norm.gd, dry.norm.fd, dry.norm.pfg, dry.norm.gti, dry.norm.ttfg, dry.norm.tti) %>%
+  gather(-spp, key = "var", value = "value") %>%
+  ggplot() +
+  geom_density(aes(x = value, color = spp)) +
+  facet_wrap(~ var, scales = "free")
+distributions +
+  ggtitle("Epiradiator")
+```
+
+### EPI (USE THIS FOR PCA): Mirroring Max's PCA dataset (Mac_PCA_DATE.Rmd)
+
+```{r, include=FALSE}
+epi.ignite.only.seki.ABCO.pca <- ignite.only.seki.ABCO.epi %>%
+  mutate(mpa = mpa * -1) 
+  # select (individual, hydration, spp, sample, model, year.month, mpa, lfm.outliers.out, lfm.NAs.imputed, dw.flam.sample, ww.flam.sample, sample.wt, ttfg, gd, gti, tti, fh, pfg, fd, temp.max, prop.ignite, dry.norm.fh, dry.norm.gd, dry.norm.fd, dry.norm.pfg, dry.norm.gti, dry.norm.ttfg, dry.norm.tti, site,temp.change, flam.index, bins5lfm)  %>%
+  # arrange(individual, hydration, spp, sample, model, year.month, mpa, lfm.outliers.out, lfm.NAs.imputed, sample.wt, dw.flam.sample, ww.flam.sample, ttfg, gd, gti, tti, fh, pfg, fd, temp.max, prop.ignite, dry.norm.fh, dry.norm.gd, dry.norm.fd, dry.norm.pfg, dry.norm.gti, dry.norm.ttfg, dry.norm.tti, site, temp.change, flam.index, bins5lfm) %>%
+  # relocate("hydration")
+colSums(is.na(epi.ignite.only.seki.ABCO.pca))
+
+#write.csv(x = epi.ignite.only.seki.ABCO.pca, (here("processed-data", "epi.ignite.only.seki.ABCO.csv")))
+```
+
+### HP only:
+
+Here we are normalizing by the dry weight of the flammability sample,
+which was calculated by multiplying the weight of the burned sample by
+the ratio of dry weight to fresh weight in the samples used for lfm
+measurements. (Assumptions here: that the ratio of water to dry weight
+in burned and lfm samples was the same)
+
+```{r}
+#colSums(is.na(ignite.only.seki.ABCO.hp))
+#str(ignite.only.seki.ABCO.hp)
+ignite.only.seki.ABCO.hp <- ignite.only.seki.ABCO.hp %>%  #Dealing with only EPI trials that ignited (can change later)
+  dplyr::mutate(mean.wt = mean(sample.wt, na.rm = TRUE)) %>% #take the mean of all sample weights for each model
+  ungroup() %>% 
+  mutate_if(is.integer, as.numeric) 
+
+ignite.only.seki.ABCO.hp$gti <- as.numeric(as.character(ignite.only.seki.ABCO.hp$gti)) #not sure why this became a character...
+#str(ignite.only.seki.ABCO.hp)
+
+#range(ignite.only.seki.ABCO.hp$dw.flam.sample) #range gets low for some samples (with very low lfm, maybe?)
+```
+
+```{r, include=FALSE}
+ignite.only.seki.ABCO.hp <- ignite.only.seki.ABCO.hp %>%
+  mutate(gti = replace(gti, gti == "0", "0.5")) %>% 
+  mutate(gti = as.numeric(gti)) %>%
+  mutate("dry.norm.fh" = fh/dw.flam.sample) %>% #create new columns, etc.
+  mutate("dry.norm.gd" = gd/dw.flam.sample) %>%
+  mutate("dry.norm.fd" = fd/dw.flam.sample) %>%
+  mutate("dry.norm.pfg" = pfg/dw.flam.sample) %>%
+  mutate("dry.norm.ttfg" = ttfg/dw.flam.sample) %>%
+  mutate("dry.norm.tti" = tti/dw.flam.sample) %>% 
+  mutate("dry.norm.gti" = gti/dw.flam.sample) %>%
+  mutate("temp.change" = temp.max - start.temp) 
+
+colSums(is.na(ignite.only.seki.ABCO.hp))
+#str(ignite.only.seki.ABCO.hp)
+```
+
+```{r}
+distributions <- ignite.only.seki.ABCO.hp %>%
+  select(spp, dry.norm.fh, dry.norm.gd, dry.norm.fd, dry.norm.pfg, dry.norm.gti, dry.norm.ttfg, dry.norm.tti) %>%
+  gather(-spp, key = "var", value = "value") %>%
+  ggplot() +
+  geom_density(aes(x = value, color = spp)) +
+  facet_wrap(~ var, scales = "free")
+distributions +
+  ggtitle("Epiradiator")
+```
+
+### HP (USE THIS FOR PCA): Mirroring Max's PCA dataset (Mac_PCA_DATE.Rmd)
+
+```{r, include=FALSE}
+str(ignite.only.seki.ABCO.hp)
+hp.ignite.only.seki.ABCO.pca <- ignite.only.seki.ABCO.hp %>%
+  mutate(mpa = mpa * -1) %>%
+  # mutate(gti = replace(dry.norm.gti, dry.norm.gti == "0", "0.5")) %>% 
+  # select (hydration, spp, sample, model, year.month, mpa, lfm.outliers.out, lfm.NAs.imputed, dw.flam.sample, ww.flam.sample, sample.wt, ttfg, gd, gti, tti, fh, pfg, fd, temp.max, prop.ignite, dry.norm.fh, dry.norm.gd, dry.norm.fd, dry.norm.pfg, dry.norm.gti, dry.norm.ttfg, dry.norm.tti, ros, site, temp.change, flam.index, bins5lfm)  %>%
+  # arrange(hydration, spp, sample, model, year.month, mpa, lfm.outliers.out, lfm.NAs.imputed, sample.wt, dw.flam.sample, ww.flam.sample, ttfg, gd, gti, tti, fh, pfg, fd, temp.max, prop.ignite, dry.norm.fh, dry.norm.gd, dry.norm.fd, dry.norm.pfg, dry.norm.gti, dry.norm.ttfg, dry.norm.tti, ros, site, temp.change, flam.index, bins5lfm) %>%
+  relocate("hydration")
+
+colSums(is.na(hp.ignite.only.seki.ABCO.pca))
+
+str(hp.ignite.only.seki.ABCO.pca) 
+
+#write.csv(x = hp.ignite.only.seki.ABCO.pca, (here("processed-data", "hp.ignite.only.seki.ABCO.csv")))
+```
+
+------------------------------------------------------------------------
+
+# ************CADE only:
+
+## Other missing values: Flam metrics
+
+### EPI: only
+
+```{r}
+data.CADE <- data.seki.imputed%>%
+  filter(spp == "CADE")
+```
+
+NO EPI CADE MEASUREMENTS
+
+# HP
+
+```{r}
+ignite.only.seki.CADE.hp <- data.CADE %>%
+  filter(model == "HP") %>% 
+  filter(ignition == "1") %>% 
+  dplyr::mutate(gti = replace(gti, gti == "0", "0.5")) %>% #replace when gti is zero to .5 seconds, so we can take the log later
+  mutate(gti = as.numeric(gti))
+```
+
+### Outliers in flam metrics:
+
+These run and remove outliers automatically, need to quiet the code if
+that is not what we want.
+
+#### tti
+
+```{r}
+outlierKD2(ignite.only.seki.CADE.hp, tti)
+```
+
+#### gti
+
+```{r}
+outlierKD2(ignite.only.seki.CADE.hp, gti)
+```
+
+#### gd
+
+```{r}
+outlierKD2(ignite.only.seki.CADE.hp, gd)
+```
+
+#### fd
+
+```{r}
+outlierKD2(ignite.only.seki.CADE.hp, fd)
+```
+
+#### pfg
+
+```{r}
+outlierKD2(ignite.only.seki.CADE.hp, pfg)
+```
+
+#### fd
+
+```{r}
+outlierKD2(ignite.only.seki.CADE.hp, fh)
+```
+
+#### temp.max
+
+```{r}
+outlierKD2(ignite.only.seki.CADE.hp, temp.max)
+```
+
+#### ignition.temp
+
+```{r}
+outlierKD2(ignite.only.seki.CADE.hp, ignition.temp)
+```
+
+```{r}
+vis_miss(ignite.only.seki.CADE.hp)
+gg_miss_var(ignite.only.seki.CADE.hp, facet = year.month)
+```
+
+#### HP NAs: flame height
+
+none missing
+
+```{r}
+ggplot(ignite.only.seki.CADE.hp,
+       aes(x = lfm.outliers.out,
+           y = fh)) +
+  geom_miss_point() +
+  facet_wrap(~year.month)
+```
+
+#### HP NAs: glow duration
+
+none missing
+
+```{r}
+ggplot(ignite.only.seki.CADE.hp,
+       aes(x = lfm.outliers.out,
+           y = gd)) +
+  geom_miss_point() +
+  facet_wrap(~year.month)
+```
+
+#### HP NAs: temp. change
+
+```{r}
+ggplot(ignite.only.seki.CADE.hp, 
+       aes(x = lfm.outliers.out, 
+           y = temp.change)) + 
+  geom_miss_point() +
+  facet_wrap(~year.month)
+```
+
+#### HP NAs: time to ignition
+
+none missing
+
+```{r}
+ggplot(ignite.only.seki.CADE.hp,
+       aes(x = lfm.outliers.out,
+           y = tti)) +
+  geom_miss_point() +
+  facet_wrap(~year.month)
+```
+
+#### HP NAs: glow to ignition
+
+none missing
+
+```{r}
+ggplot(ignite.only.seki.CADE.hp,
+       aes(x = lfm.outliers.out,
+           y = gti)) +
+  geom_miss_point() +
+  facet_wrap(~year.month)
+```
+
+#### HP NAs: rate of spread
+
+none missing
+
+```{r}
+ggplot(ignite.only.seki.CADE.hp,
+       aes(x = lfm.outliers.out,
+           y = ros)) +
+  geom_miss_point() +
+  facet_wrap(~year.month)
+```
+
+#### HP NAs: flame duration
+
+none missing
+
+```{r}
+ggplot(ignite.only.seki.CADE.hp,
+       aes(x = lfm.outliers.out,
+           y = fd)) +
+  geom_miss_point() +
+  facet_wrap(~year.month)
+```
+
+#### HP NAs: proportion ignited
+
+none missing
+
+```{r}
+# ggplot(ignite.only.seki.CADE.hp,
+#        aes(x = lfm.outliers.out,
+#            y = prop.ignite)) +
+#   geom_miss_point() +
+#   facet_wrap(~year.month)
+```
+
+#### HP NAs: time to first glow
+
+none missing
+
+```{r}
+ggplot(ignite.only.seki.CADE.hp,
+       aes(x = lfm.outliers.out,
+           y = ttfg)) +
+  geom_miss_point() +
+  facet_wrap(~year.month)
+```
+
+```{r, include=FALSE}
+as_shadow(ignite.only.seki.CADE.hp)
+aq_shadow <- bind_shadow(ignite.only.seki.CADE.hp)
+aq_nab <- nabular(ignite.only.seki.CADE.hp)
+all.equal(aq_shadow, aq_nab)
+#glimpse(aq_nab)
+```
+
+Not many missing, which is good!
+
+### ****}}***Deal with NAs for hotplate:
+
+-   impute medians at each missing flam metric
+
+```{r, include = FALSE}
+#str(data)
+ignite.only.seki.CADE.hp %>%
+  mutate(gti = as.numeric(gti)) 
+
+ignite.only.seki.CADE.hp <- ignite.only.seki.CADE.hp %>%
+  mutate(fh_nas_imputed = fh) %>% 
+  group_by(year.month) %>% 
+  group_by(spp) %>% #this makes us take the median of based on the species, the model, and the lfm bins (of 10 lfm) the missing value is in. Preserves species differences, and lfm impact. 
+  impute_median_at(c("ttfg", "ttms", "gd", "gti", "fd", "pfg","temp.max", "start.temp", "ros", "ignition.temp", "temp.change", "prop.ignite", "fh_nas_imputed", "tti")) #since fh may have gone out of top of frame for some larger flame height trials, use existing information to impute those values (BUT doesn't really matter since so few fh's are actually missing)
+
+colSums(is.na(ignite.only.seki.CADE.hp)) #should not be any NAs in flam metrics
+
+dist.hp <- ignite.only.seki.CADE.hp %>%
+  select(fd, fh, gd, gti, pfg, prop.ignite, temp.max, ttfg, tti, temp.change)
+
+##multi.hist(dist.epi[,sapply(dist.hp, is.numeric)])
+```
+
+# Look at flam characteristics to see if they make sense:
+
+#### For HP only:
+
+```{r, include = FALSE}
+range(ignite.only.seki.CADE.hp$gti)
+range(ignite.only.seki.CADE.hp$gd) #some high glow durations, but that is likely to be expected
+range(ignite.only.seki.CADE.hp$pfg)
+range(ignite.only.seki.CADE.hp$ttfg)
+range(ignite.only.seki.CADE.hp$ros)
+range(ignite.only.seki.CADE.hp$dw.flam.sample)
+
+range(ignite.only.seki.CADE.hp$tti)
+range(ignite.only.seki.CADE.hp$fh)
+
+ignite.only.seki.CADE.hp <- ignite.only.seki.CADE.hp %>%
+  mutate(flam.index = 3.67*((137+tti)/(12.5+tti))*exp(fh_nas_imputed/(fh_nas_imputed+53))) #using max tti and max fh, becomes a scale of least (1) to most (20) flammable
+range(ignite.only.seki.CADE.hp$flam.index)
+```
+
+```{r}
+ttiplot <- ignite.only.seki.CADE.hp %>% 
+ggplot(aes(y = tti, x = lfm.NAs.imputed, color = spp)) +
+  geom_point(size = 1) + 
+  theme_bw() +
+  geom_smooth(method = lm) +
+  ylab("Time to Ignition") + 
+  xlab("LFM (%)")
+ttiplot
+
+fhplot <- ignite.only.seki.CADE.hp %>% 
+ggplot(aes(y = fh, x = lfm.NAs.imputed, color = spp)) +
+  geom_point(size = 1) + 
+  theme_bw() +
+  geom_smooth(method = lm) +
+  ylab("Flame Height") + 
+  xlab("LFM (%)")
+fhplot
+
+fiplot <- ignite.only.seki.CADE.hp %>% 
+ggplot(aes(y = flam.index, x = lfm.NAs.imputed, color = spp)) +
+  geom_point(size = 1) + 
+  theme_bw() +
+  geom_smooth(method = lm) +
+  ylab("Flamability Index") + 
+  xlab("LFM (%)")
+fiplot
+```
+
+Combine both EPI and HP back into master dataset called
+"ignite.only.seki.CADE.all"
+
+```{r, include=FALSE}
+ignite.only.seki.CADE.hp
+
+ignite.only.seki.CADE.all <- ignite.only.seki.CADE.hp
+```
+
+### HP only:
+
+Here we are normalizing by the dry weight of the flammability sample,
+which was calculated by multiplying the weight of the burned sample by
+the ratio of dry weight to fresh weight in the samples used for lfm
+measurements. (Assumptions here: that the ratio of water to dry weight
+in burned and lfm samples was the same)
+
+```{r}
+#colSums(is.na(ignite.only.seki.CADE.hp))
+#str(ignite.only.seki.CADE.hp)
+ignite.only.seki.CADE.hp <- ignite.only.seki.CADE.hp %>%  #Dealing with only EPI trials that ignited (can change later)
+  dplyr::mutate(mean.wt = mean(sample.wt, na.rm = TRUE)) %>% #take the mean of all sample weights for each model
+  ungroup() %>% 
+  mutate_if(is.integer, as.numeric) 
+
+ignite.only.seki.CADE.hp$gti <- as.numeric(as.character(ignite.only.seki.CADE.hp$gti)) #not sure why this became a character...
+#str(ignite.only.seki.CADE.hp)
+
+#range(ignite.only.seki.CADE.hp$dw.flam.sample) #range gets low for some samples (with very low lfm, maybe?)
+```
+
+```{r, include=FALSE}
+ignite.only.seki.CADE.hp <- ignite.only.seki.CADE.hp %>%
+  mutate(gti = replace(gti, gti == "0", "0.5")) %>% 
+  mutate(gti = as.numeric(gti)) %>%
+  mutate("dry.norm.fh" = fh/dw.flam.sample) %>% #create new columns, etc.
+  mutate("dry.norm.gd" = gd/dw.flam.sample) %>%
+  mutate("dry.norm.fd" = fd/dw.flam.sample) %>%
+  mutate("dry.norm.pfg" = pfg/dw.flam.sample) %>%
+  mutate("dry.norm.ttfg" = ttfg/dw.flam.sample) %>%
+  mutate("dry.norm.tti" = tti/dw.flam.sample) %>% 
+  mutate("dry.norm.gti" = gti/dw.flam.sample) %>%
+  mutate("temp.change" = temp.max - start.temp) 
+
+colSums(is.na(ignite.only.seki.CADE.hp))
+#str(ignite.only.seki.CADE.hp)
+```
+
+```{r}
+distributions <- ignite.only.seki.CADE.hp %>%
+  select(spp, dry.norm.fh, dry.norm.gd, dry.norm.fd, dry.norm.pfg, dry.norm.gti, dry.norm.ttfg, dry.norm.tti) %>%
+  gather(-spp, key = "var", value = "value") %>%
+  ggplot() +
+  geom_density(aes(x = value, color = spp)) +
+  facet_wrap(~ var, scales = "free")
+distributions +
+  ggtitle("Hot Plate")
+```
+
+### HP (USE THIS FOR PCA): Mirroring Max's PCA dataset (Mac_PCA_DATE.Rmd)
+
+```{r, include=FALSE}
+str(ignite.only.seki.CADE.hp)
+hp.ignite.only.seki.CADE.pca <- ignite.only.seki.CADE.hp %>%
+  mutate(mpa = mpa * -1) %>%
+  # mutate(gti = replace(dry.norm.gti, dry.norm.gti == "0", "0.5")) %>% 
+  # select (hydration, spp, sample, model, year.month, mpa, lfm.outliers.out, lfm.NAs.imputed, dw.flam.sample, ww.flam.sample, sample.wt, ttfg, gd, gti, tti, fh, pfg, fd, temp.max, prop.ignite, dry.norm.fh, dry.norm.gd, dry.norm.fd, dry.norm.pfg, dry.norm.gti, dry.norm.ttfg, dry.norm.tti, ros, site, temp.change, flam.index, bins5lfm)  %>%
+  # arrange(hydration, spp, sample, model, year.month, mpa, lfm.outliers.out, lfm.NAs.imputed, sample.wt, dw.flam.sample, ww.flam.sample, ttfg, gd, gti, tti, fh, pfg, fd, temp.max, prop.ignite, dry.norm.fh, dry.norm.gd, dry.norm.fd, dry.norm.pfg, dry.norm.gti, dry.norm.ttfg, dry.norm.tti, ros, site, temp.change, flam.index, bins5lfm) %>%
+  relocate("hydration")
+colSums(is.na(hp.ignite.only.seki.CADE.pca))
+
+str(hp.ignite.only.seki.CADE.pca) 
+
+#write.csv(x = hp.ignite.only.seki.CADE.pca, (here("processed-data", "hp.ignite.only.seki.CADE.csv")))
+```
+
+------------------------------------------------------------------------
+
+# ************CECO only:
+
+## Other missing values: Flam metrics
+
+### EPI: only
+
+```{r}
+data.CECO <- data.seki.imputed %>%
+  filter(spp == "CECO")
+```
+
+```{r}
+ignite.only.seki.CECO.epi <- data.CECO %>%
+  filter(ignition == "1") %>% #only look at ignited samples
+  filter(model == "EPI")
+
+str(ignite.only.seki.CECO.epi)
+```
+
+### Outliers in flam metrics:
+
+These run and remove outliers automatically, need to quiet the code if
+that is not what we want.
+
+#### tti
+
+```{r}
+outlierKD2(ignite.only.seki.CECO.epi, tti)
+```
+
+#### gti
+
+```{r}
+outlierKD2(ignite.only.seki.CECO.epi, gti)
+```
+
+#### gd
+
+```{r}
+outlierKD2(ignite.only.seki.CECO.epi, gd)
+```
+
+#### fd
+
+```{r}
+outlierKD2(ignite.only.seki.CECO.epi, fd)
+```
+
+#### pfg
+
+```{r}
+outlierKD2(ignite.only.seki.CECO.epi, pfg)
+```
+
+#### fh
+
+```{r}
+outlierKD2(ignite.only.seki.CECO.epi, fh)
+```
+
+#### temp max
+
+```{r}
+outlierKD2(ignite.only.seki.CECO.epi, temp.max)
+```
+
+#### ignition temp
+
+```{r}
+outlierKD2(ignite.only.seki.CECO.epi, ignition.temp)
+```
+
+Look at distributions of flammability metrics so we can think about how
+to deal with NAs in those variables, and then deal with them:
+
+First, to visualize NA values in flam metrics: - Ignited samples only,
+both models
+
+```{r, include=FALSE}
+vis_miss(ignite.only.seki.CECO.epi)
+gg_miss_var(ignite.only.seki.CECO.epi, facet = year.month)
+```
+
+### Outliers in flam metrics:
+
+#### EPI NAs: flame height
+
+```{r}
+ggplot(ignite.only.seki.CECO.epi, 
+       aes(x = lfm.outliers.out, 
+           y = fh)) + 
+  geom_miss_point() +
+  facet_wrap(~year.month)
+```
+
+#### EPI NAs: glow duration
+
+```{r}
+ggplot(ignite.only.seki.CECO.epi, 
+       aes(x = lfm.outliers.out, 
+           y = gd)) + 
+  geom_miss_point() +
+  facet_wrap(~year.month)
+```
+
+#### EPI NAs: temp change
+
+```{r}
+ggplot(ignite.only.seki.CECO.epi, 
+       aes(x = lfm.outliers.out, 
+           y = temp.change)) + 
+  geom_miss_point() +
+  facet_wrap(~year.month)
+```
+
+#### EPI NAs: glow duration
+
+```{r}
+ggplot(ignite.only.seki.CECO.epi, 
+       aes(x = lfm.outliers.out, 
+           y = gd)) + 
+  geom_miss_point() +
+  facet_wrap(~year.month)
+```
+
+```{r, include=FALSE}
+as_shadow(ignite.only.seki.CECO.epi)
+aq_shadow <- bind_shadow(ignite.only.seki.CECO.epi)
+aq_nab <- nabular(ignite.only.seki.CECO.epi)
+all.equal(aq_shadow, aq_nab)
+#glimpse(aq_nab)
+```
+
+Overall, not too many missing values, so maybe we dont need to go too
+crazy with this. Also, flame height can be considered MCAR here due to
+flame heights not going out of screen in Epi trials.
+
+### Subset data and perform imputations (median):
+
+```{r, include=FALSE}
+#str(data)
+ignite.only.seki.CECO.epi %>%
+  mutate(gti = as.numeric(gti)) 
+
+ignite.only.seki.CECO.epi <- ignite.only.seki.CECO.epi %>%
+  group_by(year.month) %>% 
+  group_by(spp) %>% #this makes us take the median of based on the species, the model, and the lfm bins (of 10 lfm) the missing value is in. Preserves species differences, and lfm impact. 
+  impute_median_at(c("ttfg", "ttms", "gd", "gti", "fd", "pfg","temp.max", "start.temp", "ros", "ignition.temp", "temp.change", "prop.ignite", "fh", "tti")) 
+
+colSums(is.na(ignite.only.seki.CECO.epi)) #should not be any NAs except in LFM.outliers.out
+
+dist.epi <- ignite.only.seki.CECO.epi %>%
+  select(fd, fh, gd, gti, pfg, prop.ignite, temp.max, ttfg, tti, temp.change)
+```
+
+```{r}
+#multi.hist(dist.epi[,sapply(dist.epi, is.numeric)])
+```
+
+# Repeat with hotplate trials:
+
+NO CECO burned... 
+
+```{r}
+ignite.only.seki.CECO.hp <- data.CECO %>%
+  filter(model == "HP") %>% 
+  filter(ignition == "1" | ignition == "2") %>% 
+  dplyr::mutate(gti = replace(gti, gti == "0", "0.5")) %>% #replace when gti is zero to .5 seconds, so we can take the log later
+  mutate(gti = as.numeric(gti))
+```
+
+### Outliers in flam metrics:
+
+These run and remove outliers automatically, need to quiet the code if
+that is not what we want.
+
+#### tti
+
+```{r}
+#outlierKD2(ignite.only.seki.CECO.hp, tti)
+```
+
+#### gti
+
+```{r}
+outlierKD2(ignite.only.seki.CECO.hp, gti)
+```
+
+#### gd
+
+```{r}
+outlierKD2(ignite.only.seki.CECO.hp, gd)
+```
+
+#### fd
+
+```{r}
+outlierKD2(ignite.only.seki.CECO.hp, fd)
+```
+
+#### pfg
+
+```{r}
+outlierKD2(ignite.only.seki.CECO.hp, pfg)
+```
+
+#### fd
+
+```{r}
+outlierKD2(ignite.only.seki.CECO.hp, fh)
+```
+
+#### temp.max
+
+```{r}
+outlierKD2(ignite.only.seki.CECO.hp, temp.max)
+```
+
+#### ignition.temp
+
+```{r}
+outlierKD2(ignite.only.seki.CECO.hp, ignition.temp)
+```
+
+#### prop.ignite
+
+```{r}
+#outlierKD2(ignite.only.seki.CECO.hp, prop.ignite)
+```
+
+```{r}
+vis_miss(ignite.only.seki.CECO.hp)
+gg_miss_var(ignite.only.seki.CECO.hp, facet = year.month)
+```
+
+#### HP NAs: flame height
+
+none missing
+
+```{r}
+ggplot(ignite.only.seki.CECO.hp,
+       aes(x = lfm.outliers.out,
+           y = fh)) +
+  geom_miss_point() +
+  facet_wrap(~year.month)
+```
+
+#### HP NAs: glow duration
+
+
+```{r}
+ggplot(ignite.only.seki.CECO.hp,
+       aes(x = lfm.outliers.out,
+           y = gd)) +
+  geom_miss_point() +
+  facet_wrap(~year.month)
+```
+
+#### HP NAs: temp. change
+
+```{r}
+ggplot(ignite.only.seki.CECO.hp, 
+       aes(x = lfm.outliers.out, 
+           y = temp.change)) + 
+  geom_miss_point() +
+  facet_wrap(~year.month)
+```
+
+#### HP NAs: time to ignition
+
+none missing
+
+```{r}
+ggplot(ignite.only.seki.CECO.hp,
+       aes(x = lfm.outliers.out,
+           y = tti)) +
+  geom_miss_point() +
+  facet_wrap(~year.month)
+```
+
+#### HP NAs: glow to ignition
+
+none missing
+
+```{r}
+ggplot(ignite.only.seki.CECO.hp,
+       aes(x = lfm.outliers.out,
+           y = gti)) +
+  geom_miss_point() +
+  facet_wrap(~year.month)
+```
+
+#### HP NAs: rate of spread
+
+```{r}
+ggplot(ignite.only.seki.CECO.hp,
+       aes(x = lfm.outliers.out,
+           y = ros)) +
+  geom_miss_point() +
+  facet_wrap(~year.month)
+```
+
+#### HP NAs: flame duration
+
+```{r}
+ggplot(ignite.only.seki.CECO.hp,
+       aes(x = lfm.outliers.out,
+           y = fd)) +
+  geom_miss_point() +
+  facet_wrap(~year.month)
+```
+
+#### HP NAs: time to first glow
+
+none missing
+
+```{r}
+ggplot(ignite.only.seki.CECO.hp,
+       aes(x = lfm.outliers.out,
+           y = ttfg)) +
+  geom_miss_point() +
+  facet_wrap(~year.month)
+```
+
+```{r, include=FALSE}
+as_shadow(ignite.only.seki.CECO.hp)
+aq_shadow <- bind_shadow(ignite.only.seki.CECO.hp)
+aq_nab <- nabular(ignite.only.seki.CECO.hp)
+all.equal(aq_shadow, aq_nab)
+#glimpse(aq_nab)
+```
+
+Not many missing, which is good!
+
+### ***{{****Deal with NAs for hotplate:
+
+-   impute medians at each missing flam metric
+
+```{r, include = FALSE}
+#str(data)
+ignite.only.seki.CECO.hp %>%
+  mutate(gti = as.numeric(gti)) 
+
+ignite.only.seki.CECO.hp <- ignite.only.seki.CECO.hp %>%
+  mutate(fh_nas_imputed = fh) %>% 
+  group_by(year.month) %>% 
+  group_by(spp) %>% #this makes us take the median of based on the species, the model, and the lfm bins (of 10 lfm) the missing value is in. Preserves species differences, and lfm impact. 
+  impute_median_at(c("ttfg", "ttms", "gd", "gti", "fd", "pfg","temp.max", "start.temp", "ros", "ignition.temp", "temp.change", "prop.ignite", "fh_nas_imputed", "ros", "tti")) %>% 
+  impute_lm(fh ~ spp + lfm.NAs.imputed)  #since fh may have gone out of top of frame for some larger flame height trials, use existing information to impute those values (BUT doesn't really matter since so few fh's are actually missing)
+
+colSums(is.na(ignite.only.seki.CECO.hp)) #should not be any NAs except in LFM.outliers.out
+
+dist.hp <- ignite.only.seki.CECO.hp %>%
+  select(fd, fh, gd, gti, pfg, prop.ignite, temp.max, ttfg, tti, temp.change)
+```
+
+```{r}
+#multi.hist(dist.epi[,sapply(dist.epi, is.numeric)])
+```
+
+# Look at flam characteristics to see if they make sense:
+
+#### For EPI only:
+
+```{r, include=FALSE}
+#chack for NAs
+range(ignite.only.seki.CECO.epi$gti)
+range(ignite.only.seki.CECO.epi$gd) 
+range(ignite.only.seki.CECO.epi$pfg) 
+range(ignite.only.seki.CECO.epi$ttfg)
+range(ignite.only.seki.CECO.epi$dw.flam.sample)
+range(ignite.only.seki.CECO.epi$ww.flam.sample)
+
+range(ignite.only.seki.CECO.epi$tti)
+range(ignite.only.seki.CECO.epi$fh)
+
+ignite.only.seki.CECO.epi <- ignite.only.seki.CECO.epi %>%
+  mutate(flam.index = 5.15*((60+tti)/(12.5+tti))*exp(fh/(fh+20))) #using max tti and max fh, becomes a scale of least (1) to most (20) flammable 
+range(ignite.only.seki.CECO.epi$flam.index)
+```
+
+```{r}
+ttiplot <- ignite.only.seki.CECO.epi %>% 
+ggplot(aes(y = tti, x = lfm.NAs.imputed, color = spp)) +
+  geom_point(size = 1) + 
+  theme_bw() +
+  geom_smooth(method = lm) +
+  ylab("Time to Ignition") + 
+  xlab("LFM (%)")
+ttiplot
+
+fhplot <- ignite.only.seki.CECO.epi %>% 
+ggplot(aes(y = fh, x = lfm.NAs.imputed, color = spp)) +
+  geom_point(size = 1) + 
+  theme_bw() +
+  geom_smooth(method = lm) +
+  ylab("Flame Height") + 
+  xlab("LFM (%)")
+fhplot
+
+fiplot <- ignite.only.seki.CECO.epi %>% 
+ggplot(aes(y = flam.index, x = lfm.NAs.imputed, color = spp)) +
+  geom_point(size = 1) + 
+  theme_bw() +
+  geom_smooth(method = lm) +
+  ylab("Flamability Index") + 
+  xlab("LFM (%)")
+fiplot
+```
+
+#### For HP only:
+
+```{r, include = FALSE}
+range(ignite.only.seki.CECO.hp$gti)
+
+range(ignite.only.seki.CECO.hp$gd) #some high glow durations, but that is likely to be expected
+range(ignite.only.seki.CECO.hp$pfg)
+range(ignite.only.seki.CECO.hp$ttfg)
+range(ignite.only.seki.CECO.hp$ros)
+range(ignite.only.seki.CECO.hp$dw.flam.sample)
+
+range(ignite.only.seki.CECO.hp$tti)
+range(ignite.only.seki.CECO.hp$fh)
+
+ignite.only.seki.CECO.hp <- ignite.only.seki.CECO.hp %>%
+  mutate(flam.index = 5.5*((496+tti)/(12.5+tti))*exp(fh_nas_imputed/(fh_nas_imputed+34))) #using max tti and max fh, becomes a scale of least (1) to most (20) flammable
+
+range(ignite.only.seki.CECO.hp$flam.index)
+```
+
+```{r}
+ttiplot <- ignite.only.seki.CECO.hp %>% 
+ggplot(aes(y = tti, x = lfm.NAs.imputed, color = spp)) +
+  geom_point(size = 1) + 
+  theme_bw() +
+  geom_smooth(method = lm) +
+  ylab("Time to Ignition") + 
+  xlab("LFM (%)")
+ttiplot
+
+fhplot <- ignite.only.seki.CECO.hp %>% 
+ggplot(aes(y = fh, x = lfm.NAs.imputed, color = spp)) +
+  geom_point(size = 1) + 
+  theme_bw() +
+  geom_smooth(method = lm) +
+  ylab("Flame Height") + 
+  xlab("LFM (%)")
+fhplot
+
+fiplot <- ignite.only.seki.CECO.hp %>% 
+ggplot(aes(y = flam.index, x = lfm.NAs.imputed, color = spp)) +
+  geom_point(size = 1) + 
+  theme_bw() +
+  geom_smooth(method = lm) +
+  ylab("Flamability Index") + 
+  xlab("LFM (%)")
+fiplot
+```
+
+Combine both EPI and HP back into master dataset called
+"ignite.only.seki.CECO.all"
+
+```{r, include=FALSE}
+ignite.only.seki.CECO.epi
+ignite.only.seki.CECO.hp
+
+ignite.only.seki.CECO.all <- rbind(ignite.only.seki.CECO.epi, ignite.only.seki.CECO.hp)
+```
+
+### EPI only:
+
+Here we are normalizing by the dry weight of the flammability sample,
+which was calculated by multiplying the weight of the burned sample by
+the ratio of dry weight to fresh weight in the samples used for lfm
+measurements.
+
+(Assumptions here: that the ratio of water to dry weight in burned and
+lfm samples was the same)
+
+```{r}
+distributions.lfm <- ignite.only.seki.CECO.epi %>%
+  ggplot() +
+  geom_density(aes(x = sample.wt, color = spp)) 
+distributions.lfm  
+
+ignite.only.seki.CECO.epi <- ignite.only.seki.CECO.epi %>%  #Dealing with only EPI trials that ignited (can change later)
+  dplyr::mutate(mean.wt = mean(sample.wt, na.rm = TRUE)) %>% #take the mean of all sample weights for each model
+  ungroup() %>% 
+  mutate_if(is.integer, as.numeric) 
+
+ignite.only.seki.CECO.epi$gti <- as.numeric(as.character(ignite.only.seki.CECO.epi$gti)) #not sure why this became a character...
+#str(ignite.only.seki.CECO.epi)
+
+distributions.dw <- ignite.only.seki.CECO.epi %>%
+  ggplot() +
+  geom_density(aes(x = dw.flam.sample, color = spp))
+distributions.dw 
+
+distributions.lfm <- ignite.only.seki.CECO.epi %>%
+  ggplot() +
+  geom_density(aes(x = lfm.NAs.imputed, color = spp))
+distributions.lfm 
+
+distributions.lfm <- ignite.only.seki.CECO.epi %>%
+  ggplot() +
+  geom_density(aes(x = ww.flam.sample, color = spp))
+distributions.lfm
+```
+
+```{r, include=FALSE}
+ignite.only.seki.CECO.epi <- ignite.only.seki.CECO.epi %>%
+  mutate(gti = replace(gti, gti == "0", "0.5")) %>% 
+  mutate(gti = as.numeric(gti)) %>%
+  mutate("dry.norm.fh" = fh/dw.flam.sample) %>% #create new columns, etc.
+  mutate("dry.norm.gd" = gd/dw.flam.sample) %>%
+  mutate("dry.norm.fd" = fd/dw.flam.sample) %>%
+  mutate("dry.norm.pfg" = pfg/dw.flam.sample) %>%
+  mutate("dry.norm.ttfg" = ttfg/dw.flam.sample) %>%
+  mutate("dry.norm.tti" = tti/dw.flam.sample) %>% 
+  mutate("dry.norm.gti" = gti/dw.flam.sample) 
+
+range(ignite.only.seki.CECO.epi$dry.norm.gti)
+range(ignite.only.seki.CECO.epi$dry.norm.tti)
+range(ignite.only.seki.CECO.epi$dry.norm.fh)
+range(ignite.only.seki.CECO.epi$dry.norm.gd) 
+range(ignite.only.seki.CECO.epi$dry.norm.pfg) 
+range(ignite.only.seki.CECO.epi$dry.norm.ttfg)
+range(ignite.only.seki.CECO.epi$dw.flam.sample)
+
+colSums(is.na(ignite.only.seki.CECO.epi))
+#str(ignite.only.seki.CECO.epi)
+```
+
+```{r}
+distributions <- ignite.only.seki.CECO.epi %>%
+  select(spp, dry.norm.fh, dry.norm.gd, dry.norm.fd, dry.norm.pfg, dry.norm.gti, dry.norm.ttfg, dry.norm.tti) %>%
+  gather(-spp, key = "var", value = "value") %>%
+  ggplot() +
+  geom_density(aes(x = value, color = spp)) +
+  facet_wrap(~ var, scales = "free")
+distributions +
+  ggtitle("Epiradiator")
+```
+
+### EPI (USE THIS FOR PCA): Mirroring Max's PCA dataset (Mac_PCA_DATE.Rmd)
+
+```{r, include=FALSE}
+epi.ignite.only.seki.CECO.pca <- ignite.only.seki.CECO.epi %>%
+  mutate(mpa = mpa * -1) 
+  # select (individual, hydration, spp, sample, model, year.month, mpa, lfm.outliers.out, lfm.NAs.imputed, dw.flam.sample, ww.flam.sample, sample.wt, ttfg, gd, gti, tti, fh, pfg, fd, temp.max, prop.ignite, dry.norm.fh, dry.norm.gd, dry.norm.fd, dry.norm.pfg, dry.norm.gti, dry.norm.ttfg, dry.norm.tti, site,temp.change, flam.index, bins5lfm)  %>%
+  # arrange(individual, hydration, spp, sample, model, year.month, mpa, lfm.outliers.out, lfm.NAs.imputed, sample.wt, dw.flam.sample, ww.flam.sample, ttfg, gd, gti, tti, fh, pfg, fd, temp.max, prop.ignite, dry.norm.fh, dry.norm.gd, dry.norm.fd, dry.norm.pfg, dry.norm.gti, dry.norm.ttfg, dry.norm.tti, site, temp.change, flam.index, bins5lfm) %>%
+  # relocate("hydration")
+colSums(is.na(epi.ignite.only.seki.CECO.pca))
+
+#write.csv(x = epi.ignite.only.seki.CECO.pca, (here("processed-data", "epi.ignite.only.seki.CECO.csv")))
+```
+
+### HP only:
+
+Here we are normalizing by the dry weight of the flammability sample,
+which was calculated by multiplying the weight of the burned sample by
+the ratio of dry weight to fresh weight in the samples used for lfm
+measurements. (Assumptions here: that the ratio of water to dry weight
+in burned and lfm samples was the same)
+
+```{r}
+#colSums(is.na(ignite.only.seki.CECO.hp))
+#str(ignite.only.seki.CECO.hp)
+ignite.only.seki.CECO.hp <- ignite.only.seki.CECO.hp %>%  #Dealing with only EPI trials that ignited (can change later)
+  dplyr::mutate(mean.wt = mean(sample.wt, na.rm = TRUE)) %>% #take the mean of all sample weights for each model
+  ungroup() %>% 
+  mutate_if(is.integer, as.numeric) 
+
+ignite.only.seki.CECO.hp$gti <- as.numeric(as.character(ignite.only.seki.CECO.hp$gti)) #not sure why this became a character...
+#str(ignite.only.seki.CECO.hp)
+
+#range(ignite.only.seki.CECO.hp$dw.flam.sample) #range gets low for some samples (with very low lfm, maybe?)
+```
+
+```{r, include=FALSE}
+ignite.only.seki.CECO.hp <- ignite.only.seki.CECO.hp %>%
+  mutate(gti = replace(gti, gti == "0", "0.5")) %>% 
+  mutate(gti = as.numeric(gti)) %>%
+  mutate("dry.norm.fh" = fh/dw.flam.sample) %>% #create new columns, etc.
+  mutate("dry.norm.gd" = gd/dw.flam.sample) %>%
+  mutate("dry.norm.fd" = fd/dw.flam.sample) %>%
+  mutate("dry.norm.pfg" = pfg/dw.flam.sample) %>%
+  mutate("dry.norm.ttfg" = ttfg/dw.flam.sample) %>%
+  mutate("dry.norm.tti" = tti/dw.flam.sample) %>% 
+  mutate("dry.norm.gti" = gti/dw.flam.sample) %>%
+  mutate("temp.change" = temp.max - start.temp) 
+
+colSums(is.na(ignite.only.seki.CECO.hp))
+#str(ignite.only.seki.CECO.hp)
+```
+
+```{r}
+distributions <- ignite.only.seki.CECO.hp %>%
+  select(spp, dry.norm.fh, dry.norm.gd, dry.norm.fd, dry.norm.pfg, dry.norm.gti, dry.norm.ttfg, dry.norm.tti) %>%
+  gather(-spp, key = "var", value = "value") %>%
+  ggplot() +
+  geom_density(aes(x = value, color = spp)) +
+  facet_wrap(~ var, scales = "free")
+distributions +
+  ggtitle("Epiradiator")
+```
+
+### HP (USE THIS FOR PCA): Mirroring Max's PCA dataset (Mac_PCA_DATE.Rmd)
+
+```{r, include=FALSE}
+str(ignite.only.seki.CECO.hp)
+hp.ignite.only.seki.CECO.pca <- ignite.only.seki.CECO.hp %>%
+  mutate(mpa = mpa * -1) %>%
+  # mutate(gti = replace(dry.norm.gti, dry.norm.gti == "0", "0.5")) %>% 
+  # select (hydration, spp, sample, model, year.month, mpa, lfm.outliers.out, lfm.NAs.imputed, dw.flam.sample, ww.flam.sample, sample.wt, ttfg, gd, gti, tti, fh, pfg, fd, temp.max, prop.ignite, dry.norm.fh, dry.norm.gd, dry.norm.fd, dry.norm.pfg, dry.norm.gti, dry.norm.ttfg, dry.norm.tti, ros, site, temp.change, flam.index, bins5lfm)  %>%
+  # arrange(hydration, spp, sample, model, year.month, mpa, lfm.outliers.out, lfm.NAs.imputed, sample.wt, dw.flam.sample, ww.flam.sample, ttfg, gd, gti, tti, fh, pfg, fd, temp.max, prop.ignite, dry.norm.fh, dry.norm.gd, dry.norm.fd, dry.norm.pfg, dry.norm.gti, dry.norm.ttfg, dry.norm.tti, ros, site, temp.change, flam.index, bins5lfm) %>%
+  relocate("hydration")
+colSums(is.na(hp.ignite.only.seki.CECO.pca))
+
+str(hp.ignite.only.seki.CECO.pca) 
+
+#write.csv(x = hp.ignite.only.seki.CECO.pca, (here("processed-data", "hp.ignite.only.seki.CECO.csv")))
+```
+
+------------------------------------------------------------------------
+
+# ************PIJE only:
+
+## Other missing values: Flam metrics
+
+### EPI: only
+
+```{r}
+data.PIJE <- data.seki.imputed %>%
+  filter(spp == "PIJE")
+```
+
+```{r}
+ignite.only.seki.PIJE.epi <- data.PIJE %>%
+  filter(ignition == "1") %>% #only look at ignited samples
+  filter(model == "EPI")
+
+str(ignite.only.seki.PIJE.epi)
+```
+
+### Outliers in flam metrics:
+
+These run and remove outliers automatically, need to quiet the code if
+that is not what we want.
+
+#### tti
+
+```{r}
+outlierKD2(ignite.only.seki.PIJE.epi, tti)
+```
+
+#### gti
+
+```{r}
+outlierKD2(ignite.only.seki.PIJE.epi, gti)
+```
+
+#### gd
+
+```{r}
+outlierKD2(ignite.only.seki.PIJE.epi, gd)
+```
+
+#### fd
+
+```{r}
+outlierKD2(ignite.only.seki.PIJE.epi, fd)
+```
+
+#### pfg
+
+```{r}
+outlierKD2(ignite.only.seki.PIJE.epi, pfg)
+```
+
+#### fh
+
+```{r}
+outlierKD2(ignite.only.seki.PIJE.epi, fh)
+```
+
+#### temp max
+
+```{r}
+outlierKD2(ignite.only.seki.PIJE.epi, temp.max)
+```
+
+#### ignition temp
+
+```{r}
+outlierKD2(ignite.only.seki.PIJE.epi, ignition.temp)
+```
+
+Look at distributions of flammability metrics so we can think about how
+to deal with NAs in those variables, and then deal with them:
+
+First, to visualize NA values in flam metrics: - Ignited samples only,
+both models
+
+```{r, include=FALSE}
+vis_miss(ignite.only.seki.PIJE.epi)
+gg_miss_var(ignite.only.seki.PIJE.epi, facet = year.month)
+```
+
+### Outliers in flam metrics:
+
+#### EPI NAs: flame height
+
+```{r}
+ggplot(ignite.only.seki.PIJE.epi, 
+       aes(x = lfm.outliers.out, 
+           y = fh)) + 
+  geom_miss_point() +
+  facet_wrap(~year.month)
+```
+
+#### EPI NAs: glow duration
+
+```{r}
+ggplot(ignite.only.seki.PIJE.epi, 
+       aes(x = lfm.outliers.out, 
+           y = gd)) + 
+  geom_miss_point() +
+  facet_wrap(~year.month)
+```
+
+#### EPI NAs: temp change
+
+```{r}
+ggplot(ignite.only.seki.PIJE.epi, 
+       aes(x = lfm.outliers.out, 
+           y = temp.change)) + 
+  geom_miss_point() +
+  facet_wrap(~year.month)
+```
+
+#### EPI NAs: glow duration
+
+```{r}
+ggplot(ignite.only.seki.PIJE.epi, 
+       aes(x = lfm.outliers.out, 
+           y = gd)) + 
+  geom_miss_point() +
+  facet_wrap(~year.month)
+```
+
+```{r, include=FALSE}
+as_shadow(ignite.only.seki.PIJE.epi)
+aq_shadow <- bind_shadow(ignite.only.seki.PIJE.epi)
+aq_nab <- nabular(ignite.only.seki.PIJE.epi)
+all.equal(aq_shadow, aq_nab)
+#glimpse(aq_nab)
+```
+
+Overall, not too many missing values, so maybe we dont need to go too
+crazy with this. Also, flame height can be considered MCAR here due to
+flame heights not going out of screen in Epi trials.
+
+### Subset data and perform imputations (median):
+
+```{r, include=FALSE}
+#str(data)
+ignite.only.seki.PIJE.epi %>%
+  mutate(gti = as.numeric(gti)) 
+
+ignite.only.seki.PIJE.epi <- ignite.only.seki.PIJE.epi %>%
+  group_by(year.month) %>% 
+  group_by(spp) %>% #this makes us take the median of based on the species, the model, and the lfm bins (of 10 lfm) the missing value is in. Preserves species differences, and lfm impact. 
+  impute_median_at(c("ttfg", "ttms", "gd", "gti", "fd", "pfg","temp.max", "start.temp", "ros", "ignition.temp", "temp.change", "prop.ignite", "fh", "tti")) 
+
+colSums(is.na(ignite.only.seki.PIJE.epi)) #should not be any NAs except in LFM.outliers.out
+
+dist.epi <- ignite.only.seki.PIJE.epi %>%
+  select(fd, fh, gd, gti, pfg, prop.ignite, temp.max, ttfg, tti, temp.change)
+```
+
+```{r}
+#multi.hist(dist.epi[,sapply(dist.epi, is.numeric)])
+```
+
+# Repeat with hotplate trials:
+
+```{r}
+ignite.only.seki.PIJE.hp <- data.PIJE %>%
+  filter(model == "HP") %>% 
+  filter(ignition == "1") %>% 
+  dplyr::mutate(gti = replace(gti, gti == "0", "0.5")) %>% #replace when gti is zero to .5 seconds, so we can take the log later
+  mutate(gti = as.numeric(gti))
+```
+
+### Outliers in flam metrics:
+
+These run and remove outliers automatically, need to quiet the code if
+that is not what we want.
+
+#### tti
+
+```{r}
+outlierKD2(ignite.only.seki.PIJE.hp, tti)
+```
+
+#### gti
+
+```{r}
+outlierKD2(ignite.only.seki.PIJE.hp, gti)
+```
+
+#### gd
+
+```{r}
+outlierKD2(ignite.only.seki.PIJE.hp, gd)
+```
+
+#### fd
+
+```{r}
+outlierKD2(ignite.only.seki.PIJE.hp, fd)
+```
+
+#### pfg
+
+```{r}
+outlierKD2(ignite.only.seki.PIJE.hp, pfg)
+```
+
+#### fd
+
+```{r}
+outlierKD2(ignite.only.seki.PIJE.hp, fh)
+```
+
+#### temp.max
+
+```{r}
+outlierKD2(ignite.only.seki.PIJE.hp, temp.max)
+```
+
+#### ignition.temp
+
+```{r}
+outlierKD2(ignite.only.seki.PIJE.hp, ignition.temp)
+```
+
+#### prop.ignite
+
+```{r}
+#outlierKD2(ignite.only.seki.PIJE.hp, prop.ignite)
+```
+
+```{r}
+vis_miss(ignite.only.seki.PIJE.hp)
+gg_miss_var(ignite.only.seki.PIJE.hp, facet = year.month)
+```
+
+#### HP NAs: flame height
+
+none missing
+
+```{r}
+ggplot(ignite.only.seki.PIJE.hp,
+       aes(x = lfm.outliers.out,
+           y = fh)) +
+  geom_miss_point() +
+  facet_wrap(~year.month)
+```
+
+#### HP NAs: glow duration
+
+none missing
+
+```{r}
+ggplot(ignite.only.seki.PIJE.hp,
+       aes(x = lfm.outliers.out,
+           y = gd)) +
+  geom_miss_point() +
+  facet_wrap(~year.month)
+```
+
+#### HP NAs: temp. change
+
+```{r}
+ggplot(ignite.only.seki.PIJE.hp, 
+       aes(x = lfm.outliers.out, 
+           y = temp.change)) + 
+  geom_miss_point() +
+  facet_wrap(~year.month)
+```
+
+#### HP NAs: time to ignition
+
+none missing
+
+```{r}
+ggplot(ignite.only.seki.PIJE.hp,
+       aes(x = lfm.outliers.out,
+           y = tti)) +
+  geom_miss_point() +
+  facet_wrap(~year.month)
+```
+
+#### HP NAs: glow to ignition
+
+none missing
+
+```{r}
+ggplot(ignite.only.seki.PIJE.hp,
+       aes(x = lfm.outliers.out,
+           y = gti)) +
+  geom_miss_point() +
+  facet_wrap(~year.month)
+```
+
+#### HP NAs: rate of spread
+
+none missing
+
+```{r}
+ggplot(ignite.only.seki.PIJE.hp,
+       aes(x = lfm.outliers.out,
+           y = ros)) +
+  geom_miss_point() +
+  facet_wrap(~year.month)
+```
+
+#### HP NAs: flame duration
+
+none missing
+
+```{r}
+ggplot(ignite.only.seki.PIJE.hp,
+       aes(x = lfm.outliers.out,
+           y = fd)) +
+  geom_miss_point() +
+  facet_wrap(~year.month)
+```
+
+#### HP NAs: proportion ignited
+
+none missing
+
+```{r}
+# ggplot(ignite.only.seki.PIJE.hp,
+#        aes(x = lfm.outliers.out,
+#            y = prop.ignite)) +
+#   geom_miss_point() +
+#   facet_wrap(~year.month)
+```
+
+#### HP NAs: time to first glow
+
+none missing
+
+```{r}
+ggplot(ignite.only.seki.PIJE.hp,
+       aes(x = lfm.outliers.out,
+           y = ttfg)) +
+  geom_miss_point() +
+  facet_wrap(~year.month)
+```
+
+```{r, include=FALSE}
+as_shadow(ignite.only.seki.PIJE.hp)
+aq_shadow <- bind_shadow(ignite.only.seki.PIJE.hp)
+aq_nab <- nabular(ignite.only.seki.PIJE.hp)
+all.equal(aq_shadow, aq_nab)
+#glimpse(aq_nab)
+```
+
+Not many missing, which is good!
+
+### ***}}****Deal with NAs for hotplate:
+
+-   impute medians at each missing flam metric
+
+```{r, include = FALSE}
+#str(data)
+ignite.only.seki.PIJE.hp %>%
+  mutate(gti = as.numeric(gti)) 
+
+ignite.only.seki.PIJE.hp <- ignite.only.seki.PIJE.hp %>%
+  mutate(fh_nas_imputed = fh) %>% 
+  group_by(year.month) %>% 
+  group_by(spp) %>% #this makes us take the median of based on the species, the model, and the lfm bins (of 10 lfm) the missing value is in. Preserves species differences, and lfm impact. 
+  impute_median_at(c("ttfg", "ttms", "gd", "gti", "fd", "pfg","temp.max", "start.temp", "ros", "ignition.temp", "temp.change", "prop.ignite", "fh_nas_imputed", "ros", "tti")) #since fh may have gone out of top of frame for some larger flame height trials, use existing information to impute those values (BUT doesn't really matter since so few fh's are actually missing)
+
+colSums(is.na(ignite.only.seki.PIJE.hp)) #should not be any NAs except in LFM.outliers.out
+
+dist.hp <- ignite.only.seki.PIJE.hp %>%
+  select(fd, fh, gd, gti, pfg, prop.ignite, temp.max, ttfg, tti, temp.change)
+```
+
+```{r}
+#multi.hist(dist.epi[,sapply(dist.epi, is.numeric)])
+```
+
+# Look at flam characteristics to see if they make sense:
+
+#### For EPI only:
+
+```{r, include=FALSE}
+#chack for NAs
+range(ignite.only.seki.PIJE.epi$gti)
+range(ignite.only.seki.PIJE.epi$gd) 
+range(ignite.only.seki.PIJE.epi$pfg) 
+range(ignite.only.seki.PIJE.epi$ttfg)
+range(ignite.only.seki.PIJE.epi$dw.flam.sample)
+range(ignite.only.seki.PIJE.epi$ww.flam.sample)
+
+range(ignite.only.seki.PIJE.epi$tti)
+range(ignite.only.seki.PIJE.epi$fh)
+
+ignite.only.seki.PIJE.epi <- ignite.only.seki.PIJE.epi %>%
+  mutate(flam.index = 8.5*((43+tti)/(12.5+tti))*exp(fh/(fh+27))) #using max tti and max fh, becomes a scale of least (1) to most (20) flammable 
+
+range(ignite.only.seki.PIJE.epi$flam.index)
+```
+
+```{r}
+ttiplot <- ignite.only.seki.PIJE.epi %>% 
+ggplot(aes(y = tti, x = lfm.NAs.imputed, color = spp)) +
+  geom_point(size = 1) + 
+  theme_bw() +
+  geom_smooth(method = lm) +
+  ylab("Time to Ignition") + 
+  xlab("LFM (%)")
+ttiplot
+
+fhplot <- ignite.only.seki.PIJE.epi %>% 
+ggplot(aes(y = fh, x = lfm.NAs.imputed, color = spp)) +
+  geom_point(size = 1) + 
+  theme_bw() +
+  geom_smooth(method = lm) +
+  ylab("Flame Height") + 
+  xlab("LFM (%)")
+fhplot
+
+fiplot <- ignite.only.seki.PIJE.epi %>% 
+ggplot(aes(y = flam.index, x = lfm.NAs.imputed, color = spp)) +
+  geom_point(size = 1) + 
+  theme_bw() +
+  geom_smooth(method = lm) +
+  ylab("Flamability Index") + 
+  xlab("LFM (%)")
+fiplot
+```
+
+#### For HP only:
+
+```{r, include = FALSE}
+range(ignite.only.seki.PIJE.hp$gti)
+range(ignite.only.seki.PIJE.hp$gd) #some high glow durations, but that is likely to be expected
+range(ignite.only.seki.PIJE.hp$pfg)
+range(ignite.only.seki.PIJE.hp$ttfg)
+range(ignite.only.seki.PIJE.hp$ros)
+range(ignite.only.seki.PIJE.hp$dw.flam.sample)
+
+range(ignite.only.seki.PIJE.hp$tti)
+range(ignite.only.seki.PIJE.hp$fh)
+
+ignite.only.seki.PIJE.hp <- ignite.only.seki.PIJE.hp %>%
+  mutate(flam.index = 4.3*((130+tti)/(12.5+tti))*exp(fh_nas_imputed/(fh_nas_imputed+54))) #using max tti and max fh, becomes a scale of least (1) to most (20) flammable
+
+range(ignite.only.seki.PIJE.hp$flam.index)
+```
+
+```{r}
+ttiplot <- ignite.only.seki.PIJE.hp %>% 
+ggplot(aes(y = tti, x = lfm.NAs.imputed, color = spp)) +
+  geom_point(size = 1) + 
+  theme_bw() +
+  geom_smooth(method = lm) +
+  ylab("Time to Ignition") + 
+  xlab("LFM (%)")
+ttiplot
+
+fhplot <- ignite.only.seki.PIJE.hp %>% 
+ggplot(aes(y = fh, x = lfm.NAs.imputed, color = spp)) +
+  geom_point(size = 1) + 
+  theme_bw() +
+  geom_smooth(method = lm) +
+  ylab("Flame Height") + 
+  xlab("LFM (%)")
+fhplot
+
+fiplot <- ignite.only.seki.PIJE.hp %>% 
+ggplot(aes(y = flam.index, x = lfm.NAs.imputed, color = spp)) +
+  geom_point(size = 1) + 
+  theme_bw() +
+  geom_smooth(method = lm) +
+  ylab("Flamability Index") + 
+  xlab("LFM (%)")
+fiplot
+```
+
+Combine both EPI and HP back into master dataset called
+"ignite.only.seki.PIJE.all"
+
+```{r, include=FALSE}
+ignite.only.seki.PIJE.epi
+ignite.only.seki.PIJE.hp
+
+ignite.only.seki.PIJE.all <- rbind(ignite.only.seki.PIJE.epi, ignite.only.seki.PIJE.hp)
+```
+
+### EPI only:
+
+Here we are normalizing by the dry weight of the flammability sample,
+which was calculated by multiplying the weight of the burned sample by
+the ratio of dry weight to fresh weight in the samples used for lfm
+measurements.
+
+(Assumptions here: that the ratio of water to dry weight in burned and
+lfm samples was the same)
+
+```{r}
+distributions.lfm <- ignite.only.seki.PIJE.epi %>%
+  ggplot() +
+  geom_density(aes(x = sample.wt, color = spp)) 
+distributions.lfm  
+
+ignite.only.seki.PIJE.epi <- ignite.only.seki.PIJE.epi %>%  #Dealing with only EPI trials that ignited (can change later)
+  dplyr::mutate(mean.wt = mean(sample.wt, na.rm = TRUE)) %>% #take the mean of all sample weights for each model
+  ungroup() %>% 
+  mutate_if(is.integer, as.numeric) 
+
+ignite.only.seki.PIJE.epi$gti <- as.numeric(as.character(ignite.only.seki.PIJE.epi$gti)) #not sure why this became a character...
+#str(ignite.only.seki.PIJE.epi)
+
+distributions.dw <- ignite.only.seki.PIJE.epi %>%
+  ggplot() +
+  geom_density(aes(x = dw.flam.sample, color = spp))
+distributions.dw 
+
+distributions.lfm <- ignite.only.seki.PIJE.epi %>%
+  ggplot() +
+  geom_density(aes(x = lfm.NAs.imputed, color = spp))
+distributions.lfm 
+
+distributions.lfm <- ignite.only.seki.PIJE.epi %>%
+  ggplot() +
+  geom_density(aes(x = ww.flam.sample, color = spp))
+distributions.lfm
+```
+
+```{r, include=FALSE}
+ignite.only.seki.PIJE.epi <- ignite.only.seki.PIJE.epi %>%
+  mutate(gti = replace(gti, gti == "0", "0.5")) %>% 
+  mutate(gti = as.numeric(gti)) %>%
+  mutate("dry.norm.fh" = fh/dw.flam.sample) %>% #create new columns, etc.
+  mutate("dry.norm.gd" = gd/dw.flam.sample) %>%
+  mutate("dry.norm.fd" = fd/dw.flam.sample) %>%
+  mutate("dry.norm.pfg" = pfg/dw.flam.sample) %>%
+  mutate("dry.norm.ttfg" = ttfg/dw.flam.sample) %>%
+  mutate("dry.norm.tti" = tti/dw.flam.sample) %>% 
+  mutate("dry.norm.gti" = gti/dw.flam.sample) 
+
+range(ignite.only.seki.PIJE.epi$dry.norm.gti)
+range(ignite.only.seki.PIJE.epi$dry.norm.tti)
+range(ignite.only.seki.PIJE.epi$dry.norm.fh)
+range(ignite.only.seki.PIJE.epi$dry.norm.gd) 
+range(ignite.only.seki.PIJE.epi$dry.norm.pfg) 
+range(ignite.only.seki.PIJE.epi$dry.norm.ttfg)
+range(ignite.only.seki.PIJE.epi$dw.flam.sample)
+
+colSums(is.na(ignite.only.seki.PIJE.epi))
+#str(ignite.only.seki.PIJE.epi)
+```
+
+```{r}
+distributions <- ignite.only.seki.PIJE.epi %>%
+  select(spp, dry.norm.fh, dry.norm.gd, dry.norm.fd, dry.norm.pfg, dry.norm.gti, dry.norm.ttfg, dry.norm.tti) %>%
+  gather(-spp, key = "var", value = "value") %>%
+  ggplot() +
+  geom_density(aes(x = value, color = spp)) +
+  facet_wrap(~ var, scales = "free")
+distributions +
+  ggtitle("Epiradiator")
+```
+
+### EPI (USE THIS FOR PCA): Mirroring Max's PCA dataset (Mac_PCA_DATE.Rmd)
+
+```{r, include=FALSE}
+epi.ignite.only.seki.PIJE.pca <- ignite.only.seki.PIJE.epi %>%
+  mutate(mpa = mpa * -1) 
+  # select (individual, hydration, spp, sample, model, year.month, mpa, lfm.outliers.out, lfm.NAs.imputed, dw.flam.sample, ww.flam.sample, sample.wt, ttfg, gd, gti, tti, fh, pfg, fd, temp.max, prop.ignite, dry.norm.fh, dry.norm.gd, dry.norm.fd, dry.norm.pfg, dry.norm.gti, dry.norm.ttfg, dry.norm.tti, site,temp.change, flam.index, bins5lfm)  %>%
+  # arrange(individual, hydration, spp, sample, model, year.month, mpa, lfm.outliers.out, lfm.NAs.imputed, sample.wt, dw.flam.sample, ww.flam.sample, ttfg, gd, gti, tti, fh, pfg, fd, temp.max, prop.ignite, dry.norm.fh, dry.norm.gd, dry.norm.fd, dry.norm.pfg, dry.norm.gti, dry.norm.ttfg, dry.norm.tti, site, temp.change, flam.index, bins5lfm) %>%
+  # relocate("hydration")
+colSums(is.na(epi.ignite.only.seki.PIJE.pca))
+
+#write.csv(x = epi.ignite.only.seki.PIJE.pca, (here("processed-data", "epi.ignite.only.seki.PIJE.csv")))
+```
+
+### HP only:
+
+Here we are normalizing by the dry weight of the flammability sample,
+which was calculated by multiplying the weight of the burned sample by
+the ratio of dry weight to fresh weight in the samples used for lfm
+measurements. (Assumptions here: that the ratio of water to dry weight
+in burned and lfm samples was the same)
+
+```{r}
+#colSums(is.na(ignite.only.seki.PIJE.hp))
+#str(ignite.only.seki.PIJE.hp)
+ignite.only.seki.PIJE.hp <- ignite.only.seki.PIJE.hp %>%  #Dealing with only EPI trials that ignited (can change later)
+  dplyr::mutate(mean.wt = mean(sample.wt, na.rm = TRUE)) %>% #take the mean of all sample weights for each model
+  ungroup() %>% 
+  mutate_if(is.integer, as.numeric) 
+
+ignite.only.seki.PIJE.hp$gti <- as.numeric(as.character(ignite.only.seki.PIJE.hp$gti)) #not sure why this became a character...
+#str(ignite.only.seki.PIJE.hp)
+
+#range(ignite.only.seki.PIJE.hp$dw.flam.sample) #range gets low for some samples (with very low lfm, maybe?)
+```
+
+```{r, include=FALSE}
+ignite.only.seki.PIJE.hp <- ignite.only.seki.PIJE.hp %>%
+  mutate(gti = replace(gti, gti == "0", "0.5")) %>% 
+  mutate(gti = as.numeric(gti)) %>%
+  mutate("dry.norm.fh" = fh/dw.flam.sample) %>% #create new columns, etc.
+  mutate("dry.norm.gd" = gd/dw.flam.sample) %>%
+  mutate("dry.norm.fd" = fd/dw.flam.sample) %>%
+  mutate("dry.norm.pfg" = pfg/dw.flam.sample) %>%
+  mutate("dry.norm.ttfg" = ttfg/dw.flam.sample) %>%
+  mutate("dry.norm.tti" = tti/dw.flam.sample) %>% 
+  mutate("dry.norm.gti" = gti/dw.flam.sample) %>%
+  mutate("temp.change" = temp.max - start.temp) 
+
+colSums(is.na(ignite.only.seki.PIJE.hp))
+#str(ignite.only.seki.PIJE.hp)
+```
+
+```{r}
+distributions <- ignite.only.seki.PIJE.hp %>%
+  select(spp, dry.norm.fh, dry.norm.gd, dry.norm.fd, dry.norm.pfg, dry.norm.gti, dry.norm.ttfg, dry.norm.tti) %>%
+  gather(-spp, key = "var", value = "value") %>%
+  ggplot() +
+  geom_density(aes(x = value, color = spp)) +
+  facet_wrap(~ var, scales = "free")
+distributions +
+  ggtitle("Epiradiator")
+```
+
+### HP (USE THIS FOR PCA): Mirroring Max's PCA dataset (Mac_PCA_DATE.Rmd)
+
+```{r, include=FALSE}
+str(ignite.only.seki.PIJE.hp)
+hp.ignite.only.seki.PIJE.pca <- ignite.only.seki.PIJE.hp %>%
+  mutate(mpa = mpa * -1) %>%
+  # mutate(gti = replace(dry.norm.gti, dry.norm.gti == "0", "0.5")) %>% 
+  # select (hydration, spp, sample, model, year.month, mpa, lfm.outliers.out, lfm.NAs.imputed, dw.flam.sample, ww.flam.sample, sample.wt, ttfg, gd, gti, tti, fh, pfg, fd, temp.max, prop.ignite, dry.norm.fh, dry.norm.gd, dry.norm.fd, dry.norm.pfg, dry.norm.gti, dry.norm.ttfg, dry.norm.tti, ros, site, temp.change, flam.index, bins5lfm)  %>%
+  # arrange(hydration, spp, sample, model, year.month, mpa, lfm.outliers.out, lfm.NAs.imputed, sample.wt, dw.flam.sample, ww.flam.sample, ttfg, gd, gti, tti, fh, pfg, fd, temp.max, prop.ignite, dry.norm.fh, dry.norm.gd, dry.norm.fd, dry.norm.pfg, dry.norm.gti, dry.norm.ttfg, dry.norm.tti, ros, site, temp.change, flam.index, bins5lfm) %>%
+  relocate("hydration")
+colSums(is.na(hp.ignite.only.seki.PIJE.pca))
+
+str(hp.ignite.only.seki.PIJE.pca) 
+
+#write.csv(x = hp.ignite.only.seki.PIJE.pca, (here("processed-data", "hp.ignite.only.seki.PIJE.csv")))
+```
+
+------------------------------------------------------------------------
+
+# ************QUKE only:
+
+## Other missing values: Flam metrics
+
+### EPI: only
+
+```{r}
+data.QUKE <- data.seki.imputed %>%
+  filter(spp == "QUKE")
+```
+
+```{r}
+ignite.only.seki.QUKE.epi <- data.QUKE %>%
+  filter(ignition == "1") %>% #only look at ignited samples
+  filter(model == "EPI")
+
+str(ignite.only.seki.QUKE.epi)
+```
+
+### Outliers in flam metrics:
+
+These run and remove outliers automatically, need to quiet the code if
+that is not what we want.
+
+#### tti
+
+```{r}
+outlierKD2(ignite.only.seki.QUKE.epi, tti)
+```
+
+#### gti
+
+```{r}
+outlierKD2(ignite.only.seki.QUKE.epi, gti)
+```
+
+#### gd
+
+```{r}
+outlierKD2(ignite.only.seki.QUKE.epi, gd)
+```
+
+#### fd
+
+```{r}
+outlierKD2(ignite.only.seki.QUKE.epi, fd)
+```
+
+#### pfg
+
+```{r}
+outlierKD2(ignite.only.seki.QUKE.epi, pfg)
+```
+
+#### fh
+
+```{r}
+outlierKD2(ignite.only.seki.QUKE.epi, fh)
+```
+
+#### temp max
+
+```{r}
+outlierKD2(ignite.only.seki.QUKE.epi, temp.max)
+```
+
+#### ignition temp
+
+```{r}
+outlierKD2(ignite.only.seki.QUKE.epi, ignition.temp)
+```
+
+Look at distributions of flammability metrics so we can think about how
+to deal with NAs in those variables, and then deal with them:
+
+First, to visualize NA values in flam metrics: - Ignited samples only,
+both models
+
+```{r, include=FALSE}
+vis_miss(ignite.only.seki.QUKE.epi)
+gg_miss_var(ignite.only.seki.QUKE.epi, facet = year.month)
+```
+
+### Outliers in flam metrics:
+
+#### EPI NAs: flame height
+
+```{r}
+ggplot(ignite.only.seki.QUKE.epi, 
+       aes(x = lfm.outliers.out, 
+           y = fh)) + 
+  geom_miss_point() +
+  facet_wrap(~year.month)
+```
+
+#### EPI NAs: glow duration
+
+```{r}
+ggplot(ignite.only.seki.QUKE.epi, 
+       aes(x = lfm.outliers.out, 
+           y = gd)) + 
+  geom_miss_point() +
+  facet_wrap(~year.month)
+```
+
+#### EPI NAs: temp change
+
+```{r}
+ggplot(ignite.only.seki.QUKE.epi, 
+       aes(x = lfm.outliers.out, 
+           y = temp.change)) + 
+  geom_miss_point() +
+  facet_wrap(~year.month)
+```
+
+#### EPI NAs: glow duration
+
+```{r}
+ggplot(ignite.only.seki.QUKE.epi, 
+       aes(x = lfm.outliers.out, 
+           y = gd)) + 
+  geom_miss_point() +
+  facet_wrap(~year.month)
+```
+
+```{r, include=FALSE}
+as_shadow(ignite.only.seki.QUKE.epi)
+aq_shadow <- bind_shadow(ignite.only.seki.QUKE.epi)
+aq_nab <- nabular(ignite.only.seki.QUKE.epi)
+all.equal(aq_shadow, aq_nab)
+#glimpse(aq_nab)
+```
+
+Overall, not too many missing values, so maybe we dont need to go too
+crazy with this. Also, flame height can be considered MCAR here due to
+flame heights not going out of screen in Epi trials.
+
+### Subset data and perform imputations (median):
+
+```{r, include=FALSE}
+#str(data)
+ignite.only.seki.QUKE.epi %>%
+  mutate(gti = as.numeric(gti)) 
+
+ignite.only.seki.QUKE.epi <- ignite.only.seki.QUKE.epi %>%
+  group_by(year.month) %>% 
+  group_by(spp) %>% #this makes us take the median of based on the species, the model, and the lfm bins (of 10 lfm) the missing value is in. Preserves species differences, and lfm impact. 
+  impute_median_at(c("ttfg", "ttms", "gd", "gti", "fd", "pfg","temp.max", "start.temp", "ros", "ignition.temp", "temp.change", "prop.ignite", "fh", "tti")) 
+
+colSums(is.na(ignite.only.seki.QUKE.epi)) #should not be any NAs except in LFM.outliers.out
+
+dist.epi <- ignite.only.seki.QUKE.epi %>%
+  select(fd, fh, gd, gti, pfg, prop.ignite, temp.max, ttfg, tti, temp.change)
+```
+
+```{r}
+#multi.hist(dist.epi[,sapply(dist.epi, is.numeric)])
+```
+
+# Repeat with hotplate trials:
+
+```{r}
+ignite.only.seki.QUKE.hp <- data.QUKE %>%
+  filter(model == "HP") %>% 
+  filter(ignition == "1") %>% 
+  dplyr::mutate(gti = replace(gti, gti == "0", "0.5")) %>% #replace when gti is zero to .5 seconds, so we can take the log later
+  mutate(gti = as.numeric(gti))
+```
+
+### Outliers in flam metrics:
+
+These run and remove outliers automatically, need to quiet the code if
+that is not what we want.
+
+#### tti
+
+```{r}
+outlierKD2(ignite.only.seki.QUKE.hp, tti)
+```
+
+#### gti
+
+```{r}
+outlierKD2(ignite.only.seki.QUKE.hp, gti)
+```
+
+#### gd
+
+```{r}
+outlierKD2(ignite.only.seki.QUKE.hp, gd)
+```
+
+#### fd
+
+```{r}
+outlierKD2(ignite.only.seki.QUKE.hp, fd)
+```
+
+#### pfg
+
+```{r}
+outlierKD2(ignite.only.seki.QUKE.hp, pfg)
+```
+
+#### fd
+
+```{r}
+outlierKD2(ignite.only.seki.QUKE.hp, fh)
+```
+
+#### temp.max
+
+```{r}
+outlierKD2(ignite.only.seki.QUKE.hp, temp.max)
+```
+
+#### ignition.temp
+
+```{r}
+outlierKD2(ignite.only.seki.QUKE.hp, ignition.temp)
+```
+
+#### prop.ignite
+
+```{r}
+#outlierKD2(ignite.only.seki.QUKE.hp, prop.ignite)
+```
+
+```{r}
+vis_miss(ignite.only.seki.QUKE.hp)
+gg_miss_var(ignite.only.seki.QUKE.hp, facet = year.month)
+```
+
+#### HP NAs: flame height
+
+none missing
+
+```{r}
+ggplot(ignite.only.seki.QUKE.hp,
+       aes(x = lfm.outliers.out,
+           y = fh)) +
+  geom_miss_point() +
+  facet_wrap(~year.month)
+```
+
+#### HP NAs: glow duration
+
+none missing
+
+```{r}
+ggplot(ignite.only.seki.QUKE.hp,
+       aes(x = lfm.outliers.out,
+           y = gd)) +
+  geom_miss_point() +
+  facet_wrap(~year.month)
+```
+
+#### HP NAs: temp. change
+
+```{r}
+ggplot(ignite.only.seki.QUKE.hp, 
+       aes(x = lfm.outliers.out, 
+           y = temp.change)) + 
+  geom_miss_point() +
+  facet_wrap(~year.month)
+```
+
+#### HP NAs: time to ignition
+
+none missing
+
+```{r}
+ggplot(ignite.only.seki.QUKE.hp,
+       aes(x = lfm.outliers.out,
+           y = tti)) +
+  geom_miss_point() +
+  facet_wrap(~year.month)
+```
+
+#### HP NAs: glow to ignition
+
+none missing
+
+```{r}
+ggplot(ignite.only.seki.QUKE.hp,
+       aes(x = lfm.outliers.out,
+           y = gti)) +
+  geom_miss_point() +
+  facet_wrap(~year.month)
+```
+
+#### HP NAs: rate of spread
+
+none missing
+
+```{r}
+ggplot(ignite.only.seki.QUKE.hp,
+       aes(x = lfm.outliers.out,
+           y = ros)) +
+  geom_miss_point() +
+  facet_wrap(~year.month)
+```
+
+#### HP NAs: flame duration
+
+none missing
+
+```{r}
+ggplot(ignite.only.seki.QUKE.hp,
+       aes(x = lfm.outliers.out,
+           y = fd)) +
+  geom_miss_point() +
+  facet_wrap(~year.month)
+```
+
+#### HP NAs: proportion ignited
+
+none missing
+
+```{r}
+# ggplot(ignite.only.seki.QUKE.hp,
+#        aes(x = lfm.outliers.out,
+#            y = prop.ignite)) +
+#   geom_miss_point() +
+#   facet_wrap(~year.month)
+```
+
+#### HP NAs: time to first glow
+
+none missing
+
+```{r}
+ggplot(ignite.only.seki.QUKE.hp,
+       aes(x = lfm.outliers.out,
+           y = ttfg)) +
+  geom_miss_point() +
+  facet_wrap(~year.month)
+```
+
+```{r, include=FALSE}
+as_shadow(ignite.only.seki.QUKE.hp)
+aq_shadow <- bind_shadow(ignite.only.seki.QUKE.hp)
+aq_nab <- nabular(ignite.only.seki.QUKE.hp)
+all.equal(aq_shadow, aq_nab)
+#glimpse(aq_nab)
+```
+
+Not many missing, which is good!
+
+### *******Deal with NAs for hotplate:
+
+-   impute medians at each missing flam metric
+
+```{r, include = FALSE}
+#str(data)
+ignite.only.seki.QUKE.hp %>%
+  mutate(gti = as.numeric(gti)) 
+
+ignite.only.seki.QUKE.hp <- ignite.only.seki.QUKE.hp %>%
+  mutate(fh_nas_imputed = fh) %>% 
+  group_by(year.month) %>% 
+  group_by(spp) %>% #this makes us take the median of based on the species, the model, and the lfm bins (of 10 lfm) the missing value is in. Preserves species differences, and lfm impact. 
+  impute_median_at(c("ttfg", "ttms", "gd", "gti", "fd", "pfg","temp.max", "start.temp", "ros", "ignition.temp", "temp.change", "prop.ignite", "fh_nas_imputed", "tti"))  #since fh may have gone out of top of frame for some larger flame height trials, use existing information to impute those values (BUT doesn't really matter since so few fh's are actually missing)
+
+colSums(is.na(ignite.only.seki.QUKE.hp)) #should not be any NAs except in LFM.outliers.out
+
+dist.hp <- ignite.only.seki.QUKE.hp %>%
+  select(fd, fh, gd, gti, pfg, prop.ignite, temp.max, ttfg, tti, temp.change)
+```
+
+```{r}
+#multi.hist(dist.epi[,sapply(dist.epi, is.numeric)])
+```
+
+# Look at flam characteristics to see if they make sense:
+
+#### For EPI only:
+
+```{r, include=FALSE}
+#chack for NAs
+range(ignite.only.seki.QUKE.epi$gti)
+range(ignite.only.seki.QUKE.epi$gd) 
+range(ignite.only.seki.QUKE.epi$pfg) 
+range(ignite.only.seki.QUKE.epi$ttfg)
+range(ignite.only.seki.QUKE.epi$dw.flam.sample)
+range(ignite.only.seki.QUKE.epi$ww.flam.sample)
+
+range(ignite.only.seki.QUKE.epi$tti)
+range(ignite.only.seki.QUKE.epi$fh)
+
+ignite.only.seki.QUKE.epi <- ignite.only.seki.QUKE.epi %>%
+  mutate(flam.index = 5.55*((39+tti)/(12.5+tti))*exp(fh/(fh+20.5))) #using max tti and max fh, becomes a scale of least (1) to most (20) flammable 
+range(ignite.only.seki.QUKE.epi$flam.index)
+```
+
+```{r}
+ttiplot <- ignite.only.seki.QUKE.epi %>% 
+ggplot(aes(y = tti, x = lfm.NAs.imputed, color = spp)) +
+  geom_point(size = 1) + 
+  theme_bw() +
+  geom_smooth(method = lm) +
+  ylab("Time to Ignition") + 
+  xlab("LFM (%)")
+ttiplot
+
+fhplot <- ignite.only.seki.QUKE.epi %>% 
+ggplot(aes(y = fh, x = lfm.NAs.imputed, color = spp)) +
+  geom_point(size = 1) + 
+  theme_bw() +
+  geom_smooth(method = lm) +
+  ylab("Flame Height") + 
+  xlab("LFM (%)")
+fhplot
+
+fiplot <- ignite.only.seki.QUKE.epi %>% 
+ggplot(aes(y = flam.index, x = lfm.NAs.imputed, color = spp)) +
+  geom_point(size = 1) + 
+  theme_bw() +
+  geom_smooth(method = lm) +
+  ylab("Flamability Index") + 
+  xlab("LFM (%)")
+fiplot
+```
+
+#### For HP only:
+
+```{r, include = FALSE}
+range(ignite.only.seki.QUKE.hp$gti)
+range(ignite.only.seki.QUKE.hp$gd) #some high glow durations, but that is likely to be expected
+range(ignite.only.seki.QUKE.hp$pfg)
+range(ignite.only.seki.QUKE.hp$ttfg)
+range(ignite.only.seki.QUKE.hp$ros)
+range(ignite.only.seki.QUKE.hp$dw.flam.sample)
+
+range(ignite.only.seki.QUKE.hp$tti)
+range(ignite.only.seki.QUKE.hp$fh)
+
+ignite.only.seki.QUKE.hp <- ignite.only.seki.QUKE.hp %>%
+  mutate(flam.index = 7.5*((29+tti)/(12.5+tti))*exp(fh_nas_imputed/(fh_nas_imputed+40))) #using max tti and max fh, becomes a scale of least (1) to most (20) flammable
+
+range(ignite.only.seki.QUKE.hp$flam.index)
+```
+
+```{r}
+ttiplot <- ignite.only.seki.QUKE.hp %>% 
+ggplot(aes(y = tti, x = lfm.NAs.imputed, color = spp)) +
+  geom_point(size = 1) + 
+  theme_bw() +
+  geom_smooth(method = lm) +
+  ylab("Time to Ignition") + 
+  xlab("LFM (%)")
+ttiplot
+
+fhplot <- ignite.only.seki.QUKE.hp %>% 
+ggplot(aes(y = fh, x = lfm.NAs.imputed, color = spp)) +
+  geom_point(size = 1) + 
+  theme_bw() +
+  geom_smooth(method = lm) +
+  ylab("Flame Height") + 
+  xlab("LFM (%)")
+fhplot
+
+fiplot <- ignite.only.seki.QUKE.hp %>% 
+ggplot(aes(y = flam.index, x = lfm.NAs.imputed, color = spp)) +
+  geom_point(size = 1) + 
+  theme_bw() +
+  geom_smooth(method = lm) +
+  ylab("Flamability Index") + 
+  xlab("LFM (%)")
+fiplot
+```
+
+Combine both EPI and HP back into master dataset called
+"ignite.only.seki.QUKE.all"
+
+```{r, include=FALSE}
+ignite.only.seki.QUKE.epi
+ignite.only.seki.QUKE.hp
+
+ignite.only.seki.QUKE.all <- rbind(ignite.only.seki.QUKE.epi, ignite.only.seki.QUKE.hp)
+```
+
+### EPI only:
+
+Here we are normalizing by the dry weight of the flammability sample,
+which was calculated by multiplying the weight of the burned sample by
+the ratio of dry weight to fresh weight in the samples used for lfm
+measurements.
+
+(Assumptions here: that the ratio of water to dry weight in burned and
+lfm samples was the same)
+
+```{r}
+distributions.lfm <- ignite.only.seki.QUKE.epi %>%
+  ggplot() +
+  geom_density(aes(x = sample.wt, color = spp)) 
+distributions.lfm  
+
+ignite.only.seki.QUKE.epi <- ignite.only.seki.QUKE.epi %>%  #Dealing with only EPI trials that ignited (can change later)
+  dplyr::mutate(mean.wt = mean(sample.wt, na.rm = TRUE)) %>% #take the mean of all sample weights for each model
+  ungroup() %>% 
+  mutate_if(is.integer, as.numeric) 
+
+ignite.only.seki.QUKE.epi$gti <- as.numeric(as.character(ignite.only.seki.QUKE.epi$gti)) #not sure why this became a character...
+#str(ignite.only.seki.QUKE.epi)
+
+distributions.dw <- ignite.only.seki.QUKE.epi %>%
+  ggplot() +
+  geom_density(aes(x = dw.flam.sample, color = spp))
+distributions.dw 
+
+distributions.lfm <- ignite.only.seki.QUKE.epi %>%
+  ggplot() +
+  geom_density(aes(x = lfm.NAs.imputed, color = spp))
+distributions.lfm 
+
+distributions.lfm <- ignite.only.seki.QUKE.epi %>%
+  ggplot() +
+  geom_density(aes(x = ww.flam.sample, color = spp))
+distributions.lfm
+```
+
+```{r, include=FALSE}
+ignite.only.seki.QUKE.epi <- ignite.only.seki.QUKE.epi %>%
+  mutate(gti = replace(gti, gti == "0", "0.5")) %>% 
+  mutate(gti = as.numeric(gti)) %>%
+  mutate("dry.norm.fh" = fh/dw.flam.sample) %>% #create new columns, etc.
+  mutate("dry.norm.gd" = gd/dw.flam.sample) %>%
+  mutate("dry.norm.fd" = fd/dw.flam.sample) %>%
+  mutate("dry.norm.pfg" = pfg/dw.flam.sample) %>%
+  mutate("dry.norm.ttfg" = ttfg/dw.flam.sample) %>%
+  mutate("dry.norm.tti" = tti/dw.flam.sample) %>% 
+  mutate("dry.norm.gti" = gti/dw.flam.sample) 
+
+range(ignite.only.seki.QUKE.epi$dry.norm.gti)
+range(ignite.only.seki.QUKE.epi$dry.norm.tti)
+range(ignite.only.seki.QUKE.epi$dry.norm.fh)
+range(ignite.only.seki.QUKE.epi$dry.norm.gd) 
+range(ignite.only.seki.QUKE.epi$dry.norm.pfg) 
+range(ignite.only.seki.QUKE.epi$dry.norm.ttfg)
+range(ignite.only.seki.QUKE.epi$dw.flam.sample)
+
+colSums(is.na(ignite.only.seki.QUKE.epi))
+#str(ignite.only.seki.QUKE.epi)
+```
+
+```{r}
+distributions <- ignite.only.seki.QUKE.epi %>%
+  select(spp, dry.norm.fh, dry.norm.gd, dry.norm.fd, dry.norm.pfg, dry.norm.gti, dry.norm.ttfg, dry.norm.tti) %>%
+  gather(-spp, key = "var", value = "value") %>%
+  ggplot() +
+  geom_density(aes(x = value, color = spp)) +
+  facet_wrap(~ var, scales = "free")
+distributions +
+  ggtitle("Epiradiator")
+```
+
+### EPI (USE THIS FOR PCA): Mirroring Max's PCA dataset (Mac_PCA_DATE.Rmd)
+
+```{r, include=FALSE}
+epi.ignite.only.seki.QUKE.pca <- ignite.only.seki.QUKE.epi %>%
+  mutate(mpa = mpa * -1) 
+  # select (individual, hydration, spp, sample, model, year.month, mpa, lfm.outliers.out, lfm.NAs.imputed, dw.flam.sample, ww.flam.sample, sample.wt, ttfg, gd, gti, tti, fh, pfg, fd, temp.max, prop.ignite, dry.norm.fh, dry.norm.gd, dry.norm.fd, dry.norm.pfg, dry.norm.gti, dry.norm.ttfg, dry.norm.tti, site,temp.change, flam.index, bins5lfm)  %>%
+  # arrange(individual, hydration, spp, sample, model, year.month, mpa, lfm.outliers.out, lfm.NAs.imputed, sample.wt, dw.flam.sample, ww.flam.sample, ttfg, gd, gti, tti, fh, pfg, fd, temp.max, prop.ignite, dry.norm.fh, dry.norm.gd, dry.norm.fd, dry.norm.pfg, dry.norm.gti, dry.norm.ttfg, dry.norm.tti, site, temp.change, flam.index, bins5lfm) %>%
+  # relocate("hydration")
+colSums(is.na(epi.ignite.only.seki.QUKE.pca))
+
+#write.csv(x = epi.ignite.only.seki.QUKE.pca, (here("processed-data", "epi.ignite.only.seki.QUKE.csv")))
+```
+
+### HP only:
+
+Here we are normalizing by the dry weight of the flammability sample,
+which was calculated by multiplying the weight of the burned sample by
+the ratio of dry weight to fresh weight in the samples used for lfm
+measurements. (Assumptions here: that the ratio of water to dry weight
+in burned and lfm samples was the same)
+
+```{r}
+#colSums(is.na(ignite.only.seki.QUKE.hp))
+#str(ignite.only.seki.QUKE.hp)
+ignite.only.seki.QUKE.hp <- ignite.only.seki.QUKE.hp %>%  #Dealing with only EPI trials that ignited (can change later)
+  dplyr::mutate(mean.wt = mean(sample.wt, na.rm = TRUE)) %>% #take the mean of all sample weights for each model
+  ungroup() %>% 
+  mutate_if(is.integer, as.numeric) 
+
+ignite.only.seki.QUKE.hp$gti <- as.numeric(as.character(ignite.only.seki.QUKE.hp$gti)) #not sure why this became a character...
+#str(ignite.only.seki.QUKE.hp)
+
+#range(ignite.only.seki.QUKE.hp$dw.flam.sample) #range gets low for some samples (with very low lfm, maybe?)
+```
+
+```{r, include=FALSE}
+ignite.only.seki.QUKE.hp <- ignite.only.seki.QUKE.hp %>%
+  mutate(gti = replace(gti, gti == "0", "0.5")) %>% 
+  mutate(gti = as.numeric(gti)) %>%
+  mutate("dry.norm.fh" = fh/dw.flam.sample) %>% #create new columns, etc.
+  mutate("dry.norm.gd" = gd/dw.flam.sample) %>%
+  mutate("dry.norm.fd" = fd/dw.flam.sample) %>%
+  mutate("dry.norm.pfg" = pfg/dw.flam.sample) %>%
+  mutate("dry.norm.ttfg" = ttfg/dw.flam.sample) %>%
+  mutate("dry.norm.tti" = tti/dw.flam.sample) %>% 
+  mutate("dry.norm.gti" = gti/dw.flam.sample) %>%
+  mutate("temp.change" = temp.max - start.temp) 
+
+colSums(is.na(ignite.only.seki.QUKE.hp))
+#str(ignite.only.seki.QUKE.hp)
+```
+
+```{r}
+distributions <- ignite.only.seki.QUKE.hp %>%
+  select(spp, dry.norm.fh, dry.norm.gd, dry.norm.fd, dry.norm.pfg, dry.norm.gti, dry.norm.ttfg, dry.norm.tti) %>%
+  gather(-spp, key = "var", value = "value") %>%
+  ggplot() +
+  geom_density(aes(x = value, color = spp)) +
+  facet_wrap(~ var, scales = "free")
+distributions +
+  ggtitle("Epiradiator")
+```
+
+### HP (USE THIS FOR PCA): Mirroring Max's PCA dataset (Mac_PCA_DATE.Rmd)
+
+```{r, include=FALSE}
+str(ignite.only.seki.QUKE.hp)
+hp.ignite.only.seki.QUKE.pca <- ignite.only.seki.QUKE.hp %>%
+  mutate(mpa = mpa * -1) %>%
+  # mutate(gti = replace(dry.norm.gti, dry.norm.gti == "0", "0.5")) %>% 
+  # select (hydration, spp, sample, model, year.month, mpa, lfm.outliers.out, lfm.NAs.imputed, dw.flam.sample, ww.flam.sample, sample.wt, ttfg, gd, gti, tti, fh, pfg, fd, temp.max, prop.ignite, dry.norm.fh, dry.norm.gd, dry.norm.fd, dry.norm.pfg, dry.norm.gti, dry.norm.ttfg, dry.norm.tti, ros, site, temp.change, flam.index, bins5lfm)  %>%
+  # arrange(hydration, spp, sample, model, year.month, mpa, lfm.outliers.out, lfm.NAs.imputed, sample.wt, dw.flam.sample, ww.flam.sample, ttfg, gd, gti, tti, fh, pfg, fd, temp.max, prop.ignite, dry.norm.fh, dry.norm.gd, dry.norm.fd, dry.norm.pfg, dry.norm.gti, dry.norm.ttfg, dry.norm.tti, ros, site, temp.change, flam.index, bins5lfm) %>%
+  relocate("hydration")
+colSums(is.na(hp.ignite.only.seki.QUKE.pca))
+
+str(hp.ignite.only.seki.QUKE.pca) 
+
+#write.csv(x = hp.ignite.only.seki.QUKE.pca, (here("processed-data", "hp.ignite.only.seki.QUKE.csv")))
+```
+
+------------------------------------------------------------------------
+
+# ALL SPECIES: Combine back into main datasets:
+
+```{r, inlcude = FALSE, eval= FALSE}
+#QUKE
+pca.data.hp.quke <- rbind(hp.ignite.only.seki.QUKE.pca, hp.ignite.only.seki.QUKE.pca)
+
+pca.data.epi.quke <- rbind(epi.ignite.only.seki.QUKE.pca, epi.ignite.only.seki.QUKE.pca)
+
+#PIJE
+pca.data.hp.pije <- rbind(hp.ignite.only.seki.PIJE.pca, hp.ignite.only.seki.PIJE.pca)
+
+pca.data.epi.pije <- rbind(epi.ignite.only.seki.PIJE.pca, epi.ignite.only.seki.PIJE.pca)
+
+#ABCO
+pca.data.hp.abco <- rbind(hp.ignite.only.seki.ABCO.pca, hp.ignite.only.seki.ABCO.pca)
+
+pca.data.epi.abco <- rbind(epi.ignite.only.seki.ABCO.pca, epi.ignite.only.seki.ABCO.pca)
+
+#CADE
+pca.data.hp.cade <- rbind(hp.ignite.only.seki.CADE.pca, hp.ignite.only.seki.CADE.pca)
+
+#pca.data.epi.cade <- rbind(epi.ignite.only.seki.CADE.pca, epi.ignite.only.seki.CADE.pca)
+
+#CECO
+pca.data.hp.ceco <- rbind(hp.ignite.only.seki.CECO.pca, hp.ignite.only.seki.CECO.pca)
+
+pca.data.epi.ceco <- rbind(epi.ignite.only.seki.CECO.pca, epi.ignite.only.seki.CECO.pca)
+
+#CECO
+pca.data.hp.arpa <- rbind(hp.ignite.only.seki.arpa.pca, hp.ignite.only.seki.arpa.pca)
+
+pca.data.epi.arpa <- rbind(epi.ignite.only.seki.arpa.pca, epi.ignite.only.seki.arpa.pca)
+```
+
+
+```{r}
+data.seki.hp <- rbind(
+  hp.ignite.only.seki.arpa.pca, 
+  hp.ignite.only.seki.ABCO.pca, 
+  hp.ignite.only.seki.CADE.pca, 
+  hp.ignite.only.seki.PIJE.pca, 
+  hp.ignite.only.seki.CECO.pca, 
+  hp.ignite.only.seki.QUKE.pca)
+
+data.seki.epi <- rbind(
+  epi.ignite.only.seki.arpa.pca, 
+  epi.ignite.only.seki.ABCO.pca, 
+  epi.ignite.only.seki.PIJE.pca, 
+  epi.ignite.only.seki.CECO.pca, 
+  epi.ignite.only.seki.QUKE.pca)
+
+```
+
+
+```{r}
+#write.csv(data.seki.hp, here("processed-data", "compiled-datasets", "hp_ignite_only_seki.csv"))
+
+#write.csv(data.seki.epi, here("processed-data","compiled-datasets", "epi_ignite_only_seki.csv"))
+
+#compiled dataset - all dates, all species: 
+
+seki.data.all <- bind_rows(data.seki.epi, data.seki.hp)
+
+write_csv(seki.data.all, here("processed-data", "seki_flam_data_all.csv"))
+```
