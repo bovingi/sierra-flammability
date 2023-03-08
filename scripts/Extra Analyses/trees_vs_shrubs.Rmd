@@ -1,5 +1,5 @@
 ---
-title: "tree2shrub figures 2020"
+title: "Trees vs. Shrubs Figures"
 author: "Indra Boving"
 date: "2023-01-19"
 output: html_document
@@ -10,7 +10,9 @@ library(tidyverse)
 library(here)
 library(lubridate)
 library(janitor)
+here = here::here
 ```
+
 ```{r}
 fct_case_when <- function(...) {
   args <- as.list(match.call())
@@ -22,7 +24,7 @@ fct_case_when <- function(...) {
 
 
 ```{r}
-field_data <- read_csv(here("processed-data", "analysis 2.0","field_data_2020_2021.csv"), show_col_types = FALSE) %>% 
+field_data <- read_csv(here("processed-data", "field_data_2020_2021.csv"), show_col_types = FALSE) %>% 
   select(year, spp, month, site, predawn, midday, type, date) %>% 
   drop_na(year) %>% 
   mutate(month_char = month(date,label=TRUE), 
@@ -290,7 +292,7 @@ ggplot(aes(y = mean_mpa,
 #### 2021 Predawn - midday leaf water potential: 
 
 ```{r}
-field_data_wide <- read_csv(here("processed-data", "analysis 2.0","field_data_2020_2021.csv"), show_col_types = FALSE) %>% 
+field_data_wide <- read_csv(here("processed-data", "field_data_2020_2021.csv"), show_col_types = FALSE) %>% 
   select(year, spp, month, site, predawn, midday, type, date) %>% 
   drop_na(year) %>% 
   mutate(month_char = month(date,label=TRUE), 
@@ -390,7 +392,7 @@ ggplot(aes(y = mean_diff,
 ```
 
 ```{r}
-field_data_wide <- read_csv(here("processed-data", "analysis 2.0","field_data_2020_2021.csv"), show_col_types = FALSE) %>% 
+field_data_wide <- read_csv(here("processed-data", "field_data_2020_2021.csv"), show_col_types = FALSE) %>% 
   select(year, spp, month, site, predawn, midday, type, date) %>% 
   drop_na(year) %>% 
   mutate(month_char = month(date,label=TRUE), 

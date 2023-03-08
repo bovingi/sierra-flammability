@@ -1,0 +1,394 @@
+---
+title: "MPa and LFM"
+author: "Joe Celebrezze"
+date: "7/22/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Introduction
+This script is a "quick script" showing how the water potential and LFM changed over the 2020 season and how this compares to the 2021 season.
+
+NOTE: Some things to fix when doing more in-depth data analysis...
+  Duplicate measures for mpa when looking at old vs. new growth
+  Comparing old/new growth to combined LFM right now -- combine old and new like we did with stems/leaves
+  Old vs. new could be driving differences early season -- compare with phenology data (meet with Isaac)
+  Isohydry vs. anisohydry
+  
+Reading in data and loading necessary packages:
+```{r}
+library(tidyverse)
+library(here)
+here = here::here
+```
+
+```{r}
+df_2020 <- readr::read_csv(here("raw-data", "field.summer.2020.csv"))
+df_2021 <- readr::read_csv(here("raw-data", "summer2021.mpa.lfm.csv"))
+```
+#------------------------------------
+# Data Wrangling
+```{r}
+df_2020[df_2020 == "ABCO "] <- "ABCO"
+
+#source("http://goo.gl/UUyEzD") #outlier KD (original function)
+
+    #The following function is derived from outlierKD (from above)
+outlierKD2 <- function(dt, var) {
+  var_name <- eval(substitute(var),eval(dt))
+  tot <- sum(!is.na(var_name))
+  na1 <- sum(is.na(var_name))
+  m1 <- mean(var_name, na.rm = T)
+  par(mfrow=c(2, 2), oma=c(0,0,3,0))
+  boxplot(var_name, main="With outliers")
+  hist(var_name, main="With outliers", xlab=NA, ylab=NA)
+  outlier <- boxplot.stats(var_name)$out
+  mo <- mean(outlier)
+  var_name <- ifelse(var_name %in% outlier, NA, var_name)
+  boxplot(var_name, main="Without outliers")
+  hist(var_name, main="Without outliers", xlab=NA, ylab=NA)
+  title("Outlier Check", outer=TRUE)
+  na2 <- sum(is.na(var_name))
+  message("Outliers identified: ", na2 - na1, " from ", tot, " observations")
+  message("Proportion (%) of outliers: ", (na2 - na1) / tot*100)
+  message("Mean of the outliers: ", mo)
+  m2 <- mean(var_name, na.rm = T)
+  message("Mean without removing outliers: ", m1)
+  message("Mean if we remove outliers: ", m2)
+    dt[as.character(substitute(var))] <- invisible(var_name)
+    assign(as.character(as.list(match.call())$dt), dt, envir = .GlobalEnv)
+    message("Outliers successfully removed", "\n")
+    return(invisible(dt))
+}
+
+df_2020 <- df_2020 %>% 
+  mutate(lfm.outliers.out = lfm)
+
+outlierKD2(df_2020, lfm.outliers.out) #check for outliers and remove (happens in outliers.out column, lfm column still contains outliers)
+```
+
+Dealing with outliers -- LFM, 2021
+```{r}
+##make column to take out outliers from lfm, while keeping column with original lfms too
+df_2021 <- df_2021 %>%
+  mutate(lfm.outliers.out = lfm)
+
+outlierKD2(df_2021, lfm.outliers.out) #check for outliers and remove (happens in outliers.out column, lfm column still contains outliers)
+```
+
+
+
+```{r}
+df_2020_subset <- df_2020 %>% 
+  select(spp, midday, lfm.outliers.out, date)
+
+df_2021_subset <- df_2021 %>% 
+  select(spp, midday, lfm.outliers.out, date)
+```
+
+
+```{r}
+df_lfm_mpa <- rbind(df_2020_subset, df_2021_subset) %>% 
+  drop_na() %>% 
+  mutate(lfm = lfm.outliers.out, 
+         ate = lubridate::mdy(date), 
+         mpa = midday) %>% 
+  filter(lfm > 45, 
+         #lfm < 250, 
+         mpa < -.10) %>% 
+  select(spp, lfm, mpa)
+
+df_lfm_mpa %>% 
+  ggplot(aes(y = lfm, x = mpa, color = spp)) +
+  geom_point()
+
+write_csv(df_lfm_mpa, here("processed-data", "seki_lfm_mpa_09062022.csv"))
+  
+```
+
+#------------------------------------
+# Data Visualization
+
+## Water Potential
+
+### 2020 Data
+```{r}
+mpa.predawn.2020.plot <- ggplot(data = df_2020, aes(x = doy, y = predawn)) +
+  geom_point(size = 0.5) +
+  geom_smooth(se = F, color = "black", size = 0.3, method = 'lm') +
+  facet_wrap(~spp) + 
+  labs(title = "2020 Predawn", x = "Day of Year", y = "Predawn (MPa)") +
+  theme_bw()
+mpa.predawn.2020.plot
+
+mpa.midday.2020.plot <- ggplot(data = df_2020, aes(x = doy, y = midday)) +
+  geom_point(size = 0.5) +
+  geom_smooth(se = F, color = "black", size = 0.3, method = 'lm') +
+  facet_wrap(~spp) + 
+  labs(title = "2020 Midday", x = "Day of Year", y = "Midday (MPa)") +
+  theme_bw()
+mpa.midday.2020.plot
+```
+
+### 2021 Data
+```{r}
+mpa.predawn.2021.plot <- ggplot(data = df_2021, aes(x = doy, y = predawn)) +
+  geom_point(size = 0.5) +
+  geom_smooth(method = 'lm', se = F, color = "black", size = 0.3) +
+  facet_wrap(~spp) + 
+  labs(title = "2021 Predawn", x = "Day of Year", y = "Predawn (MPa)") +
+  theme_bw()
+mpa.predawn.2021.plot
+
+mpa.midday.2021.plot <- ggplot(data = df_2021, aes(x = doy, y = midday)) +
+  geom_point(size = 0.5) +
+  geom_smooth(method = 'lm', se = F, color = "black", size = 0.3) +
+  facet_wrap(~spp) + 
+  labs(title = "2021 Midday", x = "Day of Year", y = "Midday (MPa)") +
+  theme_bw()
+mpa.midday.2021.plot
+```
+#------------------------------------
+## Live Fuel Moisture
+
+### 2020 Data
+```{r}
+lfm.2020.plot <- ggplot(data = df_2020, aes(x = doy, y = lfm)) +
+  geom_point(size = 0.5) +
+  geom_smooth(method = 'lm', se = F, color = "black", size = 0.3) +
+  facet_wrap(~spp) + 
+  labs(title = "2020 LFM", x = "Day of Year", y = "Live Fuel Moisture") +
+  theme_bw()
+lfm.2020.plot
+```
+
+### 2021 Data
+```{r}
+lfm.2021.plot <- ggplot(data = df_2021, aes(x = doy, y = lfm)) +
+  geom_point(size = 0.5) +
+  geom_smooth(method = 'lm', se = F, color = "black", size = 0.3) +
+  facet_wrap(~spp) + 
+  labs(title = "2021 LFM", x = "Day of Year", y = "Live Fuel Moisture") +
+  theme_bw()
+lfm.2021.plot
+```
+
+=======
+### 2021 Data (Separated by age)
+```{r}
+df_2021.new <- df_2021 %>%
+  filter(age == "new")
+
+lfm.2021.new.plot <- ggplot(data = df_2021.new, aes(x = doy, y = lfm.outliers.out)) +
+  geom_point(size = 0.5) +
+  geom_smooth(method = 'lm', se = F, color = "black", size = 0.3) +
+  facet_wrap(~spp) + 
+  labs(title = "2021 LFM (New Growth)", x = "Day of Year", y = "Live Fuel Moisture") +
+  theme_bw()
+lfm.2021.new.plot
+
+df_2021.old <- df_2021 %>% 
+  filter(age == "old")
+lfm.2021.old.plot <- ggplot(data = df_2021.old, aes(x = doy, y = lfm.outliers.out)) +
+  geom_point(size = 0.5) +
+  geom_smooth(method = 'lm', se = F, color = "black", size = 0.3) +
+  facet_wrap(~spp) + 
+  labs(title = "2021 LFM (Old Growth)", x = "Day of Year", y = "Live Fuel Moisture") +
+  theme_bw()
+lfm.2021.old.plot
+```
+#------------------------------------
+## Live Fuel Moisture vs. Water Potential
+
+### Average Water Potential
+```{r}
+df_2020 <- df_2020 %>% 
+  mutate(mpa = (predawn + midday)/2)
+
+df_2021 <- df_2021 %>% 
+  mutate(predawn = as.numeric(predawn)) %>% 
+  mutate(midday = as.numeric(midday)) %>% 
+  mutate(mpa = (predawn + midday)/2)
+
+lfm.vs.mpa.2020 <- ggplot(data = df_2020, aes(x = mpa, y = lfm)) +
+  geom_point(size = 0.5) +
+  geom_smooth(method = 'lm', se = F, color = 'black', size = 0.3) +
+  facet_wrap(~spp) +
+  labs(title = "2020 LFM vs. Water Potential", 
+       x = "Avg Water Potential (MPa)", y = "Live Fuel Moisture") +
+  theme_bw()
+lfm.vs.mpa.2020
+
+lfm.vs.mpa.2021 <- ggplot(data = df_2021, aes(x = mpa, y = lfm.outliers.out)) +
+  geom_point(size = 0.5) +
+  geom_smooth(method = 'lm', se = F, color = 'black', size = 0.3) +
+  facet_wrap(~spp) +
+  labs(title = "2021 LFM vs. Water Potential", 
+       x = "Avg Water Potential (MPa)", y = "Live Fuel Moisture") +
+  theme_bw()
+lfm.vs.mpa.2021
+```
+
+### Midday
+```{r}
+lfm.vs.mid.2020 <- ggplot(data = df_2020, aes(x = midday, y = lfm)) +
+  geom_point(size = 0.5) +
+  geom_smooth(method = 'lm', se = F, color = 'black', size = 0.3) +
+  facet_wrap(~spp) +
+  labs(title = "2020 LFM vs. Midday Water Potential", 
+       x = "Midday Water Potential (MPa)", y = "Live Fuel Moisture") +
+  theme_bw()
+lfm.vs.mid.2020
+
+lfm.vs.mid.2021 <- ggplot(data = df_2021, aes(x = midday, y = lfm.outliers.out)) +
+  geom_point(size = 0.5) +
+  geom_smooth(method = 'lm', se = F, color = 'black', size = 0.3) +
+  facet_wrap(~spp) +
+  labs(title = "2021 LFM vs. Midday Water Potential", 
+       x = "Midday Water Potential (MPa)", y = "Live Fuel Moisture") +
+  theme_bw()
+lfm.vs.mid.2021
+```
+### Boxplots
+```{r}
+site.labs <- c("Site 1", "Site 2")
+names(site.labs) <- c(1,2)
+
+mpa.predawn.2021.boxplot <- ggplot(data = df_2021, aes(x = as.character(doy), y = predawn)) +
+  geom_boxplot() +
+  facet_wrap(~site, labeller = labeller(site = site.labs)) +
+  labs(title = "2021 Predawn Water Potential", 
+       x = "Day of Year", y = "Predawn Water Potential") +
+  theme_bw()     
+
+mpa.predawn.2021.boxplot
+```
+
+```{r}
+mpa.midday.2021.boxplot <- ggplot(data = df_2021, aes(x = as.character(doy), y = midday)) +
+  geom_boxplot() +
+  facet_wrap(~site, labeller = labeller(site = site.labs)) +
+  labs(title = "2021 Midday Water Potential", 
+       x = "Day of Year", y = "Midday Water Potential") +
+  theme_bw()     
+
+mpa.midday.2021.boxplot
+```
+
+```{r}
+lfm.2021.boxplot <- ggplot(data = df_2021, aes(x = as.character(doy), y = lfm.outliers.out)) +
+  geom_boxplot() +
+  facet_wrap(~site, labeller = labeller(site = site.labs)) +
+  labs(title = "2021 Live Fuel Moisture", 
+       x = "Day of Year", y = "LFM") +
+  theme_bw() 
+
+lfm.2021.boxplot
+```
+
+### Stems vs. Leaves
+```{r}
+df_oct2021 <- read.csv(here('raw-data/CZO_October_StemsLeaves.csv'))
+
+outlierKD2(df_oct2021, lfm)
+outlierKD2(df_oct2021, lfm_both)
+
+df_oct2021_no_both <- df_oct2021 %>% 
+  filter(spp != "QUKE") %>% 
+  filter(spp != "CADE") %>% 
+  filter(spp != "PIJE") %>% 
+  filter(stem.leaves != 'both')
+
+ggplot(data = df_oct2021_no_both, aes(x = lfm, y = lfm_both, color = stem.leaves)) +
+  geom_point() +
+  geom_abline() +
+  labs(x = "LFM (separated)", y = "LFM (compiled)", color = "Stem or Leaves") +
+  scale_color_discrete(name = "Stem or Leaves", labels = c("Leaves", "Stems")) +
+  theme_bw()
+
+ggplot(data = df_oct2021_no_both, aes(x = lfm, y = lfm_both, color = stem.leaves)) +
+  geom_point() +
+  geom_abline() +
+  labs(x = "LFM (separated)", y = "LFM (compiled)", color = "Stem or Leaves") +
+  scale_color_discrete(name = "Stem or Leaves", labels = c("Leaves", "Stems")) +
+  facet_grid(~spp) +
+  theme_bw()
+```
+
+### Stems vs. Leaves Boxplot
+```{r}
+ggplot(data = df_oct2021_no_both, aes(x = spp, y = lfm, fill = stem.leaves)) +
+  geom_boxplot() +
+  labs(x = "Species", y = "LFM", fill = "Stem or Leaves") +
+  scale_fill_discrete(name = "Stem or Leaves", labels = c("Leaves", "Stems")) +
+  theme_bw()
+```
+
+### Difference Between Middays and Predawns
+```{r}
+df_2021 <- df_2021 %>% 
+  mutate(diff_mpa = midday - predawn)
+
+ggplot(data = df_2021, aes(x = as.character(doy), y = diff_mpa)) +
+  geom_boxplot() +
+  facet_wrap(~site) +
+  labs(x = "Day of Year", y = "Difference Between Middays and Predawns") +
+  theme_bw()
+```
+
+```{r}
+df_2021_no_pq <- df_2021 %>% 
+  filter(spp != "PIJE") %>% 
+  filter(spp != 'QUKE')
+
+ggplot(data = df_2021_no_pq, aes(x = as.character(doy), y = diff_mpa)) +
+  geom_boxplot() +
+  facet_grid(spp~site) +
+  labs(x = "Day of Year", y = "Difference Between Middays and Predawns") +
+  theme_bw()
+
+df_2021_pq_only <- df_2021 %>% 
+  filter(spp == 'PIJE'| spp == 'QUKE')
+
+ggplot(data = df_2021_pq_only, aes(x = as.character(doy), y = diff_mpa)) +
+  geom_boxplot() +
+  facet_grid(~spp) +
+  labs(x = "Day of Year", y = "Difference Between Middays and Predawns") +
+  theme_bw()
+```
+
+### LFM vs. Water Potential (later season, old growth only)
+```{r}
+df_2021_late <- df_2021 %>% 
+  filter(doy != 114) %>% filter(doy != 134) %>% filter(doy != 135) %>% filter(doy != 166) %>%  filter(doy != 167) %>%    #filtering out first three trips of the season
+  filter(doy!=289) %>% filter(doy!=290)  #filtering out last trip of season (wetter)
+
+df_2021_late_old <- df_2021_late %>% 
+  filter(age == 'old') # only old growth
+
+lfm.vs.mid.late.old.2021 <- ggplot(data = df_2021_late_old, aes(x = midday, y = lfm.outliers.out)) +
+  geom_point(size = 0.5) +
+  geom_smooth(method = 'lm', se = F, color = 'black', size = 0.3) +
+  facet_wrap(~spp) +
+  labs(title = "2021 LFM vs. Midday Water Potential (Late Season)", 
+       x = "Midday Water Potential (MPa)", y = "Live Fuel Moisture (*Old* Growth)") +
+  theme_bw()
+lfm.vs.mid.late.old.2021
+```
+
+New vs. old
+```{r}
+lfm.vs.mid.late.2021 <- ggplot(data = df_2021_late, aes(x = midday, y = lfm.outliers.out, color = age)) +
+  geom_point(size = 0.5) +
+  geom_smooth(method = 'lm', se = F, color = 'black', size = 0.3) +
+  facet_wrap(~spp) +
+  labs(title = "2021 LFM vs. Midday Water Potential (Late Season)", 
+       x = "Midday Water Potential (MPa)", y = "Live Fuel Moisture") +
+  theme_bw()
+
+lfm.vs.mid.late.2021
+```
+
