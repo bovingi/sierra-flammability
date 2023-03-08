@@ -1,5 +1,5 @@
 ---
-title: 'Data Wrangling: czo Flam. Curves (SB Area)'
+title: 'Data Wrangling: CZO Flam. Curves (2020)'
 author: "Indra Boving"
 date: "2/19/2021"
 output: html_document
@@ -31,7 +31,7 @@ here = here::here
 Read in data:
 
 ```{r}
-raw.data.czo <- read_csv(here("raw-data", "flam.curves.ssCZO.all.data.new.utf8.csv")) 
+raw.data.czo <- read_csv(here("raw-data", "r.flam.data.czo.2020.csv")) 
 raw.data.czo %>% 
   filter(lfm > 0) %>%  #remove rows with missing dry weight/neg. lfm
 str(raw.data.czo)

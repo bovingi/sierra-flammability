@@ -610,7 +610,7 @@ write_csv(here("processed-data", "field_data_2020_2021.csv"))
 # 4. Stems vs. Leaves
 
 ```{r}
-stems_leaves_2021 <- read_csv(here("raw-data", "CZO_October_StemsLeaves_2.csv")) %>%
+stems_leaves_2021 <- read_csv(here("raw-data", "CZO_October_StemsLeaves.csv")) %>%
   clean_names() %>%
   mutate(date = mdy(date),
      	month = month(date),
