@@ -4,9 +4,6 @@ author: "Indra Boving & Joe Celebrezze"
 date: "6/21/2022"
 output: html_document
 ---
-
-NOTE: Bug in this code - fix
-
 # Setup
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
@@ -25,6 +22,7 @@ library(remef)
 library(kableExtra)
 library(modelr)
 library(lubridate)
+library(ggbeeswarm)
 
 #some weird functions:
 filter = dplyr::filter
@@ -110,7 +108,10 @@ mem_data_all_clean <- mem_data_all_raw %>%
   drop_na(mpa_scaled, lfm_scaled, sample_wt_scaled) 
 
 mem_data_all_6 <- mem_data_all_clean %>% 
-  filter(spp != "ceco")
+  filter(spp != "ceco") %>% 
+  mutate(mpa_scaled = as.numeric(mpa_scaled)) %>% 
+  mutate(sample_wt_scaled = as.numeric(sample_wt_scaled)) %>% 
+  mutate(lfm_scaled = as.numeric(lfm_scaled))
 ```
 
 
@@ -165,7 +166,7 @@ tti_mod <- lm(tti ~ spp*mpa_scaled + spp*lfm_scaled
               , data = mem_data_all_6)
 summary(tti_mod)
 
-tti_df <- mem_data_all_6 %>% 
+tti_df <- field_data_all_6 %>%
   modelr::add_predictions(tti_mod)
 
 tti_pred <- tti_df %>% 
@@ -324,8 +325,6 @@ legend_plots <- cowplot::plot_grid(plots, legend,
                                    rel_widths = c(3,1)#rel_widths = c(6,.5)
                                    )
 legend_plots
-
-#ggsave(here('figures', 'predicted.flam.from.field.jpg'), height = 15, width = 8.5)
 ```
 #-------
 # MAIN FIGURE
@@ -360,7 +359,7 @@ field_data_all_means$date <- as.Date(field_data_all_means$date, format='%m/%d')
 
 For labels:
 ```{r}
-x <- as.Date(c(rep('2022-04-24', 5)))
+x <- as.Date(c(rep('2023-04-24', 5)))
 y <- c(-34, 49.5, 44.2, 365, 90)
 labs <- c('a', 'b', 'c', ' ', 'd')
 plot <- c('tti', 'fh', 'fd', 'mt', 'tc')
@@ -590,7 +589,7 @@ legend_plots <- cowplot::plot_grid(plots, legend,
                                    rel_widths = c(2.8,1))
 legend_plots
 
-ggsave(here('figures', 'predicted.flam.from.field.V2.jpg'), height = 15, width = 9)
+ggsave(here('figures', 'main-figures', 'Fig4.predicted.flam.from.field.jpg'), height = 15, width = 9)
 ```
 
 #-------

@@ -560,8 +560,6 @@ plots_legend <- cowplot::plot_grid(plots, legend, rel_widths = c(5, 1))
 plots_legend
 
 #ggsave(plot=plots_legend, bg = "white" , here::here("figures", "mpa_flam_metrics_unscaled"), device="jpg")
-
-ggsave(plot=plots_legend, bg = "white" , here::here("figures", "mpa_flam_metrics_withceco_unscaled"), device="jpg")
 ```
 
 ####LFMs:
@@ -581,8 +579,6 @@ plots_legend <- cowplot::plot_grid(plots, legend, rel_widths = c(5, .6))
 plots_legend
 
 #ggsave(plot=plots_legend, bg = "white" , here::here("figures", "lfm_flam_metrics_unscaled"), device="jpg")
-
-ggsave(plot=plots_legend, bg = "white" , here("figures", "lfm_flam_metrics_withceco_unscaled"), device="jpg")
 ```
 #3. Species differences: 
 
@@ -653,6 +649,6 @@ theme(
   color_many 
 spp_estimates
 
-ggsave(plot=spp_estimates, bg = "white" , here("figures", "spp_estimates_flam_metrics_withceco_unscaled"), device="jpg")
+#ggsave(plot=spp_estimates, bg = "white" , here("figures", "spp_estimates_flam_metrics_withceco_unscaled"), device="jpg")
 ```
 

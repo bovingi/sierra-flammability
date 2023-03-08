@@ -1,0 +1,75 @@
+---
+title: "National Phenology Network Data"
+author: "Indra Boving & Joe Celebrezze"
+date: "6/21/2022"
+output: html_document
+---
+
+# Setup
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(ggplot2)
+library(tidyverse)
+library(ggpubr)
+library(cowplot)
+#library(strengejacke)
+library(sjPlot) # table functions
+library(here)
+library("broom.mixed")
+library(nlme)
+library(lme4)
+library(remef)
+library(kableExtra)
+
+#some weird functions:
+filter = dplyr::filter
+mutate = dplyr::mutate
+select = dplyr::select
+here = here::here
+group_by = dplyr::group_by
+
+source(here::here("scripts", "scripts_functions", "figure_info_sierra_flammability.R")) #color and theme info is here
+
+#install.packages("rnpn") #https://github.com/usa-npn/rnpn
+library(rnpn)
+```
+
+```{r}
+species_list <- npn_species() 
+
+our_spp_df <- species_list %>% 
+  filter(common_name %in% c("Jeffrey pine", 
+                            "white fir", 
+                            "whitethorn ceanothus", 
+                            "California black oak",
+                            "incense cedar",
+                            "greenleaf manzanita"))
+our_spp_ids <- our_spp_df %>% select(species_id) %>% list()
+our_spp_ids
+```
+
+```{r}
+our_spp_list <- list(c("Jeffrey pine", 
+                            "white fir", 
+                            "whitethorn ceanothus", 
+                            "incense cedar", 
+                            "California black oak", 
+                            "greenleaf manzanita"))
+```
+
+# Data Request
+```{r}
+some_data <- npn_download_status_data(request_source='UC Santa Barbara',years=c(2015, 2016, 2017,
+  2018, 2019, 2020, 2021, 2022),species_id=c(765,				
+761,		
+1723,			
+1480,				
+40,			
+766),states=c('CA'))
+
+some_data_have <- some_data %>%  select(common_name) %>% distinct() #we have 6 species! yay!
+
+some_data %>% 
+write_csv(here("processed-data", "npn_data.csv"))
+```

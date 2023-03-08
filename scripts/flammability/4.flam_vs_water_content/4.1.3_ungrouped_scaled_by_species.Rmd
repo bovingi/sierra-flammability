@@ -977,7 +977,7 @@ plots
 plots_legend <- cowplot::plot_grid(plots, legend, rel_widths = c(5, 1))
 plots_legend
 
-ggsave(plot=plots_legend, bg = "white" , here::here("figures", "mpa_flam_metrics_withceco.jpeg"), device="jpg")
+#ggsave(plot=plots_legend, bg = "white" , here::here("figures", "mpa_flam_metrics_withceco.jpeg"), device="jpg")
 ```
 
 #### LFM
@@ -1013,7 +1013,7 @@ plots
 plots_legend <- cowplot::plot_grid(plots, legend, rel_widths = c(5, 1))
 plots_legend
 
-ggsave(plot=plots_legend, bg = "white" , here::here("figures", "lfm_flam_metrics_withceco.jpeg"), device="jpg")
+#ggsave(plot=plots_legend, bg = "white" , here::here("figures", "lfm_flam_metrics_withceco.jpeg"), device="jpg")
 ```
 
 # 2.5. Significance of interaction terms: 
@@ -2063,7 +2063,7 @@ main_figure <- cowplot::plot_grid(legend_and_dotplot, main_figure_no_legend, nco
 main_figure
 
 ggsave(plot = main_figure, bg = 'white', 
-       here("figures", "species.x.hydration.effect.and.scatterplots.jpg"),
+       here("figures", "extra-figures", "Flam.vs.Hydration.version1.jpg"),
        width = 16, height = 10)
 ```
 
@@ -2086,8 +2086,7 @@ ST.df
 
 ```{r}
 ST.df %>% kable(format = 'html', escape = F, col.names = c('Flam. Metric', 'Species', 'Slope',                                'Y Intercept', 'R2 Value')) %>% 
-  kable_styling(bootstrap_options = c('hover', 'bordered', 'condensed'), fixed_thead = T, font_size = 30) %>% 
-  save_kable(here('figures', 'interspecific.differences.summary.table.html'))
+  kable_styling(bootstrap_options = c('hover', 'bordered', 'condensed'), fixed_thead = T, font_size = 30)
 ```
 
 # 7. MEM Table
@@ -2147,8 +2146,7 @@ mem.table.df %>%
   kable_styling(bootstrap_options = c('hover', 'bordered', 'condensed'), fixed_thead = T, font_size = 30) %>% 
   row_spec(0, background = '#B3B3B3', bold = T, color = 'black') %>% 
   row_spec(c(6, 11), italic = T) %>% 
-  row_spec(c(13,22,26), bold = T, background = '#D3D3D3') %>% 
-  save_kable(here('figures', 'MAIN_mem_table.html'))
+  row_spec(c(13,22,26), bold = T, background = '#D3D3D3')
 ```
 
 
@@ -2324,7 +2322,7 @@ gd.ES.lfm.vs.mpa
 ggarrange(tti.ES.lfm.vs.mpa, fh.ES.lfm.vs.mpa, temp_max.ES.lfm.vs.mpa, gd.ES.lfm.vs.mpa,
           ncol = 2, nrow = 2, common.legend = T)
 
-ggsave(here('figures', 'ES.plot.lfm.vs.mpa.jpg'), height = 12, width = 12)
+ggsave(here('figures', 'extra-figures', 'ES.plot.lfm.vs.mpa.jpg'), height = 12, width = 12)
 ```
 
 #### Tidy Dataframe

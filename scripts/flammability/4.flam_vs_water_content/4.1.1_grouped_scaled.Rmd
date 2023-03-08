@@ -1025,9 +1025,7 @@ plots
 plots_legend <- cowplot::plot_grid(plots, legend, rel_widths = c(5, 1))
 plots_legend
 
-#ggsave(plot=plots_legend, bg = "white" , here::here("figures", "mpa_flam_metrics.jpeg"), device="jpg")
-
-ggsave(plot=plots_legend, bg = "white" , here::here("figures", "mpa_flam_metrics_withceco.jpeg"), device="jpg")
+#ggsave(plot=plots_legend, bg = "white" , here::here("figures", "mpa_flam_metrics_withceco.jpeg"), device="jpg")
 ```
 
 #### LFM
@@ -1048,7 +1046,7 @@ plots_legend
 
 #ggsave(plot=plots_legend, bg = "white" , here::here("figures", "lfm_flam_metrics.jpeg"), device="jpg")
 
-ggsave(plot=plots_legend, bg = "white" , here::here("figures", "lfm_flam_metrics_withceco.jpeg"), device="jpg")
+#ggsave(plot=plots_legend, bg = "white" , here::here("figures", "lfm_flam_metrics_withceco.jpeg"), device="jpg")
 ```
 #3. Species Differences
 
@@ -1114,7 +1112,7 @@ theme(
   color_many2
 spp_estimates
 
-ggsave(plot=spp_estimates, bg = "white" , here::here("figures", "spp_estimates_flam_metrics_withceco.jpeg"), device="jpg")
+#ggsave(plot=spp_estimates, bg = "white" , here::here("figures", "spp_estimates_flam_metrics_withceco.jpeg"), device="jpg")
 ```
 
 ## Checking out sample weights
@@ -1740,7 +1738,7 @@ main_figure <- cowplot::plot_grid(main_figure_no_legend, legend_and_boxplot, nco
 main_figure
 
 ggsave(plot = main_figure, bg = 'white', 
-       here("figures", "species.x.hydration.effect.and.scatterplots.jpg"),
+       here("figures", "extra-figures", "Grouped.and.Scaled.Flam.vs.Hydration.jpg"),
        width = 16, height = 10)
 ```
 
@@ -1764,6 +1762,6 @@ ST.df
 ```{r}
 ST.df %>% kable(format = 'html', escape = F, col.names = c('Flam. Metric', 'Species', 'Slope',                                'Y Intercept', 'R2 Value')) %>% 
   kable_styling(bootstrap_options = c('hover', 'bordered', 'condensed'), fixed_thead = T, font_size = 30) %>% 
-  save_kable(here('figures', 'interspecific.differences.summary.table.html'))
+  save_kable(here('figures', 'extra-figures', 'interspecific.differences.summary.table.html'))
 ```
 

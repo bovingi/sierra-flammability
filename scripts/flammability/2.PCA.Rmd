@@ -209,7 +209,7 @@ ggplot(PCAvalues, aes(x = PC1, y = PC2)) +
    ylab(u.axis.labs[2]) +
   coord_equal()
 
-ggsave(here("figures", "pca.jpg"),
+ggsave(here("figures", "extra-figures", "pca.version1.jpg"),
        height = 7, width = 9)
 ```
 
@@ -490,7 +490,7 @@ ggplot(spp_data_pca, aes(x = PC1, y = PC2, color = Species)) +
 
 #ggsave(here("figures", "PCA.angio.vs.gymno.jpg"), height = 8, width = 10)
 
-ggsave(here("figures/PCA.spp.diff.jpg"), height = 8, width = 10) 
+ggsave(here("figures", 'main-figures', 'Fig1.PCA.jpg'), height = 8, width = 10) 
 
 # TO RUN SPP PCA: change Species > Species, legend.text = element_text(face = italic) and change color palette to color_many2
 ```
@@ -519,6 +519,8 @@ there was probably a more elegant way to do that, but since there aren't too man
 Now, using kableExtra package to visualize how each component is weighted by each flam. metric
 
 ```{r}
+#webshot::install_phantomjs() # To save kable as a jpg
+
 pca.table.df %>%
   mutate(flam.metrics = cell_spec(flam.metrics, 'html', bold = ifelse(flam.metrics == c("Proportion of Variance (%)", "Cumulative Proportion (%)"), T, F), color = 'black')) %>% 
   mutate(eig1 = cell_spec(eig1, 'html', bold = ifelse(abs(eig1) > 0.5, T, F), color = 'black')) %>% 
@@ -530,8 +532,7 @@ pca.table.df %>%
   row_spec(c(9:10), background = '#D3D3D3') %>% 
   row_spec(0, bold = T, color = 'black') %>% 
   #save_kable(here('figures', 'pca_table.html'))
-save_kable(here('figures', 'pca_table.jpeg'))
-
+save_kable(here('figures', 'supp-figures', 'TableSX.PCA_results.jpeg'))
 ```
 
 

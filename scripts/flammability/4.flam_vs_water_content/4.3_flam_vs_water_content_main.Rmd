@@ -829,7 +829,7 @@ lfm_spp_plots <- cowplot::plot_grid(tti_plot_lfm_r_spp, fh_plot_lfm_r_spp, temp_
 
 lfm_spp_plots_w_legend <- cowplot::plot_grid(lfm_spp_plots, spp_legend, ncol = 2, rel_widths = c(3, 1))
 
-ggsave(here('figures', 'lfm_flam_metrics.jpeg'), plot = lfm_spp_plots_w_legend, height = 15, width = 8)
+ggsave(here('figures', 'extra-figures', 'lfm_flam_metrics.jpeg'), plot = lfm_spp_plots_w_legend, height = 15, width = 8)
 ```
 
 #### MPa
@@ -838,7 +838,7 @@ mpa_spp_plots <- cowplot::plot_grid(tti_plot_r_spp, fh_plot_r_spp, temp_change_p
 
 mpa_spp_plots_w_legend <- cowplot::plot_grid(mpa_spp_plots, spp_legend, ncol = 2, rel_widths = c(3, 1))
 
-ggsave(here('figures', 'mpa_flam_metrics.jpeg'), plot = mpa_spp_plots_w_legend, height = 15, width = 8)
+ggsave(here('figures', 'extra-figures', 'mpa_flam_metrics.jpeg'), plot = mpa_spp_plots_w_legend, height = 15, width = 8)
 ```
 
 #### Both
@@ -848,7 +848,7 @@ both_spp_plots <- cowplot::plot_grid(tti_plot_lfm_r_spp, tti_plot_r_spp, fh_plot
 both_spp_plots_w_legend <- cowplot::plot_grid(both_spp_plots, spp_legend, ncol = 2, rel_widths = c(6, 1))
 both_spp_plots_w_legend
 
-ggsave(here('figures', 'spp_flam_metrics.jpeg'), plot = both_spp_plots_w_legend, height = 15, width = 15)
+ggsave(here('figures', 'extra-figures', 'spp_flam_metrics.jpeg'), plot = both_spp_plots_w_legend, height = 15, width = 15)
 ```
 
 
@@ -1765,7 +1765,7 @@ main_figure <- cowplot::plot_grid(legend_and_dotplot, main_figure_no_legend, nco
 main_figure
 
 ggsave(plot = main_figure, bg = 'white', 
-       here("figures", "species.x.hydration.effect.and.scatterplots.jpg"),
+       here("figures", "main-figures", "Fig2.Flam.vs.Hydration.jpg"),
        width = 16, height = 10)
 ```
 
@@ -1789,7 +1789,7 @@ ST.df
 ```{r}
 ST.df %>% kable(format = 'html', escape = F, col.names = c('Flam. Metric', 'Species', 'Slope',                                'Y Intercept', 'R2 Value')) %>% 
   kable_styling(bootstrap_options = c('hover', 'bordered', 'condensed'), fixed_thead = T, font_size = 30) %>% 
-  save_kable(here('figures', 'interspecific.differences.summary.table.html'))
+  save_kable(here('figures', 'extra-figures', 'interspecific.differences.summary.table.html'))
 ```
 
 # 7. MEM Table
@@ -1850,7 +1850,7 @@ mem.table.df %>%
   row_spec(0, background = '#B3B3B3', bold = T, color = 'black') %>% 
   row_spec(c(6, 11), italic = T) %>% 
   row_spec(c(13,22,26), bold = T, background = '#D3D3D3') %>% 
-  save_kable(here('figures', 'MAIN_mem_table.html'))
+  save_kable(here('figures', 'supp-figures', 'TableSX.MEM_results.html'))
 ```
 
 ## Angios vs Gymnos
@@ -1909,7 +1909,7 @@ mem.table.df %>%
   row_spec(0, background = '#B3B3B3', bold = T, color = 'black') %>% 
   row_spec(c(6, 8), italic = T) %>% 
   row_spec(c(10,13,17), bold = T, background = '#D3D3D3') %>% 
-  save_kable(here('figures', 'F.Group_mem_table.html'))
+  save_kable(here('figures', 'MEM_figures', 'Functional_Group_MEM_Table.html'))
 ```
 
 # ------------------------------

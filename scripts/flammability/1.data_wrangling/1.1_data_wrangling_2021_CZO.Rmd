@@ -5,13 +5,10 @@ date: "2/19/2021"
 output: html_document
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
-
 # First, let's get our data how we want it
 To load in necessary packages and dataset:
-```{r}
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
 library(ggplot2)
 library(gapminder)
 library(data.table)
