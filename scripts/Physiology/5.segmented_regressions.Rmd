@@ -23,7 +23,7 @@ here = here::here
 select = dplyr::select
 
 # Function to plot mixed effects model segmented regressions:
-source(here::here("scripts", "scripts_functions", "plot_segmented_MEM_V2.R"))
+source(here::here("scripts", "scripts_functions", "plot_segmented_MEM.R"))
 ```
 # ------------------------
 # 1. Field Data
@@ -1119,7 +1119,7 @@ plot_legend
 #------------------------
 # 2. PV Curves
 ```{r,warning=FALSE}
-pv_all_df_4 <- read_csv(here("processed-data", "all_pv_curves_clean_v2.csv"), show_col_types = FALSE) %>%
+pv_all_df_4 <- read_csv(here("processed-data", "all_pv_curves_clean.csv"), show_col_types = FALSE) %>%
   mutate(spp == species) %>% 
   filter(!spp %in% c("ADFA", "CEME")) %>% 
   mutate(sample = as.factor(sample)) %>% 

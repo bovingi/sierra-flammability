@@ -71,7 +71,7 @@ pheno_df_raw <- read.csv(here("raw-data", "phenology_czo_2021.csv")) %>%
   mutate(start_phase = min(date), 
          end_phase = max(date))
 
-pheno_df <- pheno_df_raw
+pheno_df <- pheno_df_raw %>% 
   select(-observation_id, -observation_time, -observation_date, -raw_abundance_value) %>% 
    mutate(spp = fct_relevel(code, "ABCO","PIJE","CADE","ARPA", "CECO", "QUKE"))  
 
@@ -1022,7 +1022,7 @@ field_data_all_3 %>%
   #scale_color_gradientn(colors=met.brewer("Morgenstern"))
 ```
 
-## Species, Age
+## FIG. S1: Species, Age 
 ```{r}
 field_data_all_3 <- field_data_all_3 %>% 
   mutate(Age = case_when(
@@ -1030,10 +1030,14 @@ field_data_all_3 <- field_data_all_3 %>%
     age == 'old' ~ 'Old'
   ))
 
-field_data_all_3 %>%
+lfm_vs_mpa_tissue_status_plot <- field_data_all_3 %>%
   #filter(month < 10) %>% #removing post-rain values (October sample collection)
-  mutate(spp = fct_relevel(spp, "ABCO", "PIJE", "CADE", "CECO", "ARPA", "QUKE"))  %>%
+  mutate(spp = fct_relevel(spp, "ABCO", "PIJE", "CADE", "ARPA", "QUKE", "CECO"))  %>%
   mutate(month = month(date, label = TRUE, abbr = TRUE)) %>%
+  mutate(Age = case_when(
+    Age == "New" ~ "Current Year",
+    Age == "Old" ~ "Previous Year"
+  )) %>% 
   ggplot(aes(
     x = midday,
     y = lfm,
@@ -1053,18 +1057,23 @@ field_data_all_3 %>%
   labs(
     y = "Live Fuel Moisture",
     x = "Midday Water Potential (MPa)",
-    color = "Tissue Age"
+    color = "Tissue Status"
   ) +
   ylim(50, 300) +
   facet_wrap( ~ spp, labeller = labeller(spp = spp.labs)) +
- color_two +
+  scale_color_manual(values = c("#b3beb6", "#262E43")) +
   theme(
     strip.text = element_text(face = "italic"),
     axis.title = element_text(face = "bold"),
     legend.title = element_text(face = "bold"),
-    strip.background = element_rect(fill = "gray90")
-  ) 
+    strip.background = element_rect(fill = "gray90"),
+    legend.key = element_blank())
   #scale_color_gradientn(colors=met.brewer("Morgenstern"))
+lfm_vs_mpa_tissue_status_plot
+
+ggsave(here("figures", "supp-figures", "FigS1.LFM_vs_Midday_spp.jpg"),
+       height = 7, width = 10,
+       plot = lfm_vs_mpa_tissue_status_plot)
 ```
 
 ## Time, Age

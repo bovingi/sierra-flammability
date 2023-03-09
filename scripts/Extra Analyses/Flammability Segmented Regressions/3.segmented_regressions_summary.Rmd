@@ -29,7 +29,7 @@ select = dplyr::select
 
 
 ```{r}
-seg_results_df <- list.files(path = here::here("processed-data", "analysis 2.0", "segmented_reg_all"),  # Identify all CSV files
+seg_results_df <- list.files(path = here::here("processed-data", "flam_segmented_reg"),  # Identify all CSV files
                        pattern = "*.csv", full.names = TRUE) %>% 
   lapply(read_csv) %>%                              # Store all files in list
   bind_rows %>% # Combine data sets into one data set 

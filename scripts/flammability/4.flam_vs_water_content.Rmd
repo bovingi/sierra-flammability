@@ -848,7 +848,7 @@ both_spp_plots <- cowplot::plot_grid(tti_plot_lfm_r_spp, tti_plot_r_spp, fh_plot
 both_spp_plots_w_legend <- cowplot::plot_grid(both_spp_plots, spp_legend, ncol = 2, rel_widths = c(6, 1))
 both_spp_plots_w_legend
 
-ggsave(here('figures', 'extra-figures', 'spp_flam_metrics.jpeg'), plot = both_spp_plots_w_legend, height = 15, width = 15)
+ggsave(here('figures', 'supp-figures', 'FigS2.spp_flam_metrics.jpeg'), plot = both_spp_plots_w_legend, height = 15, width = 15)
 ```
 
 
@@ -1850,7 +1850,7 @@ mem.table.df %>%
   row_spec(0, background = '#B3B3B3', bold = T, color = 'black') %>% 
   row_spec(c(6, 11), italic = T) %>% 
   row_spec(c(13,22,26), bold = T, background = '#D3D3D3') %>% 
-  save_kable(here('figures', 'supp-figures', 'TableSX.MEM_results.html'))
+  save_kable(here('figures', 'supp-figures', 'TableS2.MEM_results.html'))
 ```
 
 ## Angios vs Gymnos
@@ -1909,7 +1909,7 @@ mem.table.df %>%
   row_spec(0, background = '#B3B3B3', bold = T, color = 'black') %>% 
   row_spec(c(6, 8), italic = T) %>% 
   row_spec(c(10,13,17), bold = T, background = '#D3D3D3') %>% 
-  save_kable(here('figures', 'MEM_figures', 'Functional_Group_MEM_Table.html'))
+  save_kable(here('figures', 'supp-figures', 'TableS3.Functional_Group_MEM_Table.html'))
 ```
 
 # ------------------------------

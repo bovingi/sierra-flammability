@@ -37,7 +37,7 @@ here = here::here
 select = dplyr::select
 alpha = scales::alpha # To allow segplot function to run; it got stuck thinking 'alpha' was referring to psych::alpha
 # Function to plot mixed effects model segmented regressions:
-source(here::here("scripts", "scripts_functions", "plot_segmented_MEM_V2.R"))
+source(here::here("scripts", "scripts_functions", "plot_segmented_MEM.R"))
 ```
 
 # Reading in Dataframe
@@ -1257,7 +1257,7 @@ abco_all_segmented_wide <- abco_all_segmented %>%
               values_from = value)
 
 write_csv(abco_all_segmented_wide, 
-          here::here("processed-data", "analysis 2.0", "segmented_reg_all", "abco_all_segmented_wide.csv"))
+          here::here("processed-data", "flam_segmented_reg", "abco_all_segmented_wide.csv"))
 ```
 
 #Visualize: 

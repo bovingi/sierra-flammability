@@ -23,11 +23,12 @@ Reading in data and loading necessary packages:
 library(tidyverse)
 library(here)
 here = here::here
+select = dplyr::select
 ```
 
 ```{r}
 df_2020 <- readr::read_csv(here("raw-data", "field.summer.2020.csv"))
-df_2021 <- readr::read_csv(here("raw-data", "summer2021.mpa.lfm.csv"))
+df_2021 <- readr::read_csv(here("raw-data", "CZO_alldata_compiled.csv"))
 ```
 #------------------------------------
 # Data Wrangling
@@ -104,9 +105,6 @@ df_lfm_mpa <- rbind(df_2020_subset, df_2021_subset) %>%
 df_lfm_mpa %>% 
   ggplot(aes(y = lfm, x = mpa, color = spp)) +
   geom_point()
-
-write_csv(df_lfm_mpa, here("processed-data", "seki_lfm_mpa_09062022.csv"))
-  
 ```
 
 #------------------------------------
@@ -180,7 +178,7 @@ lfm.2021.plot
 ### 2021 Data (Separated by age)
 ```{r}
 df_2021.new <- df_2021 %>%
-  filter(age == "new")
+  filter(`new/old` == "N")
 
 lfm.2021.new.plot <- ggplot(data = df_2021.new, aes(x = doy, y = lfm.outliers.out)) +
   geom_point(size = 0.5) +
@@ -191,7 +189,7 @@ lfm.2021.new.plot <- ggplot(data = df_2021.new, aes(x = doy, y = lfm.outliers.ou
 lfm.2021.new.plot
 
 df_2021.old <- df_2021 %>% 
-  filter(age == "old")
+  filter(`new/old` == "O")
 lfm.2021.old.plot <- ggplot(data = df_2021.old, aes(x = doy, y = lfm.outliers.out)) +
   geom_point(size = 0.5) +
   geom_smooth(method = 'lm', se = F, color = "black", size = 0.3) +
@@ -367,7 +365,7 @@ df_2021_late <- df_2021 %>%
   filter(doy!=289) %>% filter(doy!=290)  #filtering out last trip of season (wetter)
 
 df_2021_late_old <- df_2021_late %>% 
-  filter(age == 'old') # only old growth
+  filter(`new/old` == "old") # only old growth
 
 lfm.vs.mid.late.old.2021 <- ggplot(data = df_2021_late_old, aes(x = midday, y = lfm.outliers.out)) +
   geom_point(size = 0.5) +
@@ -381,7 +379,7 @@ lfm.vs.mid.late.old.2021
 
 New vs. old
 ```{r}
-lfm.vs.mid.late.2021 <- ggplot(data = df_2021_late, aes(x = midday, y = lfm.outliers.out, color = age)) +
+lfm.vs.mid.late.2021 <- ggplot(data = df_2021_late, aes(x = midday, y = lfm.outliers.out, color = `new/old`)) +
   geom_point(size = 0.5) +
   geom_smooth(method = 'lm', se = F, color = 'black', size = 0.3) +
   facet_wrap(~spp) +

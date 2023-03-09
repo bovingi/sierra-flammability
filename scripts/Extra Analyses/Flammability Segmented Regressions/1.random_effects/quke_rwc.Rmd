@@ -26,7 +26,7 @@ here = here::here
 select = dplyr::select
 
 # Function to plot mixed effects model segmented regressions:
-source(here::here("scripts", "scripts_functions", "plot_segmented_MEM_V2.R"))
+source(here::here("scripts", "scripts_functions", "plot_segmented_MEM.R"))
 ```
 
 # -------
@@ -65,7 +65,7 @@ rsegplot.rwc <- function(model, dataframe, x.variable = 'rwc', y.variable, max.x
 
 # Reading in Dataframe
 ```{r}
-seg_data_subset <- read_csv(here("processed-data", "analysis 2.0", "sierra_flam_data_all.csv")) %>% 
+seg_data_subset <- read_csv(here("processed-data", "sierra_flam_data_all.csv")) %>% 
   mutate(id = individual)
 ```
 

@@ -532,7 +532,7 @@ pca.table.df %>%
   row_spec(c(9:10), background = '#D3D3D3') %>% 
   row_spec(0, bold = T, color = 'black') %>% 
   #save_kable(here('figures', 'pca_table.html'))
-save_kable(here('figures', 'supp-figures', 'TableSX.PCA_results.jpeg'))
+save_kable(here('figures', 'supp-figures', 'TableS1.PCA_results.jpeg'))
 ```
 
 

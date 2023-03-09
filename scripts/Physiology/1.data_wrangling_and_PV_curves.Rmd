@@ -407,7 +407,6 @@ Saturated content here is the wettest LFM observed during the field season/100. 
 ```{r, message = FALSE}
 field_data_2021_raw <- read.csv(here("raw-data", "CZO_alldata_compiled.csv")) %>%
   clean_names() %>%
-  select(-spp_1) %>%
   mutate(lfm_tlp = lf_mtlp,
      	age = new_old) %>%
   select(-new_old) %>%

@@ -445,8 +445,8 @@ legend <- plotPercentBars.legend(varPart, col = c(vcol)) +
    theme(plot.margin = unit(c(.2, .5, .3, .25), "cm"),
          axis.title = element_text(face = 'bold', size = 26),
         axis.text = element_text(size = 22),
-        legend.title = element_text(face = 'bold', size = 28),
-       legend.text = element_text(size = 26)
+        legend.title = element_text(face = 'bold', size = 20),
+       legend.text = element_text(size = 17)
         ) +
   labs(fill = "Predictor")
 legend
@@ -593,13 +593,15 @@ plots_stacked <- cowplot::plot_grid(above_vardecomp_angio,
                                     below_vardecomp_angio, 
                                     below_vardecomp_gymno, 
                                     ncol = 2,
-                                    labels=c('a', 'b', 'c', 'd'))
-
+                                    labels=c('a', 'b', 'c', 'd'),
+                                    label_size = 22,
+                                    label_fontface = "bold",
+                                    label_y = 1.03)
 plots_stacked
 
 plots_stacked_legend <- cowplot::plot_grid(plots_stacked, cow_legend, ncol = 2, rel_widths = c(4,1))
 plots_stacked_legend
 
-ggsave(plot=pv_vardecomp_gymno, bg = "white" , here::here("figures",  "extra-figures", "var_decomp", "all_vardecomp"), device="jpg")
+ggsave(plot=plots_stacked_legend, bg = "white" , here::here("figures",  "supp-figures", "FigS3.var_decomp_split_TLP.jpg"), height = 7, width = 9)
 ```
 
