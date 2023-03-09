@@ -61,18 +61,8 @@ This folder includes scripts relating to tissue flammability of the Sierran spec
   **3.2.RWC**:
     
   *3.3_top_MEM_models.Rmd*:
-  
-**4.flam_vs_water_content**: This folder includes scripts investigating relationships between tissue flammability and hydration (water content or water status)
 
-  *4.1.1_grouped_scaled.Rmd*:
-  
-  *4.1.2_ungrouped_scaled.Rmd*:
-  
-  *4.1.3_ungrouped_scaled_by_spp.Rmd*:
-  
-  *4.2_unscaled.Rmd*:
-  
-  *4.3_flam_vs_water_content_main.Rmd*: 
+*4.flam_vs_water_content.Rmd*: 
 
 *5.flammability_in_context.Rmd*:
 
@@ -111,6 +101,8 @@ This folder serves as a place to put any scripts that (a) relate to exploratory 
   **2.bootstrapped**:
   
   *3.segmented_regressions_summary.Rmd*:
+  
+**Flam. vs. Water Content**:
     
 #### scripts_functions
 
@@ -122,7 +114,7 @@ This folder stores any source material or functions used in other scripts.
   
 *plot_facet_flam.R*:
   
-*plot_segmented_MEM.R*: Note that there is also V2 -- delete one
+*plot_segmented_MEM.R*: 
   
 *plotPercentBars_IB.R*:
 
