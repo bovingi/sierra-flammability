@@ -24,8 +24,496 @@ This .Rmd file covers the necessary metadata for the datasets that we used in th
 It does so by describing each column of each dataset included in this GitHub. For more information on the organization of the GitHub or which scripts are responsible for which analyses, see the README file included on the GitHub. Many variables/columns are repeated on multiple datasets, and in these cases we do not describe them again, as this would be redundant; however, we try to make it clear where repeated columns exist and why.
 
 This metadata was last updated on:
-**March 8, 2023** by **Joe Celebrezze**
+**March 15, 2023** by **Joe Celebrezze**
 
 --------------------------
 
 # Raw Data
+
+## allcurves.csv
+```{r}
+allcurves <- read.csv(here('raw-data', 'allcurves.csv'))
+head(allcurves)
+```
+
+*date*: date in MM.DD.YYYY format
+
+*sample*: sample ID used in the PV curves
+
+*fresh_weight*: weight of the sample (in grams)
+
+*dry_weight*: weight of the sample after drying in the drying oven for 100C for 24hrs, as is the typical drying regimen when measuring live fuel moisture
+
+*water_potential*: water potential of the sample (in MPa)
+
+*spp*: abbreviations of study species as follows: ARPA = *Arctostaphylos patula*, ABCO = *Abies concolor*, CADE = *Calocedrus decurrens*, CECO = *Ceanothus cordulatus*, PIJE = *Pinus jeffreyii*, and QUKE = *Quercus kelloggii*
+
+*fresh_weight_saturated*: 
+
+*RWD*:
+
+*TLP*: the turgor loss point
+
+*RWC_at_tlp*: the relative water content at the turgor loss point
+
+*Po*:
+
+*SWC*: the saturated water content
+
+*LFM_at_tlp*: the live fuel moisture at the turgor loss point
+
+*timing*: the season in which we conducted PV curves, either 'spring' or 'fall'
+
+## CZO_October_StemsLeaves.csv
+```{r}
+CZO_October_StemsLeaves <- read.csv(here('raw-data', 'CZO_October_StemsLeaves.csv'))
+head(CZO_October_StemsLeaves)
+```
+
+*date*: date in MM/DD/YY format; in this case, either October 16th or 17th 2021
+
+*site*: numerical identifier of sampling site. Site 1: 36.7209, -118.9708; Site 2: 36.7153, -118.9682
+
+*pod*: numerical identifier of the sampling pod; each site had 5 or 6 pods which ABCO, CADE, CECO, and ARPA were clustered together; note that PIJE and QUKE were sampled exclusively from site 1 and that they were in a slightly separate part of the site than the other four species
+
+*spp*: see *spp* in **allcurves.csv**
+
+*new.old*: whether the sample consisted of new growth (leaves or stems that emerged during the growing season of collection) or old growth (previous years)
+
+*stem.leaves*: whether the sample consisted of leaves or stems
+
+*wet.weight*: the weight of the sample and bottle following collection
+ 
+*dry.weight*: the weight of the sample and bottle following drying for 24hrs at 100C (typical LFM protocol)
+
+*bottle.weight*: the weight of the bottle
+
+*lfm*: the live fuel moisture (%)
+
+*lfm_both*: the live fuel moisture (%) using the data from both the stems and the leaves for each sample
+
+## czo.flam.curve.physiological.data.csv
+```{r}
+czo.flam.curve.physiological.data <- read.csv(here('raw-data', 'czo.flam.curve.physiological.data.csv'))
+head(czo.flam.curve.physiological.data)
+```
+
+*individual*: a sample identifier which combines the *year*, *month*, *spp*, and *sample* values
+
+*year.month*: *year* and *month* separated by an underscore in the following format YYYY_Month
+
+*dry.wt*: an estimate of the dry weight of the sample loaded into the flammability chamber, using *lfm* and *sample_wt*
+
+*model*: the flammability chamber model used for this set of flammability tests; note that the hot plate design was exclusively used for this study, but an epiradiator-based design was used in previous tests
+
+*lfm.NAs.imputed*:
+
+*RWC*: relative water content
+
+*max.mpa.sample*:
+
+*mpa*:
+
+*gww.gdw*:
+
+*gww.gdw.saturated*:
+
+*fresh.wt*:
+
+*site*:
+
+*sample*:
+
+## field.summer.2020.csv
+```{r}
+field.summer.2020 <- read.csv(here('raw-data', 'field.summer.2020.csv'))
+head(field.summer.2020)
+```
+
+*bottle.number*:
+
+*spp*:
+
+*age*:
+
+*pod*:
+
+*site*: 
+
+*lfm*: 
+
+*date*:
+
+*predawn1*:
+
+*predawn2*:
+
+*midday1*: 
+
+*midday2*: 
+
+*predawn*: 
+
+*midday*: 
+
+*type*:
+
+*doy*:
+
+*location*: 
+
+*LFMtlp*:
+
+*MPatlp*:
+
+## LFM_Sierra_AllDates.csv
+```{r}
+LFM_Sierra_AllDates <- read.csv(here('raw-data', 'LFM_Sierra_AllDates.csv'))
+head(LFM_Sierra_AllDates)
+```
+
+*bottle.number*:
+
+*spp*:
+
+*Age*: 
+
+*Pod*: 
+
+*Site*: 
+
+*dry_with_bottle*:
+
+*wet_with_bottle*: 
+
+*LFM*:
+
+*Bottle.Weight*:
+
+*Date*:
+
+*DOY*: 
+
+*type*:
+
+*LOCATION*: 
+
+## phenology_czo_2021.csv
+```{r}
+phenology_czo_2021 <- read.csv(here('raw-data', 'phenology_czo_2021.csv'))
+head(phenology_czo_2021)
+```
+
+*Observation_ID*:
+
+*Observation_Date*:
+
+*Observation_Time*:
+
+*Plant_Nickname*:
+
+*Phenophase_Status*:
+
+*Abundance_Category*:
+
+*Abundance_Category_Value*:
+
+*Raw_Abundnce_Value*:
+
+*Category*:
+
+*Phenophase_Name*: 
+
+*Scientific_Name*: 
+
+## PV_sierra_summaries_fixed.csv
+```{r}
+PV_sierra_summaries_fixed <- read.csv(here('raw-data', 'PV_sierra_summaries_fixed.csv'))
+head(PV_sierra_summaries_fixed)
+```
+
+*Species*: 
+
+*Replicate*: 
+
+*SWC*:
+
+*Po..MPa.*:
+
+*YTLP..MPa.*:
+
+*RWCTLP.*:
+
+*e..MPa.*: 
+
+*CFT..MPa.1.*:
+
+*CTLP..MPa.1.*:
+
+*CFT...mol.m.2.MPa.1.*:
+
+*LFMtlp*:
+
+*date*: 
+
+## PV_sierra_summaries.csv
+```{r}
+PV_sierra_summaries <- read.csv(here('raw-data', 'PV_sierra_summaries.csv'))
+head(PV_sierra_summaries)
+```
+
+This dataset has the same columns as **PV_sierra_summaries.csv**
+
+## r.flam.data.czo.2020.csv
+```{r}
+r.flam.data.czo.2020 <- read.csv(here('raw-data', 'r.flam.data.czo.2020.csv'))
+head(r.flam.data.czo.2020)
+colnames(r.flam.data.czo.2020)
+```
+
+*sample*:
+
+*site*:
+
+*round*:
+
+*spp*:
+
+*model*:
+
+*year*:
+
+*month*:
+
+*video.notes*:
+
+*ambient.temp*:
+
+*ambient.humidity*:
+
+*fh*:
+
+*ignition*:
+
+*glow*:
+
+*ignition.temp*:
+
+*ignition.temp.higher*:
+
+*temp.max*:
+
+
+*temp.max.higher*:
+
+*video.notes.1*:
+
+*sample.length*:
+
+*mpa*:
+
+*bottle.wt*:
+
+*fresh.wt*:
+
+*dry.wt*:
+
+*sample.wt*:
+
+
+*prop.new*:
+
+*prop.new.lfm*:
+
+*lfm.notes*:
+
+*lfm*:
+
+
+*start.temp*:
+
+*temp.start.higher*:
+
+*ttms*:
+
+*ttfg*:
+
+
+*gti*:
+
+*tti*:
+
+*fd*:
+
+*gd*:
+
+*pfg*:                
+
+## r.flam.data.czo.2021.csv
+```{r}
+r.flam.data.czo.2021 <- read.csv(here('raw-data', 'r.flam.data.czo.2021.csv'))
+head(r.flam.data.czo.2021)
+```
+
+*video.notes*:
+
+*ambient.temp*:
+
+*ambient.humidity*:
+
+*surface.temp.start*:
+
+*taller.temp.start*:
+
+*taller.temp.max*:
+
+*surface.temp.max..within.5.secs.of.flame.end*:
+
+*prop.new.flam*:
+
+*glow.pre.ignition*:
+
+*notes..flam*:
+
+*prop.new.lfm*:
+
+## SEKI_flammability.csv
+```{r}
+SEKI_flammability <- read.csv(here('raw-data', 'SEKI_flammability.csv'))
+head(SEKI_flammability)
+```
+
+All of the columns in this dataset are described in the previous two metadata entries for **r.flam.data.2020.csv** and **r.flam.data.2021.csv**
+
+## seki.flam.curve.physiological.data.csv
+```{r}
+seki.flam.curve.physiological.data <- read.csv(here('raw-data', 'seki.flam.curve.physiological.data.csv'))
+head(seki.flam.curve.physiological.data)
+```
+
+All of the columns in **seki.flam.curve.physiological.data.csv** are described in the metadata for  **czo.flam.curve.physiological.data.csv**
+
+--------------------------
+
+# Processed Data
+
+## all_pv_curves_clean.csv
+```{r}
+all_pv_curves_clean <- read.csv(here('processed-data', 'all_pv_curves_clean.csv'))
+head(all_pv_curves_clean)
+```
+
+## allcurves_clean.csv
+```{r}
+allcurves_clean <- read.csv(here('processed-data', 'allcurves_clean.csv'))
+head(allcurves_clean)
+```
+
+## czo_2020_flam_curve_physiological_data.csv
+```{r}
+czo_2020_flam_curve_physiological_data <- read.csv(here('processed-data', 'czo_2020_flam_curve_physiological_data.csv'))
+head(czo_2020_flam_curve_physiological_data)
+```
+
+## czo_2020_flam_data_all.csv
+```{r}
+czo_2020_flam_data_all <- read.csv(here('processed-data', 'czo_2020_flam_data_all.csv'))
+head(czo_2020_flam_data_all)
+```
+
+## czo_2021_flam_curve_physiological_data.csv
+```{r}
+czo_2021_flam_curve_physiological_data <- read.csv(here('processed-data', 'czo_2021_flam_curve_physiological_data.csv'))
+head(czo_2021_flam_curve_physiological_data)
+```
+
+## czo_2021_flam_data_all.csv
+```{r}
+czo_2021_flam_data_all <- read.csv(here('processed-data', 'czo_2021_flam_data_all.csv'))
+head(czo_2021_flam_data_all)
+```
+
+## field_data_2020_2021.csv
+```{r}
+field_data_2020_2021 <- read.csv(here('processed-data', 'field_data_2020_2021.csv'))
+head(field_data_2020_2021)
+```
+
+## flam_curve_phys_all.csv
+```{r}
+flam_curve_phys_all <- read.csv(here('processed-data', 'flam_curve_phys_all.csv'))
+head(flam_curve_phys_all)
+```
+
+## mem_data_sierra_alldates.csv
+```{r}
+mem_data_sierra_alldates <- read.csv(here('processed-data', 'mem_data_sierra_alldates.csv'))
+head(mem_data_sierra_alldates)
+```
+
+## npn_data.csv
+```{r}
+npn_data <- read.csv(here('processed-data', 'npn_data.csv'))
+head(npn_data)
+```
+
+## pca_flam_data_seki.csv
+```{r}
+pca_flam_data_seki <- read.csv(here('processed-data', 'pca_flam_data_seki.csv'))
+head(pca_flam_data_seki)
+```
+
+## seki_flam_data_all.csv
+```{r}
+seki_flam_data_all <- read.csv(here('processed-data', 'seki_flam_data_all.csv'))
+head(seki_flam_data_all)
+```
+
+## sierra_flam_data_all.csv
+```{r}
+sierra_flam_data_all <- read.csv(here('processed-data', 'sierra_flam_data_all.csv'))
+head(sierra_flam_data_all)
+```
+
+## stems_leaves_2021.csv
+```{r}
+stems_leaves_2021 <- read.csv(here('processed-data', 'stems_leaves_2021.csv'))
+head(stems_leaves_2021)
+```
+
+## tidy_all_mems.csv
+```{r}
+tidy_all_mems <- read.csv(here('processed-data', 'tidy_all_mems.csv'))
+head(tidy_all_mems)
+```
+
+## flam_segmented_reg (folder)
+```{r}
+abco_all_segmented_wide <- read.csv(here('processed-data', 'flam_segmented_reg', 'abco_all_segmented_wide.csv'))
+head(abco_all_segmented_wide)
+```
+
+## var-decomp (folder)
+### all_pv_curves_clean_vardecomp.csv
+```{r}
+all_pv_curves_clean_vardecomp <- read.csv(here('processed-data', 'var-decomp', 'all_pv_curves_clean_vardecomp.csv'))
+head(all_pv_curves_clean_vardecomp)
+```
+
+### fgroup_pv_summaries.csv
+```{r}
+fgroup_pv_summaries <- read.csv(here('processed-data', 'var-decomp', 'fgroup_pv_summaries.csv'))
+head(fgroup_pv_summaries)
+```
+
+### field_data_vardecomp.csv
+```{r}
+field_data_vardecomp <- read.csv(here('processed-data', 'var-decomp', 'field_data_vardecomp.csv'))
+head(field_data_vardecomp)
+```
+
+### flam_curve_vardecomp.csv
+```{r}
+flam_curve_vardecomp <- read.csv(here('processed-data', 'var-decomp', 'flam_curve_vardecomp.csv'))
+head(flam_curve_vardecomp)
+```

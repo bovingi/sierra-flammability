@@ -22,15 +22,33 @@ see methods or local papers for how to setup
 ## Breakdown of Folders
 
 ### Raw Data:
-The **raw-data** folder includes ___ datasets in .csv format. Below are brief descriptions of each of these datasets and their use(s); however, for a more comprehensive breakdown of the data, see the metadata.
+The **raw-data** folder includes 13 datasets in .csv format. Below are brief descriptions of each of these datasets and their use(s); however, for a more comprehensive breakdown of the data, see the metadata.
 
   *allcurves.csv*:
   
   *CZO_alldata_compiled.csv*: 
   
-  *CZO_October_StemsLeaves*: 
+  *CZO_October_StemsLeaves.csv*: 
 
-... etc.
+  *czo.flam.curve.physiological.data.csv*:
+  
+  *field.summer.2020.csv*:
+  
+  *LFM_Sierra_AllDates.csv*:
+  
+  *phenology_czo_2021.csv*:
+  
+  *PV_sierra_summaries_fixed.csv*:
+  
+  *PV_sierra_summaris.csv*:
+  
+  *r.flam.data.czo.2020.csv*:
+  
+  *r.flam.data.czo.2021.csv*:
+  
+  *SEKI_flammability.csv*:
+  
+  *seki.flam.curve.physiological.data.csv*:
 
 ### Processed Data:
 This folder includes ...
@@ -103,6 +121,14 @@ This folder serves as a place to put any scripts that (a) relate to exploratory 
   *3.segmented_regressions_summary.Rmd*:
   
 **Flam. vs. Water Content**:
+
+  *4.1.1_grouped_scaled.Rmd*:
+  
+  *4.1.2_ungrouped_scaled.Rmd*:
+  
+  *4.1.3_ungrouped_scaled_by_species.Rmd*:
+  
+  *4.2_unscaled.Rmd*:
     
 #### scripts_functions
 
