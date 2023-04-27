@@ -1,0 +1,305 @@
+---
+title: "Mixed Effects Models - Time to Ignition"
+author: "Indra Boving & Joe Celebrezze"
+date: "6/21/2022"
+output: html_document
+---
+
+# Setup
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+#lots of extra here, but oh well... 
+library(ggplot2)
+library(gapminder)
+library(data.table)
+library(purrr) #for visualizing all variables in one big plot
+library(naniar) #for dealing with NAs nicely 
+library(tidyverse)
+library(devtools)
+library(ggfortify)
+library(ggpubr)
+library(jtools)
+library(cowplot)
+library(lmerTest)
+library(ggeffects)  
+library(GGally) #for corr plots
+require(kimisc) # has the nlist function to create a named list
+require(AICcmodavg) # has the aictab function
+library(psych)
+
+#devtools::install_github("strengejacke/strengejacke")
+library(strengejacke)
+library(sjPlot) # table functions
+library(sjmisc) # sample data
+
+library(lme4) # fitting models
+library(here)
+library(effects) #for plotting model effects
+library(sjstats) #use for r2 functions
+library(TMB)
+library(glmmTMB)
+library(lattice)
+library(equatiomatic)
+library("broom.mixed")
+#library(ggbiplot)
+select = dplyr::select
+here = here::here
+library(MuMIn)
+library(modelsummary)
+#install_github("BlakeRMills/MetBrewer") 
+#library("BlakeRMills/MetBrewer")
+#library(memmented)
+filter = dplyr::filter
+mutate = dplyr::mutate
+library(nlme)
+library(MetBrewer)
+#install.packages("memmented")
+#devtools::install_github("hohenstein/remef")
+library(remef)
+library(kableExtra)
+```
+
+
+#------------------------------------
+# 1. Data wrangling
+Reading in dataframe
+
+- For the Sierra analysis, this is combining all species and dropping the august sampling data (not enough samples and it was measured a lil differently). 
+
+```{r}
+mem_data_all <- read_csv(here("processed-data", "sierra_flam_data_all.csv"), show_col_types = FALSE) %>% 
+  select(lfm, mpa, tti, fh, fd, gd, prop_ignite, temp_change, ignition, sample_wt, dry_wt, fresh_wt, water_wt, location, site, year_month, spp, individual) %>% 
+  mutate(dw_flam_sample = sample_wt * (dry_wt/fresh_wt),
+         ww_flam_sample = sample_wt * (water_wt/fresh_wt)) %>% 
+  mutate(excess_water = (ww_flam_sample - dw_flam_sample)) %>% 
+  mutate(mpa_scaled = scale(mpa)) %>% 
+  group_by(spp) %>% 
+  mutate(dw_flam_sample_scaled = scale(dw_flam_sample), 
+         sample_wt_scaled = scale(sample_wt), 
+         ww_flam_sample_scaled = scale(ww_flam_sample),
+         lfm_scaled = scale(lfm), 
+         excess_water_scaled = scale(excess_water)) %>% 
+  filter(!year_month %in% c("2021_august")) %>% 
+  mutate(fun_gr = case_when(
+    spp == "arpa" ~ "Angiosperm", 
+    spp == "abco" ~ "Gymnosperm",
+    spp == "cade" ~ "Gymnosperm",
+    spp == "ceco" ~ "Angiosperm",
+    spp == "pije" ~ "Gymnosperm",
+    spp == "quke" ~ "Angiosperm"
+  )) 
+```
+
+How many datapoints? (This will help determine how many parameters we can have in the model before overfitting). Even though we have a lot of measurements, we actually likely have much fewer since each replicate is the individual. 
+
+```{r}
+mem_data_all %>% 
+  group_by(individual) %>% 
+  summarise() %>% 
+  nrow
+```
+ We have 124 individuals, so if we want between 10 (worse) and 50 (better) datapoints per parameter, then that leaves us with ideally 2-3 parameters and definitely not more than 12.
+
+```{r}
+mem_data_all %>% 
+ggplot(aes( 
+           y = mpa_scaled, 
+           x = tti, 
+           color = spp)) +
+  geom_point()+
+  geom_smooth(method = "lm")
+
+mem_data_all %>% 
+ggplot(aes( 
+           y = mpa_scaled, 
+           x = tti, 
+           color = fun_gr)) +
+  geom_point()+
+  geom_smooth(method = "lm")
+
+mem_data_all %>% 
+ggplot(aes( 
+           y = lfm_scaled, 
+           x = tti, 
+           color = fun_gr)) +
+  geom_point()+
+  geom_smooth(method = "lm")
+```
+#------------------------------------
+# 2.0 Predicting flam metrics: TTI, FH, FD, GD, Temp change, prop ignite. 
+
+#####Multicolinarity check: 
+```{r}
+performance::multicollinearity(m1.5)
+```
+
+## Maximal model: 
+```{r}
+m0 <- lmer(tti ~ mpa_scaled*spp + lfm_scaled*spp + site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all, REML = F)
+
+summary(m0)
+AIC(m0)
+```
+
+####1) Do we need to keep non-significant covariates? 
+
+```{r}
+m0.1 <- lmer(tti ~ mpa_scaled*spp + lfm_scaled*spp + year_month +  (1 | individual), data = mem_data_all, REML = F)
+summary(m0.1)
+
+AIC(m0.1)
+```
+
+```{r}
+m0.2 <- lmer(tti ~ mpa_scaled*spp + lfm_scaled*spp + site + (1 | individual), data = mem_data_all, REML = F)
+summary(m0.2)
+
+AIC(m0.2)
+```
+
+```{r}
+m0.3 <- lmer(tti ~ mpa_scaled*spp + lfm_scaled*spp + (1 | individual), data = mem_data_all, REML = F)
+summary(m0.3)
+
+AIC(m0.3)
+```
+
+AIC is worse, but maybe that's okay?
+
+####2) Species models: 
+
+```{r}
+m1 <- lmer(tti ~ lfm_scaled*spp + mpa_scaled*spp + (1 | individual), data = mem_data_all, REML = F)
+
+m1.5 <- lmer(tti ~ lfm_scaled + mpa_scaled + spp + (1 | individual), data = mem_data_all, REML = F)
+
+m2 <- lmer(tti ~ mpa_scaled*spp + (1 | individual), data = mem_data_all, REML = F)
+
+m3 <- lmer(tti ~ lfm_scaled*spp + (1 | individual), data = mem_data_all, REML = F)
+
+aictab(c(m0, m1, m2))
+```
+ 
+####3) Functional group models:
+
+```{r}
+m4 <- lmer(tti ~ lfm_scaled*fun_gr + mpa_scaled*fun_gr + (1 | individual), data = mem_data_all, REML = F)
+
+m5 <- lmer(tti ~ mpa_scaled*fun_gr + (1 | individual), data = mem_data_all, REML = F)
+
+m6 <- lmer(tti ~ lfm_scaled*fun_gr + (1 | individual), data = mem_data_all, REML = F)
+```
+
+No species: 
+
+```{r}
+m7 <- lmer(tti ~ lfm_scaled + (1 | individual), data = mem_data_all, REML = F)
+
+m8 <- lmer(tti ~ mpa_scaled + (1 | individual), data = mem_data_all, REML = F)
+
+m9 <- lmer(tti ~ spp + (1 | individual), data = mem_data_all, REML = F)
+```
+
+Compare all of the models: 
+
+```{r}
+aictab(c(m1, m2, m3, m4, m5, m6, m7, m8, m9, m1.5))
+```
+
+Based on AIC, m1 is the most parsemoneous. However, it has 20 parameters so is pretty overfit:
+
+```{r}
+#Even with a very loose threshold for datapoints/parameters, we still should maximally only have 12: 
+124/20
+
+m1.5
+```
+
+So, if we want to compare spp, mostly simply, we need to use m2 or m3.
+
+#3.0 Comparing species models:
+
+Mod check:
+```{r}
+aicm3 <- AIC(m3)
+
+aicm2 <- AIC(m2)
+
+aicm3 - aicm2
+```
+Language for ms:
+
+Due to overfitting, we used separate models for LFM (m3) and MPa (m2) to compare differences in flammability across species. The 'LFM x Species' model was the most parsimonious, with the 'LFM x Mpa' different on the order of AIC = 16.1. If we don't have interactions between Species and hydration metric, then the most parsemoneous model by far (delta AIC > 10) is that model (m1.5). 
+
+```{r}
+m3_df <- broom.mixed::tidy(m3) %>% mutate(model = "LFM * Species", mod = "m3")
+m2_df <- broom.mixed::tidy(m2) %>%  mutate(model = "MPa * Species", mod = "m2")
+m1.5df <- broom.mixed::tidy(m1.5) %>%  mutate(model = "MPa + LFM + Species", mod = "m1.5")
+ 
+
+mods_spp_df <- bind_rows(m2_df, m3_df, m1.5df)
+
+mods_spp_df
+```
+
+Do all of these models agree on their results?
+
+```{r}
+mods_df %>% 
+  # filter(term %in% c("mpa_scaled", "lfm_scaled", "spparpa", "sppcade", "sppceco", "spppije", "sppquke")) %>% 
+  ggplot(aes(x = term, y = estimate, color = model)) +
+  geom_jitter()
+```
+
+Yeah, pretty much. 
+
+#4.0 Comparing F.group models:
+
+Models with Functional Group include a models with Mpa x F.Group and LFM x F.Group (m4), MPa x F.Group (m5), LFM x F.Group (m6). Of these, the most parsemoneous is m4 by quite a bit (AIC > 10). This is the model we can use to compare between functional groups. 
+
+```{r}
+aictab(c(m1, m2, m3, m4, m5, m6, m7, m8, m9, m1.5))
+```
+
+
+```{r}
+m6_df <- broom.mixed::tidy(m6) %>% mutate(model = "LFM * F.Group", mod = "m6")
+m5_df <- broom.mixed::tidy(m5) %>%  mutate(model = "MPa * F.Group", mod = "m5")
+m4_df <- broom.mixed::tidy(m4) %>%  mutate(model = "MPa + LFM + F.Group", mod = "m4")
+ 
+
+mods_df <- bind_rows(mods_spp_df, m4_df, m5_df, m6_df) %>% 
+  mutate(sig = case_when(
+    p.value > 0.05 ~ "No", 
+    TRUE ~ "Yes"
+  ))
+
+mods_df
+```
+
+Do all of these models agree on their results?
+
+```{r}
+mods_df %>% 
+  ggplot(aes(x = term, y = estimate)) +
+  geom_jitter() +
+  facet_wrap(~model)
+```
+
+Yeah, pretty much. 
+
+#5.0 Conclusions (?)
+
+So, to compare species we use 
+```{r}
+top_mods <- mods_df %>% 
+  filter(mod %in% c("m1.5", "m2", "m3", "m4"))
+  
+top_mods %>% 
+  ggplot(aes(x = term, y = estimate, color = sig)) +
+  geom_point() +
+  facet_wrap(~model) +
+  theme(axis.text = element_text(angle = 90))
+```
+
