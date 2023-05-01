@@ -101,8 +101,8 @@ mem_data_all <- read_csv(here("processed-data", "sierra_flam_data_all.csv"), sho
     spp == "quke" ~ "Qu. kelloggii"
   )) %>% 
   filter(ignition != 2) %>% # Removing manual ignitions
-  drop_na(mpa_scaled, lfm_scaled, sample_wt_scaled) 
-
+  drop_na(mpa_scaled, lfm_scaled, sample_wt_scaled)  %>% 
+  filter(spp != "ceco")
 
 field_data_all <- read_csv(here("processed-data", "field_data_2020_2021.csv"), show_col_types = F)
 ```
@@ -177,16 +177,18 @@ summary(m0.1)
 ###Models
 ```{r}
 ####b) Species models: 
+
 m1 <- lmer(tti ~ lfm_scaled*spp + mpa_scaled*spp + (1 | individual), data = mem_data_all, REML = F)
 
-m1.5 <- lmer(tti ~ lfm_scaled + mpa_scaled + spp + (1 | individual), data = mem_data_all, REML = F)
+#m1.5 <- lmer(tti ~ lfm_scaled + mpa_scaled + spp + (1 | individual), data = mem_data_all, REML = F)
 
 m2 <- lmer(tti ~ mpa_scaled*spp + (1 | individual), data = mem_data_all, REML = F)
 
 m3 <- lmer(tti ~ lfm_scaled*spp + (1 | individual), data = mem_data_all, REML = F)
 
 
- 
+aictab(c(m2, m3)) 
+
 ####c) Functional group models:
 
 
@@ -196,28 +198,49 @@ m5 <- lmer(tti ~ mpa_scaled*fun_gr + (1 | individual), data = mem_data_all, REML
 
 m6 <- lmer(tti ~ lfm_scaled*fun_gr + (1 | individual), data = mem_data_all, REML = F)
 
+m6.5 <- lmer(tti ~ lfm_scaled*fun_gr + mpa_scaled + (1 | individual), data = mem_data_all, REML = F)
+
+m6.75 <- lmer(tti ~ lfm_scaled + fun_gr*mpa_scaled + (1 | individual), data = mem_data_all, REML = F)
+
+aictab(c(m4, m5, m6, m6.5, m6.75)) 
 
 #No species: 
 
 
-m7 <- lmer(tti ~ lfm_scaled + (1 | individual), data = mem_data_all, REML = F)
+#m7 <- lmer(tti ~ lfm_scaled + (1 | individual), data = mem_data_all, REML = F)
 
-m8 <- lmer(tti ~ mpa_scaled + (1 | individual), data = mem_data_all, REML = F)
+#m8 <- lmer(tti ~ mpa_scaled + (1 | individual), data = mem_data_all, REML = F)
 
 m9 <- lmer(tti ~ spp + (1 | individual), data = mem_data_all, REML = F)
+
+m10 <- lmer(tti ~ spp*lfm_scaled + mpa_scaled + (1 | individual), data = mem_data_all, REML = F)
+
+m11 <- lmer(tti ~ lfm_scaled + spp*mpa_scaled + (1 | individual), data = mem_data_all, REML = F)
+
+
+
+#Compare all of the models: 
+
+
+aictab(c(#m1, 
+         #m2, 
+         #m3, 
+         m4, 
+         m5, 
+         m6, 
+         m7, 
+         m8
+        # m9, 
+        # m10, 
+        # m11, 
+        # m1.5
+         ))
+
 ```
-
-Compare all of the models: 
-
-```{r}
-aictab(c(m1, m2, m3, m4, m5, m6, m7, m8, m9, m1.5))
-```
-
-Based on AIC, m1 is the most parsemoneous. However, it has 20 parameters so is pretty overfit:
-
-
+Based on AIC, m1 is the most parsemoneous. However, it has 20 parameters so is pretty overfit.
 
 Due to overfitting, we could maybe separate models for LFM (m3) and MPa (m2) to compare differences in flammability across species. The 'LFM x Species' model was the most parsimonious, with the 'LFM x Mpa' different on the order of AIC = 16.1. If we don't have interactions between Species and hydration metric, then the most parsemoneous model by far (delta AIC > 10) is that model (m1.5). 
+
 
 ```{r}
 m3_df <- broom.mixed::tidy(m3) %>% mutate(model = "LFM * Species", mod = "m3")
@@ -247,13 +270,17 @@ Models with Functional Group include a models with Mpa x F.Group and LFM x F.Gro
 
 ```{r}
 aictab(c(m1, m2, m3, m4, m5, m6, m7, m8, m9, m1.5))
+
+m1
+
+aictab(c(m1, m4))
 ```
 
 
 ```{r}
 m6_df <- broom.mixed::tidy(m6) %>% mutate(model = "LFM * F.Group", mod = "m6")
 m5_df <- broom.mixed::tidy(m5) %>%  mutate(model = "MPa * F.Group", mod = "m5")
-m4_df <- broom.mixed::tidy(m4) %>%  mutate(model = "MPa + LFM + F.Group", mod = "m4")
+m4_df <- broom.mixed::tidy(m4) %>%  mutate(model = "MPa * LFM * F.Group", mod = "m4")
  
 
 mods_tti_df <- bind_rows(mods_spp_df, m4_df, m5_df, m6_df) %>% 
@@ -268,7 +295,7 @@ mods_tti_df
 Do all of these models agree on their results?
 
 ```{r}
-mods_df %>% 
+mods_tti_df %>% 
   ggplot(aes(x = term, y = estimate)) +
   geom_jitter() +
   facet_wrap(~model)
@@ -278,7 +305,7 @@ Yeah, pretty much.
 
 So,our best models are as follows: 
 ```{r}
-top_mods <- mods_df %>% 
+top_mods <- mods_tti_df %>% 
   filter(mod %in% c("m1.5", "m2", "m3", "m4"))
   
 top_mods %>% 
@@ -382,7 +409,11 @@ m3 <- lmer(tti ~ lfm_scaled*spp + (1 | individual), data = gymno_df, REML = F)
 
 m4 <- lmer(tti ~ lfm_scaled + mpa_scaled + spp + (1 | individual), data = gymno_df, REML = F)
 
-aictab(c(m1, m2, m3, m4))
+m5 <- lmer(tti ~ lfm_scaled*spp + mpa_scaled + (1 | individual), data = gymno_df, REML = F)
+
+m6 <- lmer(tti ~ lfm_scaled + spp*mpa_scaled + (1 | individual), data = gymno_df, REML = F)
+
+aictab(c(m1, m2, m3, m4, m5, m6))
 
 
 #For gymnosperms, we have too many parameters if we use m0, so kick that one out. We can use the others, and either decide to model MPa and LFM separately (K = 8 for each) or have no interactions (K = 7). Since we're fairly confident that there ARE interactions, we'll likely end up using the model with interactions and a slightly higher K, but that's maybe oky? 
@@ -731,13 +762,58 @@ spp_est_gd_df <- bind_rows(gymno_spp_df, angio_spp_df)
 spp_est_df <- bind_rows(spp_est_tti_df, spp_est_fh_df, spp_est_gd_df)
 ```
 
-#------------------------------------
+#CONCLUSION: 
 
+The 'best' models, that have the lowest AIC and are not overfit are: 
+
+1) Split dataset by f.group
+2) Have MPa x Spp and LFM x Spp as separate models: 
+
+```{r}
+spp_est_df
+
+spp_est_df %>% 
+  filter(
+    mod %in% c("m2", "m3"),
+    flam %in% c('Time to Ignition'),
+    term %in% c(
+      'lfm_scaled:sppquke',
+      'lfm_scaled:spppije',
+      'lfm_scaled',
+      'lfm_scaled:sppceco',
+      'lfm_scaled:sppcade',
+      'mpa_scaled:sppquke',
+      'mpa_scaled:spppije',
+      'mpa_scaled',
+      'mpa_scaled:sppceco',
+      'mpa_scaled:sppcade'
+    )
+  ) %>% 
+  ggplot(aes(y = estimate, x = term)) +
+  geom_point() +
+  facet_wrap(~fun_gr*mod, scales = "free_x")+
+  scale_shape_manual(values = c(10, 16)) +
+  theme(axis.title.x = element_blank(), 
+        axis.text.x = element_blank(),
+        axis.ticks.y.left = element_blank(), 
+        axis.title.y.left = element_blank(),
+        axis.text.y.left = element_blank(),
+        axis.title.y.right = element_text(face = 'bold', size = 14),
+        axis.text.y.right = element_text(size = 12),
+        legend.title = element_text(face = 'bold', size = 14),
+        legend.text = element_text(face = 'italic',),
+        panel.grid = element_blank(), axis.ticks.x = element_blank(),
+        plot.title = element_text(hjust = 0.5, face = 'bold', size = 14),
+        #plot.margin = unit(margins.vector, 'cm'),
+        legend.position = 'none')
+```
+
+
+#------------------------------------
 #3.0 Figures
 
 ###3.1. Scatterplots & Models
 Using remef for all scatterplots
-
 
 ## Functional Groups
 
@@ -813,6 +889,8 @@ tti_plot_lfm_r <- mem_data_all_r %>%
   annotate(geom = "text", x = -2.6, y = 192.5, label = 'b', fontface = 'bold', size = 10)
 tti_plot_lfm_r
 ```
+
+BUT what if we don't want to remove the effect of LFM or MPa, and see them both together?
 
 ####FH
 ```{r}
@@ -907,8 +985,10 @@ gd_mod <- lmer(gd ~ lfm_scaled*F.Group + mpa_scaled*F.Group + (1 | individual), 
 summary(gd_mod)
 #Remef:
 
+#remove effect of LFM
 r_gd_mpa <- remef(gd_mod, fix = c("lfm_scaled"), ran = list(individual = c("(Intercept)"))) # Using Remef for plots with MPa
 
+#Remove effect of MPA:
 r_gd_lfm <- remef(gd_mod, fix = c("mpa_scaled"), ran = list(individual = c("(Intercept)"))) # Using Remef for plots with LFM
 
 mem_data_all_r$r_gd_mpa <- r_gd_mpa
@@ -1036,20 +1116,29 @@ For these plots, focusing on TTI, FH, GD, Prop Ignition
 
 ####Models: 
 ```{r}
-tti_mod <- lmer(tti ~ lfm_scaled*spp + mpa_scaled*spp + (1 | individual), data = angio_df, REML = F)
-fh_mod <- lmer(fh ~ lfm_scaled*spp + mpa_scaled*spp  + (1 | individual), data = angio_df, REML = F)
-tti_mod <- lmer(tti ~ lfm_scaled*spp + mpa_scaled*spp  + (1 | individual), data = angio_df, REML = F)
+tti_mod_ang.mpa <- lmer(tti ~ mpa_scaled*spp  + (1 | individual), data = angio_df, REML = F)
+fh_mod_ang.mpa <- lmer(fh ~ mpa_scaled*spp + (1 | individual), data = angio_df, REML = F)
+tti_mod_ang.mpa <- lmer(tti ~ mpa_scaled*spp  + (1 | individual), data = angio_df, REML = F)
 
-tti_mod <- lmer(tti ~ lfm_scaled*spp + mpa_scaled*spp  + (1 | individual), data = gymno_df, REML = F)
-fh_mod <- lmer(fh ~ lfm_scaled*spp + mpa_scaled*spp  + (1 | individual), data = gymno_df, REML = F)
-gd_mod <- lmer(gd ~ lfm_scaled*spp + mpa_scaled*spp  + (1 | individual), data = gymno_df, REML = F)
+tti_mod_gym.mpa <- lmer(tti ~ mpa_scaled*spp  + (1 | individual), data = gymno_df, REML = F)
+fh_mod_gym.mpa <- lmer(fh ~ mpa_scaled*spp + (1 | individual), data = gymno_df, REML = F)
+tti_mod_gym.mpa <- lmer(tti ~ mpa_scaled*spp  + (1 | individual), data = gymno_df, REML = F)
+
+tti_mod_gym.lfm <- lmer(tti ~ lfm_scaled*spp + (1 | individual), data = gymno_df, REML = F)
+fh_mod_gym.lfm <- lmer(fh ~ lfm_scaled*spp + (1 | individual), data = gymno_df, REML = F)
+gd_mod_gym.lfm <- lmer(gd ~ lfm_scaled*spp + (1 | individual), data = gymno_df, REML = F)
+
+tti_mod_ang.lfm <- lmer(tti ~ lfm_scaled*spp + (1 | individual), data = angio_df, REML = F)
+fh_mod_ang.lfm <- lmer(fh ~ lfm_scaled*spp + (1 | individual), data = angio_df, REML = F)
+gd_mod_ang.lfm <- lmer(gd ~ lfm_scaled*spp + (1 | individual), data = angio_df, REML = F)
 ```
 
 ####Extracting Coefficients: 
 ```{r}
-tti_mod.coef.df <- tidy(tti_mod) %>% 
+tti_mod.coef.df <- tidy(tti_mod_ang.lfm) %>% 
   select(term, estimate, std.error, p.value)%>% 
-  mutate(metric = 'TTI') 
+  mutate(metric = 'TTI', 
+         pred = 'lfm') 
 ```
 
 ### Extracting Coeffecients
