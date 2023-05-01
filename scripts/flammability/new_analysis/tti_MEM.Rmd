@@ -58,6 +58,8 @@ library(MetBrewer)
 #devtools::install_github("hohenstein/remef")
 library(remef)
 library(kableExtra)
+
+source(here::here("scripts", "scripts_functions", "figure_info_sierra_flammability.R")) #color and theme info is here
 ```
 
 
@@ -71,15 +73,16 @@ Reading in dataframe
 mem_data_all <- read_csv(here("processed-data", "sierra_flam_data_all.csv"), show_col_types = FALSE) %>% 
   select(lfm, mpa, tti, fh, fd, gd, prop_ignite, temp_change, ignition, sample_wt, dry_wt, fresh_wt, water_wt, location, site, year_month, spp, individual) %>% 
   mutate(dw_flam_sample = sample_wt * (dry_wt/fresh_wt),
-         ww_flam_sample = sample_wt * (water_wt/fresh_wt)) %>% 
-  mutate(excess_water = (ww_flam_sample - dw_flam_sample)) %>% 
-  mutate(mpa_scaled = scale(mpa)) %>% 
+         ww_flam_sample = sample_wt * (water_wt/fresh_wt),
+         excess_water = (ww_flam_sample - dw_flam_sample),
+         mpa_scaled = scale(mpa)) %>% 
   group_by(spp) %>% 
   mutate(dw_flam_sample_scaled = scale(dw_flam_sample), 
          sample_wt_scaled = scale(sample_wt), 
          ww_flam_sample_scaled = scale(ww_flam_sample),
          lfm_scaled = scale(lfm), 
          excess_water_scaled = scale(excess_water)) %>% 
+  ungroup() %>% 
   filter(!year_month %in% c("2021_august")) %>% 
   mutate(fun_gr = case_when(
     spp == "arpa" ~ "Angiosperm", 
@@ -88,13 +91,26 @@ mem_data_all <- read_csv(here("processed-data", "sierra_flam_data_all.csv"), sho
     spp == "ceco" ~ "Angiosperm",
     spp == "pije" ~ "Gymnosperm",
     spp == "quke" ~ "Angiosperm"
-  )) 
+  ))  %>% 
+  mutate(Species = case_when(
+    spp == "arpa" ~ "Ar. patula", 
+    spp == "abco" ~ "Ab. concolor",
+    spp == "cade" ~ "Ca. decurrens",
+    spp == "ceco" ~ "Ce. cordulatus",
+    spp == "pije" ~ "Pi. jeffreyi",
+    spp == "quke" ~ "Qu. kelloggii"
+  )) %>% 
+  filter(ignition != 2) %>% # Removing manual ignitions
+  drop_na(mpa_scaled, lfm_scaled, sample_wt_scaled) 
+
+
+field_data_all <- read_csv(here("processed-data", "field_data_2020_2021.csv"), show_col_types = F)
 ```
 
 How many datapoints? (This will help determine how many parameters we can have in the model before overfitting). Even though we have a lot of measurements, we actually likely have much fewer since each replicate is the individual. 
 
 ```{r}
-mem_data_all %>% 
+nr_inds_all <- mem_data_all %>% 
   group_by(individual) %>% 
   summarise() %>% 
   nrow
@@ -125,7 +141,14 @@ ggplot(aes(
            color = fun_gr)) +
   geom_point()+
   geom_smooth(method = "lm")
+
+mem_data_all %>% 
+  ggplot(aes(y = mpa, x = lfm, color = spp)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = F) +
+  ylim(0, 10)
 ```
+
 #------------------------------------
 # 2.0 Predicting flam metrics: TTI, FH, FD, GD, Temp change, prop ignite. 
 
@@ -133,6 +156,8 @@ ggplot(aes(
 ```{r}
 performance::multicollinearity(m1.5)
 ```
+
+#TTI: 
 
 ## Maximal model: 
 ```{r}
@@ -142,34 +167,16 @@ summary(m0)
 AIC(m0)
 ```
 
-####1) Do we need to keep non-significant covariates? 
+Do we need to keep non-significant covariates? 
 
 ```{r}
 m0.1 <- lmer(tti ~ mpa_scaled*spp + lfm_scaled*spp + year_month +  (1 | individual), data = mem_data_all, REML = F)
 summary(m0.1)
-
-AIC(m0.1)
 ```
 
+###Models
 ```{r}
-m0.2 <- lmer(tti ~ mpa_scaled*spp + lfm_scaled*spp + site + (1 | individual), data = mem_data_all, REML = F)
-summary(m0.2)
-
-AIC(m0.2)
-```
-
-```{r}
-m0.3 <- lmer(tti ~ mpa_scaled*spp + lfm_scaled*spp + (1 | individual), data = mem_data_all, REML = F)
-summary(m0.3)
-
-AIC(m0.3)
-```
-
-AIC is worse, but maybe that's okay?
-
-####2) Species models: 
-
-```{r}
+####b) Species models: 
 m1 <- lmer(tti ~ lfm_scaled*spp + mpa_scaled*spp + (1 | individual), data = mem_data_all, REML = F)
 
 m1.5 <- lmer(tti ~ lfm_scaled + mpa_scaled + spp + (1 | individual), data = mem_data_all, REML = F)
@@ -178,22 +185,21 @@ m2 <- lmer(tti ~ mpa_scaled*spp + (1 | individual), data = mem_data_all, REML = 
 
 m3 <- lmer(tti ~ lfm_scaled*spp + (1 | individual), data = mem_data_all, REML = F)
 
-aictab(c(m0, m1, m2))
-```
- 
-####3) Functional group models:
 
-```{r}
+ 
+####c) Functional group models:
+
+
 m4 <- lmer(tti ~ lfm_scaled*fun_gr + mpa_scaled*fun_gr + (1 | individual), data = mem_data_all, REML = F)
 
 m5 <- lmer(tti ~ mpa_scaled*fun_gr + (1 | individual), data = mem_data_all, REML = F)
 
 m6 <- lmer(tti ~ lfm_scaled*fun_gr + (1 | individual), data = mem_data_all, REML = F)
-```
 
-No species: 
 
-```{r}
+#No species: 
+
+
 m7 <- lmer(tti ~ lfm_scaled + (1 | individual), data = mem_data_all, REML = F)
 
 m8 <- lmer(tti ~ mpa_scaled + (1 | individual), data = mem_data_all, REML = F)
@@ -209,28 +215,9 @@ aictab(c(m1, m2, m3, m4, m5, m6, m7, m8, m9, m1.5))
 
 Based on AIC, m1 is the most parsemoneous. However, it has 20 parameters so is pretty overfit:
 
-```{r}
-#Even with a very loose threshold for datapoints/parameters, we still should maximally only have 12: 
-124/20
 
-m1.5
-```
 
-So, if we want to compare spp, mostly simply, we need to use m2 or m3.
-
-#3.0 Comparing species models:
-
-Mod check:
-```{r}
-aicm3 <- AIC(m3)
-
-aicm2 <- AIC(m2)
-
-aicm3 - aicm2
-```
-Language for ms:
-
-Due to overfitting, we used separate models for LFM (m3) and MPa (m2) to compare differences in flammability across species. The 'LFM x Species' model was the most parsimonious, with the 'LFM x Mpa' different on the order of AIC = 16.1. If we don't have interactions between Species and hydration metric, then the most parsemoneous model by far (delta AIC > 10) is that model (m1.5). 
+Due to overfitting, we could maybe separate models for LFM (m3) and MPa (m2) to compare differences in flammability across species. The 'LFM x Species' model was the most parsimonious, with the 'LFM x Mpa' different on the order of AIC = 16.1. If we don't have interactions between Species and hydration metric, then the most parsemoneous model by far (delta AIC > 10) is that model (m1.5). 
 
 ```{r}
 m3_df <- broom.mixed::tidy(m3) %>% mutate(model = "LFM * Species", mod = "m3")
@@ -254,7 +241,7 @@ mods_df %>%
 
 Yeah, pretty much. 
 
-#4.0 Comparing F.group models:
+####2.2 Comparing F.group models:
 
 Models with Functional Group include a models with Mpa x F.Group and LFM x F.Group (m4), MPa x F.Group (m5), LFM x F.Group (m6). Of these, the most parsemoneous is m4 by quite a bit (AIC > 10). This is the model we can use to compare between functional groups. 
 
@@ -269,13 +256,13 @@ m5_df <- broom.mixed::tidy(m5) %>%  mutate(model = "MPa * F.Group", mod = "m5")
 m4_df <- broom.mixed::tidy(m4) %>%  mutate(model = "MPa + LFM + F.Group", mod = "m4")
  
 
-mods_df <- bind_rows(mods_spp_df, m4_df, m5_df, m6_df) %>% 
+mods_tti_df <- bind_rows(mods_spp_df, m4_df, m5_df, m6_df) %>% 
   mutate(sig = case_when(
     p.value > 0.05 ~ "No", 
     TRUE ~ "Yes"
   ))
 
-mods_df
+mods_tti_df
 ```
 
 Do all of these models agree on their results?
@@ -289,9 +276,7 @@ mods_df %>%
 
 Yeah, pretty much. 
 
-#5.0 Conclusions (?)
-
-So, to compare species we use 
+So,our best models are as follows: 
 ```{r}
 top_mods <- mods_df %>% 
   filter(mod %in% c("m1.5", "m2", "m3", "m4"))
@@ -302,4 +287,1290 @@ top_mods %>%
   facet_wrap(~model) +
   theme(axis.text = element_text(angle = 90))
 ```
+####2.3 Split by F.group, then do spp:
 
+Since functional groups are different...
+
+```{r}
+m4
+summary(m4)
+```
+
+...we can use that to split the dataset by functional group: 
+
+```{r}
+gymno_df <- mem_data_all %>% 
+  filter(fun_gr %in% c("Gymnosperm"))
+
+angio_df <- mem_data_all %>% 
+  filter(fun_gr %in% c("Angiosperm"))
+```
+
+Now, compare species within each functional group: 
+
+####Angios: 
+
+How many parameters can we have? 
+
+```{r}
+angio_inds <- angio_df %>% 
+  group_by(individual) %>% 
+  summarise() %>% 
+  nrow
+
+angio_inds/10
+
+#Ideally not more than 6...
+
+
+#m0 <- lmer(tti ~ mpa_scaled*spp + lfm_scaled*spp + site + year_month + sample_wt_scaled + (1 | individual), data = angio_df, REML = F) #too many parameters
+
+m1 <- lmer(tti ~ lfm_scaled*spp + mpa_scaled*spp + (1 | individual), data = angio_df, REML = F)
+
+m2 <- lmer(tti ~ mpa_scaled*spp + (1 | individual), data = angio_df, REML = F)
+
+m3 <- lmer(tti ~ lfm_scaled*spp + (1 | individual), data = angio_df, REML = F)
+
+m4 <- lmer(tti ~ lfm_scaled + mpa_scaled + spp + (1 | individual), data = angio_df, REML = F)
+
+aictab(c(m1, m2, m3, m4))
+
+
+#For angiosperms, we have too many parameters if we use m0, so kick that one out. We can use the others, and either decide to model MPa and LFM separately (K = 8 for each) or have no interactions (K = 7). Since we're fairly confident that there ARE interactions, we'll likely end up using the model with interactions and a slightly higher K, but that's maybe oky? 
+
+m3_df <- broom.mixed::tidy(m3) %>% mutate(model = "LFM * Species",
+                                          mod = "m3",
+                                          fun_gr = "Angiosperm",
+                                          flam = "Time to Ignition")
+m2_df <- broom.mixed::tidy(m2) %>%  mutate(model = "MPa * Species",
+                                           mod = "m2",
+                                           fun_gr = "Angiosperm",
+                                           flam = "Time to Ignition")
+m4_df <- broom.mixed::tidy(m1.5) %>%  mutate(model = "MPa + LFM + Species",
+                                             mod = "m4",
+                                             fun_gr = "Angiosperm",
+                                             flam = "Time to Ignition")
+ 
+
+angio_spp_df <- bind_rows(m2_df, m3_df, m4_df)
+
+angio_spp_df
+```
+
+####Gymnos: 
+
+How many parameters can we have? 
+
+```{r}
+gymno_inds <- gymno_df %>% 
+  group_by(individual) %>% 
+  summarise() %>% 
+  nrow
+
+gymno_inds/10
+
+#Ideally not more than 6...
+
+
+#m0 <- lmer(tti ~ mpa_scaled*spp + lfm_scaled*spp + site + year_month + sample_wt_scaled + (1 | individual), data = gymno_df, REML = F) #too many parameters
+
+m1 <- lmer(tti ~ lfm_scaled*spp + mpa_scaled*spp + (1 | individual), data = gymno_df, REML = F)
+
+m2 <- lmer(tti ~ mpa_scaled*spp + (1 | individual), data = gymno_df, REML = F)
+
+m3 <- lmer(tti ~ lfm_scaled*spp + (1 | individual), data = gymno_df, REML = F)
+
+m4 <- lmer(tti ~ lfm_scaled + mpa_scaled + spp + (1 | individual), data = gymno_df, REML = F)
+
+aictab(c(m1, m2, m3, m4))
+
+
+#For gymnosperms, we have too many parameters if we use m0, so kick that one out. We can use the others, and either decide to model MPa and LFM separately (K = 8 for each) or have no interactions (K = 7). Since we're fairly confident that there ARE interactions, we'll likely end up using the model with interactions and a slightly higher K, but that's maybe oky? 
+
+m3_df <- broom.mixed::tidy(m3) %>% mutate(model = "LFM * Species",
+                                          mod = "m3",
+                                          fun_gr = "Gymnosperm",
+                                          flam = "Time to Ignition")
+m2_df <- broom.mixed::tidy(m2) %>%  mutate(model = "MPa * Species",
+                                           mod = "m2",
+                                           fun_gr = "Gymnosperm",
+                                           flam = "Time to Ignition")
+m4_df <- broom.mixed::tidy(m1.5) %>%  mutate(model = "MPa + LFM + Species",
+                                             mod = "m4",
+                                             fun_gr = "Gymnosperm",
+                                             flam = "Time to Ignition")
+
+gymno_spp_df <- bind_rows(m2_df, m3_df, m4_df)
+
+gymno_spp_df
+```
+
+####Combine:
+
+```{r}
+spp_est_tti_df <- bind_rows(gymno_spp_df, angio_spp_df)
+```
+
+#FH: 
+
+###Models:
+
+```{r}
+####e) Species models:
+
+m1 <- lmer(fh ~ lfm_scaled*spp + mpa_scaled*spp + (1 | individual), data = mem_data_all, REML = F)
+
+m1.5 <- lmer(fh ~ lfm_scaled + mpa_scaled + spp + (1 | individual), data = mem_data_all, REML = F)
+
+m2 <- lmer(fh ~ mpa_scaled*spp + (1 | individual), data = mem_data_all, REML = F)
+
+m3 <- lmer(fh ~ lfm_scaled*spp + (1 | individual), data = mem_data_all, REML = F)
+
+
+ 
+###) Functional group models:
+
+
+m4 <- lmer(fh ~ lfm_scaled*fun_gr + mpa_scaled*fun_gr + (1 | individual), data = mem_data_all, REML = F)
+
+m5 <- lmer(fh ~ mpa_scaled*fun_gr + (1 | individual), data = mem_data_all, REML = F)
+
+m6 <- lmer(fh ~ lfm_scaled*fun_gr + (1 | individual), data = mem_data_all, REML = F)
+
+
+#No species: 
+
+
+m7 <- lmer(fh ~ lfm_scaled + (1 | individual), data = mem_data_all, REML = F)
+
+m8 <- lmer(fh ~ mpa_scaled + (1 | individual), data = mem_data_all, REML = F)
+```
+
+Compare all of the models: 
+```{r}
+#Even with a very loose threshold for datapoints/parameters, we still should maximally only have 12: 
+nr_inds_all/10
+```
+
+```{r}
+aictab(c(m1, m2, m3, m4, m5, m6, m7, m8, m1.5))
+```
+
+Models that are not overfit and might work are m3 and m2 (MPa x Spp, or LFM x Spp), but better are m1.5 (MPa + Spp + LFM), or else m4 (Mpa x F Group + LFM x F Group), which we can then split into spp models like last time. 
+
+
+#####2.4 Split by F.group, then do spp:
+
+Models with Functional Group include a models with Mpa x F.Group and LFM x F.Group (m4), MPa x F.Group (m5), LFM x F.Group (m6). Of these, the most parsemoneous is m4 by quite a bit (delta AIC > 10). This is the model we can use to compare between functional groups. 
+
+####Angios: 
+
+How many parameters can we have? 
+
+```{r}
+angio_inds <- angio_df %>% 
+  group_by(individual) %>% 
+  summarise() %>% 
+  nrow
+
+angio_inds/10
+
+#Ideally not more than 6...
+
+
+#m0 <- lmer(fh ~ mpa_scaled*spp + lfm_scaled*spp + site + year_month + sample_wt_scaled + (1 | individual), data = angio_df, REML = F) #too many parameters
+
+m1 <- lmer(fh ~ lfm_scaled*spp + mpa_scaled*spp + (1 | individual), data = angio_df, REML = F)
+
+m2 <- lmer(fh ~ mpa_scaled*spp + (1 | individual), data = angio_df, REML = F)
+
+m3 <- lmer(fh ~ lfm_scaled*spp + (1 | individual), data = angio_df, REML = F)
+
+m4 <- lmer(fh ~ lfm_scaled + mpa_scaled + spp + (1 | individual), data = angio_df, REML = F)
+
+aictab(c(m1, m2, m3, m4))
+
+
+#For angiosperms, we have too many parameters if we use m0, so kick that one out. We can use the others, and either decide to model MPa and LFM separately (K = 8 for each) or have no interactions (K = 7). Since we're fairly confident that there ARE interactions, we'll likely end up using the model with interactions and a slightly higher K, but that's maybe oky? 
+
+m3_df <- broom.mixed::tidy(m3) %>% mutate(model = "LFM * Species",
+                                          mod = "m3",
+                                          fun_gr = "Angiosperm",
+                                          flam = "Flame Height")
+m2_df <- broom.mixed::tidy(m2) %>%  mutate(model = "MPa * Species",
+                                           mod = "m2",
+                                           fun_gr = "Angiosperm",
+                                           flam = "Flame Height")
+m4_df <- broom.mixed::tidy(m1.5) %>%  mutate(model = "MPa + LFM + Species",
+                                             mod = "m4",
+                                             fun_gr = "Angiosperm", 
+                                             flam = "Flame Height")
+ 
+
+angio_spp_df <- bind_rows(m2_df, m3_df, m4_df)
+
+angio_spp_df
+```
+
+####Gymnos: 
+
+How many parameters can we have? 
+
+```{r}
+gymno_inds <- gymno_df %>% 
+  group_by(individual) %>% 
+  summarise() %>% 
+  nrow
+
+gymno_inds/10
+
+#Ideally not more than 6...
+
+
+#m0 <- lmer(fh ~ mpa_scaled*spp + lfm_scaled*spp + site + year_month + sample_wt_scaled + (1 | individual), data = gymno_df, REML = F) #too many parameters
+
+m1 <- lmer(fh ~ lfm_scaled*spp + mpa_scaled*spp + (1 | individual), data = gymno_df, REML = F)
+
+m2 <- lmer(fh ~ mpa_scaled*spp + (1 | individual), data = gymno_df, REML = F)
+
+m3 <- lmer(fh ~ lfm_scaled*spp + (1 | individual), data = gymno_df, REML = F)
+
+m4 <- lmer(fh ~ lfm_scaled + mpa_scaled + spp + (1 | individual), data = gymno_df, REML = F)
+
+aictab(c(m1, m2, m3, m4))
+
+
+#For gymnosperms, we have too many parameters if we use m0, so kick that one out. We can use the others, and either decide to model MPa and LFM separately (K = 8 for each) or have no interactions (K = 7). Since we're fairly confident that there ARE interactions, we'll likely end up using the model with interactions and a slightly higher K, but that's maybe oky? 
+
+m3_df <- broom.mixed::tidy(m3) %>% mutate(
+  model = "LFM * Species",
+  mod = "m3",
+  fun_gr = "Gymnosperm",
+  flam = "Flame Height"
+)
+m2_df <- broom.mixed::tidy(m2) %>%  mutate(
+  model = "MPa * Species",
+  mod = "m2",
+  fun_gr = "Gymnosperm",
+  flam = "Flame Height"
+)
+m4_df <- broom.mixed::tidy(m1.5) %>%  mutate(
+  model = "MPa + LFM + Species",
+  mod = "m4",
+  fun_gr = "Gymnosperm",
+  flam = "Flame Height"
+)
+
+gymno_spp_df <- bind_rows(m2_df, m3_df, m4_df)
+
+gymno_spp_df
+```
+
+####Combine:
+
+```{r}
+spp_est_fh_df <- bind_rows(gymno_spp_df, angio_spp_df)
+```
+
+
+
+#GD: 
+
+####Models:
+
+```{r}
+#### Species models: 
+
+m1 <- lmer(gd ~ lfm_scaled*spp + mpa_scaled*spp + (1 | individual), data = mem_data_all, REML = F)
+
+m1.5 <- lmer(gd ~ lfm_scaled + mpa_scaled + spp + (1 | individual), data = mem_data_all, REML = F)
+
+m2 <- lmer(gd ~ mpa_scaled*spp + (1 | individual), data = mem_data_all, REML = F)
+
+m3 <- lmer(gd ~ lfm_scaled*spp + (1 | individual), data = mem_data_all, REML = F)
+
+#### Functional group models:
+
+
+m4 <- lmer(gd ~ lfm_scaled*fun_gr + mpa_scaled*fun_gr + (1 | individual), data = mem_data_all, REML = F)
+
+m5 <- lmer(gd ~ mpa_scaled*fun_gr + (1 | individual), data = mem_data_all, REML = F)
+
+m6 <- lmer(gd ~ lfm_scaled*fun_gr + (1 | individual), data = mem_data_all, REML = F)
+
+
+#No species: 
+
+
+m7 <- lmer(gd ~ lfm_scaled + (1 | individual), data = mem_data_all, REML = F)
+
+m8 <- lmer(gd ~ mpa_scaled + (1 | individual), data = mem_data_all, REML = F)
+
+aictab(c(m1, m2, m3, m4, m5, m6, m7, m8, m1.5))
+```
+
+Models that are not overfit and might work are m3 and m2 (MPa x Spp, or LFM x Spp), but better are m1.5 (MPa + Spp + LFM), or else m4 (Mpa x F Group + LFM x F Group), which we can then split into spp models like last times. 
+
+
+####Split by F.group, then do spp:
+
+Models with Functional Group include a models with Mpa x F.Group and LFM x F.Group (m4), MPa x F.Group (m5), LFM x F.Group (m6). Of these, the most parsemoneous is m4 by quite a bit (delta AIC > 10). This is the model we can use to compare between functional groups. 
+
+####Angios: 
+
+How many parameters can we have? 
+
+```{r}
+angio_inds <- angio_df %>% 
+  group_by(individual) %>% 
+  summarise() %>% 
+  nrow
+
+angio_inds/10
+
+#Ideally not more than 6...
+
+
+#m0 <- lmer(gd ~ mpa_scaled*spp + lfm_scaled*spp + site + year_month + sample_wt_scaled + (1 | individual), data = angio_df, REML = F) #too many parameters
+
+m1 <- lmer(gd ~ lfm_scaled*spp + mpa_scaled*spp + (1 | individual), data = angio_df, REML = F)
+
+m2 <- lmer(gd ~ mpa_scaled*spp + (1 | individual), data = angio_df, REML = F)
+
+m3 <- lmer(gd ~ lfm_scaled*spp + (1 | individual), data = angio_df, REML = F)
+
+m4 <- lmer(gd ~ lfm_scaled + mpa_scaled + spp + (1 | individual), data = angio_df, REML = F)
+
+aictab(c(m1, m2, m3, m4))
+
+
+#For angiosperms, we have too many parameters if we use m0, so kick that one out. We can use the others, and either decide to model MPa and LFM separately (K = 8 for each) or have no interactions (K = 7). Since we're fairly confident that there ARE interactions, we'll likely end up using the model with interactions and a slightly higher K, but that's maybe oky? 
+
+m3_df <- broom.mixed::tidy(m3) %>% mutate(model = "LFM * Species",
+                                          mod = "m3",
+                                          fun_gr = "Angiosperm",
+                                          flam = "Glow Duration")
+m2_df <- broom.mixed::tidy(m2) %>%  mutate(model = "MPa * Species",
+                                           mod = "m2",
+                                           fun_gr = "Angiosperm",
+                                           flam = "Glow Duration")
+m4_df <- broom.mixed::tidy(m1.5) %>%  mutate(model = "MPa + LFM + Species",
+                                             mod = "m4",
+                                             fun_gr = "Angiosperm", 
+                                             flam = "Glow Duration")
+ 
+
+angio_spp_df <- bind_rows(m2_df, m3_df, m4_df)
+
+angio_spp_df
+```
+
+####Gymnos: 
+
+How many parameters can we have? 
+
+```{r}
+gymno_inds <- gymno_df %>% 
+  group_by(individual) %>% 
+  summarise() %>% 
+  nrow
+
+gymno_inds/10
+
+#Ideally not more than 6...
+
+
+#m0 <- lmer(gd ~ mpa_scaled*spp + lfm_scaled*spp + site + year_month + sample_wt_scaled + (1 | individual), data = gymno_df, REML = F) #too many parameters
+
+m1 <- lmer(gd ~ lfm_scaled*spp + mpa_scaled*spp + (1 | individual), data = gymno_df, REML = F)
+
+m2 <- lmer(gd ~ mpa_scaled*spp + (1 | individual), data = gymno_df, REML = F)
+
+m3 <- lmer(gd ~ lfm_scaled*spp + (1 | individual), data = gymno_df, REML = F)
+
+m4 <- lmer(gd ~ lfm_scaled + mpa_scaled + spp + (1 | individual), data = gymno_df, REML = F)
+
+aictab(c(m1, m2, m3, m4))
+
+
+#For gymnosperms, we have too many parameters if we use m0, so kick that one out. We can use the others, and either decide to model MPa and LFM separately (K = 8 for each) or have no interactions (K = 7). Since we're fairly confident that there ARE interactions, we'll likely end up using the model with interactions and a slightly higher K, but that's maybe oky? 
+
+m3_df <- broom.mixed::tidy(m3) %>% mutate(
+  model = "LFM * Species",
+  mod = "m3",
+  fun_gr = "Gymnosperm",
+  flam = "Glow Duration"
+)
+m2_df <- broom.mixed::tidy(m2) %>%  mutate(
+  model = "MPa * Species",
+  mod = "m2",
+  fun_gr = "Gymnosperm",
+  flam = "Glow Duration"
+)
+m4_df <- broom.mixed::tidy(m1.5) %>%  mutate(
+  model = "MPa + LFM + Species",
+  mod = "m4",
+  fun_gr = "Gymnosperm",
+  flam = "Glow Duration"
+)
+
+gymno_spp_df <- bind_rows(m2_df, m3_df, m4_df)
+
+gymno_spp_df
+```
+
+####Combine:
+
+```{r}
+spp_est_gd_df <- bind_rows(gymno_spp_df, angio_spp_df)
+```
+
+#All together: 
+
+```{r}
+spp_est_df <- bind_rows(spp_est_tti_df, spp_est_fh_df, spp_est_gd_df)
+```
+
+#------------------------------------
+
+#3.0 Figures
+
+###3.1. Scatterplots & Models
+Using remef for all scatterplots
+
+
+## Functional Groups
+
+####TTI
+```{r}
+mem_data_all_r <- mem_data_all %>% drop_na(mpa_scaled, lfm_scaled, sample_wt_scaled, fh, gd)
+mem_data_all_r$Species <- factor(mem_data_all_r$Species, levels = c('Ab. concolor', 'Pi. jeffreyi', 'Ca. decurrens', 'Ar. patula', 'Qu. kelloggii'))
+
+mem_data_all_r <- mem_data_all_r %>%
+  mutate(F.Group = case_when(
+    spp == "arpa" ~ "Angiosperm", 
+    spp == "abco" ~ "Gymnosperm",
+    spp == "cade" ~ "Gymnosperm",
+    spp == "ceco" ~ "Angiosperm",
+    spp == "pije" ~ "Gymnosperm",
+    spp == "quke" ~ "Angiosperm"
+  )) 
+
+tti_mod <- lmer(fh ~ lfm_scaled*F.Group + mpa_scaled*F.Group + (1 | individual), data = mem_data_all_r, REML = T)
+
+summary(tti_mod)
+#Remef:
+
+r_tti_mpa <- remef(tti_mod, fix = c("lfm_scaled"), ran = list(individual = c("(Intercept)"))) # Using Remef for plots with MPa
+
+r_tti_lfm <- remef(tti_mod, fix = c("mpa_scaled"), ran = list(individual = c("(Intercept)"))) # Using Remef for plots with LFM
+
+mem_data_all_r$r_tti_mpa <- r_tti_mpa
+mem_data_all_r$r_tti_lfm <- r_tti_lfm
+
+#Significance (ignore this?)
+
+mem_data_all_r <- mem_data_all_r %>% 
+  mutate(F.tti.lfm.sig = case_when(F.Group == "Angiosperm" ~ "Yes", 
+                               F.Group == "Gymnosperm" ~ "Yes")) %>% 
+  mutate(F.tti.mpa.sig = case_when(F.Group == "Angiosperm" ~ "Yes", 
+                               F.Group == "Gymnosperm" ~ "Yes"))
+```
+
+Visualizations:
+
+Significance is saying "significance of the the interaction term between the 
+```{r}
+tti_plot_mpa_r <- mem_data_all_r %>% 
+  ggplot(aes(y = r_tti_mpa, 
+             x = mpa_scaled, 
+             group = F.Group)) +
+  geom_point(alpha= .4, aes(color = F.Group))+
+  geom_smooth(method = "lm", se = F, aes(color = F.Group, lty = F.tti.mpa.sig), alpha = .75) + 
+  scale_color_manual(values = c('steelblue3', 'darkgreen'))+
+  theme(legend.position = "none",                                   
+        axis.text = element_text(size = 14),
+        axis.title = element_text(size = 22, face = 'bold'))+
+  labs(x = "", 
+       y = "Time to Ignition") +
+  annotate(geom = "text", x = -1.8, y = 235, label = 'a', fontface = 'bold', size = 10)
+tti_plot_mpa_r
+
+# For MAIN figure:
+tti_plot_lfm_r <- mem_data_all_r %>%
+  ggplot(aes(y = r_tti_lfm, 
+             x = lfm_scaled, 
+             group = F.Group)) +
+  geom_point(alpha= .4, aes(color = F.Group))+
+  geom_smooth(method = "lm", se = F, aes(color = F.Group, lty = F.tti.lfm.sig), alpha = .75, lty = 1) + 
+  scale_color_manual(values = c('steelblue3', 'darkgreen')) + 
+  theme(legend.position = "none",
+                       axis.text.y = element_text(size = 13),
+                       axis.title = element_text(size = 16, face = 'bold'),
+                       axis.text.x = element_blank(), axis.ticks.x = element_blank()) +
+  labs(x = "", 
+       y = "Time to Ignition (s)") +
+  annotate(geom = "text", x = -2.6, y = 192.5, label = 'b', fontface = 'bold', size = 10)
+tti_plot_lfm_r
+```
+
+####FH
+```{r}
+mem_data_all_r <- mem_data_all %>% drop_na(mpa_scaled, lfm_scaled, sample_wt_scaled, fh, gd)
+mem_data_all_r$Species <- factor(mem_data_all_r$Species, levels = c('Ab. concolor', 'Pi. jeffreyi', 'Ca. decurrens', 'Ar. patula', 'Qu. kelloggii'))
+
+mem_data_all_r <- mem_data_all_r %>%
+  mutate(F.Group = case_when(
+    spp == "arpa" ~ "Angiosperm", 
+    spp == "abco" ~ "Gymnosperm",
+    spp == "cade" ~ "Gymnosperm",
+    spp == "ceco" ~ "Angiosperm",
+    spp == "pije" ~ "Gymnosperm",
+    spp == "quke" ~ "Angiosperm"
+  )) 
+
+fh_mod <- lmer(fh ~ lfm_scaled*F.Group + mpa_scaled*F.Group + (1 | individual), data = mem_data_all_r, REML = T)
+
+summary(fh_mod)
+#Remef:
+
+r_fh_mpa <- remef(fh_mod, fix = c("lfm_scaled"), ran = list(individual = c("(Intercept)"))) # Using Remef for plots with MPa
+
+r_fh_lfm <- remef(fh_mod, fix = c("mpa_scaled"), ran = list(individual = c("(Intercept)"))) # Using Remef for plots with LFM
+
+mem_data_all_r$r_fh_mpa <- r_fh_mpa
+mem_data_all_r$r_fh_lfm <- r_fh_lfm
+
+#Significance (ignore this?)
+
+mem_data_all_r <- mem_data_all_r %>% 
+  mutate(F.fh.lfm.sig = case_when(F.Group == "Angiosperm" ~ "Yes", 
+                               F.Group == "Gymnosperm" ~ "Yes")) %>% 
+  mutate(F.fh.mpa.sig = case_when(F.Group == "Angiosperm" ~ "Yes", 
+                               F.Group == "Gymnosperm" ~ "Yes"))
+
+#Visualizations: 
+
+fh_plot_r <- mem_data_all_r %>% 
+  ggplot(aes(y = r_fh_mpa, 
+             x = mpa_scaled, 
+             group = F.Group)) +
+  geom_point(alpha= .4, aes(color = F.Group))+
+  geom_smooth(method = "lm", se = F, aes(color = F.Group, lty = F.fh.mpa.sig), alpha = .75) +
+  scale_color_manual(values = c('steelblue3', 'darkgreen'))+
+  theme(legend.position = "none",
+        axis.text = element_text(size = 14),
+        axis.title = element_text(size = 22, face = 'bold'))+
+  labs(x = "", 
+       y = "Flame Height") +
+  annotate(geom = "text", x = -1.8, y = 53, label = 'b', fontface = 'bold', size = 10)
+fh_plot_r
+
+# for MAIN figure
+fh_plot_lfm_r <- mem_data_all_r %>% 
+  ggplot(aes(y = r_fh_lfm, 
+             x = lfm_scaled, 
+             group = F.Group)) +
+  geom_point(alpha= .4, aes(color = F.Group))+
+  geom_smooth(method = "lm", se = F, aes(color = F.Group, lty = F.fh.lfm.sig), alpha = .75) +
+  scale_color_manual(values = c('steelblue3', 'darkgreen')) + 
+  scale_linetype_manual(values = c(3, 1)) +
+  theme(legend.position = "none",
+                       axis.text = element_text(size = 13),
+                       axis.title.y = element_text(size = 16, face = 'bold', 
+                                                   margin = margin(r = 10)),
+                       axis.text.x = element_blank(), axis.ticks.x = element_blank())+
+  labs(x = "", 
+       y = "Flame Height (cm)") +
+  annotate(geom = "text", x = -2.6, y = 54, label = 'c', fontface = 'bold', size = 10)
+fh_plot_lfm_r
+```
+
+####GD: 
+
+```{r}
+mem_data_all_r <- mem_data_all %>% drop_na(mpa_scaled, lfm_scaled, sample_wt_scaled, gd, gd)
+mem_data_all_r$Species <- factor(mem_data_all_r$Species, levels = c('Ab. concolor', 'Pi. jeffreyi', 'Ca. decurrens', 'Ar. patula', 'Qu. kelloggii'))
+
+mem_data_all_r <- mem_data_all_r %>%
+  mutate(F.Group = case_when(
+    spp == "arpa" ~ "Angiosperm", 
+    spp == "abco" ~ "Gymnosperm",
+    spp == "cade" ~ "Gymnosperm",
+    spp == "ceco" ~ "Angiosperm",
+    spp == "pije" ~ "Gymnosperm",
+    spp == "quke" ~ "Angiosperm"
+  )) 
+
+gd_mod <- lmer(gd ~ lfm_scaled*F.Group + mpa_scaled*F.Group + (1 | individual), data = mem_data_all_r, REML = T)
+
+summary(gd_mod)
+#Remef:
+
+r_gd_mpa <- remef(gd_mod, fix = c("lfm_scaled"), ran = list(individual = c("(Intercept)"))) # Using Remef for plots with MPa
+
+r_gd_lfm <- remef(gd_mod, fix = c("mpa_scaled"), ran = list(individual = c("(Intercept)"))) # Using Remef for plots with LFM
+
+mem_data_all_r$r_gd_mpa <- r_gd_mpa
+mem_data_all_r$r_gd_lfm <- r_gd_lfm
+
+#Significance (ignore this?)
+
+mem_data_all_r <- mem_data_all_r %>% 
+  mutate(F.gd.lfm.sig = case_when(F.Group == "Angiosperm" ~ "No", 
+                               F.Group == "Gymnosperm" ~ "No")) %>% 
+  mutate(F.gd.mpa.sig = case_when(F.Group == "Angiosperm" ~ "No", 
+                               F.Group == "Gymnosperm" ~ "No"))
+```
+
+```{r}
+#REMEF
+gd_plot_r <- mem_data_all_r %>% 
+  ggplot(aes(y = r_gd_mpa, 
+             x = mpa_scaled, 
+             group = F.Group)) +
+  geom_point(alpha= .4, aes(color = F.Group))+
+  geom_smooth(method = "lm", se = F, aes(color = F.Group, lty = F.gd.mpa.sig), alpha = .75) +
+  scale_color_manual(values = c('steelblue3', 'darkgreen'))+
+  theme(legend.position = "none",
+        axis.text = element_text(size = 14),
+        axis.title = element_text(size = 22, face = 'bold'))+
+  labs(x = "", 
+       y = "Glow Duration") +
+  annotate(geom = "text", x = -1.8, y = 430, label = 'c', fontface = 'bold', size = 10)
+gd_plot_r
+
+# for *MAIN* figure:
+gd_plot_lfm_r <- mem_data_all_r %>% 
+  ggplot(aes(y = r_gd_lfm, 
+             x = lfm_scaled, 
+             group = F.Group)) +
+  geom_point(alpha= .4, aes(color = F.Group))+
+  geom_smooth(method = "lm", se = F, aes(color = F.Group, lty = F.gd.lfm.sig),
+              alpha = .75, lty = 3) +
+  theme(legend.position = "none",
+                       axis.text = element_text(size = 13),
+                       axis.title = element_text(size = 16, face = 'bold'))+
+  scale_color_manual(values = c('steelblue3', 'darkgreen')) +
+  labs(x = "LFM", 
+       y = "Glow Duration (s)")
+  annotate(geom = "text", x = -2.6, y = 400, label = 'g', fontface = 'bold', size = 10)
+gd_plot_lfm_r
+```
+
+###3.2. Dotplot: % Ignition
+
+```{r, warning = F}
+df <- mem_data_all_clean %>% 
+   mutate(hydration = case_when(
+     lfm <= 100 ~ 'dry', 
+     lfm > 100 ~ 'wet', 
+     TRUE ~ 'something'
+   )) %>% 
+   #filter(lfm < 150) %>% 
+    mutate(ignition2 = case_when(
+     ignition == "M" ~ 0, 
+     ignition == "1 and M" ~ 1, 
+     ignition == "1" ~ 1, 
+     ignition == "2" ~ 1, 
+     ignition == "3" ~ 0, 
+     TRUE ~ as.numeric(ignition))) %>% 
+   group_by(spp, individual, hydration) %>% #group by year, model, spp, group column
+   add_tally %>% 
+   mutate(total = sum(ignition2, na.rm = T), 
+          prop_ignite = paste0(round(100 * total/n)), 
+          prop_ignite = as.numeric(prop_ignite)) %>% 
+  # mutate(prop_dry = ) %>% 
+   mutate(spp_props = forcats::fct_relevel(spp, 
+                                           "ceco", 
+                                           "quke",
+                                           "arpa", 
+                                           "pije", 
+                                           "cade", 
+                                           "abco")) %>% 
+  ungroup() %>% 
+  group_by(spp, individual) %>% 
+   add_tally %>% 
+   mutate(total_all = sum(ignition2, na.rm = T), 
+          prop_ignite_all = paste0(round(100 * total_all/nn)), 
+          prop_ignite_all = as.numeric(prop_ignite_all))
+
+df.dotplot.prop.ig <- df %>% 
+  group_by(spp) %>% 
+  mutate(med_prop_ignite = median(prop_ignite)) %>% 
+  mutate(stdev_prop_ignite = sd(prop_ignite))
+
+df.dotplot.prop.ig$Species <- factor(df.dotplot.prop.ig$Species, levels = c("Ab. concolor", "Pi. jeffreyi", "Ca. decurrens", "Ar. patula", "Ce. cordulatus", "Qu. kelloggii"))
+
+dotplot.prop.ig <- df.dotplot.prop.ig %>%
+   ggplot(aes(y = med_prop_ignite, 
+              x = Species,
+              color = Species)) +
+   geom_point(alpha = .7, size = 5) +
+   geom_linerange(aes(ymin = case_when(
+     med_prop_ignite - 2*stdev_prop_ignite < 0 ~ 0,
+     med_prop_ignite - 2*stdev_prop_ignite > 0 ~ med_prop_ignite - 2*stdev_prop_ignite),
+     ymax = case_when(
+       med_prop_ignite + 2*stdev_prop_ignite > 100 ~ 100,
+       med_prop_ignite + 2*stdev_prop_ignite < 100 ~ med_prop_ignite + 2*stdev_prop_ignite))) +
+   labs(y = "Percent Ignited (%)", 
+        x = "Species")  +
+   scale_y_continuous(limits = c(0, 120), breaks = c(0, 20, 40, 60, 80, 100)) +
+   #scale_x_discrete(guide = guide_axis(n.dodge=2))+ # if we want axis labelled w/ species
+   color_many2 +
+   annotate('text', x = 1, y = 115, label = 'a', fontface = 'bold', size = 10) +
+   theme(axis.title.y = element_text(face = 'bold', size = 14),
+         axis.text.y = element_text(size = 10),
+         axis.title.x = element_blank(),
+         #axis.text.x = element_text(face = 'italic', size = 11),
+         axis.text.x = element_blank(),
+         axis.ticks.x = element_blank(),
+         legend.position = 'none',
+         panel.grid = element_blank())
+dotplot.prop.ig
+```
+
+
+###3.3. Effect Size Plots
+For these plots, focusing on TTI, FH, GD, Prop Ignition
+
+####Models: 
+```{r}
+tti_mod <- lmer(tti ~ lfm_scaled*spp + mpa_scaled*spp + (1 | individual), data = angio_df, REML = F)
+fh_mod <- lmer(fh ~ lfm_scaled*spp + mpa_scaled*spp  + (1 | individual), data = angio_df, REML = F)
+tti_mod <- lmer(tti ~ lfm_scaled*spp + mpa_scaled*spp  + (1 | individual), data = angio_df, REML = F)
+
+tti_mod <- lmer(tti ~ lfm_scaled*spp + mpa_scaled*spp  + (1 | individual), data = gymno_df, REML = F)
+fh_mod <- lmer(fh ~ lfm_scaled*spp + mpa_scaled*spp  + (1 | individual), data = gymno_df, REML = F)
+gd_mod <- lmer(gd ~ lfm_scaled*spp + mpa_scaled*spp  + (1 | individual), data = gymno_df, REML = F)
+```
+
+####Extracting Coefficients: 
+```{r}
+tti_mod.coef.df <- tidy(tti_mod) %>% 
+  select(term, estimate, std.error, p.value)%>% 
+  mutate(metric = 'TTI') 
+```
+
+### Extracting Coeffecients
+```{r}
+tti_mod.coef.df1 <- tidy(tti_mod.lfm) %>% 
+  select(term, estimate, std.error, p.value)%>% 
+  mutate(metric = 'TTI') %>% 
+  mutate(pred = 'lfm')
+
+tti_mod.coef.df2 <- tidy(tti_mod.mpa) %>% 
+  select(term, estimate, std.error, p.value)%>% 
+  mutate(metric = 'TTI') %>% 
+  mutate(pred = 'mpa')
+
+tti_mod.coef.df <- rbind(tti_mod.coef.df1, tti_mod.coef.df2)
+
+gd_mod.coef.df1 <- tidy(gd_mod.lfm) %>% 
+  select(term, estimate, std.error, p.value)%>% 
+  mutate(metric = 'GD') %>% 
+  mutate(pred = 'lfm')
+gd_mod.coef.df2 <- tidy(gd_mod.mpa) %>% 
+  select(term, estimate, std.error, p.value)%>% 
+  mutate(metric = 'GD') %>% 
+  mutate(pred = 'mpa')
+gd_mod.coef.df <- rbind(gd_mod.coef.df1, gd_mod.coef.df2)
+
+fh_mod.coef.df1 <- tidy(fh_mod.lfm) %>% 
+  select(term, estimate, std.error, p.value)%>% 
+  mutate(metric = 'FH') %>% 
+  mutate(pred = 'lfm')
+fh_mod.coef.df2 <- tidy(fh_mod.mpa) %>% 
+  select(term, estimate, std.error, p.value)%>% 
+  mutate(metric = 'FH') %>% 
+  mutate(pred = 'mpa')
+fh_mod.coef.df <- rbind(fh_mod.coef.df1, fh_mod.coef.df2)
+
+temp_mod.coef.df1 <- tidy(lower_temp_max_mod.lfm) %>% 
+  select(term, estimate, std.error, p.value)%>% 
+  mutate(metric = 'Max Temp') %>% 
+  mutate(pred = 'lfm')
+temp_mod.coef.df2 <- tidy(lower_temp_max_mod.mpa) %>% 
+  select(term, estimate, std.error, p.value)%>% 
+  mutate(metric = 'Max Temp') %>% 
+  mutate(pred = 'mpa')
+temp_mod.coef.df <- rbind(temp_mod.coef.df1, temp_mod.coef.df2)
+
+fd_mod.coef.df1 <- tidy(fd_mod.lfm) %>% 
+  select(term, estimate, std.error, p.value)%>% 
+  mutate(metric = 'FD') %>% 
+  mutate(pred = 'lfm')
+fd_mod.coef.df2 <- tidy(fd_mod.mpa) %>% 
+  select(term, estimate, std.error, p.value)%>% 
+  mutate(metric = 'FD') %>% 
+  mutate(pred = 'mpa')
+fd_mod.coef.df <- rbind(fd_mod.coef.df1, fd_mod.coef.df2)
+
+temp_change_mod.coef.df1 <- tidy(temp_change_mod.lfm) %>% 
+  select(term, estimate, std.error, p.value)%>% 
+  mutate(metric = 'Temp Change') %>% 
+  mutate(pred = 'lfm')
+temp_change_mod.coef.df2 <- tidy(temp_change_mod.mpa) %>% 
+  select(term, estimate, std.error, p.value)%>% 
+  mutate(metric = 'Temp Change') %>% 
+  mutate(pred = 'mpa')
+temp_change_mod.coef.df <- rbind(temp_change_mod.coef.df1, temp_change_mod.coef.df2)
+
+coef.df <- rbind(tti_mod.coef.df, fh_mod.coef.df, temp_mod.coef.df, gd_mod.coef.df, fd_mod.coef.df)
+```
+
+Quick visualizations of models:
+```{r}
+tti_spp <- lmer(tti ~ spp + lfm_scaled + (1 | individual), data = mem_data_all_r)
+
+sjPlot::plot_model(tti_mod)
+
+fh_spp <- lmer(fh ~ spp + lfm_scaled + (1 | individual), data = mem_data_all_r)
+
+sjPlot::plot_model(fh_spp)
+
+temp_spp <- lmer(temp_change ~ spp + lfm_scaled + (1 | individual), data = mem_data_all_r)
+
+sjPlot::plot_model(temp_spp)
+```
+
+## Sig. function
+
+```{r}
+significance <- function(p.value.df, sig.vector) {
+  
+  sig.vector <- c(rep("NA", 5))
+  
+for(i in 1:5){
+  
+  if(p.value.df[i] < 0.05){
+  sig.vector[i] <- 'Yes'
+  }
+  
+  else {
+  sig.vector[i] <- 'No'
+  }
+}
+  return(sig.vector)
+}
+```
+
+
+## Visualizations
+### Function
+```{r}
+ES.plot <- function(df, y.var, sig, std.error, mpa = 'no', margins.vector = c(0.1, 0.1, 0.1, 0.1), limits.vector, breaks.vector, axis.title = ' ') 
+  { if(mpa == 'no'){
+  ggplot(data = df, aes(x = species, y = y.var,
+                       color = species, shape = sig)) +
+  labs(color = 'Species', shape = 'Significant?') +
+  geom_point(size = 5) +
+  geom_linerange(aes(ymin = y.var - 0.5*std.error, ymax = y.var + 0.5*std.error)) +
+  geom_abline(intercept = 0, slope = 0, color = 'black', alpha = 0.5, size = 0.3) +
+  theme_bw() +
+  scale_y_continuous(limits = limits.vector, breaks = breaks.vector) +
+  color_noceco+
+  #scale_color_manual(values = c('black', '#FDD358', 'black', 'black', '#FDD358')) + # For color by angio vs gymno (version 1)
+  scale_shape_manual(values = c(10, 16)) +
+ # geom_vline(xintercept = 3.4, alpha = 0.5, size = 0.3, lty = 2) +
+ # annotate(geom = "text", x = 2, y = 14, label = 'Gymnosperms', size = 4) +
+ # annotate(geom = "text", x = 4.52, y = 14, label = 'Angiosperms', size = 4) +
+  theme(axis.title.x = element_blank(), axis.text.x = element_blank(),
+        axis.title.y = element_blank(), 
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        legend.title = element_text(face = 'bold', size = 14),
+        legend.text = element_text(face = 'italic'),
+        panel.grid = element_blank(), axis.ticks.x = element_blank(),
+        plot.title = element_text(hjust = 0.5, face = 'bold', size = 14),
+        plot.margin = unit(margins.vector, 'cm'),
+        legend.position = 'none')
+  }
+ else{
+   ggplot(data = df, aes(x = species, y = y.var,
+                       color = species, shape = sig)) +
+  labs(color = 'Species', shape = 'Significant?') +
+  geom_point(size = 5) +
+  geom_linerange(aes(ymin = y.var - 0.5*std.error, ymax = y.var + 0.5*std.error)) +
+  geom_abline(intercept = 0, slope = 0, color = 'black', alpha = 0.5, size = 0.3) +
+  theme_bw() +
+  scale_y_continuous(limits = limits.vector, breaks = breaks.vector,
+                     sec.axis = sec_axis(trans = ~.*1, 
+                     name = axis.title,
+                     breaks = breaks.vector,
+                     labels = breaks.vector)) +
+  color_noceco+
+  #scale_color_manual(values = c('black', '#FDD358', 'black', 'black', '#FDD358')) + # For color by angio vs gymno (version 1)
+  scale_shape_manual(values = c(10, 16)) +
+ # geom_vline(xintercept = 3.4, alpha = 0.5, size = 0.3, lty = 2) +
+ # annotate(geom = "text", x = 2, y = 14, label = 'Gymnosperms', size = 4) +
+ # annotate(geom = "text", x = 4.52, y = 14, label = 'Angiosperms', size = 4) +
+  theme(axis.title.x = element_blank(), 
+        axis.text.x = element_blank(),
+        axis.ticks.y.left = element_blank(), 
+        axis.title.y.left = element_blank(),
+        axis.text.y.left = element_blank(),
+        axis.title.y.right = element_text(face = 'bold', size = 14),
+        axis.text.y.right = element_text(size = 12),
+        legend.title = element_text(face = 'bold', size = 14),
+        legend.text = element_text(face = 'italic',),
+        panel.grid = element_blank(), axis.ticks.x = element_blank(),
+        plot.title = element_text(hjust = 0.5, face = 'bold', size = 14),
+        plot.margin = unit(margins.vector, 'cm'),
+        legend.position = 'none')
+ }
+}
+```
+
+### TTI
+Setup:
+```{r}
+species <- c("A. concolor", "P. jeffreyi", "C. decurrens", "A. patula", "Q. kelloggii")
+ref <- tti_mod.coef.df$estimate[6]
+tti.ES.lfm <- c(ref, ref + tti_mod.coef.df$estimate[12],
+                ref + tti_mod.coef.df$estimate[11],
+                ref + tti_mod.coef.df$estimate[10],
+                ref + tti_mod.coef.df$estimate[13])
+  # Following this order: ABCO, PIJE, CADE, ARPA, QUKE (no CECO)
+tti.SE.lfm <- c(tti_mod.coef.df$std.error[c(6, 12, 11, 10, 13)])
+tti.sig.lfm <- significance(tti.p.value.lfm, tti.sig.lfm) # Gathering p-values from vectors made in 2.5 section
+ref2 <- tti_mod.coef.df$estimate[21]
+tti.ES.mpa <- c(ref2, ref2 + tti_mod.coef.df$estimate[27],
+                ref2 + tti_mod.coef.df$estimate[26], 
+                ref2 + tti_mod.coef.df$estimate[25], 
+                ref2 + tti_mod.coef.df$estimate[28]) 
+tti.SE.mpa <- c(tti_mod.coef.df$std.error[c(21, 27, 26, 25, 28)])
+tti.sig.mpa <- significance(tti.p.value.mpa, tti.sig.mpa)
+tti.ES.df <- data.frame(species, tti.ES.lfm, tti.SE.lfm, tti.p.value.lfm, tti.sig.lfm, tti.ES.mpa, tti.SE.mpa, tti.p.value.mpa, tti.sig.mpa)
+
+tti.ES.df$species <- factor(tti.ES.df$species, levels = c("A. concolor", "P. jeffreyi", "C. decurrens", "A. patula", "Q. kelloggii"))
+```
+
+Plots:
+```{r}
+tti.ES.lfm.plot <- ES.plot(tti.ES.df, tti.ES.lfm, tti.sig.lfm, tti.SE.lfm,
+                           margins.vector = c(0.2, 0.05, 0.1, 0.1),
+                           limits.vector = c(-6, 19),
+                           breaks.vector = c(-5, 0, 5, 10, 15)) +
+  annotate(geom = "text", x = 0.85, y = 17.2, label = 'e',
+           fontface = 'bold', size = 10) +
+  labs(title = 'LFM')
+tti.ES.lfm.plot
+
+tti.ES.mpa.plot <- ES.plot(tti.ES.df, tti.ES.mpa, tti.sig.mpa, tti.SE.mpa,
+                           mpa = 'y',
+                           margins.vector = c(0.2, 0.3, 0.1, 0),
+                           limits.vector = c(-6, 19),
+                           breaks.vector = c(-5, 0, 5, 10, 15)) +
+  annotate(geom = "text", x = 0.85, y = 17.2, label = 'h',
+           fontface = 'bold', size = 10) +
+  labs(title = 'Water Potential')
+tti.ES.mpa.plot
+```
+
+### FH
+Setup:
+```{r}
+ref <- fh_mod.coef.df$estimate[6]
+fh.ES.lfm <- c(ref, ref + fh_mod.coef.df$estimate[12],
+                ref + fh_mod.coef.df$estimate[11],
+                ref + fh_mod.coef.df$estimate[10],
+                ref + fh_mod.coef.df$estimate[13])
+  # Following this order: ABCO, PIJE, CADE, ARPA, QUKE (no CECO)
+fh.SE.lfm <- c(fh_mod.coef.df$std.error[c(6, 12, 11, 10, 13)])
+fh.sig.lfm <- significance(fh.p.value.lfm, fh.sig.lfm) # Gathering p-values from vectors made in 2.5 section
+ref2 <- fh_mod.coef.df$estimate[21]
+fh.ES.mpa <- c(ref2, ref2 + fh_mod.coef.df$estimate[27],
+                ref2 + fh_mod.coef.df$estimate[26], 
+                ref2 + fh_mod.coef.df$estimate[25], 
+                ref2 + fh_mod.coef.df$estimate[28]) 
+fh.SE.mpa <- c(fh_mod.coef.df$std.error[c(21, 27, 26, 25, 28)])
+fh.sig.mpa <- significance(fh.p.value.mpa, fh.sig.mpa)
+fh.ES.df <- data.frame(species, fh.ES.lfm, fh.SE.lfm, fh.p.value.lfm, fh.sig.lfm, fh.ES.mpa, fh.SE.mpa, fh.p.value.mpa, fh.sig.mpa)
+
+fh.ES.df$species <- factor(fh.ES.df$species, levels = c("A. concolor", "P. jeffreyi", "C. decurrens", "A. patula", "Q. kelloggii"))
+```
+
+Plots:
+```{r}
+fh.ES.lfm.plot <- ES.plot(fh.ES.df, fh.ES.lfm, fh.sig.lfm, fh.SE.lfm,
+                           margins.vector = c(0.1, 0.05, 0.1, 0.1),
+                           limits.vector = c(-5.5, 5),
+                           breaks.vector = c(-4, -2, 0, 2, 4)) +
+  annotate(geom = "text", x = 0.85, y = 4.2, label = 'f',
+           fontface = 'bold', size = 10)
+fh.ES.lfm.plot
+
+fh.ES.mpa.plot <- ES.plot(fh.ES.df, fh.ES.mpa, fh.sig.mpa, fh.SE.mpa,
+                           mpa = 'y',
+                           margins.vector = c(0.1, 0.4, 0.1, 0),
+                           limits.vector = c(-5.5, 5),
+                           breaks.vector = c(-4, -2, 0, 2, 4),
+                          axis.title = 'Hydration x Species Effect Size') +
+  annotate(geom = "text", x = 0.85, y = 4.2, label = 'i',
+           fontface = 'bold', size = 10) 
+fh.ES.mpa.plot
+```
+
+### Max. Temp.
+Setup:
+```{r}
+species <- c("A. concolor", "P. jeffreyi", "C. decurrens", "A. patula", "Q. kelloggii")
+ref <- temp_mod.coef.df$estimate[6]
+temp_max.ES.lfm <- c(ref, ref + temp_mod.coef.df$estimate[12],
+                ref + temp_mod.coef.df$estimate[11],
+                ref + temp_mod.coef.df$estimate[10],
+                ref + temp_mod.coef.df$estimate[13])
+  # Following this order: ABCO, PIJE, CADE, ARPA, QUKE (no CECO)
+temp_max.SE.lfm <- c(temp_mod.coef.df$std.error[c(6, 12, 11, 10, 13)])
+temp_max.sig.lfm <- significance(temp_max.p.value.lfm, temp_max.sig.lfm) # Gathering p-values from vectors made in 2.5 section
+ref2 <- temp_mod.coef.df$estimate[21]
+temp_max.ES.mpa <- c(ref2, ref2 + temp_mod.coef.df$estimate[27],
+                ref2 + temp_mod.coef.df$estimate[26], 
+                ref2 + temp_mod.coef.df$estimate[25], 
+                ref2 + temp_mod.coef.df$estimate[28]) 
+temp_max.SE.mpa <- c(temp_mod.coef.df$std.error[c(21, 27, 26, 25, 28)])
+temp_max.sig.mpa <- significance(temp_max.p.value.mpa, temp_max.sig.mpa)
+temp_max.ES.df <- data.frame(species, temp_max.ES.lfm, temp_max.SE.lfm, temp_max.p.value.lfm, temp_max.sig.lfm, temp_max.ES.mpa, temp_max.SE.mpa, temp_max.p.value.mpa, temp_max.sig.mpa)
+
+temp_max.ES.df$species <- factor(temp_max.ES.df$species, levels = c("A. concolor", "P. jeffreyi", "C. decurrens", "A. patula", "Q. kelloggii"))
+```
+
+Plots:
+```{r}
+temp_max.ES.lfm.plot <- ES.plot(temp_max.ES.df, temp_max.ES.lfm, temp_max.sig.lfm, temp_max.SE.lfm,
+                           margins.vector = c(0.1, 0.05, 0.1, 0.1),
+                           limits.vector = c(-27, 27),
+                           breaks.vector = c(-25, -12, 0, 12, 25)) +
+  annotate(geom = "text", x = 0.85, y = 23.1, label = 'g',
+           fontface = 'bold', size = 10)
+temp_max.ES.lfm.plot
+
+temp_max.ES.mpa.plot <- ES.plot(temp_max.ES.df, temp_max.ES.mpa, temp_max.sig.mpa, temp_max.SE.mpa,
+                           mpa = 'y',
+                           margins.vector = c(0.1, 0.2, 0.1, 0),
+                          limits.vector = c(-27, 27),
+                          breaks.vector = c(-25, -12, 0, 12, 25)) +
+  annotate(geom = "text", x = 0.85, y = 23.1, label = 'j',
+           fontface = 'bold', size = 10)
+temp_max.ES.mpa.plot
+```
+
+
+
+### Temp. Change
+Setup:
+```{r}
+species <- c("A. concolor", "P. jeffreyi", "C. decurrens", "A. patula", "Q. kelloggii")
+ref <- temp_change_mod.coef.df$estimate[6]
+temp_change.ES.lfm <- c(ref, ref + temp_change_mod.coef.df$estimate[12],
+                ref + temp_change_mod.coef.df$estimate[11],
+                ref + temp_change_mod.coef.df$estimate[10],
+                ref + temp_change_mod.coef.df$estimate[13])
+  # Following this order: ABCO, PIJE, CADE, ARPA, QUKE (no CECO)
+temp_change.SE.lfm <- c(temp_change_mod.coef.df$std.error[c(6, 12, 11, 10, 13)])
+temp_change.sig.lfm <- significance(temp_change.p.value.lfm, temp_change.sig.lfm) # Gathering p-values from vectors made in 2.5 section
+ref2 <- temp_change_mod.coef.df$estimate[21]
+temp_change.ES.mpa <- c(ref2, ref2 + temp_change_mod.coef.df$estimate[27],
+                ref2 + temp_change_mod.coef.df$estimate[26], 
+                ref2 + temp_change_mod.coef.df$estimate[25], 
+                ref2 + temp_change_mod.coef.df$estimate[28]) 
+temp_change.SE.mpa <- c(temp_change_mod.coef.df$std.error[c(21, 27, 26, 25, 28)])
+temp_change.sig.mpa <- significance(temp_change.p.value.mpa, temp_change.sig.mpa)
+temp_change.ES.df <- data.frame(species, temp_change.ES.lfm, temp_change.SE.lfm, temp_change.p.value.lfm, temp_change.sig.lfm, temp_change.ES.mpa, temp_change.SE.mpa, temp_change.p.value.mpa, temp_change.sig.mpa)
+
+temp_change.ES.df$species <- factor(temp_change.ES.df$species, levels = c("A. concolor", "P. jeffreyi", "C. decurrens", "A. patula", "Q. kelloggii"))
+```
+
+Plots:
+```{r}
+temp_change.ES.lfm.plot <- ES.plot(temp_change.ES.df, temp_change.ES.lfm, temp_change.sig.lfm, temp_change.SE.lfm,
+                           margins.vector = c(0.1, 0.05, 0.1, 0.1),
+                           limits.vector = c(-16, 10),
+                           breaks.vector = c(-10, -5, 0, 5, 10)) +
+  annotate(geom = "text", x = 0.85, y = 8.6, label = 'g',
+           fontface = 'bold', size = 10)
+temp_change.ES.lfm.plot
+
+temp_change.ES.mpa.plot <- ES.plot(temp_change.ES.df, temp_change.ES.mpa, temp_change.sig.mpa, temp_change.SE.mpa,
+                           mpa = 'y',
+                           margins.vector = c(0.1, 0.2, 0.1, 0),
+                          limits.vector = c(-16, 10),
+                          breaks.vector = c(-10, -5, 0, 5, 10)) +
+  annotate(geom = "text", x = 0.85, y = 8.6, label = 'j',
+           fontface = 'bold', size = 10)
+temp_change.ES.mpa.plot
+```
+
+### GD
+Setup:
+```{r}
+species <- c("Ab. concolor", "Pi. jeffreyi", "Ca. decurrens", "Ar. patula", "Qu. kelloggii")
+ref <- gd_mod.coef.df$estimate[6]
+gd.ES.lfm <- c(ref, ref + gd_mod.coef.df$estimate[12],
+                ref + gd_mod.coef.df$estimate[11],
+                ref + gd_mod.coef.df$estimate[10],
+                ref + gd_mod.coef.df$estimate[13])
+  # Following this order: ABCO, PIJE, CADE, ARPA, QUKE (no CECO)
+gd.SE.lfm <- c(gd_mod.coef.df$std.error[c(6, 12, 11, 10, 13)])
+gd.sig.lfm <- significance(gd.p.value.lfm, gd.sig.lfm) # Gathering p-values from vectors made in 2.5 section
+ref2 <- gd_mod.coef.df$estimate[21]
+gd.ES.mpa <- c(ref2, ref2 + gd_mod.coef.df$estimate[27],
+                ref2 + gd_mod.coef.df$estimate[26], 
+                ref2 + gd_mod.coef.df$estimate[25], 
+                ref2 + gd_mod.coef.df$estimate[28]) 
+gd.SE.mpa <- c(gd_mod.coef.df$std.error[c(21, 27, 26, 25, 28)])
+gd.sig.mpa <- significance(gd.p.value.mpa, gd.sig.mpa)
+gd.ES.df <- data.frame(species, gd.ES.lfm, gd.SE.lfm, gd.p.value.lfm, gd.sig.lfm, gd.ES.mpa, gd.SE.mpa, gd.p.value.mpa, gd.sig.mpa)
+
+gd.ES.df$species <- factor(gd.ES.df$species, levels = c("A. concolor", "P. jeffreyi", "C. decurrens", "A. patula", "Q. kelloggii"))
+```
+
+Plots:
+```{r}
+gd.ES.lfm.plot <- ES.plot(gd.ES.df, gd.ES.lfm, gd.sig.lfm, gd.SE.lfm,
+                           margins.vector = c(0.1, 0.05, 0.1, 0.1),
+                           limits.vector = c(-25, 11),
+                           breaks.vector = c(-20, -10, 0, 10)) +
+  labs(title = 'LFM')
+  #annotate(geom = "text", x = 0.9, y = 9, label = 'e', fontface = 'bold', size = 10)
+gd.ES.lfm.plot
+
+gd.ES.mpa.plot <- ES.plot(gd.ES.df, gd.ES.mpa, gd.sig.mpa, gd.SE.mpa,
+                           mpa = 'y',
+                           margins.vector = c(0.1, 0.2, 0.1, 0),
+                           limits.vector = c(-25, 11),
+                           breaks.vector = c(-20, -10, 0, 10)) +
+  labs(title = 'MPa')
+  #annotate(geom = "text", x = 0.9, y = 9, label = 'f', fontface = 'bold', size = 10)
+gd.ES.mpa.plot
+
+ggarrange(gd_plot_lfm_r, gd.ES.lfm.plot, gd.ES.mpa.plot, nrow = 1)
+```
+
+### FD
+Setup:
+```{r}
+species <- c("A. concolor", "P. jeffreyi", "C. decurrens", "A. patula", "Q. kelloggii")
+ref <- fd_mod.coef.df$estimate[6]
+fd.ES.lfm <- c(ref, ref + fd_mod.coef.df$estimate[12],
+                ref + fd_mod.coef.df$estimate[11],
+                ref + fd_mod.coef.df$estimate[10],
+                ref + fd_mod.coef.df$estimate[13])
+  # Following this order: ABCO, PIJE, CADE, ARPA, QUKE (no CECO)
+fd.SE.lfm <- c(fd_mod.coef.df$std.error[c(6, 12, 11, 10, 13)])
+fd.sig.lfm <- significance(fd.p.value.lfm, fd.sig.lfm) # Gathering p-values from vectors made in 2.5 section
+ref2 <- fd_mod.coef.df$estimate[21]
+fd.ES.mpa <- c(ref2, ref2 + fd_mod.coef.df$estimate[27],
+                ref2 + fd_mod.coef.df$estimate[26], 
+                ref2 + fd_mod.coef.df$estimate[25], 
+                ref2 + fd_mod.coef.df$estimate[28]) 
+fd.SE.mpa <- c(fd_mod.coef.df$std.error[c(21, 27, 26, 25, 28)])
+fd.sig.mpa <- significance(fd.p.value.mpa, fd.sig.mpa)
+fd.ES.df <- data.frame(species, fd.ES.lfm, fd.SE.lfm, fd.p.value.lfm, fd.sig.lfm, fd.ES.mpa, fd.SE.mpa, fd.p.value.mpa, fd.sig.mpa)
+
+fd.ES.df$species <- factor(fd.ES.df$species, levels = c("A. concolor", "P. jeffreyi", "C. decurrens", "A. patula", "Q. kelloggii"))
+```
+
+Plots:
+```{r}
+fd.ES.lfm.plot <- ES.plot(fd.ES.df, fd.ES.lfm, fd.sig.lfm, fd.SE.lfm,
+                           margins.vector = c(0.1, 0.05, 0.1, 0.1),
+                           limits.vector = c(-5, 3),
+                           breaks.vector = c(-4, -2, 0, 2)) +
+  labs(title = "LFM")
+  #annotate(geom = "text", x = 0.9, y = 9, label = 'e', fontface = 'bold', size = 10)
+fd.ES.lfm.plot
+
+fd.ES.mpa.plot <- ES.plot(fd.ES.df, fd.ES.mpa, fd.sig.mpa, fd.SE.mpa,
+                           mpa = 'y',
+                           margins.vector = c(0.1, 0.2, 0.1, 0),
+                           limits.vector = c(-5, 3),
+                           breaks.vector = c(-4, -2, 0, 2)) +
+  labs(title = "MPa")
+  #annotate(geom = "text", x = 0.9, y = 9, label = 'f', fontface = 'bold', size = 10)
+fd.ES.mpa.plot
+
+ggarrange(fd_plot_lfm_r, fd.ES.lfm.plot, fd.ES.mpa.plot, nrow = 1)
+```
+
+# 5. Main Figure
+Arranging effect size plots and scatterplots into one figure
+
+Focusing on TTI, FH, and Max Temp.
+
+Set up:
+```{r}
+blank_plot <- ggplot(data = gd.ES.df, aes(x = species, y = gd.ES.mpa)) +
+  geom_point(color = 'white') +
+  theme_void()
+
+df.dotplot.prop.ig <- df.dotplot.prop.ig %>% # Making totally arbitrary column to make legend
+  mutate(holder.sig = case_when(
+    tti > 250 ~ "Yes",
+    tti < 250 ~ "No"
+  )) %>% 
+  drop_na(holder.sig)
+df.dotplot.prop.ig$holder.sig <- factor(df.dotplot.prop.ig$holder.sig, levels = c("Yes", "No"))
+
+plot_legend.ES <- ggplot(data = df.dotplot.prop.ig, aes(x = Species, y = med_prop_ignite,
+                                                color = Species, shape = holder.sig)) +
+  labs(y = '', color = 'Species', shape = 'Significant?') +
+  geom_point(size = 4, cex = 6, alpha = 0.9) +
+  geom_linerange(aes(ymin = med_prop_ignite - 2*stdev_prop_ignite, ymax = med_prop_ignite + 2*stdev_prop_ignite)) +
+  theme_bw() +
+  color_many2 +
+  scale_shape_manual(values = c(16, 10)) +
+  theme(legend.title = element_text(face = 'bold', size = 20),
+        legend.text = element_text(face = 'italic', size = 17))
+plot_legend.ES
+
+plot_legend.scatterplot <- mem_data_all_r %>% 
+  ggplot(aes(x = fh, y = mpa, group = F.Group)) +
+  geom_point(aes(color = F.Group), size = 2.2) +
+  geom_smooth(se = F, method = 'lm', aes(color = F.Group, lty = F.fh.sig.mpa)) +
+  scale_color_manual(values = c('steelblue3', 'darkgreen')) + # For color by angio vs gymno
+  scale_linetype_manual(values = c(3, 1)) +
+  labs(color = "Functional Group", lty = "Significant?") +
+  theme(legend.text = element_text(size = 17),  # , face = 'italic'
+        legend.title = element_text(size = 20, face = 'bold'),
+        legend.key = element_rect(fill = 'white')) +
+  guides(lty = guide_legend(override.aes = list(color = 'black')))
+
+ES_legend <- cowplot::get_legend(plot_legend.ES)
+SP_legend <- cowplot::get_legend(plot_legend.scatterplot)
+```
+
+Arranging:
+Note: I had to do some wacky things with blank plots to get the final product to look okay.
+```{r}
+scatterplots <- cowplot::plot_grid(blank_plot, tti_plot_lfm_r, fh_plot_lfm_r,
+                                  # lower_temp_max_plot_lfm_r,
+                                   temp_change_plot_lfm_r,
+                                   ncol = 1, rel_heights = c(0.78, 10, 9.95, 10))
+
+ES.plots <- cowplot::plot_grid(tti.ES.lfm.plot, tti.ES.mpa.plot,
+                              blank_plot, blank_plot,
+                              fh.ES.lfm.plot, fh.ES.mpa.plot,
+                              blank_plot, blank_plot,
+                             # temp_max.ES.lfm.plot, temp_max.ES.mpa.plot,
+                              temp_change.ES.lfm.plot, temp_change.ES.mpa.plot,
+                              blank_plot, blank_plot,
+                              ncol = 2, nrow = 6,
+                              rel_widths = c(6,7.5),
+                              rel_heights = c(11.3, 1.25, 10.5, 0.93, 9.6, 1.78))
+
+main_figure_no_legend <- cowplot::plot_grid(scatterplots, ES.plots, ncol = 2, rel_widths = c(10,9))
+main_figure_no_legend
+
+legend <- cowplot::plot_grid(ES_legend, SP_legend, ncol = 1)
+
+legend_and_dotplot <- cowplot::plot_grid(blank_plot, dotplot.prop.ig, blank_plot, legend, ncol = 1, rel_heights = c(0.29,3.1,0.98,6))
+
+main_figure <- cowplot::plot_grid(legend_and_dotplot, main_figure_no_legend, ncol = 2, rel_widths = c(1.5,5))
+main_figure
+
+ggsave(plot = main_figure, bg = 'white', 
+       here("figures", "main-figures", "Fig2.Flam.vs.Hydration.jpg"),
+       width = 16, height = 10)
+```
