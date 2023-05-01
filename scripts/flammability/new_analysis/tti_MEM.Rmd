@@ -163,14 +163,23 @@ performance::multicollinearity(m1.5)
 ```{r}
 m0 <- lmer(tti ~ mpa_scaled*spp + lfm_scaled*spp + site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all, REML = F)
 
-summary(m0)
-AIC(m0)
+m1 <- lmer(tti ~ mpa_scaled*spp + lfm_scaled*spp  + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all, REML = F)
+
+m2 <- lmer(tti ~ mpa_scaled*spp + lfm_scaled*spp + sample_wt_scaled + (1 | individual), data = mem_data_all, REML = F)
+
+m3 <- lmer(tti ~ mpa_scaled*spp + lfm_scaled*spp + year_month + (1 | individual), data = mem_data_all, REML = F)
+summary(m)
+
+m4 <- lmer(tti ~ mpa_scaled*spp + lfm_scaled*spp + (1 | individual), data = mem_data_all, REML = F)
+
+summary(m1)
+aictab(c(m0, m1, m2, m3, m4))
 ```
 
 Do we need to keep non-significant covariates? 
 
 ```{r}
-m0.1 <- lmer(tti ~ mpa_scaled*spp + lfm_scaled*spp + year_month +  (1 | individual), data = mem_data_all, REML = F)
+m0.1 <- lmer(tti ~ mpa_scaled*spp + lfm_scaled*spp + year_month + (1 | individual), data = mem_data_all, REML = F)
 summary(m0.1)
 ```
 
@@ -217,7 +226,7 @@ m10 <- lmer(tti ~ spp*lfm_scaled + mpa_scaled + (1 | individual), data = mem_dat
 
 m11 <- lmer(tti ~ lfm_scaled + spp*mpa_scaled + (1 | individual), data = mem_data_all, REML = F)
 
-
+summary(m6)
 
 #Compare all of the models: 
 
