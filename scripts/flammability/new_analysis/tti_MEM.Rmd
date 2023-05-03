@@ -300,6 +300,9 @@ tab_model(m1, m2, m3, m5, m6,
   p.style = "stars")
 ```
 
+```{r}
+sjPlot::plot_model(m1.5)
+```
 
 #-------------------------
 
@@ -1726,3 +1729,6 @@ ggsave(plot = main_figure, bg = 'white',
        here("figures", "main-figures", "Fig2.Flam.vs.Hydration.jpg"),
        width = 16, height = 10)
 ```
+
+
+

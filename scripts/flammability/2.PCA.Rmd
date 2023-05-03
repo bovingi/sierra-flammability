@@ -449,7 +449,7 @@ pca_fig <- ggplot(spp_data_pca, aes(x = PC1, y = PC2, color = Species)) +
           axis.title = element_text(face = 'bold', size = 20),
           axis.text = element_text(size = 14),
           aspect.ratio = 1/1) +
-  #coord_equal()  + 
+  coord_equal()  + 
   geom_segment(
     aes(
       x = -5.5,
@@ -502,6 +502,8 @@ pca_fig_nolegend <- pca_fig +
   theme(legend.position = "none",
         plot.margin = unit(c(0, 0, 0, 0), "cm"))
 
+legend <- get_legend(pca_fig)
+
 tti_plot <- spp_data_pca %>% 
              ggplot()+
             geom_density(aes(tti, fill = Species), alpha = .5) +
@@ -513,7 +515,7 @@ tti_plot <- spp_data_pca %>%
        # axis.text.x = element_blank(),
        # axis.title.x = element_blank(),
         plot.margin = unit(c(0, 0, 0, 0), "cm"))  + 
-  labs(xlab = "Time to Ignition (sec)")
+  xlab("Time to Ignition (sec)")
 
 
 tti_plot
@@ -529,14 +531,31 @@ gd_plot <- spp_data_pca %>%
        # axis.text.y = element_blank(),
        # axis.title.y = element_blank(),
         plot.margin = unit(c(0, 0, 0, 0), "cm"))  + 
-  labs(ylab = "Glow Duration (sec)") 
-
+  xlab("Glow Duration (sec)") 
+labs()
 gd_plot
 
-cowplot::plot_grid(tti_plot, NULL, pca_fig_nolegend, gd_plot, ncol = 2, align = "hv",
-          rel_widths = c(3, 1), rel_heights = c(1, 3))
+fd_plot <- spp_data_pca %>% 
+             ggplot()+
+            geom_density(aes(fd, fill = Species), alpha = .5) +
+            fill_noceco +
+            rotate() +
+  theme(legend.position = "none",
+        axis.text.x = element_blank(),
+        axis.title.x = element_blank(),
+       # axis.text.y = element_blank(),
+       # axis.title.y = element_blank(),
+        plot.margin = unit(c(0, 0, 0, 0), "cm"))  + 
+  xlab("Flame Duration (sec)") 
+fd_plot
 
+plot <- cowplot::plot_grid(tti_plot, legend, pca_fig_nolegend, gd_plot, ncol = 2, align = "hv",
+                   axis="tblr",
+          rel_widths = c(4, 1), rel_heights = c(1, 4))
+plot 
+ggsave(here("figures", 'main-figures', 'Fig.PCA.density.jpg'), height = 12, width = 12) 
 ```
+
 ```{r, eval=F}
 xdens <- axis_canvas(pca_fig_nolegend, axis = "x")+
   geom_density(data = spp_data_pca, aes(x = tti, fill = Species),
