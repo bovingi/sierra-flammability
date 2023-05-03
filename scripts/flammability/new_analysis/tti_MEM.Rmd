@@ -128,6 +128,14 @@ ggplot(aes(
 
 mem_data_all %>% 
 ggplot(aes( 
+           y = lfm_scaled, 
+           x = tti, 
+           color = spp)) +
+  geom_point()+
+  geom_smooth(method = "lm")
+
+mem_data_all %>% 
+ggplot(aes( 
            y = mpa_scaled, 
            x = tti, 
            color = fun_gr)) +
@@ -159,97 +167,143 @@ performance::multicollinearity(m1.5)
 
 #TTI: 
 
-## Maximal model: 
+## Can we remove some covariates? 
+
+######LFM
 ```{r}
-m0 <- lmer(tti ~ mpa_scaled*spp + lfm_scaled*spp + site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all, REML = F)
+m0 <- lmer(tti ~ lfm_scaled*spp + site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all, REML = F)
 
-m1 <- lmer(tti ~ mpa_scaled*spp + lfm_scaled*spp  + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all, REML = F)
+anova(m0)
 
-m2 <- lmer(tti ~ mpa_scaled*spp + lfm_scaled*spp + sample_wt_scaled + (1 | individual), data = mem_data_all, REML = F)
+m1 <- lmer(tti ~lfm_scaled*spp  + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all, REML = F)
 
-m3 <- lmer(tti ~ mpa_scaled*spp + lfm_scaled*spp + year_month + (1 | individual), data = mem_data_all, REML = F)
-summary(m)
+#remove site
 
-m4 <- lmer(tti ~ mpa_scaled*spp + lfm_scaled*spp + (1 | individual), data = mem_data_all, REML = F)
+m2 <- lmer(tti ~ lfm_scaled*spp  + year_month  + (1 | individual), data = mem_data_all, REML = F)
+
+summary(m2)
+
+m3 <- lmer(tti ~ lfm_scaled*spp  + sample_wt_scaled + (1 | individual), data = mem_data_all, REML = F)
+
+summary(m3)
+
+m4 <- lmer(tti ~ lfm_scaled*spp  + (1 | individual), data = mem_data_all, REML = F)
+
+summary(m4)
+
+m5 <- lmer(tti ~ lfm_scaled + spp + (1 | individual), data = mem_data_all, REML = F)
+
+summary(m5)
+
+m6 <- lmer(tti ~ lfm_scaled*spp + mpa_scaled + sample_wt_scaled + (1 | individual), data = mem_data_all, REML = F)
+
+
+m7  <- lmer(tti ~ mpa_scaled*spp + lfm_scaled + sample_wt_scaled + (1 | individual), data = mem_data_all, REML = F)
+
+
+aictab(c(m1, m2, m3, m4, m5, m6, m7, m0))
+
+#m3 is the best
+```
+Model m3 is the simplist and within 2 AIC, so use that. 
+
+######MPa
+
+```{r}
+m0 <- lmer(tti ~ mpa_scaled*spp + site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all, REML = F)
+
+summary(m0)
+
+m1 <- lmer(tti ~ mpa_scaled*spp  + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all, REML = F)
 
 summary(m1)
-aictab(c(m0, m1, m2, m3, m4))
+#remove site
+
+m2 <- lmer(tti ~ mpa_scaled*spp  + year_month + (1 | individual), data = mem_data_all, REML = F)
+
+summary(m2)
+
+m3 <- lmer(tti ~ mpa_scaled*spp  + sample_wt_scaled + (1 | individual), data = mem_data_all, REML = F)
+
+summary(m3)
+
+m4 <- lmer(tti ~ mpa_scaled:spp + (1 | individual), data = mem_data_all, REML = F)
+
+summary(m4)
+
+m5 <- lmer(tti ~ mpa_scaled + spp + (1 | individual), data = mem_data_all, REML = F)
+
+summary(m5)
+
+m6 <- lmer(tti ~ lfm_scaled*spp + mpa_scaled + sample_wt_scaled + (1 | individual), data = mem_data_all, REML = F)
+
+
+m7  <- lmer(tti ~ mpa_scaled*spp + lfm_scaled + sample_wt_scaled + (1 | individual), data = mem_data_all, REML = F)
+
+aictab(c(m1, m2, m3, m4, m5, #m6, m7, 
+         m0))
+
+#m6 and m7 are the best if you have both LFM and MPa
+#with just MPa, m1, m6, and m3 are the best
 ```
 
-Do we need to keep non-significant covariates? 
-
-```{r}
-m0.1 <- lmer(tti ~ mpa_scaled*spp + lfm_scaled*spp + year_month + (1 | individual), data = mem_data_all, REML = F)
-summary(m0.1)
-```
 
 ###Models
 ```{r}
-####b) Species models: 
+####b) TOP SPECIES MODELS: 
 
-m1 <- lmer(tti ~ lfm_scaled*spp + mpa_scaled*spp + (1 | individual), data = mem_data_all, REML = F)
+m1 <- lmer(tti ~ lfm_scaled*spp + sample_wt_scaled + (1 | individual), data = mem_data_all, REML = F)
+summary(m1)
 
-#m1.5 <- lmer(tti ~ lfm_scaled + mpa_scaled + spp + (1 | individual), data = mem_data_all, REML = F)
+m2 <- lmer(tti ~ mpa_scaled*spp + sample_wt_scaled + (1 | individual), data = mem_data_all, REML = F)
 
-m2 <- lmer(tti ~ mpa_scaled*spp + (1 | individual), data = mem_data_all, REML = F)
-
-m3 <- lmer(tti ~ lfm_scaled*spp + (1 | individual), data = mem_data_all, REML = F)
+m1.5 <- lmer(tti ~ lfm_scaled*spp + mpa_scaled + sample_wt_scaled + (1 | individual), data = mem_data_all, REML = F)
 
 
-aictab(c(m2, m3)) 
+m2.5 <- lmer(tti ~ mpa_scaled*spp + lfm_scaled + sample_wt_scaled + (1 | individual), data = mem_data_all, REML = F)
 
+aictab(c(m1, m2, m1.5, m2.5))
+###
+```
+LFM is the better predictor in the species model, either with MPa or without MPa. 
+
+```{r}
 ####c) Functional group models:
 
+m3 <- lmer(tti ~ lfm_scaled*fun_gr + sample_wt_scaled + (1 | individual), data = mem_data_all, REML = F)
+summary(m3)
 
-m4 <- lmer(tti ~ lfm_scaled*fun_gr + mpa_scaled*fun_gr + (1 | individual), data = mem_data_all, REML = F)
+m4 <- lmer(tti ~ mpa_scaled*fun_gr + sample_wt_scaled +  (1 | individual), data = mem_data_all, REML = F)
+summary(m4)
 
-m5 <- lmer(tti ~ mpa_scaled*fun_gr + (1 | individual), data = mem_data_all, REML = F)
+m5 <- lmer(tti ~ lfm_scaled*fun_gr + mpa_scaled + sample_wt_scaled +  (1 | individual), data = mem_data_all, REML = F)
+summary(m5)
 
-m6 <- lmer(tti ~ lfm_scaled*fun_gr + (1 | individual), data = mem_data_all, REML = F)
-
-m6.5 <- lmer(tti ~ lfm_scaled*fun_gr + mpa_scaled + (1 | individual), data = mem_data_all, REML = F)
-
-m6.75 <- lmer(tti ~ lfm_scaled + fun_gr*mpa_scaled + (1 | individual), data = mem_data_all, REML = F)
-
-aictab(c(m4, m5, m6, m6.5, m6.75)) 
-
-#No species: 
-
-
-#m7 <- lmer(tti ~ lfm_scaled + (1 | individual), data = mem_data_all, REML = F)
-
-#m8 <- lmer(tti ~ mpa_scaled + (1 | individual), data = mem_data_all, REML = F)
-
-m9 <- lmer(tti ~ spp + (1 | individual), data = mem_data_all, REML = F)
-
-m10 <- lmer(tti ~ spp*lfm_scaled + mpa_scaled + (1 | individual), data = mem_data_all, REML = F)
-
-m11 <- lmer(tti ~ lfm_scaled + spp*mpa_scaled + (1 | individual), data = mem_data_all, REML = F)
-
+m6 <- lmer(tti ~ lfm_scaled + fun_gr*mpa_scaled + sample_wt_scaled +  (1 | individual), data = mem_data_all, REML = F)
 summary(m6)
 
-#Compare all of the models: 
+aictab(c(m1, m2, m3, m4, m5, m6, m1.5, m2.5))
 
-
-aictab(c(#m1, 
-         #m2, 
-         #m3, 
-         m4, 
-         m5, 
-         m6, 
-         m7, 
-         m8
-        # m9, 
-        # m10, 
-        # m11, 
-        # m1.5
-         ))
-
+m1
 ```
-Based on AIC, m1 is the most parsemoneous. However, it has 20 parameters so is pretty overfit.
 
-Due to overfitting, we could maybe separate models for LFM (m3) and MPa (m2) to compare differences in flammability across species. The 'LFM x Species' model was the most parsimonious, with the 'LFM x Mpa' different on the order of AIC = 16.1. If we don't have interactions between Species and hydration metric, then the most parsemoneous model by far (delta AIC > 10) is that model (m1.5). 
+Based on AIC, m1 is the most parsimonious by far. 
 
+```{r}
+tab_model(m1, m2, m3, m5, m6,
+          show.reflvl = TRUE, 
+          digits = 3, 
+          show.aic = TRUE, 
+          show.ci = FALSE,
+          show.icc = FALSE, 
+  string.p = "P-Value", 
+  p.style = "stars")
+```
+
+
+#-------------------------
+
+#FIRST ATTEMPT:
 
 ```{r}
 m3_df <- broom.mixed::tidy(m3) %>% mutate(model = "LFM * Species", mod = "m3")
@@ -773,7 +827,7 @@ spp_est_df <- bind_rows(spp_est_tti_df, spp_est_fh_df, spp_est_gd_df)
 
 #CONCLUSION: 
 
-The 'best' models, that have the lowest AIC and are not overfit are: 
+The 'best' models, that have the lowest AIC and are ~ not overfit ~ are: 
 
 1) Split dataset by f.group
 2) Have MPa x Spp and LFM x Spp as separate models: 
