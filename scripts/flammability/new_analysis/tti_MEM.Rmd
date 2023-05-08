@@ -73,6 +73,7 @@ Reading in dataframe
 mem_data_all <- read_csv(here("processed-data", "sierra_flam_data_all.csv"), show_col_types = FALSE) %>% 
   select(lfm, mpa, tti, fh, fd, gd, prop_ignite, temp_change, ignition, sample_wt, dry_wt, fresh_wt, water_wt, location, site, year_month, spp, individual) %>% 
   mutate(dw_flam_sample = sample_wt * (dry_wt/fresh_wt),
+         mpa = -1*mpa, 
          ww_flam_sample = sample_wt * (water_wt/fresh_wt),
          excess_water = (ww_flam_sample - dw_flam_sample),
          mpa_scaled = scale(mpa)) %>% 
@@ -102,7 +103,8 @@ mem_data_all <- read_csv(here("processed-data", "sierra_flam_data_all.csv"), sho
   )) %>% 
   filter(ignition != 2) %>% # Removing manual ignitions
   drop_na(mpa_scaled, lfm_scaled, sample_wt_scaled)  %>% 
-  filter(spp != "ceco")
+  filter(spp != "ceco") %>% 
+  mutate(site = as.factor(site))
 
 field_data_all <- read_csv(here("processed-data", "field_data_2020_2021.csv"), show_col_types = F)
 ```
@@ -154,16 +156,220 @@ mem_data_all %>%
   ggplot(aes(y = mpa, x = lfm, color = spp)) +
   geom_point() +
   geom_smooth(method = "lm", se = F) +
-  ylim(0, 10)
+  ylim(0, -10)
 ```
 
 #------------------------------------
-# 2.0 Predicting flam metrics: TTI, FH, FD, GD, Temp change, prop ignite. 
+# 2.0 Predicting flam metrics: TTI, FH, FD, GD, Temp change, prop ignite.
 
-#####Multicolinarity check: 
 ```{r}
-performance::multicollinearity(m1.5)
+mem_data_all_dredge <- mem_data_all %>% 
+  drop_na(lfm_scaled, spp, mpa_scaled, year_month, sample_wt_scaled, site, tti)
 ```
+
+```{r}
+mem_data_all %>% 
+ggplot(aes(y = tti, x = lfm_scaled, color = Species)) +
+  geom_point(alpha = .5)+
+  geom_smooth(method = "lm", se = F) +
+  color_noceco +
+  facet_wrap(~site*year_month)
+
+mem_data_all %>% 
+ggplot(aes(y = tti, x = mpa_scaled, color = Species)) +
+  geom_point(alpha = .5)+
+  geom_smooth(method = "lm", se = F) +
+  color_noceco
+```
+
+#TTI
+
+```{r}
+topmods <- MuMIn::dredge(lmer(tti ~ lfm_scaled:spp + mpa_scaled:spp + site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all_dredge, na.action = "na.fail", REML = F))
+
+topmods
+
+top_tti <- lmer(tti ~ lfm_scaled:spp + mpa_scaled:spp + mpa_scaled + lfm_scaled + site + sample_wt_scaled + (1 | individual), data = mem_data_all_dredge, na.action = "na.fail", REML = F)
+
+top_tti_nomains <- lmer(tti ~ lfm_scaled:spp + mpa_scaled:spp + sample_wt_scaled  + (1 | individual), data = mem_data_all_dredge, na.action = "na.fail", REML = F)
+
+aictab(c(top_tti, top_tti_nomains))
+
+summary(top_tti)
+
+#check for collinearity: 
+noints <- lmer(tti ~ lfm_scaled + mpa_scaled + spp + sample_wt_scaled  + (1 | individual), data = mem_data_all_dredge, na.action = "na.fail", REML = F)
+
+performance::multicollinearity(noints)
+```
+
+Mpa and TTI are moderately collinear (vif > 2), so will be considered in separate models:
+
+```{r}
+topmods <- MuMIn::dredge(lmer(tti ~ lfm_scaled:spp + lfm_scaled + site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all_dredge, na.action = "na.fail", REML = F))
+
+topmods
+#top models here have no interaction between LFM and Species, but that's what we're interested in, so the following is our actual top model: 
+
+top_lfm <- lmer(tti ~ lfm_scaled:spp + site + sample_wt_scaled + (1 | individual), data = mem_data_all_dredge, na.action = "na.fail", REML = T)
+
+summary(top_lfm)
+```
+
+```{r}
+topmods <- MuMIn::dredge(lmer(tti ~ mpa_scaled:spp + mpa_scaled + site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all_dredge, na.action = "na.fail", REML = F))
+
+topmods
+
+top_mpa <- lmer(tti ~ mpa_scaled:spp + mpa_scaled + site + sample_wt_scaled + (1 | individual), data = mem_data_all_dredge, na.action = "na.fail", REML = T)
+
+summary(top_mpa)
+```
+
+#Effect sizes: 
+
+```{r}
+#top tti models: 
+top_mpa <- lmer(tti ~ mpa_scaled:spp + mpa_scaled + site + sample_wt_scaled + (1 | individual), data = mem_data_all_dredge, na.action = "na.fail", REML = T)
+
+top_lfm <- lmer(tti ~ lfm_scaled:spp + site + sample_wt_scaled + (1 | individual), data = mem_data_all_dredge, na.action = "na.fail", REML = T)
+```
+
+1) Estimates into a df: 
+
+```{r}
+tti_mod.coef.df1 <- tidy(top_lfm) %>% 
+  select(term, estimate, std.error, p.value)%>% 
+  mutate(metric = 'TTI') %>% 
+  mutate(pred = 'lfm')
+
+
+tti_mod.coef.df2 <- tidy(top_mpa) %>% 
+  select(term, estimate, std.error, p.value)%>% 
+  mutate(metric = 'TTI') %>% 
+  mutate(pred = 'mpa')
+tti_mod.coef.df <- rbind(tti_mod.coef.df1, tti_mod.coef.df2)
+```
+
+```{r}
+tti_mod_lfm <- lmer(tti ~ lfm_scaled:spp + site + sample_wt_scaled + (1 | individual), data = mem_data_all_dredge, na.action = "na.fail", REML = T)
+em_tti_lfm <- emmeans::emtrends(tti_mod_lfm, pairwise~spp, var = c("lfm_scaled"))
+tti_lfm <- summary(em_tti_lfm, infer=c(TRUE,TRUE),null=0)
+
+emtrends_tti_lfm <- tti_lfm$emtrends %>% 
+  as.data.frame()
+emtrends_tti_lfm$spp <- factor(emtrends_tti_lfm$spp, levels = c("abco", "pije", "cade", "arpa", "quke"))
+emtrends_tti_lfm <- emtrends_tti_lfm %>% 
+  arrange(spp)
+  
+emtrends_tti_lfm_list <- emtrends_tti_lfm %>% select(p.value) %>% as.vector()
+tti.p.value.lfm <- emtrends_tti_lfm_list$p.value
+
+tti.p.value.lfm
+```
+
+```{r}
+tti_mod_mpa <-top_mpa 
+em_tti_mpa <- emmeans::emtrends(tti_mod_mpa, pairwise~spp, var = "mpa_scaled")
+tti_mpa <- summary(em_tti_mpa, infer=c(TRUE,TRUE),null=0)
+
+emtrends_tti_mpa <- tti_mpa$emtrends %>% 
+  as.data.frame()
+emtrends_tti_mpa$spp <- factor(emtrends_tti_mpa$spp, levels = c("abco", "pije", "cade", "arpa", "quke"))
+emtrends_tti_mpa <- emtrends_tti_mpa %>% 
+  arrange(spp)
+  
+emtrends_tti_mpa_list <- emtrends_tti_mpa %>% select(p.value) %>% as.vector()
+tti.p.value.mpa <- emtrends_tti_mpa_list$p.value
+```
+
+Plot: 
+### TTI
+Setup:
+```{r}
+species <- c("A. concolor", "P. jeffreyi", "C. decurrens", "A. patula", "Q. kelloggii")
+ref <- tti_mod.coef.df1$estimate[4]
+
+tti.ES.lfm <- c(ref, ref + tti_mod.coef.df1$estimate[7],
+                ref + tti_mod.coef.df1$estimate[6],
+                ref + tti_mod.coef.df1$estimate[5],
+                ref + tti_mod.coef.df1$estimate[8])
+  # Following this order: ABCO, PIJE, CADE, ARPA, QUKE (no CECO)
+
+tti.SE.lfm <- c(tti_mod.coef.df1$std.error[c(4,7,6,5,6)])
+
+tti.sig.lfm <- significance(tti.p.value.lfm, tti.sig.lfm) # Gathering p-values from vectors made in 2.5 section
+
+#mpa: 
+ref2 <- tti_mod.coef.df$estimate[2]
+
+tti.ES.mpa <- c(ref2, ref2 + tti_mod.coef.df2$estimate[7],
+                ref2 + tti_mod.coef.df2$estimate[6], 
+                ref2 + tti_mod.coef.df2$estimate[5], 
+                ref2 + tti_mod.coef.df2$estimate[8]) 
+tti.SE.mpa <- c(tti_mod.coef.df2$std.error[c(2,7,6,5,8)])
+tti.sig.mpa <- significance(tti.p.value.mpa, tti.sig.mpa)
+
+tti.ES.df <- data.frame(species, tti.ES.lfm, tti.SE.lfm, tti.p.value.lfm, tti.sig.lfm, tti.ES.mpa, tti.SE.mpa, tti.p.value.mpa, tti.sig.mpa)
+
+tti.ES.df$species <- factor(tti.ES.df$species, levels = c("A. concolor", "P. jeffreyi", "C. decurrens", "A. patula", "Q. kelloggii"))
+```
+
+Plots:
+```{r}
+tti.ES.lfm.plot <- ES.plot(tti.ES.df, tti.ES.lfm, tti.sig.lfm, tti.SE.lfm,
+                           margins.vector = c(0.2, 0.05, 0.1, 0.1),
+                           limits.vector = c(0, 25),
+                           breaks.vector = c(-5, 0, 5, 10, 15)) +
+  annotate(geom = "text", x = 0.85, y = 17.2, label = 'e',
+           fontface = 'bold', size = 10) +
+  labs(title = 'LFM')
+tti.ES.lfm.plot
+
+tti.ES.mpa.plot <- ES.plot(tti.ES.df, tti.ES.mpa, tti.sig.mpa, tti.SE.mpa,
+                           mpa = 'y',
+                           margins.vector = c(0.2, 0.3, 0.1, 0),
+                           limits.vector = c(0, 25),
+                           breaks.vector = c(-5, 0, 5, 10, 15, 20, 25)) +
+  annotate(geom = "text", x = 0.85, y = 17.2, label = 'h',
+           fontface = 'bold', size = 10) +
+  labs(title = 'Water Potential')
+tti.ES.mpa.plot
+```
+
+
+
+#FH
+
+```{r}
+mem_data_all_dredge <- mem_data_all %>% 
+  drop_na(lfm_scaled, spp, mpa_scaled, year_month, sample_wt_scaled, site, fh
+          )
+
+topmods <- MuMIn::dredge(lmer(fh ~ lfm_scaled:spp + mpa_scaled:spp + year_month + sample_wt_scaled + site + (1 | individual), data = mem_data_all_dredge, na.action = "na.fail", REML = F))
+
+topmods
+
+top_ <- lmer(tti ~ lfm_scaled:spp + mpa_scaled:spp + mpa_scaled + lfm_scaled + sample_wt_scaled + site + (1 | individual), data = mem_data_all_dredge, na.action = "na.fail", REML = F)
+
+top_tti_nomains <- lmer(tti ~ lfm_scaled:spp + mpa_scaled:spp + sample_wt_scaled + site + (1 | individual), data = mem_data_all_dredge, na.action = "na.fail", REML = F)
+
+aictab(c(top_tti, top_tti_nomains))
+
+summary(top_tti)
+```
+
+#----------------
+#TTI
+
+```{r}
+topmods <- MuMIn::dredge(lmer(tti ~ lfm_scaled:spp + mpa_scaled:spp + mpa_scaled + lfm_scaled + year_month + sample_wt_scaled + site + (1 | individual), data = mem_data_all_dredge, na.action = "na.fail", REML = F))
+
+topmods
+```
+
+
+#------------------------------------
 
 #TTI: 
 
@@ -197,13 +403,13 @@ summary(m5)
 
 m6 <- lmer(tti ~ lfm_scaled*spp + mpa_scaled + sample_wt_scaled + (1 | individual), data = mem_data_all, REML = F)
 
-
 m7  <- lmer(tti ~ mpa_scaled*spp + lfm_scaled + sample_wt_scaled + (1 | individual), data = mem_data_all, REML = F)
 
+m8 <- lmer(tti ~ mpa_scaled*spp + lfm_scaled*spp + sample_wt_scaled + (1 | individual), data = mem_data_all, REML = F)
 
-aictab(c(m1, m2, m3, m4, m5, m6, m7, m0))
+aictab(c(m1, m2, m3, m4, m5, m6, m7, m8, m0))
 
-#m3 is the best
+#m3 is the simplest within 2 AIC of the mode complex 'best'. If we want to have MPa also in the model to tell us something explicitly about physiology, we should include
 ```
 Model m3 is the simplist and within 2 AIC, so use that. 
 
@@ -251,6 +457,8 @@ aictab(c(m1, m2, m3, m4, m5, #m6, m7,
 ###Models
 ```{r}
 ####b) TOP SPECIES MODELS: 
+sppmod <- lmer(tti ~ spp + sample_wt_scaled + (1 | individual), data = mem_data_all, REML = F)
+summary(sppmod)
 
 m1 <- lmer(tti ~ lfm_scaled*spp + sample_wt_scaled + (1 | individual), data = mem_data_all, REML = F)
 summary(m1)
@@ -259,13 +467,106 @@ m2 <- lmer(tti ~ mpa_scaled*spp + sample_wt_scaled + (1 | individual), data = me
 
 m1.5 <- lmer(tti ~ lfm_scaled*spp + mpa_scaled + sample_wt_scaled + (1 | individual), data = mem_data_all, REML = F)
 
-
 m2.5 <- lmer(tti ~ mpa_scaled*spp + lfm_scaled + sample_wt_scaled + (1 | individual), data = mem_data_all, REML = F)
 
-aictab(c(m1, m2, m1.5, m2.5))
+performance::check_collinearity(m2.5)
+
+aictab(c(m1, m2, m1.5, m2.5, sppmod))
 ###
 ```
 LFM is the better predictor in the species model, either with MPa or without MPa. 
+
+###temp_change 
+
+```{r}
+####b) TOP SPECIES MODELS: 
+sppmod <- lmer(temp_change ~ spp + sample_wt_scaled + (1 | individual), data = mem_data_all, REML = F)
+summary(sppmod)
+
+m1 <- lmer(temp_change ~ lfm_scaled*spp + sample_wt_scaled + (1 | individual), data = mem_data_all, REML = F)
+summary(m1)
+
+m2 <- lmer(temp_change ~ mpa_scaled*spp + sample_wt_scaled + (1 | individual), data = mem_data_all, REML = F)
+
+m1.5 <- lmer(temp_change ~ lfm_scaled*spp + mpa_scaled + sample_wt_scaled + (1 | individual), data = mem_data_all, REML = F)
+
+m2.5 <- lmer(temp_change ~ mpa_scaled*spp + lfm_scaled + sample_wt_scaled + (1 | individual), data = mem_data_all, REML = F)
+
+m3 <- lmer(temp_change ~ mpa_scaled*spp + lfm_scaled*spp + sample_wt_scaled + (1 | individual), data = mem_data_all, REML = F)
+
+aictab(c(m1, m2, m1.5, m2.5, sppmod, m3))
+###
+
+summary(m1.5)
+```
+
+###FD 
+
+```{r}
+####b) TOP SPECIES MODELS: 
+sppmod <- lmer(fd ~ spp + sample_wt_scaled + (1 | individual), data = mem_data_all, REML = F)
+summary(sppmod)
+
+m1 <- lmer(fd ~ lfm_scaled*spp + sample_wt_scaled + (1 | individual), data = mem_data_all, REML = F)
+summary(m1)
+
+m2 <- lmer(fd ~ mpa_scaled*spp + sample_wt_scaled + (1 | individual), data = mem_data_all, REML = F)
+
+m1.5 <- lmer(fd ~ lfm_scaled*spp + mpa_scaled + sample_wt_scaled + (1 | individual), data = mem_data_all, REML = F)
+
+m2.5 <- lmer(fd ~ mpa_scaled*spp + lfm_scaled + sample_wt_scaled + (1 | individual), data = mem_data_all, REML = F)
+
+m3 <- lmer(fd ~ mpa_scaled*spp + lfm_scaled*spp + sample_wt_scaled + (1 | individual), data = mem_data_all, REML = F)
+
+aictab(c(m1, m2, m1.5, m2.5, sppmod, m3))
+###
+```
+
+###fh 
+
+```{r}
+####b) TOP SPECIES MODELS: 
+sppmod <- lmer(fh ~ spp + sample_wt_scaled + (1 | individual), data = mem_data_all, REML = F)
+summary(sppmod)
+
+m1 <- lmer(fh ~ lfm_scaled*spp + sample_wt_scaled + (1 | individual), data = mem_data_all, REML = F)
+summary(m1)
+
+m2 <- lmer(fh ~ mpa_scaled*spp + sample_wt_scaled + (1 | individual), data = mem_data_all, REML = F)
+
+m1.5 <- lmer(fh ~ lfm_scaled*spp + mpa_scaled + sample_wt_scaled + (1 | individual), data = mem_data_all, REML = F)
+
+m2.5 <- lmer(fh ~ mpa_scaled*spp + lfm_scaled + sample_wt_scaled + (1 | individual), data = mem_data_all, REML = F)
+
+m3 <- lmer(fh ~ mpa_scaled*spp + lfm_scaled*spp + sample_wt_scaled + (1 | individual), data = mem_data_all, REML = F)
+
+aictab(c(m1, m2, m1.5, m2.5, sppmod, m3))
+###
+```
+###gD
+
+```{r}
+####b) TOP SPECIES MODELS: 
+m1 <- lmer(gd ~ lfm_scaled*spp + sample_wt_scaled + (1 | individual), data = mem_data_all, REML = F)
+summary(m1)
+
+m2 <- lmer(gd ~ mpa_scaled*spp + sample_wt_scaled + (1 | individual), data = mem_data_all, REML = F)
+
+m1.5 <- lmer(gd ~ lfm_scaled*spp + mpa_scaled + sample_wt_scaled + (1 | individual), data = mem_data_all, REML = F)
+
+m2.5 <- lmer(gd ~ mpa_scaled*spp + lfm_scaled + sample_wt_scaled + (1 | individual), data = mem_data_all, REML = F)
+
+m3 <- lmer(gd ~ mpa_scaled*spp + lfm_scaled*spp + sample_wt_scaled + (1 | individual), data = mem_data_all, REML = F)
+
+sppmod <- lmer(gd ~ spp + sample_wt_scaled + (1 | individual), data = mem_data_all, REML = F)
+summary(sppmod)
+
+aictab(c(m1, m2, m1.5, m2.5 #sppmod, m3
+         ))
+###
+
+summary(m3)
+```
 
 ```{r}
 ####c) Functional group models:

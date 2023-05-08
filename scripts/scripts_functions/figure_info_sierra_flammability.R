@@ -69,3 +69,68 @@ axis_size <- theme(axis_text = element_text(size = 24))
 # color_all <- scale_color_manual(values = met.brewer("sierra1", direction = -1, type = "discrete")) 
 # 
 # axis_size <- theme(axis_text = element_text(size = 24))
+  
+  #
+  ### Function
+
+  ES.plot <- function(df, y.var, sig, std.error, mpa = 'no', margins.vector = c(0.1, 0.1, 0.1, 0.1), limits.vector, breaks.vector, axis.title = ' ') 
+  { if(mpa == 'no'){
+    ggplot(data = df, aes(x = species, y = y.var,
+                          color = species, shape = sig)) +
+      labs(color = 'Species', shape = 'Significant?') +
+      geom_point(size = 5) +
+      geom_linerange(aes(ymin = y.var - 0.5*std.error, ymax = y.var + 0.5*std.error)) +
+      geom_abline(intercept = 0, slope = 0, color = 'black', alpha = 0.5, size = 0.3) +
+      theme_bw() +
+      scale_y_continuous(limits = limits.vector, breaks = breaks.vector) +
+      color_noceco+
+      #scale_color_manual(values = c('black', '#FDD358', 'black', 'black', '#FDD358')) + # For color by angio vs gymno (version 1)
+      scale_shape_manual(values = c(10, 16)) +
+      # geom_vline(xintercept = 3.4, alpha = 0.5, size = 0.3, lty = 2) +
+      # annotate(geom = "text", x = 2, y = 14, label = 'Gymnosperms', size = 4) +
+      # annotate(geom = "text", x = 4.52, y = 14, label = 'Angiosperms', size = 4) +
+      theme(axis.title.x = element_blank(), axis.text.x = element_blank(),
+            axis.title.y = element_blank(), 
+            axis.text.y = element_blank(),
+            axis.ticks.y = element_blank(),
+            legend.title = element_text(face = 'bold', size = 14),
+            legend.text = element_text(face = 'italic'),
+            panel.grid = element_blank(), axis.ticks.x = element_blank(),
+            plot.title = element_text(hjust = 0.5, face = 'bold', size = 14),
+            plot.margin = unit(margins.vector, 'cm'),
+            legend.position = 'none')
+  }
+    else{
+      ggplot(data = df, aes(x = species, y = y.var,
+                            color = species, shape = sig)) +
+        labs(color = 'Species', shape = 'Significant?') +
+        geom_point(size = 5) +
+        geom_linerange(aes(ymin = y.var - 0.5*std.error, ymax = y.var + 0.5*std.error)) +
+        geom_abline(intercept = 0, slope = 0, color = 'black', alpha = 0.5, size = 0.3) +
+        theme_bw() +
+        scale_y_continuous(limits = limits.vector, breaks = breaks.vector,
+                           sec.axis = sec_axis(trans = ~.*1, 
+                                               name = axis.title,
+                                               breaks = breaks.vector,
+                                               labels = breaks.vector)) +
+        color_noceco+
+        #scale_color_manual(values = c('black', '#FDD358', 'black', 'black', '#FDD358')) + # For color by angio vs gymno (version 1)
+        scale_shape_manual(values = c(10, 16)) +
+        # geom_vline(xintercept = 3.4, alpha = 0.5, size = 0.3, lty = 2) +
+        # annotate(geom = "text", x = 2, y = 14, label = 'Gymnosperms', size = 4) +
+        # annotate(geom = "text", x = 4.52, y = 14, label = 'Angiosperms', size = 4) +
+        theme(axis.title.x = element_blank(), 
+              axis.text.x = element_blank(),
+              axis.ticks.y.left = element_blank(), 
+              axis.title.y.left = element_blank(),
+              axis.text.y.left = element_blank(),
+              axis.title.y.right = element_text(face = 'bold', size = 14),
+              axis.text.y.right = element_text(size = 12),
+              legend.title = element_text(face = 'bold', size = 14),
+              legend.text = element_text(face = 'italic',),
+              panel.grid = element_blank(), axis.ticks.x = element_blank(),
+              plot.title = element_text(hjust = 0.5, face = 'bold', size = 14),
+              plot.margin = unit(margins.vector, 'cm'),
+              legend.position = 'none')
+    }
+  }

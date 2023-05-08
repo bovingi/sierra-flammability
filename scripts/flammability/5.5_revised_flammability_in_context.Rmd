@@ -45,7 +45,9 @@ field_data_all_6_raw <- read_csv(here("processed-data", "field_data_2020_2021.cs
 field_data_all_6 <-  field_data_all_6_raw %>% 
  # mutate(mpa = -1*mpa) %>% 
  # filter(age_new == "new") %>% 
-  select(spp, lfm, year, month, water_potential, site, wet_weight, unique_id, date, midday) %>% 
+  filter(lfm < 350) %>% #remove weirdly large LFMS
+  filter(lfm > 50) %>% 
+  select(spp, lfm, year, month, water_potential, site, wet_weight, unique_id, date, midday, age_new) %>% 
   filter(wet_weight > 50) %>% #remove weirdly small wet weights
   #group_by(spp) %>% 
   mutate(mpa = -1*water_potential,
@@ -71,7 +73,7 @@ field_data_all_6 <-  field_data_all_6_raw %>%
   drop_na(spp) %>% 
   mutate(mpa_scaled = as.numeric(mpa_scaled), 
          lfm_scaled = as.numeric(lfm_scaled), 
-         sample_wt_scaled = as.numeric(sample_wt_scaled))
+         sample_wt_scaled = as.numeric(sample_wt_scaled)) 
 
 field_data_all_6$Species <- factor(field_data_all_6$Species, levels = c('Ab. concolor',  'Pi. jeffreyi', 'Ca. decurrens', 'Ar. patula', 'Qu. kelloggii'))
 field_data_all_6$spp <- factor(field_data_all_6$spp, levels = c("abco", "pije", "cade", "arpa", "quke"))
@@ -138,6 +140,14 @@ sw <- aov(sample_wt_scaled ~ spp, data = mem_data_all_6)
 summary(sw)
 
 TukeyHSD(sw, conf.level=.95)
+
+field_data_all_6 %>% 
+  ggplot(aes(y = mpa, x = lfm, color = spp)) +
+  geom_point()
+
+mem_data_all_6 %>% 
+  ggplot(aes(y = mpa, x = lfm, color = spp)) +
+  geom_point()
 ```
 
 
@@ -173,7 +183,8 @@ tti_pred <- tti_df %>%
 ggplot() +
   geom_jitter(aes(y = pred*-1, 
                  x = date, 
-                 color = spp), alpha = .3, size = 2
+                 color = spp,
+                 shape= age_new), alpha = .3, size = 2
              ) +
   geom_smooth(aes(y = pred*-1, x = date, color = spp),span = .6,
               se = F) +
@@ -464,7 +475,7 @@ fh_pred
 ```{r}
 fd_df <- mem_data_all_6 %>% 
   drop_na(mpa, lfm, fd)
-fd_mod <- lm(fd ~ mpa_scaled + spp*lfm_scaled + sample_wt_scaled, data = fd_df)
+fd_mod <- lm(fd ~ mpa_scaled*spp + lfm_scaled*spp + sample_wt_scaled, data = fd_df)
 summary(fd_mod)
 
 fd_df <- field_data_all_means %>% 
@@ -707,7 +718,7 @@ ggplot() +
   geom_point(aes(y = pred, 
                  x = date, 
                  color = spp)) +
-  geom_smooth(aes(y = pred, x = date, color = spp))+
+  geom_smooth(aes(y = pred, x = date, color = spp)) +
   color_many
 ```
 
