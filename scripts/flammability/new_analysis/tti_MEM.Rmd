@@ -101,10 +101,17 @@ mem_data_all <- read_csv(here("processed-data", "sierra_flam_data_all.csv"), sho
     spp == "pije" ~ "Pi. jeffreyi",
     spp == "quke" ~ "Qu. kelloggii"
   )) %>% 
+  mutate(site = case_when(
+    location %in% c("seki") & site %in% c(1) ~ 4,
+    location %in% c("seki") & site %in% c(2) ~ 3,
+    TRUE ~ as.numeric(site)
+  )) %>% 
   filter(ignition != 2) %>% # Removing manual ignitions
   drop_na(mpa_scaled, lfm_scaled, sample_wt_scaled)  %>% 
   filter(spp != "ceco") %>% 
-  mutate(site = as.factor(site))
+  mutate(site = as.factor(site))  %>% 
+  mutate(Species=fct_relevel(Species,c("Ab. concolor", "Pi. jeffreyi", "Ca. decurrens", "Ar. patula", "Qu. kelloggii"))) %>%
+ arrange(Species)
 
 field_data_all <- read_csv(here("processed-data", "field_data_2020_2021.csv"), show_col_types = F)
 ```
@@ -163,18 +170,6 @@ mem_data_all %>%
 # 2.0 Predicting flam metrics: TTI, FH, FD, GD, Temp change, prop ignite.
 
 ```{r}
-mem_data_all_dredge <- mem_data_all %>% 
-  drop_na(lfm_scaled, spp, mpa_scaled, year_month, sample_wt_scaled, site, tti)
-```
-
-```{r}
-mem_data_all %>% 
-ggplot(aes(y = tti, x = lfm_scaled, color = Species)) +
-  geom_point(alpha = .5)+
-  geom_smooth(method = "lm", se = F) +
-  color_noceco +
-  facet_wrap(~site*year_month)
-
 mem_data_all %>% 
 ggplot(aes(y = tti, x = mpa_scaled, color = Species)) +
   geom_point(alpha = .5)+
@@ -184,19 +179,15 @@ ggplot(aes(y = tti, x = mpa_scaled, color = Species)) +
 
 #TTI
 
+Model selection: 
+
 ```{r}
-topmods <- MuMIn::dredge(lmer(tti ~ lfm_scaled:spp + mpa_scaled:spp + site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all_dredge, na.action = "na.fail", REML = F))
+mem_data_all_dredge <- mem_data_all %>% 
+  drop_na(lfm_scaled, spp, mpa_scaled, year_month, sample_wt_scaled, site, tti)
+```
 
-topmods
 
-top_tti <- lmer(tti ~ lfm_scaled:spp + mpa_scaled:spp + mpa_scaled + lfm_scaled + site + sample_wt_scaled + (1 | individual), data = mem_data_all_dredge, na.action = "na.fail", REML = F)
-
-top_tti_nomains <- lmer(tti ~ lfm_scaled:spp + mpa_scaled:spp + sample_wt_scaled  + (1 | individual), data = mem_data_all_dredge, na.action = "na.fail", REML = F)
-
-aictab(c(top_tti, top_tti_nomains))
-
-summary(top_tti)
-
+```{r}
 #check for collinearity: 
 noints <- lmer(tti ~ lfm_scaled + mpa_scaled + spp + sample_wt_scaled  + (1 | individual), data = mem_data_all_dredge, na.action = "na.fail", REML = F)
 
@@ -206,34 +197,30 @@ performance::multicollinearity(noints)
 Mpa and TTI are moderately collinear (vif > 2), so will be considered in separate models:
 
 ```{r}
-topmods <- MuMIn::dredge(lmer(tti ~ lfm_scaled:spp + lfm_scaled + site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all_dredge, na.action = "na.fail", REML = F))
+topmods.lfm <- MuMIn::dredge(lmer(tti ~ lfm_scaled:spp + lfm_scaled + site + sample_wt_scaled + year_month + (1 | individual), data = mem_data_all_dredge, na.action = "na.fail", REML = F)) 
 
-topmods
+topmods.lfm
 #top models here have no interaction between LFM and Species, but that's what we're interested in, so the following is our actual top model: 
 
-top_lfm <- lmer(tti ~ lfm_scaled:spp + site + sample_wt_scaled + (1 | individual), data = mem_data_all_dredge, na.action = "na.fail", REML = T)
+top_lfm <- lmer(tti ~ lfm_scaled:spp + lfm_scaled + sample_wt_scaled + (1 | individual), data = mem_data_all_dredge, na.action = "na.fail", REML = T)
 
 summary(top_lfm)
+performance::multicollinearity(top_lfm)
 ```
 
 ```{r}
-topmods <- MuMIn::dredge(lmer(tti ~ mpa_scaled:spp + mpa_scaled + site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all_dredge, na.action = "na.fail", REML = F))
+topmods.mpa <- MuMIn::dredge(lmer(tti ~ mpa_scaled:spp + mpa_scaled + site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all_dredge, na.action = "na.fail", REML = F))
 
-topmods
+topmods.mpa
 
-top_mpa <- lmer(tti ~ mpa_scaled:spp + mpa_scaled + site + sample_wt_scaled + (1 | individual), data = mem_data_all_dredge, na.action = "na.fail", REML = T)
+top_mpa <- lmer(tti ~ mpa_scaled:spp + mpa_scaled + sample_wt_scaled + (1 | individual), data = mem_data_all_dredge, na.action = "na.fail", REML = T)
 
 summary(top_mpa)
+
+#top model has a few options, we'll use the least complicated one (no site, no date)
 ```
 
 #Effect sizes: 
-
-```{r}
-#top tti models: 
-top_mpa <- lmer(tti ~ mpa_scaled:spp + mpa_scaled + site + sample_wt_scaled + (1 | individual), data = mem_data_all_dredge, na.action = "na.fail", REML = T)
-
-top_lfm <- lmer(tti ~ lfm_scaled:spp + site + sample_wt_scaled + (1 | individual), data = mem_data_all_dredge, na.action = "na.fail", REML = T)
-```
 
 1) Estimates into a df: 
 
@@ -252,7 +239,8 @@ tti_mod.coef.df <- rbind(tti_mod.coef.df1, tti_mod.coef.df2)
 ```
 
 ```{r}
-tti_mod_lfm <- lmer(tti ~ lfm_scaled:spp + site + sample_wt_scaled + (1 | individual), data = mem_data_all_dredge, na.action = "na.fail", REML = T)
+tti_mod_lfm <- top_lfm 
+
 em_tti_lfm <- emmeans::emtrends(tti_mod_lfm, pairwise~spp, var = c("lfm_scaled"))
 tti_lfm <- summary(em_tti_lfm, infer=c(TRUE,TRUE),null=0)
 
@@ -281,6 +269,7 @@ emtrends_tti_mpa <- emtrends_tti_mpa %>%
   
 emtrends_tti_mpa_list <- emtrends_tti_mpa %>% select(p.value) %>% as.vector()
 tti.p.value.mpa <- emtrends_tti_mpa_list$p.value
+tti.p.value.mpa
 ```
 
 Plot: 
@@ -288,55 +277,160 @@ Plot:
 Setup:
 ```{r}
 species <- c("A. concolor", "P. jeffreyi", "C. decurrens", "A. patula", "Q. kelloggii")
-ref <- tti_mod.coef.df1$estimate[4]
+ref <- tti_mod.coef.df1$estimate[2]
 
-tti.ES.lfm <- c(ref, ref + tti_mod.coef.df1$estimate[7],
-                ref + tti_mod.coef.df1$estimate[6],
+tti.ES.lfm <- c(ref, #Abco
+                ref + tti_mod.coef.df1$estimate[6], #pije
                 ref + tti_mod.coef.df1$estimate[5],
-                ref + tti_mod.coef.df1$estimate[8])
+                ref + tti_mod.coef.df1$estimate[4],
+                ref + tti_mod.coef.df1$estimate[7])
   # Following this order: ABCO, PIJE, CADE, ARPA, QUKE (no CECO)
 
-tti.SE.lfm <- c(tti_mod.coef.df1$std.error[c(4,7,6,5,6)])
+tti.SE.lfm <- c(tti_mod.coef.df1$std.error[c(2,7,6,5,6)])
 
 tti.sig.lfm <- significance(tti.p.value.lfm, tti.sig.lfm) # Gathering p-values from vectors made in 2.5 section
 
 #mpa: 
-ref2 <- tti_mod.coef.df$estimate[2]
+ref2 <- tti_mod.coef.df2$estimate[2]
 
-tti.ES.mpa <- c(ref2, ref2 + tti_mod.coef.df2$estimate[7],
-                ref2 + tti_mod.coef.df2$estimate[6], 
+tti.ES.mpa <- c(ref2, 
+                ref2 + tti_mod.coef.df2$estimate[6],
                 ref2 + tti_mod.coef.df2$estimate[5], 
-                ref2 + tti_mod.coef.df2$estimate[8]) 
+                ref2 + tti_mod.coef.df2$estimate[4], 
+                ref2 + tti_mod.coef.df2$estimate[7]) 
 tti.SE.mpa <- c(tti_mod.coef.df2$std.error[c(2,7,6,5,8)])
 tti.sig.mpa <- significance(tti.p.value.mpa, tti.sig.mpa)
 
 tti.ES.df <- data.frame(species, tti.ES.lfm, tti.SE.lfm, tti.p.value.lfm, tti.sig.lfm, tti.ES.mpa, tti.SE.mpa, tti.p.value.mpa, tti.sig.mpa)
 
 tti.ES.df$species <- factor(tti.ES.df$species, levels = c("A. concolor", "P. jeffreyi", "C. decurrens", "A. patula", "Q. kelloggii"))
-```
 
-Plots:
-```{r}
+
+#Plots:
+
 tti.ES.lfm.plot <- ES.plot(tti.ES.df, tti.ES.lfm, tti.sig.lfm, tti.SE.lfm,
-                           margins.vector = c(0.2, 0.05, 0.1, 0.1),
-                           limits.vector = c(0, 25),
-                           breaks.vector = c(-5, 0, 5, 10, 15)) +
-  annotate(geom = "text", x = 0.85, y = 17.2, label = 'e',
-           fontface = 'bold', size = 10) +
-  labs(title = 'LFM')
+                           mpa = 'n',
+                           #margins.vector = c(0.2, 0.05, 0.8, 0.1),
+                           margins.vector = c(0, 0.05, 0.2, 0.1),
+                           limits.vector = c(-1, 15),
+                           breaks.vector = c(0, 5, 10, 15)) +
+        scale_y_continuous(limits = c(-1, 15), breaks = c(0, 5, 10, 15)) +
+ # theme(axis.title.y.right = element_blank(),
+      #  axis.text.y.right = element_blank())+
+  annotate(geom = "text", x = .6, y = 14, label = 'c',
+           fontface = 'bold', size = 10) 
+#+
+ # labs(title = 'LFM')
 tti.ES.lfm.plot
 
 tti.ES.mpa.plot <- ES.plot(tti.ES.df, tti.ES.mpa, tti.sig.mpa, tti.SE.mpa,
                            mpa = 'y',
-                           margins.vector = c(0.2, 0.3, 0.1, 0),
-                           limits.vector = c(0, 25),
-                           breaks.vector = c(-5, 0, 5, 10, 15, 20, 25)) +
-  annotate(geom = "text", x = 0.85, y = 17.2, label = 'h',
+                           #margins.vector = c(0.2, 0.3, 0.8, 0),
+                           margins.vector = c(0, 0.05, 0.2, 0.1),
+                           
+                           limits.vector = c(-1,15),
+                           breaks.vector = c(0, 5, 10, 15)) +
+  # theme(axis.title.y.right = element_blank(), 
+  #       axis.text.y.right = element_blank())+
+  annotate(geom = "text", x = 0.6, y = 14, label = 'd',
            fontface = 'bold', size = 10) +
-  labs(title = 'Water Potential')
+  theme( axis.ticks.y = element_blank(),
+              axis.title.y = element_blank(),
+              axis.text.y = element_blank(),)# +
+  #labs(title = 'Water Potential')
 tti.ES.mpa.plot
 ```
 
+
+```{r}
+tti_scatterplot <- mem_data_all %>% 
+ggplot(aes(y = tti, x = lfm_scaled, color = Species)) +
+  geom_point(alpha = .5)+
+  geom_smooth(method = "lm", se = F) +
+  color_noceco +
+  labs(x = "Live Fuel Moisture (%)", 
+       y = "Time to Ignition (sec.)") +
+  theme(#axis.title.x = element_blank(), 
+             # axis.text.x = element_blank(),
+              # axis.ticks.y.left = element_blank(), 
+              # axis.title.y.left = element_blank(),
+              # axis.text.y.left = element_blank(),
+              axis.title.y.right = element_text(face = 'bold', size = 14),
+              axis.text.y.right = element_text(size = 12),
+              legend.title = element_text(face = 'bold', size = 14),
+              legend.text = element_text(face = 'italic',),
+             # panel.grid = element_blank(), axis.ticks.x = element_blank(),
+              plot.title = element_text(hjust = 0.5, face = 'bold', size = 14),
+              plot.margin = unit(c(.8, 0.05, 0.2, 0.1), 'cm'),
+              legend.position = 'none')  +
+  annotate(geom = "text", x = -2.5, y = 159, label = 'c',
+           fontface = 'bold', size = 10) 
+  tti_scatterplot
+  
+tti_scatterplot.mpa <- mem_data_all %>% 
+ggplot(aes(y = tti, x = mpa_scaled, color = Species)) +
+  geom_point(alpha = .5)+
+  geom_smooth(method = "lm", se = F) +
+  color_noceco +
+  labs(x = "Water Potential", 
+       y = "Time to Ignition (sec.)") +
+  theme(#axis.title.x = element_blank(),
+             # axis.text.x = element_blank(),
+              axis.ticks.y.left = element_blank(),
+              axis.title.y.left = element_blank(),
+              axis.text.y.left = element_blank(),
+            #  axis.title.y.right = element_text(face = 'bold', size = 14),
+             # axis.text.y.right = element_text(size = 12),
+              legend.title = element_text(face = 'bold', size = 14),
+              legend.text = element_text(face = 'italic',),
+             # panel.grid = element_blank(), axis.ticks.x = element_blank(),
+              plot.title = element_text(hjust = 0.5, face = 'bold', size = 14),
+              plot.margin = unit(c(.8, 0.05, 0.2, 0.1), 'cm'),
+              legend.position = 'none')  +
+  annotate(geom = "text", x = -3, y = 159, label = 'd',
+           fontface = 'bold', size = 10) 
+  tti_scatterplot.mpa
+  
+  
+legend <- cowplot::get_legend(mem_data_all %>% 
+ggplot(aes(y = tti, x = lfm_scaled, color = Species)) +
+  geom_point(alpha = .5)+
+  geom_smooth(method = "lm", se = F) +
+  color_noceco +
+  labs(y = "Live Fuel Moisture (%)", 
+       x = "Time to Ignition (sec.)") +
+  theme(legend.text = element_text(size = 17),  # , face = 'italic'
+        legend.title = element_text(size = 20, face = 'bold'),
+        legend.key = element_rect(fill = 'white')))
+```
+
+Put together: 
+```{r}
+tti_es <- cowplot::plot_grid(tti.ES.lfm.plot, tti.ES.mpa.plot, 
+                                nrow = 1, 
+                                rel_widths = c(.9, 1
+                                               ), 
+                                align = "bt")
+tti_es
+
+tti_scatter <- cowplot::plot_grid(tti_scatterplot, tti_scatterplot.mpa, 
+                                nrow = 1, 
+                                rel_widths = c(1,.9), 
+                                align = "b")
+tti_scatter
+
+tti_plots1 <- cowplot::plot_grid(tti_scatter, tti_es, 
+                                nrow = 2, 
+                                rel_widths = c(1,1),
+                                rel_heights = c(1, .5),
+                                align = c("vh"))
+
+tti_plots1
+```
+
+```{r}
+
+```
 
 
 #FH
@@ -346,17 +440,65 @@ mem_data_all_dredge <- mem_data_all %>%
   drop_na(lfm_scaled, spp, mpa_scaled, year_month, sample_wt_scaled, site, fh
           )
 
-topmods <- MuMIn::dredge(lmer(fh ~ lfm_scaled:spp + mpa_scaled:spp + year_month + sample_wt_scaled + site + (1 | individual), data = mem_data_all_dredge, na.action = "na.fail", REML = F))
+topmods.lfm <- MuMIn::dredge(lmer(fh ~ lfm_scaled:spp + lfm_scaled + year_month + sample_wt_scaled + site + (1 | individual), data = mem_data_all_dredge, na.action = "na.fail", REML = F))
+topmods.lfm
 
-topmods
+summary(model.avg(topmods.lfm, subset = delta < 2))
 
-top_ <- lmer(tti ~ lfm_scaled:spp + mpa_scaled:spp + mpa_scaled + lfm_scaled + sample_wt_scaled + site + (1 | individual), data = mem_data_all_dredge, na.action = "na.fail", REML = F)
+topmods.mpa <- MuMIn::dredge(lmer(fh ~ mpa_scaled:spp + mpa_scaled + year_month + sample_wt_scaled + site + (1 | individual), data = mem_data_all_dredge, na.action = "na.fail", REML = F))
+topmods.mpa
 
-top_tti_nomains <- lmer(tti ~ lfm_scaled:spp + mpa_scaled:spp + sample_wt_scaled + site + (1 | individual), data = mem_data_all_dredge, na.action = "na.fail", REML = F)
+summary(model.avg(topmods.mpa, subset = delta < 2))
+```
 
-aictab(c(top_tti, top_tti_nomains))
+#FD
 
-summary(top_tti)
+```{r}
+mem_data_all_dredge <- mem_data_all %>% 
+  drop_na(lfm_scaled, spp, mpa_scaled, year_month, sample_wt_scaled, site, fd
+          )
+
+topmods.lfm <- MuMIn::dredge(lmer(fd ~ lfm_scaled:spp + lfm_scaled + year_month + sample_wt_scaled + site + (1 | individual), data = mem_data_all_dredge, na.action = "na.fail", REML = F))
+topmods.lfm
+
+
+topmods.mpa <- MuMIn::dredge(lmer(fd ~ mpa_scaled:spp + mpa_scaled + year_month + sample_wt_scaled + site + (1 | individual), data = mem_data_all_dredge, na.action = "na.fail", REML = F))
+topmods.mpa
+
+summary(model.avg(topmods.mpa, subset = delta < 2))
+```
+
+#Max temp
+
+```{r}
+mem_data_all_dredge <- mem_data_all %>% 
+  drop_na(lfm_scaled, spp, mpa_scaled, year_month, sample_wt_scaled, site, temp_change
+          )
+
+topmods.lfm <- MuMIn::dredge(lmer(temp_change ~ lfm_scaled:spp + lfm_scaled + year_month + sample_wt_scaled + site + (1 | individual), data = mem_data_all_dredge, na.action = "na.fail", REML = F))
+topmods.lfm
+
+
+topmods.mpa <- MuMIn::dredge(lmer(temp_change ~ mpa_scaled:spp + mpa_scaled + year_month + sample_wt_scaled + site + (1 | individual), data = mem_data_all_dredge, na.action = "na.fail", REML = F))
+topmods.mpa
+
+summary(model.avg(topmods.mpa, subset = delta < 2))
+```
+#gD
+
+```{r}
+mem_data_all_dredge <- mem_data_all %>% 
+  drop_na(lfm_scaled, spp, mpa_scaled, year_month, sample_wt_scaled, site, gd
+          )
+
+topmods.lfm <- MuMIn::dredge(lmer(gd ~ lfm_scaled:spp + lfm_scaled + sample_wt_scaled + site + (1 | individual), data = mem_data_all_dredge, na.action = "na.fail", REML = F))
+topmods.lfm
+
+
+topmods.mpa <- MuMIn::dredge(lmer(gd ~ mpa_scaled:spp + mpa_scaled + sample_wt_scaled + site + (1 | individual), data = mem_data_all_dredge, na.action = "na.fail", REML = F))
+topmods.mpa
+
+summary(model.avg(topmods.mpa, subset = delta < 2))
 ```
 
 #----------------
