@@ -1340,7 +1340,7 @@ significance <- function(p.value.df, sig.vector) {
   
 for(i in 1:5){
   
-  if(p.value.df[i] < 0.05){
+  if(p.value.df[i] < 0.04999){
   sig.vector[i] <- 'Yes'
   }
   
