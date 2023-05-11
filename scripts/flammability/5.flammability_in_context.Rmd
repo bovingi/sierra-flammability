@@ -112,6 +112,13 @@ mem_data_all_6 <- mem_data_all_clean %>%
   mutate(mpa_scaled = as.numeric(mpa_scaled)) %>% 
   mutate(sample_wt_scaled = as.numeric(sample_wt_scaled)) %>% 
   mutate(lfm_scaled = as.numeric(lfm_scaled))
+
+lowest_fall <- field_data_all_6 %>% 
+  filter(#month == 10,
+         spp %in% c("cade", "pije", "abco")) %>% 
+  summarise(min_mpa = max
+            (mpa, na.rm = T))
+lowest_fall
 ```
 
 

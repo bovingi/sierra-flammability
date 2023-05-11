@@ -89,7 +89,8 @@ axis_size <- theme(axis_text = element_text(size = 24))
       # geom_vline(xintercept = 3.4, alpha = 0.5, size = 0.3, lty = 2) +
       # annotate(geom = "text", x = 2, y = 14, label = 'Gymnosperms', size = 4) +
       # annotate(geom = "text", x = 4.52, y = 14, label = 'Angiosperms', size = 4) +
-      theme(axis.title.x = element_blank(), axis.text.x = element_blank(),
+      theme(axis.title.x = element_blank(), 
+            axis.text.x = element_blank(),
             axis.title.y = element_blank(), 
             axis.text.y = element_blank(),
             axis.ticks.y = element_blank(),

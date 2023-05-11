@@ -505,6 +505,7 @@ pca_fig_nolegend <- pca_fig +
 legend <- get_legend(pca_fig)
 
 tti_plot <- spp_data_pca %>% 
+            #  filter(hydration != "hydrated") %>% 
              ggplot()+
             geom_density(aes(tti, fill = Species), alpha = .5) +
             fill_noceco +
@@ -521,6 +522,7 @@ tti_plot <- spp_data_pca %>%
 tti_plot
 
 gd_plot <- spp_data_pca %>% 
+ # filter(hydration != "hydrated") %>% 
              ggplot()+
             geom_density(aes(gd, fill = Species), alpha = .5) +
             fill_noceco +
@@ -532,7 +534,7 @@ gd_plot <- spp_data_pca %>%
        # axis.title.y = element_blank(),
         plot.margin = unit(c(0, 0, 0, 0), "cm"))  + 
   xlab("Glow Duration (sec)") 
-labs()
+
 gd_plot
 
 fd_plot <- spp_data_pca %>% 
