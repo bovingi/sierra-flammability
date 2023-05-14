@@ -1,0 +1,68 @@
+---
+title: "Mixed Effects Models - Time to Ignition"
+author: "Indra Boving & Joe Celebrezze"
+date: "6/21/2022"
+output: html_document
+---
+
+# Setup
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+#lots of extra here, but oh well... 
+library(ggplot2)
+library(gapminder)
+library(data.table)
+library(purrr) #for visualizing all variables in one big plot
+library(naniar) #for dealing with NAs nicely 
+library(tidyverse)
+library(devtools)
+library(ggfortify)
+library(ggpubr)
+library(jtools)
+library(cowplot)
+library(lmerTest)
+library(ggeffects)  
+library(GGally) #for corr plots
+require(kimisc) # has the nlist function to create a named list
+require(AICcmodavg) # has the aictab function
+library(psych)
+
+#devtools::install_github("strengejacke/strengejacke")
+library(strengejacke)
+library(sjPlot) # table functions
+library(sjmisc) # sample data
+
+library(lme4) # fitting models
+library(here)
+library(effects) #for plotting model effects
+library(sjstats) #use for r2 functions
+library(TMB)
+library(glmmTMB)
+library(lattice)
+library(equatiomatic)
+library("broom.mixed")
+#library(ggbiplot)
+select = dplyr::select
+here = here::here
+library(MuMIn)
+library(modelsummary)
+#install_github("BlakeRMills/MetBrewer") 
+#library("BlakeRMills/MetBrewer")
+#library(memmented)
+filter = dplyr::filter
+mutate = dplyr::mutate
+library(nlme)
+library(MetBrewer)
+#install.packages("memmented")
+#devtools::install_github("hohenstein/remef")
+library(remef)
+library(kableExtra)
+
+source(here::here("scripts", "scripts_functions", "figure_info_sierra_flammability.R")) #color and theme info is here
+```
+
+```{r}
+
+```
+

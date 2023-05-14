@@ -460,6 +460,8 @@ tti.p.value.lfm <- c(ref, #Abco
                 tti_mod.coef.df1$p.value[9],
                 tti_mod.coef.df1$p.value[8])
 
+
+#tti.sig.lfm <- (c("Yes", "No", "Yes", "Yes", "Yes"))
 tti.sig.lfm <- significance(tti.p.value.lfm, tti.sig.lfm) # Gathering p-values from vectors made in 2.5 section
 
 
@@ -467,22 +469,34 @@ tti.sig.lfm <- significance(tti.p.value.lfm, tti.sig.lfm) # Gathering p-values f
 ref2 <- tti_mod.coef.df2$estimate[2]
 
 tti.ES.mpa <- c(ref2, 
-                ref2 + tti_mod.coef.df2$estimate[10],
+                ref2 + tti_mod.coef.df2$estimate[11],
+                ref2 + tti_mod.coef.df2$estimate[10], 
                 ref2 + tti_mod.coef.df2$estimate[9], 
-                ref2 + tti_mod.coef.df2$estimate[8], 
-                ref2 + tti_mod.coef.df2$estimate[11]) 
-tti.SE.mpa <- c(tti_mod.coef.df2$std.error[c(2,10,9,8,11)])
+                ref2 + tti_mod.coef.df2$estimate[12]) 
+tti.SE.mpa <- c(tti_mod.coef.df2$std.error[c(2,11,10,9,12)])
 
 ref <- tti_mod.coef.df2$p.value[2]
+
 tti.p.value.lfm <- c(ref, #Abco
-                tti_mod.coef.df2$p.value[10], #pije
+                tti_mod.coef.df2$p.value[11], #pije
+                tti_mod.coef.df2$p.value[10],
                 tti_mod.coef.df2$p.value[9],
-                tti_mod.coef.df2$p.value[8],
-                tti_mod.coef.df2$p.value[11])
+                tti_mod.coef.df2$p.value[12])
 
-tti.sig.mpa <- significance(tti.p.value.mpa, tti.sig.mpa)
+#tti.sig.mpa <- (c("Yes", "No", "Yes", "Yes", "Yes"))
+tti.sig.mpa <- significance(tti.p.value.lfm, tti.sig.lfm) # Gathering p-values from vectors made in 2.5 section
 
-tti.ES.df <- data.frame(species, tti.ES.lfm, tti.SE.lfm, tti.p.value.lfm, tti.sig.lfm, tti.ES.mpa, tti.SE.mpa, tti.p.value.mpa, tti.sig.mpa)
+tti.ES.df <- data.frame(
+  species,
+  tti.ES.lfm,
+  tti.SE.lfm,
+  tti.p.value.lfm,
+  tti.sig.lfm,
+  tti.ES.mpa,
+  tti.SE.mpa,
+  tti.p.value.mpa,
+  tti.sig.mpa
+)
 
 tti.ES.df$species <- factor(tti.ES.df$species, levels = c("A. concolor", "P. jeffreyi", "C. decurrens", "A. patula", "Q. kelloggii"))
 
@@ -491,12 +505,12 @@ tti.ES.lfm.plot <- ES.plot2(tti.ES.df, tti.ES.lfm, tti.sig.lfm, tti.SE.lfm,
                            mpa = 'no',
                            #margins.vector = c(0.2, 0.05, 0.8, 0.1),
                            margins.vector = c(0, 0.05, 0.2, 0.1),
-                           limits.vector = c(-1, 20),
+                           limits.vector = c(-1, 15),
                            breaks.vector = c(0, 5, 10, 15, 20, 25, 30)) +
         #scale_y_continuous(limits = c(-1, 15), breaks = c(0, 5, 10, 15)) +
  # theme(axis.title.y.right = element_blank(),
       #  axis.text.y.right = element_blank())+
-  annotate(geom = "text", x = .6, y = 18.5, label = 'c',
+  annotate(geom = "text", x = .6, y = 14, label = 'c',
            fontface = 'bold', size = 10) +
   labs(y = "Standardized Coefficient", 
        x = "LFM")
@@ -509,12 +523,12 @@ tti.ES.mpa.plot <- ES.plot2(tti.ES.df, tti.ES.mpa, tti.sig.mpa, tti.SE.mpa,
                            #margins.vector = c(0.2, 0.3, 0.8, 0),
                            margins.vector = c(0, 0.05, 0.2, 0.1),
                            
-                           limits.vector = c(-1,20),
+                           limits.vector = c(-1,15),
                            breaks.vector = c(0, 5, 10, 15)) +
   theme(axis.title.y.right = element_blank(),
         axis.text.y.right = element_blank(),
         axis.ticks.y.right = element_blank()) +
-  annotate(geom = "text", x = 0.6, y = 18.5, label = 'd',
+  annotate(geom = "text", x = 0.6, y = 14, label = 'd',
            fontface = 'bold', size = 10) +#+
   # theme( axis.ticks.y = element_blank(),
   #             axis.title.y = element_blank(),
@@ -600,7 +614,7 @@ tti_scatter <- cowplot::plot_grid(tti_scatterplot, tti_scatterplot.mpa,
 tti_plots1 <- cowplot::plot_grid(tti_scatter, tti_es, 
                                 nrow = 2, 
                                 rel_widths = c(1,.8),
-                                rel_heights = c(1, .5),
+                                rel_heights = c(1, .3),
                                 align = "vh", axis = "l")
 
 #tti_plots1
@@ -627,15 +641,19 @@ plot_legend.ES
 
 ES_legend <- cowplot::get_legend(plot_legend.ES)
 
-dotplot <- cowplot::plot_grid(ES_legend, dotplot.prop.ig, nrow = 2, 
+dotplot <- cowplot::plot_grid(ES_legend, dotplot.prop.ig, 
+                              nrow = 2, 
                               rel_heights = c(1,1))
-#dotplot
+dotplot
 
-tti_plots <- cowplot::plot_grid(tti_plots1, dotplot, ncol = 2, rel_widths = c(1, .3))
-#tti_plots
+tti_plots <- cowplot::plot_grid(tti_plots1, ES_legend, 
+                                ncol = 2, 
+                                rel_widths = c(1, .2))
+tti_plots
+
 
 ggsave(plot = tti_plots, bg = 'white', 
-       here("figures", "main-figures", "Fig2.tti.vs.hydration.jpg"),
+       here("figures", "main-figures", "Fig2.tti.vs.hydration_nodotplot.jpg"),
        width = 16, height = 8)
 ```
 
