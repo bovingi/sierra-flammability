@@ -449,44 +449,45 @@ pca_fig <- ggplot(spp_data_pca, aes(x = PC1, y = PC2, color = Species)) +
           axis.title = element_text(face = 'bold', size = 20),
           axis.text = element_text(size = 14),
           aspect.ratio = 1/1) +
-  coord_equal()  + 
-  geom_segment(
-    aes(
-      x = -5.5,
-      xend = -5.5,
-      y = -5.5,
-      yend = -2
-    ),
-    arrow = arrow(length = unit(1 / 2, 'picas')),
-    size = 0.35,
-    alpha = 0.85
-  ) +
-  annotate(
-    'text',
-    x = -5.75,
-    y = -3.75,
-    label = "More consumable",
-    angle = 90,
-    size = 3.5
-  ) +
-  geom_segment(
-    aes(
-      x = -5.5,
-      xend = -2,
-      y = -5.5,
-      yend = -5.5
-    ),
-    arrow = arrow(length = unit(1 / 2, 'picas')),
-    size = 0.35,
-    alpha = 0.85
-  ) +
-  annotate(
-    'text',
-    x = -3.75,
-    y = -5.9,
-    label = "More ignitable, \n Less combustable",
-    size = 3.5
-  ) 
+  coord_equal() +
+  ylim(-6, 6)#+ 
+  # geom_segment(
+  #   aes(
+  #     x = -5.5,
+  #     xend = -5.5,
+  #     y = -5.5,
+  #     yend = -2
+  #   ),
+  #   arrow = arrow(length = unit(1 / 2, 'picas')),
+  #   size = 0.35,
+  #   alpha = 0.85
+  # ) +
+  # annotate(
+  #   'text',
+  #   x = -5.75,
+  #   y = -3.75,
+  #   label = "More consumable",
+  #   angle = 90,
+  #   size = 4
+  # ) +
+  # geom_segment(
+  #   aes(
+  #     x = -5.5,
+  #     xend = -2,
+  #     y = -5.5,
+  #     yend = -5.5
+  #   ),
+  #   arrow = arrow(length = unit(1 / 2, 'picas')),
+  #   size = 0.35,
+  #   alpha = 0.85
+  # ) +
+  # annotate(
+  #   'text',
+  #   x = -3.75,
+  #   y = -5.9,
+  #   label = "More ignitable, \n Less combustable",
+  #   size = 4
+  # ) 
 
 pca_fig
 #ggsave(here("figures", "PCA.angio.vs.gymno.jpg"), height = 8, width = 10)
@@ -495,15 +496,114 @@ ggsave(here("figures", 'main-figures', 'Fig1.PCA.jpg'), height = 8, width = 10)
 
 # TO RUN SPP PCA: change Species > Species, legend.text = element_text(face = italic) and change color palette to color_many2
 ```
-#Add marginal density plots: 
-
+#Add dotplot insert: 
 ```{r}
+df <- mem_data_all_clean %>% 
+   mutate(hydration = case_when(
+     lfm <= 100 ~ 'dry', 
+     lfm > 100 ~ 'wet', 
+     TRUE ~ 'something'
+   )) %>% 
+   #filter(lfm < 150) %>% 
+    mutate(ignition2 = case_when(
+     ignition == "M" ~ 0, 
+     ignition == "1 and M" ~ 1, 
+     ignition == "1" ~ 1, 
+     ignition == "2" ~ 1, 
+     ignition == "3" ~ 0, 
+     TRUE ~ as.numeric(ignition))) %>% 
+   group_by(spp, individual, hydration) %>% #group by year, model, spp, group column
+   add_tally %>% 
+   mutate(total = sum(ignition2, na.rm = T), 
+          prop_ignite = paste0(round(100 * total/n)), 
+          prop_ignite = as.numeric(prop_ignite)) %>% 
+  # mutate(prop_dry = ) %>% 
+   mutate(spp_props = forcats::fct_relevel(spp, 
+                                           "ceco", 
+                                           "quke",
+                                           "arpa", 
+                                           "pije", 
+                                           "cade", 
+                                           "abco")) %>% 
+  ungroup() %>% 
+  group_by(spp, individual) %>% 
+   add_tally %>% 
+   mutate(total_all = sum(ignition2, na.rm = T), 
+          prop_ignite_all = paste0(round(100 * total_all/nn)), 
+          prop_ignite_all = as.numeric(prop_ignite_all))
+
+df.dotplot.prop.ig <- df %>% 
+  group_by(spp) %>% 
+  mutate(med_prop_ignite = median(prop_ignite)) %>% 
+  mutate(stdev_prop_ignite = sd(prop_ignite))
+
+df.dotplot.prop.ig$Species <- factor(df.dotplot.prop.ig$Species, levels = c("Ab. concolor", "Pi. jeffreyi", "Ca. decurrens", "Ar. patula", "Ce. cordulatus", "Qu. kelloggii"))
+
+dotplot.prop.ig.b <- df.dotplot.prop.ig %>%
+   ggplot(aes(y = med_prop_ignite, 
+              x = Species,
+              color = Species)) +
+   geom_point(alpha = .7, size = 5) +
+  geom_abline(intercept = 100, slope = 0, color = 'black', alpha = 0.5, size = 0.3,linetype = "dotted") +
+   geom_linerange(aes(ymin = case_when(
+     med_prop_ignite - 2*stdev_prop_ignite < 0 ~ 0,
+     med_prop_ignite - 2*stdev_prop_ignite > 0 ~ med_prop_ignite - 2*stdev_prop_ignite),
+     ymax = case_when(
+       med_prop_ignite + 2*stdev_prop_ignite > 100 ~ 100,
+       med_prop_ignite + 2*stdev_prop_ignite < 100 ~ med_prop_ignite + 2*stdev_prop_ignite))) +
+   labs(y = "Percent Ignited (%)", 
+        x = "Species")  +
+   scale_y_continuous(limits = c(-.5, 115), breaks = c(0, 20, 40, 60, 80, 100)) +
+   #scale_x_discrete(guide = guide_axis(n.dodge=2))+ # if we want axis labelled w/ species
+   color_many2 +
+  # annotate('text', x = .75, y = 112, label = 'b', fontface = 'bold', size = 10) +
+   theme(axis.title.y = element_text(face = 'bold', size = 14),
+         axis.text.y = element_text(size = 8),
+         axis.title.x = element_blank(),
+         #axis.text.x = element_text(face = 'italic', size = 11),
+         axis.text.x = element_blank(),
+         axis.ticks.x = element_blank(),
+         legend.position = 'none',
+         panel.grid = element_blank())
+dotplot.prop.ig.b
+
 pca_fig_nolegend <- pca_fig +
   theme(legend.position = "none",
         plot.margin = unit(c(0, 0, 0, 0), "cm"))
 
-legend <- get_legend(pca_fig)
+pca_dotplot <- pca_fig_nolegend + 
+ # annotation_custom(ggplotGrob(dotplot.prop.ig.b),
+ #                                     xmin = .25, xmax = 3.8,
+ #                                     ymin = -6.25, ymax = -3.5) +
+   annotation_custom(ggplotGrob(dotplot.prop.ig.b),
+                                     xmin = -6.5, xmax = -2,
+                                     ymin = -6.25, ymax = -3)
+pca_dotplot
+```
 
+#Legend
+```{r}
+legend <- get_legend(df.dotplot.prop.ig %>%
+   ggplot(aes(y = med_prop_ignite, 
+              x = Species,
+              color = Species)) +
+   geom_point(alpha = .7, size = 5) +
+   labs(y = "Percent Ignited (%)", 
+        x = "Species", 
+        color = "Species")  +
+   color_many2 +
+    theme(panel.background = element_rect(fill='white', colour='black'), # Make background white and border black
+          panel.grid.major = element_blank(),  # Hide major gridlines
+          panel.grid.minor = element_blank(),
+          legend.key = element_rect(fill = "white"),
+          legend.title = element_text(face = 'bold', size = 18),
+         # legend.text = element_text(size = 16),
+        legend.text = element_text(face = 'italic', size = 16)))
+```
+
+#Add marginal density plots: 
+
+```{r}
 tti_plot <- spp_data_pca %>% 
             #  filter(hydration != "hydrated") %>% 
              ggplot()+
@@ -551,14 +651,16 @@ fd_plot <- spp_data_pca %>%
   xlab("Flame Duration (sec)") 
 fd_plot
 
-plot <- cowplot::plot_grid(tti_plot, legend, pca_fig_nolegend, gd_plot, ncol = 2, align = "hv",
+plot <- cowplot::plot_grid(tti_plot, legend, pca_dotplot, gd_plot, ncol = 2, align = "hv",
                    axis="tblr",
           rel_widths = c(4, 1), rel_heights = c(1, 4))
-plot 
-ggsave(here("figures", 'main-figures', 'Fig.PCA.density.jpg'), height = 12, width = 12) 
+plot
+
+ggsave(here("figures", 'main-figures', 'Fig.PCA.density_dots.jpg'), height = 12, width = 12) 
 ```
 
-```{r, eval=F}
+
+```{old code, r, eval=F}
 xdens <- axis_canvas(pca_fig_nolegend, axis = "x")+
   geom_density(data = spp_data_pca, aes(x = tti, fill = Species),
               alpha = 0.7, size = 0.2)+

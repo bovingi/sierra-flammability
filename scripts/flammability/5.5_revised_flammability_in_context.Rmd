@@ -80,6 +80,7 @@ field_data_all_6$spp <- factor(field_data_all_6$spp, levels = c("abco", "pije", 
 
 mem_data_all_6 <- read_csv(here("processed-data", "sierra_flam_data_all.csv"), show_col_types = FALSE) %>% 
    select(lfm, mpa, fh, fh, fd, gd,tti, prop_ignite, temp_change, lower_temp_max, ignition, sample_wt, dry_wt, fresh_wt, water_wt, location, site, year_month, spp, individual, bins10lfm, bins5lfm, bins20lfm, notes_flam) %>% 
+  #filter(age_new == "new") %>% 
   mutate(dw_flam_sample = sample_wt * (dry_wt/fresh_wt),
          ww_flam_sample = sample_wt * (water_wt/fresh_wt),
          excess_water = (ww_flam_sample - dw_flam_sample),

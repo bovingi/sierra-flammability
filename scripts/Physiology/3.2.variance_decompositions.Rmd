@@ -605,3 +605,81 @@ plots_stacked_legend
 ggsave(plot=plots_stacked_legend, bg = "white" , here::here("figures",  "supp-figures", "FigS3.var_decomp_split_TLP.jpg"), height = 7, width = 9)
 ```
 
+#New growth only:
+
+###- Field plot - new growth only
+
+```{r}
+
+form <- ~ water_potential + (1|spp) + (1|year_month) + (1|plant) 
+
+angio_field_new <- angio_field %>% 
+  filter(age_new == 'new') 
+  
+lfm_matrix <- angio_field_new  %>% 
+  ungroup() %>% 
+  mutate(id = row_number()) %>% 
+  select(id, log_lfm) %>% 
+  pivot_wider(names_from = id, 
+              values_from = log_lfm) 
+
+varPart <- fitExtractVarPartModel(lfm_matrix, form, angio_field_new )
+varPart
+
+field_vardecomp_angio_new <- plotPercentBars.new(varPart, col = c(vcol))+ theme(legend.position = "none")  
+field_vardecomp_angio
+
+ggsave(plot=field_vardecomp_angio_new, bg = "white" , here::here("figures", "extra-figures", "var_decomp", "field_vardecomp_angio_new"), device="jpg")
+
+#------
+
+form <- ~ water_potential + (1|spp) + (1|year_month) + (1|plant) 
+
+gymno_field_new <- gymno_field %>% 
+  filter(age_new == 'new') 
+
+lfm_matrix <- gymno_field_new %>% 
+  ungroup() %>% 
+  mutate(id = row_number()) %>% 
+  select(id, log_lfm) %>% 
+  pivot_wider(names_from = id, 
+              values_from = log_lfm) 
+
+varPart <- fitExtractVarPartModel(lfm_matrix, form, gymno_field_new)
+varPart
+
+field_vardecomp_gymno_new <- plotPercentBars.new(varPart, col = c(vcol))+ theme(legend.position = "none")
+field_vardecomp_gymno_new
+
+ggsave(plot=field_vardecomp_gymno_new, bg = "white" , here::here("figures", "extra-figures", "var_decomp", "field_vardecomp_gymno_new"), device="jpg")
+
+#-----
+field_data_all_new <- field_data_all %>% 
+  filter(age_new == 'new')
+  
+field_data_all_new$spp <- factor(field_data_all_new$spp, levels = c('ABCO', 'PIJE', 'CADE', 'ARPA', 'CECO', 'QUKE'))
+
+field_plot_angio_new  <- lfm.vs.mpa.scatterplot(f.group.lab = "Angiosperm", f.group = "Angiosperm", y.lab = "Field Data", y.axis = T, y.max = 300, df = field_data_all_new) +
+  annotate(geom = "text", x = 0.5, y = 280, label = 'a', fontface = 'bold', size = 20)
+field_plot_angio_new 
+
+field_vd_sp_angio_new  <- field_plot_angio_new  + annotation_custom(ggplotGrob(field_vardecomp_angio_new),
+                                     xmin = 7.25, xmax = 10,
+                                     ymin = 100, ymax = 280)
+field_vd_sp_angio_new 
+
+field_plot_gymno_new  <- lfm.vs.mpa.scatterplot(f.group.lab = "Gymnosperm", f.group = "Gymnosperm", y.max = 300, df = field_data_all_new) +
+  annotate(geom = "text", x = 0.5, y = 280, label = 'b', fontface = 'bold', size = 20)
+field_plot_gymno_new 
+
+field_vd_sp_gymno_new <- field_plot_gymno_new  + annotation_custom(ggplotGrob(field_vardecomp_gymno_new),
+                                     xmin = 7.45, xmax = 10,
+                                     ymin = 100, ymax = 280)
+field_vd_sp_gymno_new
+
+field_plot_new_combined <- cowplot::plot_grid(field_vd_sp_angio_new, field_vd_sp_gymno_new, legend, ncol=3, rel_widths = c(5, 5, 1.5), rel_heights = c(1,1, .5))
+field_plot_new_combined
+
+ggsave(plot=field_plot_new_combined, bg = "white" , here("figures", "extra-figures", "New_LFM_MPa_Scatterplots.jpg"), height = 10, width = 14)
+```
+

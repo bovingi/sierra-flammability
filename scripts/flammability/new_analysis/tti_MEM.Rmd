@@ -75,10 +75,11 @@ mem_data_all <- read_csv(here("processed-data", "sierra_flam_data_all.csv"), sho
   mutate(dw_flam_sample = sample_wt * (dry_wt/fresh_wt),
          mpa = -1*mpa, 
          ww_flam_sample = sample_wt * (water_wt/fresh_wt),
-         excess_water = (ww_flam_sample - dw_flam_sample),
-         mpa_scaled = scale(mpa)) %>% 
+         excess_water = (ww_flam_sample - dw_flam_sample)
+         ) %>% 
   group_by(spp) %>% 
   mutate(dw_flam_sample_scaled = scale(dw_flam_sample), 
+         mpa_scaled = scale(mpa),
          sample_wt_scaled = scale(sample_wt), 
          ww_flam_sample_scaled = scale(ww_flam_sample),
          lfm_scaled = scale(lfm), 
@@ -295,7 +296,7 @@ top_mpa_noint_tti <- lmer(tti ~ spp + mpa_scaled + sample_wt_scaled + year_month
 
 top_mpa_int_tti <- lmer(tti ~ mpa_scaled*spp + sample_wt_scaled + year_month + (1 | individual), data = mem_data_all, REML = F)
 
-top_mpa_tti <- lmer(tti ~ mpa_scaled*spp + sample_wt_scaled + year_month + (1 | individual), data = mem_data_all, REML = F)
+top_mpa_tti <- lmer(tti ~ mpa_scaled + spp + sample_wt_scaled + year_month + (1 | individual), data = mem_data_all, REML = F)
 
 summary(top_mpa_tti)
 
@@ -320,115 +321,35 @@ df_tti
 1) Estimates into a df: 
 ```{r}
 summary(top_mpa_tti)
+library(sjPlot)
+
+sjPlot::plot_model(top_lfm_int_tti, 
+                   colors = c('#6E406E'), 
+                   # title = NULL,
+                   show.values = TRUE, 
+                   # rm.terms = c("spp [arpa, cade, pije, quke]"),
+                   title = "",
+                 axis.labels = c(
+                   "LFM * QUKE", 
+                   "LFM * PIJE", 
+                   "LFM * CADE",
+                   "LFM * ARPA", 
+                   "Location",
+                   "Sample wt.",
+                   "LFM",
+                   "QUKE",
+                   "PIJE",
+                   "CADE",
+                   "ARPA"
+                 ),
+                   value.offset = .3,
+                 axis.lim = c(-70, 15)) + 
+    theme(panel.background = element_rect(fill='white', colour='black'), # Make background white and border black
+          panel.grid.major = element_blank(),  # Hide major gridlines
+          panel.grid.minor = element_blank()) # Hide minor gridlines
 ```
 
 ```{r}
-tti_mod.coef.df1 <- tidy(top_lfm_int_tti) %>% 
- select(term, estimate, std.error, p.value)%>% 
-  mutate(metric = 'TTI') %>% 
-  mutate(pred = 'lfm')
-
-tti_mod.coef.df2 <- tidy(top_mpa_tti) %>% 
- select(term, estimate, std.error, p.value)%>% 
-  mutate(metric = 'TTI') %>% 
-  mutate(pred = 'mpa')
-
-
-tti_mod.coef.df <- rbind(tti_mod.coef.df1, tti_mod.coef.df2)
-
-
-tti_mod_lfm <- top_lfm
-
-# tti_mod.coef.df2 %>% 
-#   dplyr::filter(term %in% c("lfm_scaled",
-#                          "lfm_scaled:spppije",
-#                          "lfm_scaled:sppcade",
-#                          "lfm_scaled:spparpa",
-#                          "lfm_scaled:sppquke")) %>%
-#   ggplot(aes(y = estimate, x = term)) +
-#   geom_point(size = 3) 
-
-
-# em_tti_lfm <- emmeans::emtrends(tti_mod_lfm, pairwise~spp, var = c("lfm_scaled"))
-# tti_lfm <- summary(em_tti_lfm, infer=c(TRUE,TRUE),null=0)
-# 
-# emtrends_tti_lfm <- tti_lfm$emtrends %>% 
-#   as.data.frame()
-# emtrends_tti_lfm$spp <- factor(emtrends_tti_lfm$spp, levels = c("abco", "pije", "cade", "arpa", "quke"))
-# emtrends_tti_lfm <- emtrends_tti_lfm %>% 
-#   arrange(spp)
-#   
-# emtrends_tti_lfm_list <- emtrends_tti_lfm %>% select(p.value) %>% as.vector()
-# tti.p.value.lfm <- emtrends_tti_lfm_list$p.value
-# 
-# tti.p.value.lfm
-# 
-# tti_mod_mpa <-top_mpa 
-# em_tti_mpa <- emmeans::emtrends(tti_mod_mpa, pairwise~spp, var = "mpa_scaled")
-# tti_mpa <- summary(em_tti_mpa, infer=c(TRUE,TRUE),null=0)
-# 
-# emtrends_tti_mpa <- tti_mpa$emtrends %>% 
-#   as.data.frame()
-# emtrends_tti_mpa$spp <- factor(emtrends_tti_mpa$spp, levels = c("abco", "pije", "cade", "arpa", "quke"))
-# emtrends_tti_mpa <- emtrends_tti_mpa %>% 
-#   arrange(spp)
-#   
-# emtrends_tti_mpa_list <- emtrends_tti_mpa %>% select(p.value) %>% as.vector()
-# tti.p.value.mpa <- emtrends_tti_mpa_list$p.value
-# tti.p.value.mpa
-
-#Plot: 
-
-###PLOT
-
-
-species <- c("A. concolor", "P. jeffreyi", "C. decurrens", "A. patula", "Q. kelloggii")
-ref <- tti_mod.coef.df1$estimate[6]
-
-tti.ES.lfm <- c(ref, #Abco
-                ref + tti_mod.coef.df1$estimate[11], #pije
-                ref + tti_mod.coef.df1$estimate[10],
-                ref + tti_mod.coef.df1$estimate[9],
-                ref + tti_mod.coef.df1$estimate[8])
-  # Following this order: ABCO, PIJE, CADE, ARPA, QUKE (no CECO)
-
-tti.SE.lfm <- c(tti_mod.coef.df1$std.error[c(6,11,10,9,8)])
-
-#p values:
-
-ref <- tti_mod.coef.df1$p.value[6]
-tti.p.value.lfm <- c(ref, #Abco
-                ref + tti_mod.coef.df1$p.value[11], #pije
-                ref + tti_mod.coef.df1$p.value[10],
-                ref + tti_mod.coef.df1$p.value[9],
-                ref + tti_mod.coef.df1$p.value[8])
-
-tti.sig.lfm <- significance(tti.p.value.lfm, tti.sig.lfm) # Gathering p-values from vectors made in 2.5 section
-
-
-#mpa: 
-ref2 <- tti_mod.coef.df2$estimate[6]
-
-tti.ES.mpa <- c(ref2, 
-                ref2 + tti_mod.coef.df2$estimate[10],
-                ref2 + tti_mod.coef.df2$estimate[9], 
-                ref2 + tti_mod.coef.df2$estimate[8], 
-                ref2 + tti_mod.coef.df2$estimate[11]) 
-tti.SE.mpa <- c(tti_mod.coef.df2$std.error[c(6,10,9,8,11)])
-
-ref <- tti_mod.coef.df2$p.value[6]
-tti.p.value.lfm <- c(ref, #Abco
-                ref + tti_mod.coef.df2$p.value[10], #pije
-                ref + tti_mod.coef.df2$p.value[9],
-                ref + tti_mod.coef.df2$p.value[8],
-                ref + tti_mod.coef.df2$p.value[11])
-
-tti.sig.mpa <- significance(tti.p.value.mpa, tti.sig.mpa)
-
-tti.ES.df <- data.frame(species, tti.ES.lfm, tti.SE.lfm, tti.p.value.lfm, tti.sig.lfm, tti.ES.mpa, tti.SE.mpa, tti.p.value.mpa, tti.sig.mpa)
-
-tti.ES.df$species <- factor(tti.ES.df$species, levels = c("A. concolor", "P. jeffreyi", "C. decurrens", "A. patula", "Q. kelloggii"))
-
 #Plots:
 
 ES.plot2 <- function(df, y.var, sig, std.error, mpa = 'no', margins.vector = c(0.1, 0.1, 0.1, 0.1), limits.vector, breaks.vector, axis.title = ' ') 
@@ -499,6 +420,72 @@ ES.plot2 <- function(df, y.var, sig, std.error, mpa = 'no', margins.vector = c(0
               legend.position = 'none')
     }
   }
+```
+
+
+```{r}
+tti_mod.coef.df1 <- tidy(top_lfm_int_tti) %>% 
+ select(term, estimate, std.error, p.value)%>% 
+  mutate(metric = 'TTI') %>% 
+  mutate(pred = 'lfm')
+
+tti_mod.coef.df2 <- tidy(top_mpa_int_tti) %>% 
+ select(term, estimate, std.error, p.value)%>% 
+  mutate(metric = 'TTI') %>% 
+  mutate(pred = 'mpa')
+
+
+#tti_mod.coef.df <- rbind(tti_mod.coef.df1, tti_mod.coef.df2)
+
+tti_mod_lfm <- top_lfm
+
+species <- c("A. concolor", "P. jeffreyi", "C. decurrens", "A. patula", "Q. kelloggii")
+ref <- tti_mod.coef.df1$estimate[6]
+
+tti.ES.lfm <- c(ref, #Abco
+                ref + tti_mod.coef.df1$estimate[11], #pije
+                ref + tti_mod.coef.df1$estimate[10],
+                ref + tti_mod.coef.df1$estimate[9],
+                ref + tti_mod.coef.df1$estimate[8])
+  # Following this order: ABCO, PIJE, CADE, ARPA, QUKE (no CECO)
+
+tti.SE.lfm <- c(tti_mod.coef.df1$std.error[c(6,11,10,9,8)])
+
+#p values:
+
+ref <- tti_mod.coef.df1$p.value[6]
+tti.p.value.lfm <- c(ref, #Abco
+                tti_mod.coef.df1$p.value[11], #pije
+                tti_mod.coef.df1$p.value[10],
+                tti_mod.coef.df1$p.value[9],
+                tti_mod.coef.df1$p.value[8])
+
+tti.sig.lfm <- significance(tti.p.value.lfm, tti.sig.lfm) # Gathering p-values from vectors made in 2.5 section
+
+
+#mpa: 
+ref2 <- tti_mod.coef.df2$estimate[2]
+
+tti.ES.mpa <- c(ref2, 
+                ref2 + tti_mod.coef.df2$estimate[10],
+                ref2 + tti_mod.coef.df2$estimate[9], 
+                ref2 + tti_mod.coef.df2$estimate[8], 
+                ref2 + tti_mod.coef.df2$estimate[11]) 
+tti.SE.mpa <- c(tti_mod.coef.df2$std.error[c(2,10,9,8,11)])
+
+ref <- tti_mod.coef.df2$p.value[2]
+tti.p.value.lfm <- c(ref, #Abco
+                tti_mod.coef.df2$p.value[10], #pije
+                tti_mod.coef.df2$p.value[9],
+                tti_mod.coef.df2$p.value[8],
+                tti_mod.coef.df2$p.value[11])
+
+tti.sig.mpa <- significance(tti.p.value.mpa, tti.sig.mpa)
+
+tti.ES.df <- data.frame(species, tti.ES.lfm, tti.SE.lfm, tti.p.value.lfm, tti.sig.lfm, tti.ES.mpa, tti.SE.mpa, tti.p.value.mpa, tti.sig.mpa)
+
+tti.ES.df$species <- factor(tti.ES.df$species, levels = c("A. concolor", "P. jeffreyi", "C. decurrens", "A. patula", "Q. kelloggii"))
+
 
 tti.ES.lfm.plot <- ES.plot2(tti.ES.df, tti.ES.lfm, tti.sig.lfm, tti.SE.lfm,
                            mpa = 'no',
@@ -557,7 +544,7 @@ ggplot(aes(y = tti, x = lfm, color = Species)) +
               legend.position = 'none')  +
   annotate(geom = "text", x = -2.5, y = 170, label = 'a',
            fontface = 'bold', size = 10) 
-#tti_scatterplot
+tti_scatterplot
   
 tti_scatterplot.mpa <- mem_data_all %>% 
 ggplot(aes(y = tti, x = mpa, color = Species)) +
@@ -686,7 +673,9 @@ summary(top_mpa_fh)
 
 top_mpa_int_fh <- lmer(fh ~ mpa_scaled*spp + sample_wt_scaled + (1 | individual), data = mem_data_all, REML = F)
 
-df_fh1 <- as.data.frame(aictab(c(top_lfm_noint_fh, top_lfm_int_fh, top_mpa_noint_fh, top_mpa_int_fh)))
+top_mpa_nosw_fh <- lmer(fh ~ mpa_scaled*spp + (1 | individual), data = mem_data_all, REML = F)
+
+df_fh1 <- as.data.frame(aictab(c(top_lfm_noint_fh, top_lfm_int_fh, top_mpa_noint_fh, top_mpa_int_fh, top_mpa_nosw_fh)))
 
 df_fh <- df_fh1 %>% 
   distinct() %>% 
@@ -695,6 +684,7 @@ df_fh <- df_fh1 %>%
     Modnames %in% c("Mod2") ~ "LFM*Spp + Wt.",
     Modnames %in% c("Mod3") ~ "Mpa + Spp + Wt.",
     Modnames %in% c("Mod4") ~ "MPa*Spp + Wt.",
+   Modnames %in% c("Mod5") ~ "MPa*Spp",
   )) %>% 
   select(Model, K, AICc, Delta_AICc) %>% 
   mutate(Flam = "Flame Height")
@@ -1015,13 +1005,15 @@ top_lfm_int_temp <- lmer(temp_change ~ lfm_scaled*spp +year_month + sample_wt_sc
 topmods.mpa <- MuMIn::dredge(lmer(temp_change ~ mpa_scaled:spp + mpa_scaled + spp +  sample_wt_scaled +year_month + (1 | individual), data = mem_data_all_dredge, na.action = "na.fail", REML = F))
 topmods.mpa
 
-top_mpa_temp<- lmer(temp_change ~ mpa_scaled + spp + sample_wt_scaled + year_month + (1|individual) , data = mem_data_all, REML = F)
+top_mpa_temp<- lmer(temp_change ~ mpa_scaled*spp + sample_wt_scaled + year_month + (1|individual) , data = mem_data_all, REML = F)
 
 summary(top_mpa_temp)
 
 top_mpa_int_temp<- lmer(temp_change ~ mpa_scaled*spp + sample_wt_scaled + year_month +(1|individual) + (1|site), data = mem_data_all, REML = F)
 
-df_temp1 <- as.data.frame(aictab(c(top_lfm_temp, top_lfm_int_temp, top_mpa_temp, top_mpa_int_temp)))
+top_mpa_noint_temp<- lmer(temp_change ~ mpa_scaled + spp + sample_wt_scaled + year_month +(1|individual) + (1|site), data = mem_data_all, REML = F)
+
+df_temp1 <- as.data.frame(aictab(c(top_lfm_temp, top_lfm_int_temp, top_mpa_noint_temp, top_mpa_int_temp)))
 df_temp1
 
 df_temp <- df_temp1 %>% 
@@ -1345,6 +1337,7 @@ tab_model(top_lfm_tti, top_lfm_fh, top_lfm_fd, top_lfm_temp, top_lfm_gd,
           digits = 3, 
           show.aic = TRUE, 
           show.ci = FALSE,
+         p.val = "kr",
           show.icc = FALSE, 
           show.p = TRUE,
           auto.label = TRUE,
@@ -1375,6 +1368,7 @@ tab_model(top_mpa_tti, top_mpa_fh, top_mpa_fd, top_mpa_temp, top_mpa_gd,
           digits = 3, 
           show.aic = TRUE, 
           show.ci = FALSE,
+         p.val = "kr",
           show.icc = FALSE, 
           #show.p= FALSE,
          string.pred = "Coefficient", 
@@ -1398,6 +1392,7 @@ tab_model(top_mpa_tti, top_mpa_fh, top_mpa_fd, top_mpa_temp, top_mpa_gd,
 tab_model(top_lfm_int_tti, top_lfm_int_fh, top_lfm_int_fd, top_lfm_int_temp, top_lfm_int_gd,
           show.reflvl = FALSE, 
           digits = 3, 
+          p.val = "kr",
           show.aic = TRUE, 
           show.ci = FALSE,
           show.icc = FALSE, 
@@ -1415,6 +1410,7 @@ string.p = "P-Value",
 tab_model(top_mpa_int_tti, top_mpa_int_fh, top_mpa_int_fd, top_mpa_int_temp, top_mpa_int_gd,
           show.reflvl = FALSE, 
           digits = 3, 
+          p.val = "kr",
           show.aic = TRUE, 
           show.ci = FALSE,
           show.icc = FALSE, 
@@ -1429,9 +1425,11 @@ tab_model(top_mpa_int_tti, top_mpa_int_fh, top_mpa_int_fd, top_mpa_int_temp, top
   )
 
 
-tab_model(top_mpa_tti, top_mpa_int_tti, top_lfm_tti, top_lfm_int_tti,
+tab_model(top_mpa_tti, top_mpa_int_tti, top_mpa_noint_tti, top_lfm_tti, top_lfm_int_tti,
           show.reflvl = FALSE, 
           digits = 3, 
+          show.std = NULL,
+          p.val = "kr",
           show.aic = TRUE, 
           show.ci = FALSE,
           show.icc = FALSE, 
@@ -1439,6 +1437,7 @@ tab_model(top_mpa_tti, top_mpa_int_tti, top_lfm_tti, top_lfm_int_tti,
          string.pred = "Coefficient", 
          dv.labels = c("top mpa", 
                        "int mpa", 
+                       "noint mpa",
                        "top lfm", 
                        "int lfm"),
          # dv.labels = c("Time to Ignition", "Flame Height", "Flame Duration", 
