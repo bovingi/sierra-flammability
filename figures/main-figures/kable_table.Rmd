@@ -1,0 +1,83 @@
+---
+title: "Untitled"
+author: "Indra Boving"
+date: "2023-05-16"
+output:
+  word_document: default
+  html_document: default
+---
+# Setup
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+install.packages(c("devtools", "roxygen2", "testthat", "knitr"))
+install.packages("tidyverse", "here", "lme4", 
+                 "cowplot", "lmerTest", "sjPlot", "janitor")
+library(tidyverse, here, lme4, 
+                 cowplot, lmerTest, sjPlot, janitor)
+```
+
+
+```{r setup, include=FALSE}
+#lots of extra here, but oh well... 
+
+library(gapminder)
+library(data.table)
+library(purrr) #for visualizing all variables in one big plot
+library(naniar) #for dealing with NAs nicely 
+library(tidyverse)
+library(devtools)
+library(ggfortify)
+library(ggpubr)
+library(jtools)
+library(cowplot)
+library(lmerTest)
+library(ggeffects)  
+library(GGally) #for corr plots
+require(kimisc) # has the nlist function to create a named list
+require(AICcmodavg) # has the aictab function
+library(psych)
+
+#devtools::install_github("strengejacke/strengejacke")
+library(strengejacke)
+library(sjPlot) # table functions
+library(sjmisc) # sample data
+
+library(lme4) # fitting models
+library(here)
+library(effects) #for plotting model effects
+library(sjstats) #use for r2 functions
+library(TMB)
+library(glmmTMB)
+library(lattice)
+library(equatiomatic)
+library("broom.mixed")
+#library(ggbiplot)
+select = dplyr::select
+here = here::here
+library(MuMIn)
+library(modelsummary)
+#install_github("BlakeRMills/MetBrewer") 
+#library("BlakeRMills/MetBrewer")
+#library(memmented)
+filter = dplyr::filter
+mutate = dplyr::mutate
+library(nlme)
+library(MetBrewer)
+#install.packages("memmented")
+#devtools::install_github("hohenstein/remef")
+library(remef)
+library(kableExtra)
+
+source(here::here("scripts", "scripts_functions", "figure_info_sierra_flammability.R")) #color and theme info is here
+```
+
+
+#Table of AIC: 
+```{r}
+df_model_selection <- bind_rows(df_tti, df_fh, df_temp, df_fd, df_gd) %>% 
+  select(Flam, Model, K, Delta_AICc)
+
+df_model_selection
+
+knitr::kable(df_model_selection, format = "html") 
+```

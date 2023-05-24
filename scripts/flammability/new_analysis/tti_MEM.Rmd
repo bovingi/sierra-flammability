@@ -27,8 +27,9 @@ library(GGally) #for corr plots
 require(kimisc) # has the nlist function to create a named list
 require(AICcmodavg) # has the aictab function
 library(psych)
+library(broom.mixed)
 
-#devtools::install_github("strengejacke/strengejacke")
+devtools::install_github("strengejacke/strengejacke")
 library(strengejacke)
 library(sjPlot) # table functions
 library(sjmisc) # sample data
@@ -40,29 +41,48 @@ library(sjstats) #use for r2 functions
 library(TMB)
 library(glmmTMB)
 library(lattice)
-library(equatiomatic)
-library("broom.mixed")
+#library(equatiomatic)
+#library("broom.mixed")
 #library(ggbiplot)
-select = dplyr::select
-here = here::here
+#select = dplyr::select
+#here = here::here
 library(MuMIn)
 library(modelsummary)
 #install_github("BlakeRMills/MetBrewer") 
 #library("BlakeRMills/MetBrewer")
 #library(memmented)
-filter = dplyr::filter
-mutate = dplyr::mutate
+#filter = dplyr::filter
+#mutate = dplyr::mutate
 library(nlme)
 library(MetBrewer)
 #install.packages("memmented")
-#devtools::install_github("hohenstein/remef")
+devtools::install_github("hohenstein/remef")
 library(remef)
 library(kableExtra)
 
-source(here::here("scripts", "scripts_functions", "figure_info_sierra_flammability.R")) #color and theme info is here
+#source(here::here("scripts", "scripts_functions", "figure_info_sierra_flammability.R")) #color and theme info is here
 ```
 
+## Sig. function
 
+```{r}
+significance <- function(p.value.df, sig.vector) {
+  
+  sig.vector <- c(rep("NA", 5))
+  
+for(i in 1:5){
+  
+  if(p.value.df[i] < 0.04999){
+  sig.vector[i] <- 'Yes'
+  }
+  
+  else {
+  sig.vector[i] <- 'No'
+  }
+}
+  return(sig.vector)
+}
+```
 #------------------------------------
 # 1. Data wrangling
 Reading in dataframe
@@ -173,7 +193,7 @@ mem_data_all %>%
 ####Dotplot
 
 ```{r, warning = F}
-df <- mem_data_all_clean %>% 
+df <- mem_data_all  %>% 
    mutate(hydration = case_when(
      lfm <= 100 ~ 'dry', 
      lfm > 100 ~ 'wet', 
@@ -268,6 +288,9 @@ noints <- lmer(tti ~ lfm_scaled + mpa_scaled + spp + sample_wt_scaled  + year_mo
 
 performance::multicollinearity(noints)
 ```
+Next: 
+Can take best within 6, and aim is for the simplist model. 
+
 
 ```{r}
 mem_data_all_dredge <- mem_data_all %>% 
@@ -286,7 +309,7 @@ summary(top_lfm_tti
 top_lfm_int_tti <- lmer(tti ~ lfm_scaled:spp + spp + lfm_scaled + sample_wt_scaled + year_month + (1 | individual), data = mem_data_all,  REML = F)
 
 summary(top_lfm_tti)
-performance::multicollinearity(top_lfm)
+performance::multicollinearity(top_lfm_tti)
 
 topmods.mpa <- MuMIn::dredge(lmer(tti ~ mpa_scaled:spp + mpa_scaled + spp + sample_wt_scaled +year_month + (1 | individual), data = mem_data_all_dredge, na.action = "na.fail", REML = F))
 
@@ -300,7 +323,9 @@ top_mpa_tti <- lmer(tti ~ mpa_scaled + spp + sample_wt_scaled + year_month + (1 
 
 summary(top_mpa_tti)
 
-df_tti1 <- as.data.frame(aictab(c(top_lfm_tti, top_lfm_int_tti, top_mpa_noint_tti, top_mpa_int_tti)))
+null_tti <- lmer(tti ~  spp + sample_wt_scaled + year_month + (1 | individual), data = mem_data_all, REML = F)
+
+df_tti1 <- as.data.frame(aictab(c(top_lfm_tti, top_lfm_int_tti, top_mpa_noint_tti, top_mpa_int_tti, null_tti)))
 
 df_tti <- df_tti1 %>% 
   mutate(Model = case_when(
@@ -308,6 +333,7 @@ df_tti <- df_tti1 %>%
     Modnames %in% c("Mod2") ~ "LFM*Spp + Wt.",
     Modnames %in% c("Mod3") ~ "Mpa + Spp + Wt.",
     Modnames %in% c("Mod4") ~ "MPa*Spp + Wt.",
+    Modnames %in% c("Mod5") ~ "Spp + Wt.",
   )) %>% 
   select(Model, K, AICc, Delta_AICc) %>% 
   mutate(Flam = "Time to Ignition")
@@ -424,7 +450,7 @@ ES.plot2 <- function(df, y.var, sig, std.error, mpa = 'no', margins.vector = c(0
 
 
 ```{r}
-tti_mod.coef.df1 <- tidy(top_lfm_int_tti) %>% 
+tti_mod.coef.df1 <- broom.mixed::tidy(top_lfm_int_tti) %>% 
  select(term, estimate, std.error, p.value)%>% 
   mutate(metric = 'TTI') %>% 
   mutate(pred = 'lfm')
@@ -437,7 +463,7 @@ tti_mod.coef.df2 <- tidy(top_mpa_int_tti) %>%
 
 #tti_mod.coef.df <- rbind(tti_mod.coef.df1, tti_mod.coef.df2)
 
-tti_mod_lfm <- top_lfm
+tti_mod_lfm <- top_lfm_tti
 
 species <- c("A. concolor", "P. jeffreyi", "C. decurrens", "A. patula", "Q. kelloggii")
 ref <- tti_mod.coef.df1$estimate[6]
@@ -477,7 +503,7 @@ tti.SE.mpa <- c(tti_mod.coef.df2$std.error[c(2,11,10,9,12)])
 
 ref <- tti_mod.coef.df2$p.value[2]
 
-tti.p.value.lfm <- c(ref, #Abco
+tti.p.value.mpa <- c(ref, #Abco
                 tti_mod.coef.df2$p.value[11], #pije
                 tti_mod.coef.df2$p.value[10],
                 tti_mod.coef.df2$p.value[9],
@@ -662,7 +688,6 @@ ggsave(plot = tti_plots, bg = 'white',
 #FH
 
 ```{r}
-top_lfm_fh
 mem_data_all_dredge <- mem_data_all %>% 
   drop_na(lfm_scaled, spp, mpa_scaled, year_month, sample_wt_scaled, fh
           )
@@ -693,7 +718,9 @@ top_mpa_int_fh <- lmer(fh ~ mpa_scaled*spp + sample_wt_scaled + (1 | individual)
 
 top_mpa_nosw_fh <- lmer(fh ~ mpa_scaled*spp + (1 | individual), data = mem_data_all, REML = F)
 
-df_fh1 <- as.data.frame(aictab(c(top_lfm_noint_fh, top_lfm_int_fh, top_mpa_noint_fh, top_mpa_int_fh, top_mpa_nosw_fh)))
+null_fh <- lmer(fh ~ spp + sample_wt_scaled + year_month +(1 | individual), data = mem_data_all, REML = F)
+
+df_fh1 <- as.data.frame(aictab(c(top_lfm_noint_fh, top_lfm_int_fh, top_mpa_noint_fh, top_mpa_int_fh, null_fh)))
 
 df_fh <- df_fh1 %>% 
   distinct() %>% 
@@ -702,7 +729,7 @@ df_fh <- df_fh1 %>%
     Modnames %in% c("Mod2") ~ "LFM*Spp + Wt.",
     Modnames %in% c("Mod3") ~ "Mpa + Spp + Wt.",
     Modnames %in% c("Mod4") ~ "MPa*Spp + Wt.",
-   Modnames %in% c("Mod5") ~ "MPa*Spp",
+   Modnames %in% c("Mod5") ~ "Spp + Wt.",
   )) %>% 
   select(Model, K, AICc, Delta_AICc) %>% 
   mutate(Flam = "Flame Height")
@@ -846,7 +873,7 @@ mem_data_all_dredge <- mem_data_all %>%
 topmods.lfm <- MuMIn::dredge(lmer(fd ~ lfm_scaled:spp + spp + lfm_scaled + sample_wt_scaled + year_month + (1 | individual), data = mem_data_all_dredge, na.action = "na.fail", REML = F))
 topmods.lfm
 
-top_lfm_fd <- lmer(fd ~ spp + lfm_scaled + sample_wt_scaled + year_month + (1|individual), data = mem_data_all, REML = F)
+top_lfm_fd <- lmer(fd ~ spp + lfm_scaled + sample_wt_scaled + (1|individual), data = mem_data_all, REML = F)
 summary(top_lfm_fd)
 
 top_lfm_int_fd <- lmer(fd ~ spp*lfm_scaled + sample_wt_scaled + year_month + (1|individual), data = mem_data_all, REML = F)
@@ -854,17 +881,18 @@ top_lfm_int_fd <- lmer(fd ~ spp*lfm_scaled + sample_wt_scaled + year_month + (1|
 topmods.mpa <- MuMIn::dredge(lmer(fd ~ mpa_scaled:spp + spp + mpa_scaled + sample_wt_scaled + year_month + (1 | individual), data = mem_data_all_dredge, na.action = "na.fail", REML = F))
 topmods.mpa
 
-top_mpa_fd <- lmer(fd ~ spp + sample_wt_scaled + year_month + (1|individual), data = mem_data_all, REML = F)
+null_fd <- lmer(fd ~ spp + sample_wt_scaled + year_month + (1|individual), data = mem_data_all, REML = F)
 
 top_mpa_int_fd <- lmer(fd ~ sample_wt_scaled + year_month + mpa_scaled*spp + (1|individual), data = mem_data_all, REML = F)
-summary(top_mpa_fd)
+#summary(top_mpa_fd)
+
+top_mpa_fd <- lmer(fd ~ sample_wt_scaled + year_month + mpa_scaled + spp + (1|individual), data = mem_data_all, REML = F)
 
 top_mpa_noint_fd <- lmer(fd ~ sample_wt_scaled + year_month + spp + mpa_scaled + (1|individual), data = mem_data_all, REML = F)
 
-AIC(fd_wt)
+null_fd <- lmer(fd ~ sample_wt_scaled + year_month + spp + (1|individual), data = mem_data_all, REML = F)
 
-
-df_fd1 <- as.data.frame(aictab(c(top_lfm_fd, top_lfm_int_fd, top_mpa_fd, top_mpa_int_fd, top_mpa_noint_fd)))
+df_fd1 <- as.data.frame(aictab(c(top_lfm_fd, top_lfm_int_fd, null_fd, top_mpa_int_fd, top_mpa_noint_fd)))
 df_fd1
 
 df_fd  <- df_fd1 %>% 
@@ -1031,7 +1059,9 @@ top_mpa_int_temp<- lmer(temp_change ~ mpa_scaled*spp + sample_wt_scaled + year_m
 
 top_mpa_noint_temp<- lmer(temp_change ~ mpa_scaled + spp + sample_wt_scaled + year_month +(1|individual) + (1|site), data = mem_data_all, REML = F)
 
-df_temp1 <- as.data.frame(aictab(c(top_lfm_temp, top_lfm_int_temp, top_mpa_noint_temp, top_mpa_int_temp)))
+null_temp<- lmer(temp_change ~ spp + sample_wt_scaled + year_month +(1|individual) + (1|site), data = mem_data_all, REML = F)
+
+df_temp1 <- as.data.frame(aictab(c(top_lfm_temp, top_lfm_int_temp, top_mpa_noint_temp, top_mpa_int_temp, null_temp)))
 df_temp1
 
 df_temp <- df_temp1 %>% 
@@ -1041,6 +1071,7 @@ df_temp <- df_temp1 %>%
     Modnames %in% c("Mod2") ~ "LFM*Spp + Wt.",
     Modnames %in% c("Mod3") ~ "Mpa + Spp + Wt.",
     Modnames %in% c("Mod4") ~ "MPa*Spp + Wt.",
+   Modnames %in% c("Mod5") ~ "Spp + Wt.",
   )) %>% 
   select(Model, K, AICc, Delta_AICc) %>% 
   mutate(Flam = "Temp. Change")
@@ -1194,6 +1225,8 @@ top_mpa_noint_gd <- lmer(gd ~ year_month + sample_wt_scaled + spp + mpa_scaled +
 
 top_mpa_int_gd <- lmer(gd ~  year_month +sample_wt_scaled + mpa_scaled*spp + (1|individual), data = mem_data_all, REML = F)
 
+null_gd <- lmer(gd ~  year_month +sample_wt_scaled + spp + (1|individual), data = mem_data_all, REML = F)
+
 summary(top_mpa_gd)
 
 df_gd1 <- as.data.frame(aictab(c(top_lfm_gd, top_lfm_int_gd, top_lfm_noint_gd, #top_mpa_gd, 
@@ -1217,12 +1250,11 @@ df_gd
 #Table of AIC: 
 ```{r}
 df_model_selection <- bind_rows(df_tti, df_fh, df_temp, df_fd, df_gd) %>% 
-  select(Flam, Model, Delta_AICc)
+  select(Flam, Model, K, Delta_AICc)
 
 df_model_selection
 
-knitr::kable(df_model_selection, format = "html") %>% 
-  print()
+knitr::kable(df_model_selection, format = "html") 
 ```
 
 
@@ -1348,16 +1380,25 @@ es_plots_gd
 ```
 
 #Table of final models: 
-```{r}
+```{r, warning = F}
+library(sjPlot)
+remotes::install_github("tidyverse/purrr")
+library(purrr)
+
+
+#install.packages("purr")
 #LFM: 
 tab_model(top_lfm_tti, top_lfm_fh, top_lfm_fd, top_lfm_temp, top_lfm_gd,
          # show.reflvl = TRUE, 
           digits = 3, 
-          show.aic = TRUE, 
+          show.aic = FALSE, 
           show.ci = FALSE,
          p.val = "kr",
+         show.ngroups = FALSE,
+         #show.df = TRUE,
           show.icc = FALSE, 
           show.p = TRUE,
+         show.re.var = FALSE,
           auto.label = TRUE,
          string.pred = "Coefficient", 
          dv.labels = c("Time to Ignition", "Flame Height", "Flame Duration", 
@@ -1384,10 +1425,15 @@ tab_model(top_mpa_tti, top_mpa_fh, top_mpa_fd, top_mpa_temp, top_mpa_gd,
          #  heading.padding = 0,
          #  heading.padding.horizontal = NULL,
           digits = 3, 
-          show.aic = TRUE, 
+          show.aic = FALSE, 
           show.ci = FALSE,
          p.val = "kr",
+         show.ngroups = FALSE,
+         #show.df = TRUE,
           show.icc = FALSE, 
+          show.p = TRUE,
+         show.re.var = FALSE,
+          auto.label = TRUE,
           #show.p= FALSE,
          string.pred = "Coefficient", 
          dv.labels = c("Time to Ignition", "Flame Height", "Flame Duration", 
@@ -1416,7 +1462,7 @@ tab_model(top_lfm_int_tti, top_lfm_int_fh, top_lfm_int_fd, top_lfm_int_temp, top
           show.icc = FALSE, 
           show.p = TRUE,
          string.pred = "Coefficient", 
-         dv.labels = c("Time to Ignition", "Flame Height", "Flame Duration", 
+         dv.labels = c("Time to Ignition", "Flame Height", "Flame Duration",
                       "Temp Change","Glow Duration"
                       ),
          title = "Species Interaction Models - LFM",

@@ -80,7 +80,7 @@ npn_df <- read_csv(here("processed-data", "npn_data.csv")) # National phenology 
 
 ### PV Summaries
 ```{r}
-pv_summaries <- read_csv(here("raw-data", "PV_sierra_summaries.csv")) %>% 
+pv_summaries <- read_csv(here("raw-data", "PV_sierra_summaries_fixed.csv")) %>% 
   clean_names() %>% 
    mutate(spp = fct_relevel(species, "ABCO","PIJE","CADE","CECO", "ARPA","QUKE"))  %>% 
   mutate(strategy = case_when( #based on slope of predawn~midday line
@@ -398,6 +398,7 @@ p1 <- ggplot(data = df1, aes(x = month, y = lfm)) +
   scale_y_continuous(limits = c(0, 260)) +
   facet_wrap(~spp, labeller = labeller(spp = spp.labs)) +
   scale_fill_manual(values = c('#B2BEB5', '#36454F')) +
+ # geom_line(aes(x = month, y = lfm), color = "black") +
   theme(axis.ticks.x = element_blank(),
     axis.text.x = element_text(
       angle = 30,
@@ -437,7 +438,8 @@ For all other species, the function written above was able to be utilized:
 abco.phenophases <- c("Breaking buds", "Young leaves")
 abco.colors <- c("#4ECDC4", "#52E764") # Based on above vector
 p.abco <- pheno.boxplot.vis(species = "ABCO", phenophases = abco.phenophases,
-                            colors = abco.colors)
+                            colors = abco.colors) +
+  geom_smooth(aes(y = ))
 
 pije.phenophases <- c("Increasing leaf size", "Young leaves")
 pije.colors <- c("#2B3E37", "#52E764")

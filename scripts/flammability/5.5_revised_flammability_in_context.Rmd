@@ -34,6 +34,10 @@ group_by = dplyr::group_by
 source(here("scripts", "scripts_functions", "figure_info_sierra_flammability.R")) #color and theme info is here
 ```
 
+```{r}
+citation("sJPlot")
+```
+
 Goal here is to make a plot that shows flammability over time: 
 
 1. Get a df of field LFM and MPa values

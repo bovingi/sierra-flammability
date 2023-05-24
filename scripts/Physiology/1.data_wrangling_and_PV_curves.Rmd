@@ -212,8 +212,13 @@ pv_segs <- read_csv(here("raw-data",  "PV_sierra_summaries_fixed.csv")) %>%
   rename(spp = species)
 pv_segs
 
-datatable(pv_segs)
 ```
+```{r}
+pv_segs %>% 
+  ggplot(aes(y = tlp, x = spp, color = as.factor(year))) +
+  geom_point() 
+```
+
 
 ## Kable Table
 Setup

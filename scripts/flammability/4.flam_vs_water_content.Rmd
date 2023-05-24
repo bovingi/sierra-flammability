@@ -8,12 +8,27 @@ output: html_document
 # Setup
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+# install.packages(c("devtools", "roxygen2", "testthat", "knitr"))
+# install.packages("tidyverse", "here", "lme4", 
+#                  "cowplot", "lmerTest", "sjPlot", "janitor")
+# install.packages("cowplot", "nanair")
+# library(tidyverse, here, lme4, 
+#                  cowplot, lmerTest, sjPlot, janitor)
+# library(cowplot)
+```
+
+```{r}
+citation("performance")
+```
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
 
 library(ggplot2)
 library(purrr) #for visualizing all variables in one big plot
 library(naniar) #for dealing with NAs nicely 
 library(tidyverse)
-library(ggpubr)
+#library(ggpubr)
 library(cowplot)
 library(GGally) #for corr plots
 require(kimisc) # has the nlist function to create a named list
@@ -185,8 +200,8 @@ tti_mod_fgroup <- lmer(tti ~ F.Group*mpa_scaled + F.Group*lfm_scaled + year_mont
 
 Remef:
 ```{r}
-r_tti_mpa <- remef(tti_mod_fgroup, fix = c("sample_wt_scaled", "lfm_scaled", "site"), ran = list(individual = c("(Intercept)"))) # Using Remef for plots with MPa
-r_tti_lfm <- remef(tti_mod_fgroup, fix = c("mpa_scaled", "sample_wt_scaled", "site"), ran = list(individual = c("(Intercept)"))) # Using Remef for plots with LFM
+r_tti_mpa <- remef(tti_mod_fgroup, fix = c("sample_wt_scaled", "lfm_scaled"), ran = list(individual = c("(Intercept)"))) # Using Remef for plots with MPa
+r_tti_lfm <- remef(tti_mod_fgroup, fix = c("mpa_scaled", "sample_wt_scaled"), ran = list(individual = c("(Intercept)"))) # Using Remef for plots with LFM
 
 mem_data_all_r$r_tti_mpa <- r_tti_mpa
 mem_data_all_r$r_tti_lfm <- r_tti_lfm
@@ -240,8 +255,8 @@ fh_mod_fgroup <- lmer(fh ~ F.Group*mpa_scaled + F.Group*lfm_scaled + year_month 
 
 Remef:
 ```{r}
-r_fh_mpa <- remef(fh_mod_fgroup, fix = c("sample_wt_scaled", "lfm_scaled", "site"), ran = list(individual = c("(Intercept)"))) # Using Remef for plots with MPa
-r_fh_lfm <- remef(fh_mod_fgroup, fix = c("mpa_scaled", "sample_wt_scaled", "site"), ran = list(individual = c("(Intercept)"))) # Using Remef for plots with LFM
+r_fh_mpa <- remef(fh_mod_fgroup, fix = c("sample_wt_scaled", "lfm_scaled"), ran = list(individual = c("(Intercept)"))) # Using Remef for plots with MPa
+r_fh_lfm <- remef(fh_mod_fgroup, fix = c("mpa_scaled", "sample_wt_scaled"), ran = list(individual = c("(Intercept)"))) # Using Remef for plots with LFM
 
 mem_data_all_r$r_fh_mpa <- r_fh_mpa
 mem_data_all_r$r_fh_lfm <- r_fh_lfm
@@ -297,8 +312,8 @@ lower_temp_max_mod_fgroup <- lmer(lower_temp_max ~ F.Group*mpa_scaled + F.Group*
 
 Remef:
 ```{r}
-r_lower_temp_max_mpa <- remef(lower_temp_max_mod_fgroup, fix = c("sample_wt_scaled", "lfm_scaled", "site"), ran = list(individual = c("(Intercept)"))) # Using Remef for plots with MPa
-r_lower_temp_max_lfm <- remef(lower_temp_max_mod_fgroup, fix = c("mpa_scaled", "sample_wt_scaled", "site"), ran = list(individual = c("(Intercept)"))) # Using Remef for plots with LFM
+r_lower_temp_max_mpa <- remef(lower_temp_max_mod_fgroup, fix = c("sample_wt_scaled", "lfm_scaled"), ran = list(individual = c("(Intercept)"))) # Using Remef for plots with MPa
+r_lower_temp_max_lfm <- remef(lower_temp_max_mod_fgroup, fix = c("mpa_scaled", "sample_wt_scaled"), ran = list(individual = c("(Intercept)"))) # Using Remef for plots with LFM
 
 mem_data_all_r$r_lower_temp_max_mpa <- r_lower_temp_max_mpa
 mem_data_all_r$r_lower_temp_max_lfm <- r_lower_temp_max_lfm
@@ -358,8 +373,8 @@ gd_mod_fgroup <- lmer(gd ~ F.Group*mpa_scaled + F.Group*lfm_scaled + year_month 
 
 Remef:
 ```{r}
-r_gd_mpa <- remef(gd_mod_fgroup, fix = c("sample_wt_scaled", "lfm_scaled", "site"), ran = list(individual = c("(Intercept)"))) # Using Remef for plots with MPa
-r_gd_lfm <- remef(gd_mod_fgroup, fix = c("mpa_scaled", "sample_wt_scaled", "site"), ran = list(individual = c("(Intercept)"))) # Using Remef for plots with LFM
+r_gd_mpa <- remef(gd_mod_fgroup, fix = c("sample_wt_scaled", "lfm_scaled"), ran = list(individual = c("(Intercept)"))) # Using Remef for plots with MPa
+r_gd_lfm <- remef(gd_mod_fgroup, fix = c("mpa_scaled", "sample_wt_scaled"), ran = list(individual = c("(Intercept)"))) # Using Remef for plots with LFM
 
 mem_data_all_r$r_gd_mpa <- r_gd_mpa
 mem_data_all_r$r_gd_lfm <- r_gd_lfm
@@ -414,8 +429,8 @@ fd_mod_fgroup <- lmer(fd ~ F.Group*mpa_scaled + F.Group*lfm_scaled + year_month 
 
 Remef:
 ```{r}
-r_fd_mpa <- remef(fd_mod, fix = c("sample_wt_scaled", "lfm_scaled", "site"), ran = list(individual = c("(Intercept)"))) # Using Remef for plots with MPa
-r_fd_lfm <- remef(fd_mod, fix = c("mpa_scaled", "sample_wt_scaled", "site"), ran = list(individual = c("(Intercept)"))) # Using Remef for plots with LFM
+r_fd_mpa <- remef(fd_mod, fix = c("sample_wt_scaled", "lfm_scaled"), ran = list(individual = c("(Intercept)"))) # Using Remef for plots with MPa
+r_fd_lfm <- remef(fd_mod, fix = c("mpa_scaled", "sample_wt_scaled"), ran = list(individual = c("(Intercept)"))) # Using Remef for plots with LFM
 
 mem_data_all_r$r_fd_mpa <- r_fd_mpa
 mem_data_all_r$r_fd_lfm <- r_fd_lfm
@@ -475,8 +490,8 @@ temp_change_mod.mpa <- lmer(temp_change ~ spp*mpa_scaled + year_month
 
 Remef:
 ```{r}
-r_temp_change_mpa <- remef(temp_change_mod, fix = c("sample_wt_scaled", "lfm_scaled", "site"), ran = list(individual = c("(Intercept)"))) # Using Remef for plots with MPa
-r_temp_change_lfm <- remef(temp_change_mod, fix = c("mpa_scaled", "sample_wt_scaled", "site"), ran = list(individual = c("(Intercept)"))) # Using Remef for plots with LFM
+r_temp_change_mpa <- remef(temp_change_mod, fix = c("sample_wt_scaled", "lfm_scaled"), ran = list(individual = c("(Intercept)"))) # Using Remef for plots with MPa
+r_temp_change_lfm <- remef(temp_change_mod, fix = c("mpa_scaled", "sample_wt_scaled"), ran = list(individual = c("(Intercept)"))) # Using Remef for plots with LFM
 
 mem_data_all_r$r_temp_change_mpa <- r_temp_change_mpa
 mem_data_all_r$r_temp_change_lfm <- r_temp_change_lfm
@@ -534,8 +549,8 @@ tti_mod_spp <- lmer(tti ~ spp*mpa_scaled + spp*lfm_scaled + year_month + sample_
 
 Remef:
 ```{r}
-r_tti_mpa_spp <- remef(tti_mod_spp, fix = c("sample_wt_scaled", "lfm_scaled", "site"), ran = list(individual = c("(Intercept)"))) # Using Remef for plots with MPa
-r_tti_lfm_spp <- remef(tti_mod_spp, fix = c("mpa_scaled", "sample_wt_scaled", "site"), ran = list(individual = c("(Intercept)"))) # Using Remef for plots with LFM
+r_tti_mpa_spp <- remef(tti_mod_spp, fix = c("sample_wt_scaled", "lfm_scaled"), ran = list(individual = c("(Intercept)"))) # Using Remef for plots with MPa
+r_tti_lfm_spp <- remef(tti_mod_spp, fix = c("mpa_scaled", "sample_wt_scaled"), ran = list(individual = c("(Intercept)"))) # Using Remef for plots with LFM
 
 mem_data_all_r$r_tti_mpa_spp <- r_tti_mpa_spp
 mem_data_all_r$r_tti_lfm_spp <- r_tti_lfm_spp
@@ -548,7 +563,8 @@ tti_plot_r_spp <- mem_data_all_r %>%
              x = mpa_scaled, 
              group = spp)) +
   geom_point(alpha= .4, aes(color = Species))+
-  geom_smooth(method = "lm", se = F, aes(color = Species, lty = tti.mpa.sig), alpha = .75) + 
+  geom_smooth(method = "lm", se = F, aes(color = Species#, lty = tti.mpa.sig
+                                         ), alpha = .75) + 
   scale_y_continuous(limits = c(0, 250), breaks = c(0, 50, 100, 150, 200)) +
   color_noceco+ # For color by species w/o CECO
   scale_linetype_manual(values = c(3, 1)) +
@@ -567,7 +583,8 @@ tti_plot_lfm_r_spp <- mem_data_all_r %>%
              x = lfm_scaled, 
              group = spp)) +
   geom_point(alpha= .4, aes(color = Species))+
-  geom_smooth(method = "lm", se = F, aes(color = Species, lty = tti.lfm.sig), alpha = .75) + 
+  geom_smooth(method = "lm", se = F, aes(color = Species#, lty = tti.lfm.sig
+                                         ), alpha = .75) + 
   scale_y_continuous(limits = c(0, 250), breaks = c(0, 50, 100, 150, 200)) +
   color_noceco + # For color by spp w/o CECO
   scale_linetype_manual(values = c(3, 1)) +
@@ -590,8 +607,8 @@ fh_mod_spp <- lmer(fh ~ spp*mpa_scaled + spp*lfm_scaled + year_month + sample_wt
 
 Remef:
 ```{r}
-r_fh_mpa_spp <- remef(fh_mod_spp, fix = c("sample_wt_scaled", "lfm_scaled", "site"), ran = list(individual = c("(Intercept)"))) # Using Remef for plots with MPa
-r_fh_lfm_spp <- remef(fh_mod_spp, fix = c("mpa_scaled", "sample_wt_scaled", "site"), ran = list(individual = c("(Intercept)"))) # Using Remef for plots with LFM
+r_fh_mpa_spp <- remef(fh_mod_spp, fix = c("sample_wt_scaled", "lfm_scaled"), ran = list(individual = c("(Intercept)"))) # Using Remef for plots with MPa
+r_fh_lfm_spp <- remef(fh_mod_spp, fix = c("mpa_scaled", "sample_wt_scaled"), ran = list(individual = c("(Intercept)"))) # Using Remef for plots with LFM
 
 mem_data_all_r$r_fh_mpa_spp <- r_fh_mpa_spp
 mem_data_all_r$r_fh_lfm_spp <- r_fh_lfm_spp
@@ -604,7 +621,8 @@ fh_plot_r_spp <- mem_data_all_r %>%
              x = mpa_scaled, 
              group = spp)) +
   geom_point(alpha= .4, aes(color = Species))+
-  geom_smooth(method = "lm", se = F, aes(color = Species, lty = fh.sig), alpha = .75) + 
+  geom_smooth(method = "lm", se = F, aes(color = Species#, lty = fh.sig
+                                         ), alpha = .75) + 
   scale_y_continuous(limits = c(8, 70), breaks = c(10, 20, 30, 40, 50, 60)) +
   color_noceco+ # For color by species w/o CECO
   scale_linetype_manual(values = c(3, 1)) +
@@ -623,7 +641,8 @@ fh_plot_lfm_r_spp <- mem_data_all_r %>%
              x = lfm_scaled, 
              group = spp)) +
   geom_point(alpha= .4, aes(color = Species))+
-  geom_smooth(method = "lm", se = F, aes(color = Species, lty = fh.sig), alpha = .75) + 
+  geom_smooth(method = "lm", se = F, aes(color = Species#, lty = fh.sig
+                                         ), alpha = .75) + 
   scale_y_continuous(limits = c(8, 70), breaks = c(10, 20, 30, 40, 50, 60)) +
   color_noceco + # For color by spp w/o CECO
   scale_linetype_manual(values = c(3, 1)) +
@@ -647,8 +666,8 @@ lower_temp_max_mod_spp <- lmer(lower_temp_max ~ spp*mpa_scaled + spp*lfm_scaled 
 
 Remef:
 ```{r}
-r_lower_temp_max_mpa_spp <- remef(lower_temp_max_mod_spp, fix = c("sample_wt_scaled", "lfm_scaled", "site"), ran = list(individual = c("(Intercept)"))) # Using Remef for plots with MPa
-r_lower_temp_max_lfm_spp <- remef(lower_temp_max_mod_spp, fix = c("mpa_scaled", "sample_wt_scaled", "site"), ran = list(individual = c("(Intercept)"))) # Using Remef for plots with LFM
+r_lower_temp_max_mpa_spp <- remef(lower_temp_max_mod_spp, fix = c("sample_wt_scaled", "lfm_scaled"), ran = list(individual = c("(Intercept)"))) # Using Remef for plots with MPa
+r_lower_temp_max_lfm_spp <- remef(lower_temp_max_mod_spp, fix = c("mpa_scaled", "sample_wt_scaled"), ran = list(individual = c("(Intercept)"))) # Using Remef for plots with LFM
 
 mem_data_all_r$r_lower_temp_max_mpa_spp <- r_lower_temp_max_mpa_spp
 mem_data_all_r$r_lower_temp_max_lfm_spp <- r_lower_temp_max_lfm_spp
@@ -661,7 +680,8 @@ lower_temp_max_plot_r_spp <- mem_data_all_r %>%
              x = mpa_scaled, 
              group = spp)) +
   geom_point(alpha= .4, aes(color = Species))+
-  geom_smooth(method = "lm", se = F, aes(color = Species, lty = temp.max.sig), alpha = .75) + 
+  geom_smooth(method = "lm", se = F, aes(color = Species#, lty = temp.max.sig
+                                         ), alpha = .75) + 
   color_noceco+ # For color by species w/o CECO
   scale_linetype_manual(values = c(3, 1)) +
   theme(legend.position = "none",                                   
@@ -679,7 +699,8 @@ lower_temp_max_plot_lfm_r_spp <- mem_data_all_r %>%
              x = lfm_scaled, 
              group = spp)) +
   geom_point(alpha= .4, aes(color = Species))+
-  geom_smooth(method = "lm", se = F, aes(color = Species, lty = temp.max.sig), alpha = .75) +
+  geom_smooth(method = "lm", se = F, aes(color = Species#, lty = temp.max.sig
+                                         ), alpha = .75) +
   color_noceco + # For color by spp w/o CECO
   scale_linetype_manual(values = c(3, 1)) +
   theme(legend.position = "none",
@@ -701,8 +722,8 @@ gd_mod_spp <- lmer(gd ~ spp*mpa_scaled + spp*lfm_scaled + year_month + sample_wt
 
 Remef:
 ```{r}
-r_gd_mpa_spp <- remef(gd_mod_spp, fix = c("sample_wt_scaled", "lfm_scaled", "site"), ran = list(individual = c("(Intercept)"))) # Using Remef for plots with MPa
-r_gd_lfm_spp <- remef(gd_mod_spp, fix = c("mpa_scaled", "sample_wt_scaled", "site"), ran = list(individual = c("(Intercept)"))) # Using Remef for plots with LFM
+r_gd_mpa_spp <- remef(gd_mod_spp, fix = c("sample_wt_scaled", "lfm_scaled"), ran = list(individual = c("(Intercept)"))) # Using Remef for plots with MPa
+r_gd_lfm_spp <- remef(gd_mod_spp, fix = c("mpa_scaled", "sample_wt_scaled"), ran = list(individual = c("(Intercept)"))) # Using Remef for plots with LFM
 
 mem_data_all_r$r_gd_mpa_spp <- r_gd_mpa_spp
 mem_data_all_r$r_gd_lfm_spp <- r_gd_lfm_spp
@@ -715,7 +736,8 @@ gd_plot_r_spp <- mem_data_all_r %>%
              x = mpa_scaled, 
              group = spp)) +
   geom_point(alpha= .4, aes(color = Species))+
-  geom_smooth(method = "lm", se = F, aes(color = Species, lty = gd.mpa.sig), alpha = .75) + 
+  geom_smooth(method = "lm", se = F, aes(color = Species#, lty = gd.mpa.sig
+                                         ), alpha = .75) + 
   color_noceco+ # For color by species w/o CECO
   scale_linetype_manual(values = c(3, 1)) +
   theme(legend.position = "none",                                   
@@ -734,7 +756,8 @@ gd_plot_lfm_r_spp <- mem_data_all_r %>%
              x = lfm_scaled, 
              group = spp)) +
   geom_point(alpha= .4, aes(color = Species))+
-  geom_smooth(method = "lm", se = F, aes(color = Species, lty = gd.lfm.sig), alpha = .75) + 
+  geom_smooth(method = "lm", se = F, aes(color = Species#, lty = gd.lfm.sig
+                                         ), alpha = .75) + 
   color_noceco + # For color by spp w/o CECO
   scale_linetype_manual(values = c(3, 1)) +
   theme(legend.position = "none",
@@ -754,8 +777,8 @@ temp_change_mod_spp <- lmer(temp_change ~ spp*mpa_scaled + spp*lfm_scaled + year
 
 Remef:
 ```{r}
-r_temp_change_mpa_spp <- remef(temp_change_mod_spp, fix = c("sample_wt_scaled", "lfm_scaled", "site"), ran = list(individual = c("(Intercept)"))) # Using Remef for plots with MPa
-r_temp_change_lfm_spp <- remef(temp_change_mod_spp, fix = c("mpa_scaled", "sample_wt_scaled", "site"), ran = list(individual = c("(Intercept)"))) # Using Remef for plots with LFM
+r_temp_change_mpa_spp <- remef(temp_change_mod_spp, fix = c("sample_wt_scaled", "lfm_scaled"), ran = list(individual = c("(Intercept)"))) # Using Remef for plots with MPa
+r_temp_change_lfm_spp <- remef(temp_change_mod_spp, fix = c("mpa_scaled", "sample_wt_scaled"), ran = list(individual = c("(Intercept)"))) # Using Remef for plots with LFM
 
 mem_data_all_r$r_temp_change_mpa_spp <- r_temp_change_mpa_spp
 mem_data_all_r$r_temp_change_lfm_spp <- r_temp_change_lfm_spp
@@ -768,7 +791,8 @@ temp_change_plot_r_spp <- mem_data_all_r %>%
              x = mpa_scaled, 
              group = spp)) +
   geom_point(alpha= .4, aes(color = Species))+
-  geom_smooth(method = "lm", se = F, aes(color = Species, lty = temp.change.sig), alpha = .75) + 
+  geom_smooth(method = "lm", se = F, aes(color = Species#, lty = temp.change.sig
+                                         ) , alpha = .75) + 
   color_noceco+ # For color by species w/o CECO
   scale_linetype_manual(values = c(3, 1)) +
   theme(legend.position = "none",                                   
@@ -786,7 +810,8 @@ temp_change_plot_lfm_r_spp <- mem_data_all_r %>%
              x = lfm_scaled, 
              group = spp)) +
   geom_point(alpha= .4, aes(color = Species))+
-  geom_smooth(method = "lm", se = F, aes(color = Species, lty = temp.change.sig), alpha = .75) + 
+  geom_smooth(method = "lm", se = F, aes(color = Species#, lty = temp.change.sig
+                                         ), alpha = .75) + 
   color_noceco + # For color by spp w/o CECO
   scale_linetype_manual(values = c(3, 1)) +
   theme(legend.position = "none",
@@ -810,7 +835,8 @@ spp_legend_plot <- mem_data_all_r %>%
              x = lfm_scaled, 
              group = spp)) +
   geom_point(alpha= .6, size = 2.5, aes(color = Species))+
-  geom_smooth(method = "lm", se = F, aes(color = Species, lty = gd.lfm.sig), alpha = .75) + 
+  geom_smooth(method = "lm", se = F, aes(color = Species#, lty = gd.lfm.sig
+                                         ), alpha = .75) + 
   color_noceco +
   scale_linetype_manual(values = c(1, 3)) +
   guides(lty = guide_legend(override.aes = list(color = 'black'))) +
@@ -1821,7 +1847,7 @@ temp_change_est.df <- temp_change_est.df %>%
 
 Setup:
 ```{r}
-coef <- c("Intercept", "Live Fuel Moisture (LFM)", "Water Potential (MPa)", "Sample Weight", "Site", "Ab. concolor", "Pi. jeffreyii", "Ca. decurrens", "Ar. patula", "Qu. kelloggii", "October 2020", "September 2020", "Interaction Effects", "Pi. jeffreyii x LFM", "Pi. jeffreyii x MPa", "Ca. decurrens x LFM", "Ca. decurrens x MPa", "Ar. patula x LFM", "Ar. patula x MPa", "Qu. kelloggii x LFM", "Qu. kelloggii x MPa", "Random Effects", paste("\U03C3", "\U00B2"), paste("\U03C4", "\U2080", "\U2080"), "N", "Model Summary Statistics", "Observations", paste("Marginal R", "\U00B2", "/", "Conditional R", "\U00B2"))
+coef <- c("Intercept", "Live Fuel Moisture (LFM)", "Water Potential (MPa)", "Sample Weight", "Ab. concolor", "Pi. jeffreyii", "Ca. decurrens", "Ar. patula", "Qu. kelloggii", "October 2020", "September 2020", "Interaction Effects", "Pi. jeffreyii x LFM", "Pi. jeffreyii x MPa", "Ca. decurrens x LFM", "Ca. decurrens x MPa", "Ar. patula x LFM", "Ar. patula x MPa", "Qu. kelloggii x LFM", "Qu. kelloggii x MPa", "Random Effects", paste("\U03C3", "\U00B2"), paste("\U03C4", "\U2080", "\U2080"), "N", "Model Summary Statistics", "Observations", paste("Marginal R", "\U00B2", "/", "Conditional R", "\U00B2"))
 tti.est <- c(tti_est.df$estimate[c(1,7,6,10,8)], 'Reference', tti_est.df$estimate[c(4,3,2,5)],'Reference', tti_est.df$estimate[9], ' ', tti_est.df$estimate[c(17,13,16,12,15,11, 18, 13)], ' ', '440.16', paste('64.43', "\U1D62"), paste('101', "\U1D62"), ' ', '580', '0.578 / 0.632')
 tti.p <- c(tti_est.df$p.value[c(1,7,6,10,8)], 1, tti_est.df$p.value[c(4,3,2,5)],1, tti_est.df$p.value[9], 1, tti_est.df$p.value[c(17,13,16,12,15,11, 18, 13)], 1, 1, 1, 1, 1, 1, 1)
 fh.est <- c(fh_est.df$estimate[c(1,7,6,10,8)], 'Reference', fh_est.df$estimate[c(4,3,2,5)],'Reference', fh_est.df$estimate[9], ' ', fh_est.df$estimate[c(17,13,16,12,15,11, 18, 13)],  ' ', '34.90', paste('6.31', "\U1D62"), paste('101', "\U1D62"),' ', '580', '0.272 / 0.383')
@@ -1881,7 +1907,7 @@ temp_change_est.df <- temp_change_est.df %>%
 
 Setup:
 ```{r}
-coef <- c("Intercept", "Live Fuel Moisture (LFM)", "Water Potential (MPa)", "Sample Weight", "Site", "Angiosperm", "Gymnosperm", "October 2020", "September 2020", "Interaction Effects", "Gymnosperm x LFM", "Gymnosperm x MPa", "Random Effects", paste("\U03C3", "\U00B2"), paste("\U03C4", "\U2080", "\U2080"), "N", "Model Summary Statistics", "Observations", paste("Marginal R", "\U00B2", "/", "Conditional R", "\U00B2"))
+coef <- c("Intercept", "Live Fuel Moisture (LFM)", "Water Potential (MPa)", "Sample Weight", "Angiosperm", "Gymnosperm", "October 2020", "September 2020", "Interaction Effects", "Gymnosperm x LFM", "Gymnosperm x MPa", "Random Effects", paste("\U03C3", "\U00B2"), paste("\U03C4", "\U2080", "\U2080"), "N", "Model Summary Statistics", "Observations", paste("Marginal R", "\U00B2", "/", "Conditional R", "\U00B2"))
 tti.est <- c(tti_est.df$estimate[c(1,4,3,7,5)], 'Reference', tti_est.df$estimate[2],'Reference', tti_est.df$estimate[6], ' ', tti_est.df$estimate[c(9, 8)], ' ', '436.09', paste('259.03', "\U1D62"), paste('101', "\U1D62"), ' ', '580', '0.411 / 0.631')
 tti.p <- c(tti_est.df$p.value[c(1,4,3,7,5)], 1, tti_est.df$p.value[2],1, tti_est.df$p.value[6], 1, tti_est.df$p.value[c(9, 8)], 1, 1, 1, 1, 1, 1, 1)
 fh.est <- c(fh_est.df$estimate[c(1,4,3,7,5)], 'Reference', fh_est.df$estimate[2],'Reference', fh_est.df$estimate[6], ' ', fh_est.df$estimate[c(9, 8)], ' ', '35.71', paste('8.91', "\U1D62"), paste('101', "\U1D62"), ' ', '580', '0.191 / 0.353')
