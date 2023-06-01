@@ -160,7 +160,7 @@ ggplot(aes(y = temp_change, x = lfm, color = Species)) +
   geom_smooth(method = "lm", se = F) +
   color_noceco +
   labs(#title = "Live Fuel Moisture (%)", 
-       y = "Temp Change") +
+       y = expression(bold('Temp Change ('~degree~'C)'))) +
   theme(axis.title.x = element_blank(), 
              # axis.text.x = element_blank(),
               # axis.ticks.y.left = element_blank(), 

@@ -35,6 +35,7 @@ library(lubridate)
 library(specr)
 library(gridExtra)
 library(grid)
+library(patchwork)
 
 filter = dplyr::filter
 mutate = dplyr::mutate
@@ -250,7 +251,7 @@ ggsave(plot=field_vardecomp_gymno, bg = "white" , here::here("figures", "extra-f
 
 ## Function
 ```{r}
-lfm.vs.mpa.scatterplot <- function(f.group.lab = " ", f.group, y.lab = " ", df, y.axis = F, x.axis = F, y.max) {
+lfm.vs.mpa.scatterplot <- function(f.group.lab = " ", f.group, y.lab = " ", df, y.axis = F, x.axis = F, y.max, present.title = F) {
   
 # For color palette
 if(f.group == "Angiosperm") {color_pal <- c('#5792CC', '#4D5B75', '#6E406E')}
@@ -261,14 +262,18 @@ if(f.group == "Angiosperm") {fgr_lty <- 1}
 if(f.group == "Gymnosperm") {fgr_lty <- 2}
   
 # For axis text and ticks
-if(y.axis == T) {y.text <- element_text(size = 22)}
+if(y.axis == T) {y.text <- element_text(size = 16)}
 if(y.axis == T) {y.tick <- NULL}
 if(y.axis == F) {y.text <- element_blank()}
 if(y.axis == F) {y.tick <- element_blank()}
-if(x.axis == T) {x.text <- element_text(size = 22)}
+if(x.axis == T) {x.text <- element_text(size = 16)}
 if(x.axis == T) {x.tick <- NULL}
 if(x.axis == F) {x.text <- element_blank()}
 if(x.axis == F) {x.tick <- element_blank()}
+  
+# For plot title
+if(present.title == T) {plot.title.format <- element_text(size = 30, face = 'bold', hjust = 0.5)}
+if(present.title == F) {plot.title.format <- element_blank()}
 
 fgroup_pv_summaries <- fgroup_pv_summaries %>% 
   filter(F.Group == f.group)
@@ -290,7 +295,7 @@ plot <- df %>%
        x = " ", 
        y = y.lab) +
    theme(legend.position = "none",
-         plot.title = element_text(face = 'bold', size = 30, hjust = 0.5),
+         plot.title = plot.title.format,
          axis.title = element_text(face = 'bold', size = 26),
          axis.text.y = y.text,
          axis.text.x = x.text,
@@ -298,7 +303,7 @@ plot <- df %>%
          axis.ticks.x = x.tick,
          strip.background = element_blank(),
          strip.text = element_text(size  = 26, face = "bold"),
-         plot.margin = unit(c(0.05, 0, 0, 0.1), 'cm')) +
+         plot.margin = unit(c(0.05, 0, 0, 0.1), 'cm')) + # previous: 0.05, 0, 0, 0.1
   xlim(0, 10)
 
 return(plot)
@@ -311,22 +316,22 @@ return(plot)
 ```{r}
 field_data_all$spp <- factor(field_data_all$spp, levels = c('ABCO', 'PIJE', 'CADE', 'ARPA', 'CECO', 'QUKE'))
 
-field_plot_angio <- lfm.vs.mpa.scatterplot(f.group.lab = "Angiosperm", f.group = "Angiosperm", y.lab = "Field Data", y.axis = T, y.max = 300, df = field_data_all_2.1) +
-  annotate(geom = "text", x = 0.5, y = 280, label = 'a', fontface = 'bold', size = 20)
+field_plot_angio <- lfm.vs.mpa.scatterplot(f.group.lab = "Angiosperm", f.group = "Angiosperm", y.lab = "Field Data", y.axis = T, y.max = 300, df = field_data_all_2.1, present.title = T) +
+  annotate(geom = "text", x = 0.5, y = 280, label = 'a', fontface = 'bold', size = 12)
 field_plot_angio
 
 field_vd_sp_angio <- field_plot_angio + annotation_custom(ggplotGrob(field_vardecomp_angio),
-                                     xmin = 7.25, xmax = 10,
-                                     ymin = 100, ymax = 280)
+                                     xmin = 7.1, xmax = 10,
+                                     ymin = 95, ymax = 295)
 field_vd_sp_angio
 
-field_plot_gymno <- lfm.vs.mpa.scatterplot(f.group.lab = "Gymnosperm", f.group = "Gymnosperm", y.max = 300, df = field_data_all_2.1) +
-  annotate(geom = "text", x = 0.5, y = 280, label = 'b', fontface = 'bold', size = 20)
+field_plot_gymno <- lfm.vs.mpa.scatterplot(f.group.lab = "Gymnosperm", f.group = "Gymnosperm", y.max = 300, df = field_data_all_2.1, present.title = T) +
+  annotate(geom = "text", x = 0.5, y = 280, label = 'b', fontface = 'bold', size = 12)
 field_plot_gymno
 
 field_vd_sp_gymno <- field_plot_gymno + annotation_custom(ggplotGrob(field_vardecomp_gymno),
-                                     xmin = 7.45, xmax = 10,
-                                     ymin = 100, ymax = 280)
+                                     xmin = 7.1, xmax = 10,
+                                     ymin = 95, ymax = 295)
 field_vd_sp_gymno
 ```
 
@@ -339,21 +344,21 @@ pv_plot_df <- pv_all_df %>%
 pv_plot_df$spp <- factor(pv_plot_df$spp, levels = c('ABCO', 'PIJE', 'CADE', 'ARPA', 'CECO', 'QUKE'))
 
 pv_plot_angio <- lfm.vs.mpa.scatterplot(f.group = "Angiosperm", y.lab = "PV Curves", y.axis = T, y.max = 250, df = pv_plot_df) +
-  annotate(geom = "text", x = 0.5, y = 230, label = 'c', fontface = 'bold', size = 20)
+  annotate(geom = "text", x = 0.5, y = 230, label = 'c', fontface = 'bold', size = 12)
 pv_plot_angio
 
 pv_vd_sp_angio <- pv_plot_angio + annotation_custom(ggplotGrob(pv_vardecomp_angio),
-                                     xmin = 7.25, xmax = 10,
-                                     ymin = 85, ymax = 230)
+                                     xmin = 7.1, xmax = 10,
+                                     ymin = 85, ymax = 246)
 pv_vd_sp_angio
 
 pv_plot_gymno <- lfm.vs.mpa.scatterplot(f.group = "Gymnosperm", y.max = 250, df = pv_plot_df) +
-  annotate(geom = "text", x = 0.5, y = 230, label = 'd', fontface = 'bold', size = 20)
+  annotate(geom = "text", x = 0.5, y = 230, label = 'd', fontface = 'bold', size = 12)
 pv_plot_gymno
 
 pv_vd_sp_gymno <- pv_plot_gymno + annotation_custom(ggplotGrob(pv_vardecomp_gymno),
-                                     xmin = 7.45, xmax = 10,
-                                     ymin = 85, ymax = 230)
+                                     xmin = 7.1, xmax = 10,
+                                     ymin = 85, ymax = 246)
 pv_vd_sp_gymno
 ```
 
@@ -363,21 +368,21 @@ flam_all_df <- flam_curve_phys_all_raw %>%
   filter(!spp %in% c("ADFA", "CEME"))
 
 flam_plot_angio <- lfm.vs.mpa.scatterplot(f.group = "Angiosperm", y.lab = "Flam. Data", y.axis = T, y.max = 250, x.axis = T, df = flam_all_df) +
-  annotate(geom = "text", x = 0.5, y = 230, label = 'e', fontface = 'bold', size = 20)
+  annotate(geom = "text", x = 0.5, y = 230, label = 'e', fontface = 'bold', size = 12)
 flam_plot_angio
 
 flam_vd_sp_angio <- flam_plot_angio + annotation_custom(ggplotGrob(flam_vardecomp_angio),
-                                     xmin = 7.25, xmax = 10,
-                                     ymin = 85, ymax = 230)
+                                     xmin = 7.1, xmax = 10,
+                                     ymin = 85, ymax = 246)
 flam_vd_sp_angio
 
 flam_plot_gymno <- lfm.vs.mpa.scatterplot(f.group = "Gymnosperm", y.max = 250, x.axis = T, df = flam_all_df) +
-  annotate(geom = "text", x = 0.5, y = 230, label = 'f', fontface = 'bold', size = 20)
+  annotate(geom = "text", x = 0.5, y = 230, label = 'f', fontface = 'bold', size = 12)
 flam_plot_gymno
 
 flam_vd_sp_gymno <- flam_plot_gymno + annotation_custom(ggplotGrob(flam_vardecomp_gymno),
-                                     xmin = 7.45, xmax = 10,
-                                     ymin = 85, ymax = 230)
+                                     xmin = 7.1, xmax = 10,
+                                     ymin = 85, ymax = 246)
 flam_vd_sp_gymno
 ```
 
@@ -404,8 +409,8 @@ field_plot_leg <- ggplot(aes(y = lfm,
    theme(plot.margin = unit(c(.2, .5, .3, .25), "cm"),
         axis.title = element_text(face = 'bold', size = 26),
         axis.text = element_text(size = 16),
-        legend.title = element_text(face = 'bold', size = 28),
-        legend.text = element_text(face = 'italic', size = 26),
+        legend.title = element_text(face = 'bold', size = 24),
+        legend.text = element_text(face = 'italic', size = 20),
         legend.key = element_rect(fill = 'white')) +
   color_many2 
 
@@ -433,20 +438,20 @@ legend_title <- "Predictor"
 
 legend <- plotPercentBars.legend(varPart, col = c(vcol)) +
   scale_fill_discrete(labels=c("Residuals" = "Residuals",
-                             "water_potential" = 'Water Pot.',
+                             "water_potential" = 'Water Potential',
                              "year_month" = "Timing", 
                              "year" = "Timing",
                              "spp" = "Species", 
                              "plant" = "Plant", 
                              "age_new" = "Age"), 
-             limits = c("Residuals", "Water Pot.", "Timing",
+             limits = c("Residuals", "Water Potential", "Timing",
                        "Species", "Plant", "Age"),
              type = c('grey', '#280b53',  '#d44842', "#9f2a63", '#65156e', '#fac228')) +
-   theme(plot.margin = unit(c(.2, .5, .3, .25), "cm"),
+   theme(plot.margin = unit(c(.2, .1, .3, .25), "cm"),
          axis.title = element_text(face = 'bold', size = 26),
         axis.text = element_text(size = 22),
-        legend.title = element_text(face = 'bold', size = 20),
-       legend.text = element_text(size = 17)
+        legend.title = element_text(face = 'bold', size = 24),
+       legend.text = element_text(size = 20)
         ) +
   labs(fill = "Predictor")
 legend
@@ -458,7 +463,7 @@ blank_plot <- ggplot(data = field_data_all_2.1, aes(x = lfm, y = mpa)) +
   geom_point(color = 'white') +
   theme_void()
 
-legend <- cowplot::plot_grid(blank_plot, legend_dots, cow_legend, blank_plot, ncol = 1, rel_heights = c(0.6, 1, 1.1, 0.4))
+legend <- cowplot::plot_grid(blank_plot, legend_dots, cow_legend, ncol = 1, rel_heights = c(0.7, 1, 1.6))
 legend
 ```
 
@@ -468,22 +473,22 @@ y.grob <- textGrob("Live Fuel Moisture (%)",
                    rot = 90,
                    gp=gpar(fontface="bold", 
                            col="black", 
-                           fontsize=36))
+                           fontsize=30))
 x.grob <- textGrob("Water Potential (-MPa)",
                    gp=gpar(fontface="bold", 
                            col="black", 
-                           fontsize=36))
+                           fontsize=30))
 
-plots <- cowplot::plot_grid(field_vd_sp_angio, field_vd_sp_gymno, pv_vd_sp_angio, pv_vd_sp_gymno, flam_vd_sp_angio, flam_vd_sp_gymno,
-         ncol = 2, 
-         nrow = 3)
+
+plots <- cowplot::plot_grid(field_vd_sp_angio, field_vd_sp_gymno, pv_vd_sp_angio, pv_vd_sp_gymno, flam_vd_sp_angio, flam_vd_sp_gymno, ncol = 2, nrow = 3, rel_heights = c(1.15,1,1.08), rel_widths = c(1.08, 1))
+plots
 
 plots2 <- gridExtra::grid.arrange(arrangeGrob(plots, left = y.grob, bottom = x.grob))
 
 plots_legend <- cowplot::plot_grid(plots2, legend, rel_widths = c(5, 1.5), rel_heights = c(1,.5))
 plots_legend
 
-ggsave(plot=plots_legend, bg = "white" , here("figures", "main-figures", "Fig5.LFM.vs.MPa.Scatterplots.jpg"), height = 10.5, width = 14)
+ggsave(plot=plots_legend, bg = "white" , here("figures", "main-figures", "Fig5.LFM.vs.MPa.Scatterplots.jpg"), height = 10.5, width = 14.5)
 ```
 
 
