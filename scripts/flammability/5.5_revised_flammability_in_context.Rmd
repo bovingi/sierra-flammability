@@ -35,7 +35,7 @@ source(here("scripts", "scripts_functions", "figure_info_sierra_flammability.R")
 ```
 
 ```{r}
-citation("sJPlot")
+citation("sjPlot")
 ```
 
 Goal here is to make a plot that shows flammability over time: 

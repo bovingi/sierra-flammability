@@ -308,7 +308,7 @@ df1$month <- factor(df1$month, levels = c("April", "May", "June", "E. July",
 
 df2 <- field_data_all_3 %>% 
   filter(spp == species)
-mean_lfm <- mean(df2$mean_lfm_fall_spp)
+mean_lfm <- mean(df2$lfm_tlp)
 
 df3 <- pheno_df %>%
   filter(spp == species) %>% 
@@ -336,7 +336,7 @@ p1 <- ggplot(data = df1, aes(x = month, y = lfm)) +
        fill = "Tissue Status")
 
 p2 <- ggplot2::ggplot(data = df3, aes(x = date, y = lfm, color = phenophase_name)) +
-  geom_line(alpha = 1, size = no.phenophases[2]) +
+  geom_line(alpha = 0.6, size = no.phenophases[2]) +
   scale_color_manual(values = colors) +
   theme(aspect.ratio = no.phenophases[1],
         legend.position = 'none',
@@ -385,7 +385,7 @@ df1$month <- factor(df1$month, levels = c("May", "June", "E. July",
 df2 <- field_data_all_3 %>% 
   filter(spp == "QUKE")
 
-mean_lfm <- mean(df2$mean_lfm_fall_spp)
+mean_lfm <- mean(df2$lfm_tlp)
 
 df3 <- pheno_fig2 %>%
   filter(spp == "QUKE") %>% 
@@ -472,7 +472,7 @@ df.leg <- pheno_fig2 %>%
 df.leg$phenophase_name <- factor(df.leg$phenophase_name, levels = c("Breaking buds", "Young leaves", "Increasing leaf size",  "Pollen release", "Pollen cones", "Ripe fruits", "Flowers or flower buds"))
 
 legend.plot <- ggplot() +
-  geom_line(aes(y = lfm, x = date, color = phenophase_name), alpha = 1, 
+  geom_line(aes(y = lfm, x = date, color = phenophase_name), alpha = 0.6, 
             data = df.leg, size = 4, position=position_dodge(w=1)) +
   labs(color = "Phenophase") +
   scale_color_manual(values = c("#4ECDC4", "#52E764", "#2B3E37", "#E69512", "#6B91BD", "#070093", "#F03D79")) + #Holder color palette, matched to the phenophase vector above
@@ -696,7 +696,7 @@ df3 <- pheno_fig_main %>%
   filter(phenophase_name %in% c("Breaking buds", "Increasing leaf size", "Ripe fruits"))
 
 p2 <- ggplot2::ggplot(data = df3, aes(x = date, y = lfm, color = phenophase_name)) +
-  geom_line(alpha = 1, size = 3) +
+  geom_line(alpha = 0.6, size = 3) +
   scale_color_manual(values = c("#4ECDC4", "#2B3E37", "#070093")) +
   theme(aspect.ratio = 1/13,
         legend.position = 'none',

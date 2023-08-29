@@ -439,7 +439,7 @@ pca_fig <- ggplot(spp_data_pca, aes(x = PC1, y = PC2, color = Species)) +
           fontface = 'bold') +
   annotate("text", x = 0.28, y = 0.55, label = "Flame Height", 
            size = 4.25, fontface = 'bold') +
-  theme(panel.background = element_rect(fill='white', colour='black'), # Make background white and border black
+  theme(panel.background = element_rect(fill='white', colour='black', linewidth = 1.1), # Make background white and border black
           panel.grid.major = element_blank(),  # Hide major gridlines
           panel.grid.minor = element_blank(),
           legend.key = element_rect(fill = "white"),
@@ -544,7 +544,7 @@ dotplot.prop.ig.b <- df.dotplot.prop.ig %>%
               x = Species,
               color = Species)) +
    geom_point(alpha = .7, size = 5) +
-  geom_abline(intercept = 100, slope = 0, color = 'black', alpha = 0.5, size = 0.3,linetype = "dotted") +
+   geom_abline(intercept = 100, slope = 0, color = 'black', alpha = 0.5, size = 0.3,linetype = "dotted") +
    geom_linerange(aes(ymin = case_when(
      med_prop_ignite - 2*stdev_prop_ignite < 0 ~ 0,
      med_prop_ignite - 2*stdev_prop_ignite > 0 ~ med_prop_ignite - 2*stdev_prop_ignite),
@@ -558,13 +558,14 @@ dotplot.prop.ig.b <- df.dotplot.prop.ig %>%
    color_many2 +
   # annotate('text', x = .75, y = 112, label = 'b', fontface = 'bold', size = 10) +
    theme(axis.title.y = element_text(face = 'bold', size = 14),
-         axis.text.y = element_text(size = 8),
+         axis.text.y = element_text(size = 9.5),
          axis.title.x = element_blank(),
          #axis.text.x = element_text(face = 'italic', size = 11),
          axis.text.x = element_blank(),
          axis.ticks.x = element_blank(),
          legend.position = 'none',
-         panel.grid = element_blank())
+         panel.grid = element_blank(),
+         panel.background = element_rect(color = 'gray60'))
 dotplot.prop.ig.b
 
 pca_fig_nolegend <- pca_fig +
@@ -607,15 +608,20 @@ legend <- get_legend(df.dotplot.prop.ig %>%
 tti_plot <- spp_data_pca %>% 
             #  filter(hydration != "hydrated") %>% 
              ggplot()+
-            geom_density(aes(tti, fill = Species), alpha = .5) +
+            geom_density(aes(tti, fill = Species), alpha = .4) +
             fill_noceco +
   scale_x_reverse()+
   theme(legend.position = "none",
         axis.text.y = element_blank(),
         axis.title.y = element_blank(),
-       # axis.text.x = element_blank(),
-       # axis.title.x = element_blank(),
-        plot.margin = unit(c(0, 0, 0, 0), "cm"))  + 
+        axis.ticks.y = element_blank(),
+        axis.line.y = element_blank(),
+        axis.text.x = element_text(size = 14),
+        axis.title.x = element_text(size = 17, face = 'bold'),
+        axis.line.x = element_line(color = 'black'),
+        plot.margin = unit(c(0, 0, 0, 0), "cm"),
+        panel.border = element_blank(),
+        panel.background = element_blank())  + 
   xlab("Time to Ignition (sec)")
 
 
@@ -624,15 +630,20 @@ tti_plot
 gd_plot <- spp_data_pca %>% 
  # filter(hydration != "hydrated") %>% 
              ggplot()+
-            geom_density(aes(gd, fill = Species), alpha = .5) +
+            geom_density(aes(gd, fill = Species), alpha = .4) +
             fill_noceco +
             rotate() +
   theme(legend.position = "none",
+        axis.text.y = element_text(size = 14),
+        axis.title.y = element_text(size = 17, face = 'bold'),
+        axis.line.y = element_line(color = 'black'),
         axis.text.x = element_blank(),
         axis.title.x = element_blank(),
-       # axis.text.y = element_blank(),
-       # axis.title.y = element_blank(),
-        plot.margin = unit(c(0, 0, 0, 0), "cm"))  + 
+        axis.ticks.x = element_blank(),
+        axis.line.x = element_blank(),
+        plot.margin = unit(c(0, 0.35, 0, 0), "cm"),
+        panel.border = element_blank(),
+        panel.background = element_blank())  + 
   xlab("Glow Duration (sec)") 
 
 gd_plot
@@ -648,7 +659,7 @@ fd_plot <- spp_data_pca %>%
        # axis.text.y = element_blank(),
        # axis.title.y = element_blank(),
         plot.margin = unit(c(0, 0, 0, 0), "cm"))  + 
-  xlab("Flame Duration (sec)") 
+  xlab("Flame Duration (sec)")
 fd_plot
 
 plot <- cowplot::plot_grid(tti_plot, legend, pca_dotplot, gd_plot, ncol = 2, align = "hv",
