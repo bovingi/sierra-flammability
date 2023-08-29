@@ -498,6 +498,12 @@ field_data_2020 <- merge(field_data_2020_lfm, field_data_2020_mpa,
                      	all.y = T) %>%
   mutate(water_potential = mpa)
 
+field_data_2020_outs <- merge(field_data_2020_lfm, field_data_2020_mpa,
+                    	# by = c("unique_id", "spp", "pod", "type", "site", "date", "location",
+                           	# "month", "doy", "age"),
+                     	all.y = T) %>%
+  mutate(water_potential = mpa)
+
 for (i in unique(field_data_2020$spp)) {
  
   df <- field_data_2020 %>%
@@ -507,6 +513,19 @@ for (i in unique(field_data_2020$spp)) {
 }
 ```
 
+```{r}
+field_data_all_noouts <- merge(field_data_2020_outs, field_data_2021, all = T) %>%
+  mutate(year = year(date)) %>% 
+  filter(lfm < 400, 
+         lfm > 50)
+
+field_data_all_noouts %>% 
+  ggplot(aes(y = lfm, 
+             x = water_potential, 
+             color = spp)) +
+  geom_point() +
+  facet_wrap(~spp)
+```
 
 ## All dates
 ```{r}
@@ -594,6 +613,7 @@ We need the extrapolated saturated water content so that we can determine the re
 1. Finding a lm for each indvidual that relates **water content:dry matter** with **water potential**.
 2. Extracting the y-intercept. This is the extrapolated saturated water content.
 3. Add that value back into the dataset so it is useful.
+
 
 ## Write .csv
 
