@@ -504,26 +504,28 @@ field_data_2020_outs <- merge(field_data_2020_lfm, field_data_2020_mpa,
                      	all.y = T) %>%
   mutate(water_potential = mpa)
 
-for (i in unique(field_data_2020$spp)) {
- 
-  df <- field_data_2020 %>%
-	filter(spp == i)
- 
-  outlierKD(df, lfm)
-}
+# for (i in unique(field_data_2020$spp)) {
+#  
+#   df <- field_data_2020 %>%
+# 	filter(spp == i)
+#  
+#   outlierKD(df, lfm)
+# }
 ```
 
 ```{r}
 field_data_all_noouts <- merge(field_data_2020_outs, field_data_2021, all = T) %>%
-  mutate(year = year(date)) %>% 
-  filter(lfm < 400, 
-         lfm > 50)
+   mutate(year = year(date)) #%>% 
+  # filter(lfm < 400,
+  #        lfm > 50)
 
 field_data_all_noouts %>% 
   ggplot(aes(y = lfm, 
              x = water_potential, 
-             color = spp)) +
-  geom_point() +
+             color = as.factor(year), 
+             shape = age_new
+             )) +
+  geom_point(alpha = .5) +
   facet_wrap(~spp)
 ```
 

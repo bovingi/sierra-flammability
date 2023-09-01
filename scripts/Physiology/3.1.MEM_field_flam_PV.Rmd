@@ -531,6 +531,26 @@ field_data_all_2 <- field_data_all %>%
 write_csv(field_data_all, (here("processed-data", "var-decomp", "field_data_vardecomp.csv")))
 ```
 
+#For pepperwood project: 
+```{r}
+pepperwood_df <- field_data_all_2 %>% 
+  select(spp, Species, unique_id, age_new, date, year, location, lfm, water_potential, location) %>% 
+   filter(lfm < 300, 
+         lfm > 50) %>% 
+  rename(tissue_age = age_new)
+
+pepperwood_df %>% 
+  ggplot(aes(y = lfm, 
+             x = water_potential, 
+             color = as.factor(year), 
+             shape = tissue_age)) +
+  geom_point() +
+  facet_wrap(~Species)
+
+write.csv(pepperwood_df, here('processed-data', 'sierra_lfm_mpa.csv'))
+```
+
+
 ## Plot
 ```{r}
 dat_text <- data.frame(
