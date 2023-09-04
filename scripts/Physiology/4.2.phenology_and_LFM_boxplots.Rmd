@@ -279,7 +279,7 @@ names(spp.labs) <- c("ABCO","PIJE","CADE","CECO","ARPA","QUKE")
 
 ## Function: Pheno x Boxplot
 ```{r}
-pheno.boxplot.vis <- function(species, phenophases, max.y = 350, colors, no.phenophases = two, pheno_df = pheno_fig2){
+pheno.boxplot.vis <- function(species, phenophases, max.y = 350, colors, no.phenophases = two, pheno_df = pheno_fig2, letter){
   
 df1 <- field_data_2021 %>%
   mutate(month = case_when(
@@ -321,6 +321,7 @@ p1 <- ggplot(data = df1, aes(x = month, y = lfm)) +
   scale_y_continuous(limits = c(0, max.y)) +
   scale_fill_manual(values = c('#B2BEB5', '#36454F')) +
   facet_wrap(~spp, labeller = labeller(spp = spp.labs)) +
+  annotate('text', x = 0.875, y = max.y - 0.04*max.y, label = letter, size = 12, fontface = 'bold') +
   theme(axis.ticks.x = element_blank(),
     axis.text.x = element_text(
       angle = 30,
@@ -399,6 +400,7 @@ p1 <- ggplot(data = df1, aes(x = month, y = lfm)) +
   facet_wrap(~spp, labeller = labeller(spp = spp.labs)) +
   scale_fill_manual(values = c('#B2BEB5', '#36454F')) +
  # geom_line(aes(x = month, y = lfm), color = "black") +
+  annotate('text', x = 0.875, y = 249.6, label = 'f', size = 12, fontface = 'bold') +
   theme(axis.ticks.x = element_blank(),
     axis.text.x = element_text(
       angle = 30,
@@ -438,28 +440,28 @@ For all other species, the function written above was able to be utilized:
 abco.phenophases <- c("Breaking buds", "Young leaves")
 abco.colors <- c("#4ECDC4", "#52E764") # Based on above vector
 p.abco <- pheno.boxplot.vis(species = "ABCO", phenophases = abco.phenophases,
-                            colors = abco.colors) +
+                            colors = abco.colors, letter = 'a') +
   geom_smooth(aes(y = ))
 
 pije.phenophases <- c("Increasing leaf size", "Young leaves")
 pije.colors <- c("#2B3E37", "#52E764")
 p.pije <- pheno.boxplot.vis(species = "PIJE", phenophases = pije.phenophases,
-                            colors = pije.colors)
+                            colors = pije.colors, letter = 'b')
 
 cade.phenophases <- c("Pollen cones", "Pollen release")
 cade.colors <- c("#6B91BD", "#E69512")
 p.cade <- pheno.boxplot.vis(species = "CADE", phenophases = cade.phenophases,
-                            max.y = 150, colors = cade.colors)
+                            max.y = 150, colors = cade.colors, letter = 'c')
 
 arpa.phenophases <- c("Breaking buds", "Flowers or flower buds", "Ripe fruits", "Young leaves")
 arpa.colors <- c("#4ECDC4", "#F03D79", "#070093", "#52E764")
 p.arpa <-pheno.boxplot.vis(species = "ARPA", phenophases = arpa.phenophases,
-                           max.y = 210, colors = arpa.colors, no.phenophases = four)
+                           max.y = 210, colors = arpa.colors, no.phenophases = four, letter = 'e')
 
 ceco.phenophases <- c("Flowers or flower buds", "Ripe fruits", "Young leaves")
 ceco.colors <- c("#F03D79", "#070093", "#52E764")
 p.ceco <- pheno.boxplot.vis(species = "CECO", phenophases = ceco.phenophases,
-                            max.y = 260, colors = ceco.colors, no.phenophases = three)
+                            max.y = 260, colors = ceco.colors, no.phenophases = three, letter = 'd')
 
 ```
 
@@ -716,22 +718,22 @@ p.quke.main
 ### Other Species
 ```{r}
 p.abco.main <- pheno.boxplot.vis(species = "ABCO", phenophases = abco.phenophases,
-                            colors = abco.colors, pheno_df = pheno_fig_main)
+                            colors = abco.colors, pheno_df = pheno_fig_main, letter = 'a')
 
 p.pije.main <- pheno.boxplot.vis(species = "PIJE", phenophases = pije.phenophases,
-                            colors = pije.colors, pheno_df = pheno_fig_main)
+                            colors = pije.colors, pheno_df = pheno_fig_main, letter = 'b')
 
 p.cade.main <- pheno.boxplot.vis(species = "CADE", phenophases = cade.phenophases,
                             max.y = 150, colors = cade.colors,
-                            pheno_df = pheno_fig_main)
+                            pheno_df = pheno_fig_main, letter = 'c')
 
 p.arpa.main <-pheno.boxplot.vis(species = "ARPA", phenophases = arpa.phenophases,
                            max.y = 210, colors = arpa.colors,
-                           no.phenophases = four, pheno_df = pheno_fig_main)
+                           no.phenophases = four, pheno_df = pheno_fig_main, letter = 'e')
 
 p.ceco.main <- pheno.boxplot.vis(species = "CECO", phenophases = ceco.phenophases,
                             max.y = 260, colors = ceco.colors,
-                            no.phenophases = three, pheno_df = pheno_fig_main)
+                            no.phenophases = three, pheno_df = pheno_fig_main, letter = 'd')
 ```
 
 ### Arrange
@@ -743,7 +745,7 @@ y.grob <- textGrob("Live Fuel Moisture (%)",
                            col="black", 
                            fontsize=24))
 
-p.spp.main <- cowplot::plot_grid(p.abco.main, p.pije.main, p.cade.main, p.ceco.main, p.arpa.main, p.quke.main, ncol = 3, labels = c('a', 'b', 'c', 'd', 'e', 'f'), label_size = 30)
+p.spp.main <- cowplot::plot_grid(p.abco.main, p.pije.main, p.cade.main, p.ceco.main, p.arpa.main, p.quke.main, ncol = 3) #labels = c('a', 'b', 'c', 'd', 'e', 'f'), label_size = 30
 p.spp.main
 
 p.spp.w.grob <- gridExtra::grid.arrange(arrangeGrob(p.spp.main, left = y.grob))
