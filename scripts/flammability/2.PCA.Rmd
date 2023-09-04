@@ -664,7 +664,7 @@ fd_plot
 
 plot <- cowplot::plot_grid(tti_plot, legend, pca_dotplot, gd_plot, ncol = 2, align = "hv",
                    axis="tblr",
-          rel_widths = c(4, 1), rel_heights = c(1, 4))
+          rel_widths = c(4, 1), rel_heights = c(1, 4), labels = c('a', '', 'c', 'b'), label_size = 30)
 plot
 
 ggsave(here("figures", 'main-figures', 'Fig.PCA.density_dots.jpg'), height = 12, width = 12) 

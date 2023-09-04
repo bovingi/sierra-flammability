@@ -743,7 +743,7 @@ y.grob <- textGrob("Live Fuel Moisture (%)",
                            col="black", 
                            fontsize=24))
 
-p.spp.main <- cowplot::plot_grid(p.abco.main, p.pije.main, p.cade.main, p.ceco.main, p.arpa.main, p.quke.main, ncol = 3)
+p.spp.main <- cowplot::plot_grid(p.abco.main, p.pije.main, p.cade.main, p.ceco.main, p.arpa.main, p.quke.main, ncol = 3, labels = c('a', 'b', 'c', 'd', 'e', 'f'), label_size = 30)
 p.spp.main
 
 p.spp.w.grob <- gridExtra::grid.arrange(arrangeGrob(p.spp.main, left = y.grob))
