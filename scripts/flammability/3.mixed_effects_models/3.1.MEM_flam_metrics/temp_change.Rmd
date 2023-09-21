@@ -38,7 +38,7 @@ library(sjstats) #use for r2 functions
 library(TMB)
 library(glmmTMB)
 library(lattice)
-library(equatiomatic)
+#library(equatiomatic)
 library("broom.mixed")
 #library(ggbiplot)
 select = dplyr::select
@@ -179,6 +179,14 @@ plot(temp_change_mpa_m1)
 What covariates to include?
 
 ## Site, spp, year_month, sample_wt
+
+```{r}
+sw_mod_fig <- lmer(temp_change ~ spp + site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all)
+
+performance::multicollinearity(sw_mod_fig)
+```
+
+
 ```{r}
 sw_mpa_mod_fig.mpa <- lmer(temp_change ~ mpa + spp + site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all)
 
@@ -577,7 +585,7 @@ tab_model(m1, m2,
 
 #temp_change best model in table: 
 ```{r}
-tab_model(m2, sw_m1,
+tab_model(m2, sw_m1,sw_mod_fig,
           show.reflvl = TRUE, 
           digits = 3, 
           show.aic = TRUE, 

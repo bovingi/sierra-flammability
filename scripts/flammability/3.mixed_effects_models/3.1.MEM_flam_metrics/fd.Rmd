@@ -40,7 +40,7 @@ library(sjstats) #use for r2 functions
 library(TMB)
 library(glmmTMB)
 library(lattice)
-library(equatiomatic)
+#library(equatiomatic)
 library("broom.mixed")
 #library(ggbiplot)
 select = dplyr::select
@@ -179,6 +179,12 @@ plot(fd_mpa_m1)
 # ---------------------------------
 # MODEL SELECTION 1
 What covariates to include?
+
+```{r}
+sw_mod_fig <- lmer(fd ~ spp + site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all)
+
+performance::multicollinearity(sw_mod_fig)
+```
 
 ## Site, spp, year_month, sample_wt
 ```{r}
@@ -579,7 +585,7 @@ tab_model(m1, m2,
 
 #fd best model in table: 
 ```{r}
-tab_model(m2, sw_m1,
+tab_model(m2, sw_m1,sw_mod_fig,
           show.reflvl = TRUE, 
           digits = 3, 
           show.aic = TRUE, 

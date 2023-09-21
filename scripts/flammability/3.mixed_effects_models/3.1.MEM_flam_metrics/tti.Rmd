@@ -40,7 +40,7 @@ library(sjstats) #use for r2 functions
 library(TMB)
 library(glmmTMB)
 library(lattice)
-library(equatiomatic)
+#library(equatiomatic)
 library("broom.mixed")
 #library(ggbiplot)
 select = dplyr::select
@@ -354,6 +354,13 @@ tab_model(sw_m11, sw_m12.5, sw_m13, sw_m7,
 ## Site, spp, year_month
 
 ```{r}
+mspp_wt <- lmer(tti ~ spp + sample_wt_scaled + site + year_month + (1 | individual), data = mem_data_all, REML = T)
+mspp_wt
+AIC(mspp_wt)
+performance::multicollinearity(mspp_wt)
+```
+
+```{r}
 mpa_mod_fig.mpa <- lmer(tti ~ mpa + spp + site + year_month + (1 | individual), data = mem_data_all)
 
 qqnorm(resid(mpa_mod_fig.mpa))
@@ -541,7 +548,7 @@ tab_model(m7, m11, m12.5, m13,
 
 #TTI best model in table: 
 ```{r}
-tab_model(m11, sw_m12.5,
+tab_model(m11, sw_m12.5, mspp_wt,
           show.reflvl = TRUE, 
           digits = 3, 
           show.aic = TRUE, 

@@ -191,6 +191,8 @@ plot(fitted(sw_m1), r)
 
 
 ```{r}
+sw_m1 <- lmer(fh ~ spp*mpa_scaled + spp*lfm_scaled +  site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all, REML = T)
+
 tidy_fh <- broom.mixed::tidy(sw_m1)%>% 
   mutate(y_var = "fh")
 
@@ -201,6 +203,14 @@ fh_mod_noints <- lmer(fh ~ mpa_scaled + lfm_scaled + spp + site + year_month + s
 
 
 ##Time to ignition: 
+
+```{r}
+mspp_wt <- lmer(tti ~ spp + sample_wt_scaled + site + year_month + (1 | individual), data = mem_data_all, REML = T)
+mspp_wt
+AIC(mspp_wt)
+performance::multicollinearity(mspp_wt)
+```
+
 
 ```{r}
 m11 <- lmer(tti ~ mpa_scaled*spp + site + year_month + (1 | individual), data = mem_data_all, REML = F)
@@ -314,6 +324,8 @@ performance::multicollinearity(m11.5)
 
 
 ```{r}
+m11 <- lmer(tti ~ spp*mpa_scaled + spp*lfm_scaled + site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all, REML = T)
+
 qqnorm(resid(m11))
 r <- resid(m11)
 plot(fitted(m11), r)
@@ -387,7 +399,7 @@ Best model for glow duration:
 ######final model
 
 ```{r}
-sw_m1 <- lmer(gd ~ spp*mpa_scaled + spp*lfm_scaled +  site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all, REML = F)
+sw_m1 <- lmer(gd ~ spp*mpa_scaled + spp*lfm_scaled +  site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all, REML = T)
 
 performance::multicollinearity(sw_m1)
 plot(performance::check_collinearity(sw_m1))
@@ -506,7 +518,7 @@ performance::multicollinearity(m12)
 ######final model
 
 ```{r}
-sw_m1 <- lmer(fd ~ spp*mpa_scaled + spp*lfm_scaled +  site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all, REML = F)
+sw_m1 <- lmer(fd ~ spp*mpa_scaled + spp*lfm_scaled +  site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all, REML = T)
 
 performance::multicollinearity(sw_m1)
 plot(performance::check_collinearity(sw_m1))
@@ -599,7 +611,7 @@ tab_model(sw_m1,
 ######final model
 
 ```{r}
-sw_m1 <- lmer(temp_change ~ spp*mpa_scaled + spp*lfm_scaled +  site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all, REML = F)
+sw_m1 <- lmer(temp_change ~ spp*mpa_scaled + spp*lfm_scaled +  site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all, REML = T)
 
 performance::multicollinearity(sw_m1)
 
@@ -705,6 +717,8 @@ performance::multicollinearity(sw_m1.5)
 
 ```{r}
 m2 <- lmer(prop_ignite ~ spp * mpa_scaled + spp * lfm_scaled  + site + year_month + (1 | individual), data = mem_data_all, REML = F)
+
+m2 <- lmer(prop_ignite ~ spp * mpa_scaled + spp * lfm_scaled  + site + year_month + (1 | individual), data = mem_data_all, REML = T)
 
 performance::multicollinearity(m2)
 
