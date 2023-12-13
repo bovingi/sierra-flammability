@@ -228,6 +228,7 @@ tti_df <- field_data_all_means %>%
 
 # To get standard deviations
 tti_df_stdev <- field_data_all_6 %>% 
+  drop_na(lfm_scaled, sample_wt_scaled, spp) %>% 
   add_predictions(tti_mod)
 
 tti_df_stdev <- tti_df_stdev %>% 
@@ -274,6 +275,7 @@ tti_pred <- tti_df %>%
     color_noceco
 tti_pred
 ```
+
 #For labels:
 ```{r}
 x <- as.Date(c(rep('2023-04-24', 5)))

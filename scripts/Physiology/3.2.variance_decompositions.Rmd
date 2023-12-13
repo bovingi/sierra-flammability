@@ -78,6 +78,14 @@ field_data_all <- read_csv(here("processed-data", "var-decomp", "field_data_vard
   )) 
 ```
 
+Removing outliers from PV Curve Data (for Angiosperms, Fig. 4c)
+```{r}
+pv_all_df <- pv_all_df %>% 
+  filter(individual != 'QUKE_2_2020-10-21',
+         individual !='QUKE_4_2020-10-21')
+```
+
+
 Vardecomps:
 ```{r, fig.height=3, fig.width=1}
 flam_curve_df_2.1 <- read_csv(here("processed-data", "var-decomp", "flam_curve_vardecomp.csv"), show_col_types = FALSE) %>% 
@@ -93,6 +101,7 @@ gymno_flam <- flam_curve_df_2.1 %>%
   filter(F.Group == "Gymnosperm")
 
 pv_all_df_2.1 <-  read_csv(here("processed-data", "var-decomp", "all_pv_curves_clean_vardecomp.csv"), show_col_types = FALSE) %>% 
+  filter(individual != c('QUKE_2_2020-10-21', 'QUKE_4_2020-10-21')) %>% 
   mutate(plant = as.factor(plant), 
          year = as.factor(year), 
          spp = as.factor(spp)) %>% 
@@ -122,6 +131,9 @@ field_data_all_2.1 <- read_csv(here("processed-data", "var-decomp", "field_data_
     str_detect(unique_id2, "2.4_2") | str_detect(unique_id2, "_4_2") ~ 10,
     str_detect(unique_id2, "2.5_2") | str_detect(unique_id2, "_5_2") ~ 11
   )) %>% 
+  mutate(age_new_num = case_when(age_new == 'new' ~ 1,
+                                 age_new == 'old' ~ 0,
+                                 age_new == 'both' ~ 0.5)) %>% 
   mutate(plant = as.factor(plant)) %>% 
   drop_na(log_lfm) 
 
@@ -172,7 +184,7 @@ ggsave(plot=pv_vardecomp_gymno, bg = "white" , here::here("figures", "extra-figu
 
 #------
 
-form <- ~ water_potential  + (1|spp) + (1|year_month) + (1|plant)  
+form <- ~ water_potential + (1|spp) + (1|year_month) + (1|plant)  
 
 lfm_matrix <- angio_flam %>% 
   ungroup() %>% 
@@ -210,7 +222,7 @@ ggsave(plot=flam_vardecomp_gymno, bg = "white" , here::here("figures", "extra-fi
 
 #------
 
-form <- ~ water_potential + (1|spp) + (1|year_month) + (1|plant) + (1|age_new)
+form <- ~ water_potential + age_new_num + (1|spp) + (1|year_month) + (1|plant)
 
 lfm_matrix <- angio_field %>% 
   ungroup() %>% 
@@ -229,7 +241,7 @@ ggsave(plot=field_vardecomp_angio, bg = "white" , here::here("figures", "extra-f
 
 #------
 
-form <- ~ water_potential + (1|spp) + (1|year_month) + (1|plant) + (1|age_new)
+form <- ~ water_potential + age_new_num + (1|spp) + (1|year_month) + (1|plant)
 
 lfm_matrix <- gymno_field %>% 
   ungroup() %>% 
@@ -287,8 +299,7 @@ plot <- df %>%
              color = spp)) +
   geom_vline(aes(xintercept = -1*mean_tlp_group), lty = fgr_lty, data = fgroup_pv_summaries) +
   geom_jitter(alpha = .5, 
-              size = 2,
-             aes(shape = as.factor(year))) +
+              size = 2) +
   scale_color_manual(values = color_pal) +
   scale_y_continuous(limits = c(50, y.max), breaks = c(y.max/5, 2*y.max/5, 3*y.max/5, 4*y.max/5)) +
   labs(title = f.group.lab,
@@ -401,11 +412,9 @@ field_plot_leg <- ggplot(aes(y = lfm,
              data = fgroup_pv_summaries) +
   geom_point(size = 3,
              alpha = .7, 
-             aes(shape = as.factor(year)),
              data = field_data_all) +
   labs(color = "Species", 
-       lty = "TLP", 
-       shape = "Year") +
+       lty = "TLP") +
    theme(plot.margin = unit(c(.2, .5, .3, .25), "cm"),
         axis.title = element_text(face = 'bold', size = 26),
         axis.text = element_text(size = 16),
@@ -443,9 +452,9 @@ legend <- plotPercentBars.legend(varPart, col = c(vcol)) +
                              "year" = "Timing",
                              "spp" = "Species", 
                              "plant" = "Plant", 
-                             "age_new" = "Age"), 
+                             "age_new" = "Old/New Growth"), 
              limits = c("Residuals", "Water Potential", "Timing",
-                       "Species", "Plant", "Age"),
+                       "Species", "Plant", "Old/New Growth"),
              type = c('grey', '#280b53',  '#d44842', "#9f2a63", '#65156e', '#fac228')) +
    theme(plot.margin = unit(c(.2, .1, .3, .25), "cm"),
          axis.title = element_text(face = 'bold', size = 26),

@@ -545,12 +545,12 @@ dotplot.prop.ig.b <- df.dotplot.prop.ig %>%
               color = Species)) +
    geom_point(alpha = .7, size = 5) +
    geom_abline(intercept = 100, slope = 0, color = 'black', alpha = 0.5, size = 0.3,linetype = "dotted") +
-   geom_linerange(aes(ymin = case_when(
-     med_prop_ignite - 2*stdev_prop_ignite < 0 ~ 0,
-     med_prop_ignite - 2*stdev_prop_ignite > 0 ~ med_prop_ignite - 2*stdev_prop_ignite),
-     ymax = case_when(
-       med_prop_ignite + 2*stdev_prop_ignite > 100 ~ 100,
-       med_prop_ignite + 2*stdev_prop_ignite < 100 ~ med_prop_ignite + 2*stdev_prop_ignite))) +
+   #geom_linerange(aes(ymin = case_when(
+   #  med_prop_ignite - 2*stdev_prop_ignite < 0 ~ 0,
+   #  med_prop_ignite - 2*stdev_prop_ignite > 0 ~ med_prop_ignite - 2*stdev_prop_ignite),
+   #  ymax = case_when(
+   #    med_prop_ignite + 2*stdev_prop_ignite > 100 ~ 100,
+   #    med_prop_ignite + 2*stdev_prop_ignite < 100 ~ med_prop_ignite + 2*stdev_prop_ignite))) +
    labs(y = "Percent Ignited (%)", 
         x = "Species")  +
    scale_y_continuous(limits = c(-.5, 115), breaks = c(0, 20, 40, 60, 80, 100)) +
