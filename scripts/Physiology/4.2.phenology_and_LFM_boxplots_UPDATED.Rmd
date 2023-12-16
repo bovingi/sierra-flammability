@@ -332,12 +332,17 @@ df2$month <- factor(df2$month, levels = c("April", "May", "June", "E. July",
 
 ### Visualization
 ```{r}
-df2 %>% 
-  ggplot() +
-  geom_point(aes(color = name, y = value, x = month)) +
-  geom_linerange(aes(x = month, ymin = value - sd, ymax = value + sd, color = name)) +
-  scale_fill_manual(values = c('#B2BEB5', '#36454F', 'black')) +
+coef <- -0.01
+
+ggplot() +
+  geom_point(aes(y = value, x = month), data = old_lfm_df, color = '#B2BEB5') +
+  geom_linerange(aes(x = month, ymin = value - sd, ymax = value + sd), data = old_lfm_df, color = '#B2BEB5') +
+  geom_point(aes(y = value, x = month), data = new_lfm_df, color = '#36454F', position = position_nudge(x = -0.2)) +
+  geom_linerange(aes(x = month, ymin = value - sd, ymax = value + sd), data = new_lfm_df, color = '#36454F', position = position_nudge(x = -0.2)) +
+  geom_point(aes(y = value*-100, x = month), data = mpa_df, color = 'black', position = position_nudge(x = 0.2)) +
+  geom_linerange(aes(x = month, ymin = value*-100 - sd*-100, ymax = value*-100 + sd*-100), data = mpa_df, color = 'black', position = position_nudge(x = 0.2)) +
   facet_wrap(~spp, labeller = labeller(spp = spp.labs)) +
+  scale_y_continuous(sec.axis = sec_axis(trans = ~.*coef, name = 'Water Potential (-MPa)')) +
   theme(axis.ticks.x = element_blank(),
     axis.text.x = element_text(
       angle = 30,
@@ -349,10 +354,9 @@ df2 %>%
     legend.title = element_text(face = "bold"),
     strip.text = element_text(face = "italic", size = 14),
     legend.position = 'none') +
-  labs(y = "Live Fuel Moisture",
+  labs(y = "Live Fuel Moisture (%)",
        fill = "Tissue Status")
 ```
-
 
 ## Function: Pheno x Boxplot
 ```{r}
