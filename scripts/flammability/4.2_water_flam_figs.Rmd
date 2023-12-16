@@ -40,13 +40,14 @@ library(sjstats) #use for r2 functions
 library(TMB)
 library(glmmTMB)
 library(lattice)
-library(equatiomatic)
+#library(equatiomatic)
 library("broom.mixed")
 #library(ggbiplot)
 select = dplyr::select
 here = here::here
 library(MuMIn)
 library(modelsummary)
+library(modelr)
 #install_github("BlakeRMills/MetBrewer") 
 #library("BlakeRMills/MetBrewer")
 #library(memmented)
@@ -66,7 +67,7 @@ source(here::here("scripts", "scripts_functions", "figure_info_sierra_flammabili
 Because this script used a bunch of datasets from other scripts, I brought in a lot of code from other scripts to ensure that it would run on its own
 ```{r}
 mem_data_all <- read_csv(here("processed-data", "sierra_flam_data_all.csv"), show_col_types = FALSE) %>% 
-  select(lfm, mpa, tti, fh, fd, gd, prop_ignite, temp_change, ignition, sample_wt, dry_wt, fresh_wt, water_wt, location, site, year_month, spp, individual) %>% 
+  select(lfm, mpa, tti, fh, fd, gd, prop_ignite, temp_change, ignition, sample_wt, dry_wt, prop_new, fresh_wt, water_wt, location, site, year_month, spp, individual) %>% 
   mutate(dw_flam_sample = sample_wt * (dry_wt/fresh_wt),
          mpa = -1*mpa, 
          ww_flam_sample = sample_wt * (water_wt/fresh_wt),
@@ -160,7 +161,7 @@ field_data_all_6_raw <- read_csv(here("processed-data", "field_data_2020_2021.cs
 
 field_data_all_6 <-  field_data_all_6_raw %>% 
  # filter(age_new == "new") %>% 
-  select(spp, lfm, year, month, water_potential, site, wet_weight, unique_id, date, midday) %>% 
+  select(spp, lfm, year, month, water_potential, site, wet_weight, unique_id, date, midday, age) %>% 
   filter(wet_weight > 50) %>% #remove weirdly small wet weights
   #group_by(spp) %>% 
   mutate(mpa = water_potential,
@@ -431,7 +432,7 @@ tti_df <- field_data_all_means %>%
    drop_na(pred) 
 
 # To get standard deviations
-tti_df_stdev <- field_data_all_6 %>% 
+tti_df_stdev <- field_data_all_means  %>% 
   drop_na(lfm_scaled, sample_wt_scaled, spp) %>% 
   add_predictions(tti_mod)
 
@@ -563,4 +564,158 @@ fig2_legend
 
 ggsave(plot = fig2_legend, here('figures', 'main-figures', 'Fig2_new.jpg'), height = 10, width = 15)
 ```
+#----------------------
 
+#OLD growth pred plots:
+
+####TTI
+
+```{r}
+tti_df_lfm <- mem_data_all_6 %>% 
+  drop_na(lfm_scaled, sample_wt_scaled, tti, spp)
+
+tti_mod_lfm <- lm(tti ~ spp*lfm_scaled + sample_wt_scaled, data = tti_df_lfm)
+summary(tti_mod_lfm)
+
+tti_df_lfm1 <- field_data_all_means %>% 
+  filter(age == "old") %>% 
+  modelr::add_predictions(tti_mod_lfm) %>% 
+   drop_na(pred) 
+
+# To get standard deviations
+tti_df_stdev_lfm_old <- field_data_all_means  %>% 
+  drop_na(lfm_scaled, sample_wt_scaled, spp) %>% 
+  add_predictions(tti_mod_lfm)
+
+tti_df_stdev_lfm_old <- tti_df_stdev_lfm_old %>% 
+  drop_na(pred) %>% 
+  group_by(spp, month) %>% 
+  mutate(stdev.pred = sd(pred))
+
+tti_df_lfm_old <- tti_df_lfm1 %>% 
+  mutate(stdev.pred = tti_df_stdev$stdev.pred) %>%
+  group_by(spp, month) %>% 
+  mutate(stdev.pred = mean(stdev.pred), 
+         pred = mean(pred))
+  
+
+tti_pred_mpa <- tti_df_mpa %>%
+  filter(year == 2021) %>% 
+  ggplot(aes(y = pred, x = date, color = spp)) +
+   geom_point(alpha = 1, size = 2) +
+   #geom_smooth(se = F) +
+   geom_line() +
+  geom_linerange(aes(ymin = pred - 0.5*stdev.pred, ymax = pred + 0.5*stdev.pred)) +
+  scale_y_continuous(breaks = c(20, 40, 60, 80, 100, 120)) +
+ # ylim(20, 120)+
+  # scale_y_continuous(breaks = c(-100, -80, -60, -40, -20, 0)) +
+ # ylim(-120, -20)+
+    theme(legend.position = "none",
+        axis.text.y = element_text(size = 14),
+        #axis.text.x = element_text(size = 18, angle = 20),
+       # axis.title = element_text(size = 14, face = 'bold'),
+        axis.text.x = element_blank(),
+       axis.title.x = element_blank(),
+        axis.ticks.x = element_blank(),
+      #  axis.text.y = element_blank(),
+       axis.title.y = element_blank(),
+      # axis.ticks.y = element_blank(),
+      plot.title = element_text(hjust = 0.5, face = 'bold', size = 18),
+       # title = element_text(size = 14, face = 'bold'),
+      plot.margin = unit(c(.05, 0.05, 0.05, 0.05), 'cm')) +
+       # plot.margin = unit(c(0.05, 0.1, 0, 0.1), 'cm')) +
+    labs(#y = "Ignitability (-1*sec)", 
+      # x = "", 
+       title = "Predicted Flammability")  +
+  annotate(geom = "text", x = as.Date('2023-04-24'), y = 110, label = 'c',
+           fontface = 'bold', size = 10) +
+    # geom_text(data = subset(labelData, subset = plot == 'tti'),
+    #           aes(x, y, label = labs, group = NULL, color = NULL),
+    #           size = 12, fontface = 'bold') +
+    color_noceco
+tti_pred_mpa
+```
+
+#For labels:
+```{r}
+x <- as.Date(c(rep('2023-04-24', 5)))
+y <- c(-25, 49.5, 49.5, 365, 105)
+labs <- c('a', 'b', 'c', ' ', 'd')
+plot <- c('tti', 'fh', 'fd', 'mt', 'tc')
+labelData <- data.frame(x, y, labs, plot)
+```
+
+####Temp change
+
+```{r}
+temp_change_df <- mem_data_all_6 %>% 
+  drop_na(mpa, lfm, temp_change)
+
+temp_change_mod <- lm(temp_change ~ spp*lfm_scaled +
+                           sample_wt_scaled, data = temp_change_df)
+summary(temp_change_mod)
+
+temp_change_df <- field_data_all_means %>% 
+  modelr::add_predictions(temp_change_mod)
+#To get standard deviations
+temp_change_df_stdev <- field_data_all_6 %>% 
+  add_predictions(temp_change_mod)
+temp_change_df_stdev <- temp_change_df_stdev %>% 
+  drop_na(pred) %>% 
+  group_by(spp, month) %>% 
+  mutate(stdev.pred = sd(pred))
+temp_change_df <- temp_change_df %>% 
+  mutate(stdev.pred = temp_change_df_stdev$stdev.pred)
+
+temp_change_pred <- temp_change_df %>%
+  filter(year == 2021) %>% 
+  ggplot(aes(y = pred, x = date, color = spp)) +
+   geom_point(alpha = 1, size = 2) +
+  # geom_smooth(se = F) +
+   geom_line() +
+    scale_y_continuous(limits = c(0,110), breaks = c(0, 50, 100, 150)) +
+ # scale_x_reverse() +
+   geom_linerange(aes(ymin = pred - 0.5*stdev.pred, ymax = pred + 0.5*stdev.pred)) +
+    theme(legend.position = "none",
+          axis.title.x = element_blank(),
+        axis.text.y = element_text(size = 14),
+        axis.text.x = element_text(size = 14, #angle = 20, 
+                                   hjust = 0.5),
+       # axis.text.y = element_blank(),
+       axis.title.y = element_blank(),
+      # axis.ticks.y = element_blank(),
+       # axis.title = element_text(size = 14, face = 'bold'),
+        plot.margin = unit(c(.05, 0.05, 0.05, 0.05), 'cm'))+
+    labs(y = "Temp. Change (C)") +
+  annotate(geom = "text", x = as.Date('2023-04-24'), y = 107, label = 'f',
+           fontface = 'bold', size = 10) +
+    # geom_text(data = subset(labelData, subset = plot == 'tc'),
+    #           aes(x, y, label = labs, group = NULL, color = NULL),
+    #           size = 12, fontface = 'bold') +
+    color_noceco
+temp_change_pred
+```
+#------
+
+#Combine: 
+
+```{r}
+fig2 <- cowplot::plot_grid(tti_scatterplot.lfm, tti_scatterplot.mpa, tti_pred, 
+                                  temp_scatterplot.lfm, temp_scatterplot.mpa, 
+                                  temp_change_pred,
+                                nrow = 2,
+                                ncol = 3,
+                                rel_widths = c(1,.9,1), 
+                                align = "btlr")
+fig2
+
+fig2_legend <- cowplot::plot_grid(fig2, legend,
+                               # nrow = 2,
+                                ncol = 2,
+                                rel_widths = c(1, .2), 
+                                align = "btlr")
+
+fig2_legend
+
+ggsave(plot = fig2_legend, here('figures', 'main-figures', 'Fig2_new.jpg'), height = 10, width = 15)
+```
