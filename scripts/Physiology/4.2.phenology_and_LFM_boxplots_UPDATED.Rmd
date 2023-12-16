@@ -342,14 +342,14 @@ ggplot() +
   geom_point(aes(y = value*-100, x = month), data = mpa_df, color = 'black', position = position_nudge(x = 0.2)) +
   geom_linerange(aes(x = month, ymin = value*-100 - sd*-100, ymax = value*-100 + sd*-100), data = mpa_df, color = 'black', position = position_nudge(x = 0.2)) +
   facet_wrap(~spp, labeller = labeller(spp = spp.labs)) +
-  scale_y_continuous(sec.axis = sec_axis(trans = ~.*coef, name = 'Water Potential (-MPa)')) +
+  scale_y_continuous(limits = c(0, 400), sec.axis = sec_axis(trans = ~.*coef, name = 'Water Potential (-MPa)')) +
   theme(axis.ticks.x = element_blank(),
     axis.text.x = element_text(
       angle = 30,
       hjust = 1,
       size = 16),
-    axis.title = element_blank(),
-    #axis.title.y = element_text(face = "bold", size = 16),
+    axis.title.y = element_text(face = "bold", size = 16),
+    axis.title.x = element_blank(),
     axis.text.y = element_text(size = 12),
     legend.title = element_text(face = "bold"),
     strip.text = element_text(face = "italic", size = 14),
@@ -357,6 +357,99 @@ ggplot() +
   labs(y = "Live Fuel Moisture (%)",
        fill = "Tissue Status")
 ```
+
+### Function
+```{r}
+pheno.dotplot.vis <- function(species, phenophases, max.y = 350, colors, no.phenophases = two, pheno_df = pheno_fig2, letter){
+  
+old_lfm_df <- old_lfm_df %>%
+  filter(spp == species)
+new_lfm_df <- new_lfm_df %>%
+  filter(spp == species)
+mpa_df <- mpa_df %>%
+  filter(spp == species)
+
+df2 <- field_data_all_3 %>% 
+  filter(spp == species)
+mean_lfm <- mean(df2$lfm_tlp)
+
+df3 <- pheno_df %>%
+  filter(spp == species) %>% 
+  filter(phenophase_name %in% phenophases)
+
+p1 <- ggplot() +
+  geom_point(aes(y = value, x = month), data = old_lfm_df, color = '#B2BEB5') +
+  geom_linerange(aes(x = month, ymin = value - sd, ymax = value + sd), data = old_lfm_df, color = '#B2BEB5') +
+  geom_point(aes(y = value, x = month), data = new_lfm_df, color = '#36454F', position = position_nudge(x = -0.2)) +
+  geom_linerange(aes(x = month, ymin = value - sd, ymax = value + sd), data = new_lfm_df, color = '#36454F', position = position_nudge(x = -0.2)) +
+  geom_point(aes(y = value*-100, x = month), data = mpa_df, color = 'black', position = position_nudge(x = 0.2)) +
+  geom_linerange(aes(x = month, ymin = value*-100 - sd*-100, ymax = value*-100 + sd*-100), data = mpa_df, color = 'black', position = position_nudge(x = 0.2)) +
+  facet_wrap(~spp, labeller = labeller(spp = spp.labs)) +
+  annotate('text', x = 0.875, y = max.y - 0.04*max.y, label = letter, size = 12, fontface = 'bold') +
+  scale_y_continuous(limits = c(0, max.y), sec.axis = sec_axis(trans = ~.*coef, name = 'Water Potential (-MPa)')) +
+  theme(axis.ticks.x = element_blank(),
+    axis.text.x = element_text(
+      angle = 30,
+      hjust = 1,
+      size = 16),
+    axis.title.y = element_text(face = "bold", size = 16),
+    axis.title.x = element_blank(),
+    axis.text.y = element_text(size = 12),
+    legend.title = element_text(face = "bold"),
+    strip.text = element_text(face = "italic", size = 14),
+    legend.position = 'none') +
+  labs(y = "Live Fuel Moisture (%)",
+       fill = "Tissue Status")
+
+p2 <- ggplot2::ggplot(data = df3, aes(x = date, y = lfm, color = phenophase_name)) +
+  geom_line(alpha = 0.6, size = no.phenophases[2]) +
+  scale_color_manual(values = colors) +
+  theme(aspect.ratio = no.phenophases[1],
+        legend.position = 'none',
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.title = element_blank(),
+        axis.text = element_blank(),
+        axis.ticks = element_blank(),
+        panel.background = element_rect(fill = 'white'))
+
+p3 <- p1 + annotation_custom(ggplotGrob(p2), xmin = "April", xmax = "Oct.",
+                       ymin = -10, ymax = 30)
+return(p3)
+  }
+```
+
+```{r}
+abco.phenophases <- c("Breaking buds", "Young leaves")
+abco.colors <- c("#4ECDC4", "#52E764") # Based on above vector
+p.abco <- pheno.boxplot.vis(species = "ABCO", phenophases = abco.phenophases,
+                            colors = abco.colors, letter = 'a') +
+  geom_smooth(aes(y = ))
+
+pije.phenophases <- c("Increasing leaf size", "Young leaves")
+pije.colors <- c("#2B3E37", "#52E764")
+p.pije <- pheno.boxplot.vis(species = "PIJE", phenophases = pije.phenophases,
+                            colors = pije.colors, letter = 'b')
+
+cade.phenophases <- c("Pollen cones", "Pollen release")
+cade.colors <- c("#6B91BD", "#E69512")
+p.cade <- pheno.boxplot.vis(species = "CADE", phenophases = cade.phenophases,
+                            max.y = 150, colors = cade.colors, letter = 'c')
+
+arpa.phenophases <- c("Breaking buds", "Flowers or flower buds", "Ripe fruits", "Young leaves")
+arpa.colors <- c("#4ECDC4", "#F03D79", "#070093", "#52E764")
+p.arpa <-pheno.boxplot.vis(species = "ARPA", phenophases = arpa.phenophases,
+                           max.y = 210, colors = arpa.colors, no.phenophases = four, letter = 'e')
+
+ceco.phenophases <- c("Flowers or flower buds", "Ripe fruits", "Young leaves")
+ceco.colors <- c("#F03D79", "#070093", "#52E764")
+p.ceco <- pheno.boxplot.vis(species = "CECO", phenophases = ceco.phenophases,
+                            max.y = 260, colors = ceco.colors, no.phenophases = three, letter = 'd')
+
+quke.phenophases <- c("Breaking buds", "Increasing leaf size", "Ripe fruits")
+
+```
+
 
 ## Function: Pheno x Boxplot
 ```{r}
