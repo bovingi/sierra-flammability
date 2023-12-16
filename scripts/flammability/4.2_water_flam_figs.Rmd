@@ -62,6 +62,210 @@ library(kableExtra)
 source(here::here("scripts", "scripts_functions", "figure_info_sierra_flammability.R")) #color and theme info is here
 ```
 
+# Data Wrangling
+Because this script used a bunch of datasets from other scripts, I brought in a lot of code from other scripts to ensure that it would run on its own
+```{r}
+mem_data_all <- read_csv(here("processed-data", "sierra_flam_data_all.csv"), show_col_types = FALSE) %>% 
+  select(lfm, mpa, tti, fh, fd, gd, prop_ignite, temp_change, ignition, sample_wt, dry_wt, fresh_wt, water_wt, location, site, year_month, spp, individual) %>% 
+  mutate(dw_flam_sample = sample_wt * (dry_wt/fresh_wt),
+         mpa = -1*mpa, 
+         ww_flam_sample = sample_wt * (water_wt/fresh_wt),
+         excess_water = (ww_flam_sample - dw_flam_sample)
+         ) %>% 
+  group_by(spp) %>% 
+  mutate(dw_flam_sample_scaled = scale(dw_flam_sample), 
+         mpa_scaled = scale(mpa),
+         sample_wt_scaled = scale(sample_wt), 
+         ww_flam_sample_scaled = scale(ww_flam_sample),
+         lfm_scaled = scale(lfm), 
+         excess_water_scaled = scale(excess_water)) %>% 
+  ungroup() %>% 
+  filter(!year_month %in% c("2021_august")) %>% 
+  mutate(fun_gr = case_when(
+    spp == "arpa" ~ "Angiosperm", 
+    spp == "abco" ~ "Gymnosperm",
+    spp == "cade" ~ "Gymnosperm",
+    spp == "ceco" ~ "Angiosperm",
+    spp == "pije" ~ "Gymnosperm",
+    spp == "quke" ~ "Angiosperm"
+  ))  %>% 
+  mutate(Species = case_when(
+    spp == "arpa" ~ "Ar. patula", 
+    spp == "abco" ~ "Ab. concolor",
+    spp == "cade" ~ "Ca. decurrens",
+    spp == "ceco" ~ "Ce. cordulatus",
+    spp == "pije" ~ "Pi. jeffreyi",
+    spp == "quke" ~ "Qu. kelloggii"
+  )) %>% 
+  mutate(site = case_when(
+    location %in% c("seki") & site %in% c(1) ~ 4,
+    location %in% c("seki") & site %in% c(2) ~ 3,
+    TRUE ~ as.numeric(site)
+  )) %>% 
+  filter(ignition != 2) %>% # Removing manual ignitions
+  drop_na(mpa_scaled, lfm_scaled, sample_wt_scaled)  %>% 
+  filter(spp != "ceco") %>% 
+  mutate(site = as.factor(site))  %>% 
+  mutate(Species=fct_relevel(Species,c("Ab. concolor", "Pi. jeffreyi", "Ca. decurrens", "Ar. patula", "Qu. kelloggii"))) %>%
+ arrange(Species)
+
+field_data_all <- read_csv(here("processed-data", "field_data_2020_2021.csv"), show_col_types = F)
+```
+
+```{r}
+mem_data_all_raw <- read_csv(here("processed-data", "sierra_flam_data_all.csv"), show_col_types = F)
+
+mem_data_all_clean <- mem_data_all_raw %>% 
+  select(lfm, mpa, fh, fh, fd, gd,tti, prop_ignite, temp_change, lower_temp_max, ignition, sample_wt, dry_wt, fresh_wt, water_wt, location, site, year_month, spp, individual, bins10lfm, bins5lfm, bins20lfm, notes_flam) %>% 
+  mutate(mpa = -1*mpa) %>% 
+  mutate(dw_flam_sample = sample_wt * (dry_wt/fresh_wt),
+         ww_flam_sample = sample_wt * (water_wt/fresh_wt)) %>% 
+  mutate(excess_water = (ww_flam_sample - dw_flam_sample)) %>% 
+  #dplyr::group_by(spp) %>% 
+  mutate(mpa_scaled = scale(mpa),
+         dw_flam_sample_scaled = scale(dw_flam_sample), 
+         sample_wt_scaled = scale(sample_wt), 
+         ww_flam_sample_scaled = scale(ww_flam_sample),
+         lfm_scaled = scale(lfm), 
+         excess_water_scaled = scale(excess_water)) %>% 
+  mutate(Species = case_when(
+    spp == "arpa" ~ "Ar. patula", 
+    spp == "abco" ~ "Ab. concolor",
+    spp == "cade" ~ "Ca. decurrens",
+    spp == "ceco" ~ "Ce. cordulatus",
+    spp == "pije" ~ "Pi. jeffreyi",
+    spp == "quke" ~ "Qu. kelloggii"
+  )) %>% 
+  mutate(F.Group = case_when(
+    spp == "arpa" ~ "Angiosperm", 
+    spp == "abco" ~ "Gymnosperm",
+    spp == "cade" ~ "Gymnosperm",
+    spp == "ceco" ~ "Angiosperm",
+    spp == "pije" ~ "Gymnosperm",
+    spp == "quke" ~ "Angiosperm"
+  )) %>% 
+  filter(!year_month %in% c("2021_august")) %>% 
+  filter(ignition != 2) %>% # Removing manual ignitions
+  drop_na(mpa_scaled, lfm_scaled, sample_wt_scaled) 
+
+mem_data_all_6 <- mem_data_all_clean %>% 
+  filter(spp != "ceco") %>% 
+  mutate(mpa_scaled = as.numeric(mpa_scaled)) %>% 
+  mutate(sample_wt_scaled = as.numeric(sample_wt_scaled)) %>% 
+  mutate(lfm_scaled = as.numeric(lfm_scaled))
+```
+
+```{r}
+field_data_all_6_raw <- read_csv(here("processed-data", "field_data_2020_2021.csv")) 
+
+field_data_all_6 <-  field_data_all_6_raw %>% 
+ # filter(age_new == "new") %>% 
+  select(spp, lfm, year, month, water_potential, site, wet_weight, unique_id, date, midday) %>% 
+  filter(wet_weight > 50) %>% #remove weirdly small wet weights
+  #group_by(spp) %>% 
+  mutate(mpa = water_potential,
+    lfm_scaled = c(scale(lfm)), 
+    #lfm_scaled = lfm,
+     mpa_scaled = c(scale(mpa)), 
+    #mpa_scaled = mpa, 
+        # mpa = water_potential, 
+         year_month = paste(year, month, sep = "_", collapse = NULL),
+        # sample_wt_scaled = c(scale(wet_weight)), 
+     sample_wt_scaled = 1,
+         individual = unique_id, 
+         spp = tolower(spp)) %>% 
+  mutate(Species = case_when(
+    spp == "arpa" ~ "Ar. patula", 
+    spp == "abco" ~ "Ab. concolor",
+    spp == "cade" ~ "Ca. decurrens",
+    spp == "ceco" ~ "Ce. cordulatus",
+    spp == "pije" ~ "Pi. jeffreyi",
+    spp == "quke" ~ "Qu. kelloggii"
+  )) %>% 
+  filter(spp != "ceco") %>% 
+  drop_na(spp) 
+
+field_data_all_6$Species <- factor(field_data_all_6$Species, levels = c('Ab. concolor',  'Pi. jeffreyi', 'Ca. decurrens', 'Ar. patula', 'Qu. kelloggii'))
+field_data_all_6$spp <- factor(field_data_all_6$spp, levels = c("abco", "pije", "cade", "arpa", "quke"))
+
+mem_data_all_raw <- read_csv(here("processed-data", "sierra_flam_data_all.csv"), show_col_types = F) 
+
+mem_data_all_clean <- mem_data_all_raw %>% 
+  select(lfm, mpa, fh, fh, fd, gd,tti, prop_ignite, temp_change, lower_temp_max, ignition, sample_wt, dry_wt, fresh_wt, water_wt, location, site, year_month, spp, individual, bins10lfm, bins5lfm, bins20lfm, notes_flam) %>% 
+  mutate(mpa = -1*mpa) %>% 
+  mutate(dw_flam_sample = sample_wt * (dry_wt/fresh_wt),
+         ww_flam_sample = sample_wt * (water_wt/fresh_wt)) %>% 
+  mutate(excess_water = (ww_flam_sample - dw_flam_sample)) %>% 
+  #dplyr::group_by(spp) %>% 
+  mutate(mpa_scaled = scale(mpa),
+         dw_flam_sample_scaled = scale(dw_flam_sample), 
+         sample_wt_scaled = scale(sample_wt), 
+         ww_flam_sample_scaled = scale(ww_flam_sample),
+         lfm_scaled = scale(lfm), 
+         excess_water_scaled = scale(excess_water)) %>% 
+  mutate(Species = case_when(
+    spp == "arpa" ~ "Ar. patula", 
+    spp == "abco" ~ "Ab. concolor",
+    spp == "cade" ~ "Ca. decurrens",
+    spp == "ceco" ~ "Ce. cordulatus",
+    spp == "pije" ~ "Pi. jeffreyi",
+    spp == "quke" ~ "Qu. kelloggii"
+  )) %>% 
+  mutate(F.Group = case_when(
+    spp == "arpa" ~ "Angiosperm", 
+    spp == "abco" ~ "Gymnosperm",
+    spp == "cade" ~ "Gymnosperm",
+    spp == "ceco" ~ "Angiosperm",
+    spp == "pije" ~ "Gymnosperm",
+    spp == "quke" ~ "Angiosperm"
+  )) %>% 
+  filter(!year_month %in% c("2021_august")) %>% 
+  filter(ignition != 2) %>% # Removing manual ignitions
+  drop_na(mpa_scaled, lfm_scaled, sample_wt_scaled) 
+
+mem_data_all_6 <- mem_data_all_clean %>% 
+  filter(spp != "ceco") %>% 
+  mutate(mpa_scaled = as.numeric(mpa_scaled)) %>% 
+  mutate(sample_wt_scaled = as.numeric(sample_wt_scaled)) %>% 
+  mutate(lfm_scaled = as.numeric(lfm_scaled))
+
+lowest_fall <- field_data_all_6 %>% 
+  filter(#month == 10,
+         spp %in% c("cade", "pije", "abco")) %>% 
+  summarise(min_mpa = max
+            (mpa, na.rm = T))
+lowest_fall
+```
+
+```{r}
+field_data_all_means <- field_data_all_6 %>% 
+  mutate(date = case_when(
+    date == '2021-04-24' ~ "04/24",
+    date == '2021-05-14' ~ "05/14",
+    date == '2021-05-15' ~ "05/14",
+    date == '2021-06-15' ~ "06/15",
+    date == '2021-06-16' ~ "06/15",
+    date == '2021-07-08' ~ "07/8",
+    date == '2021-07-09' ~ "07/8",
+    date == '2021-07-30' ~ "07/30",
+    date == '2021-07-31' ~ "07/30",
+    date == '2021-08-19' ~ "08/19",
+    date == '2021-08-20' ~ "08/19",
+    date == '2021-09-16' ~ "09/16",
+    date == '2021-09-17' ~ "09/16",
+    date == '2021-10-16' ~ "10/16",
+    date == '2021-10-17' ~ "10/16"
+  )) %>%
+  drop_na(lfm_scaled, mpa_scaled, sample_wt_scaled) %>% 
+  group_by(spp, month) %>% 
+  mutate(lfm_scaled = mean(lfm_scaled)) %>% 
+  mutate(mpa_scaled = mean(mpa_scaled)) %>% 
+  mutate(sample_wt_scaled = mean(sample_wt_scaled)) %>%
+  ungroup()
+field_data_all_means$date <- as.Date(field_data_all_means$date, format='%m/%d')
+```
+
+
 #Legend: 
 ```{r}
 legend <- cowplot::get_legend(mem_data_all %>% 
@@ -228,6 +432,7 @@ tti_df <- field_data_all_means %>%
 
 # To get standard deviations
 tti_df_stdev <- field_data_all_6 %>% 
+  drop_na(lfm_scaled, sample_wt_scaled, spp) %>% 
   add_predictions(tti_mod)
 
 tti_df_stdev <- tti_df_stdev %>% 
@@ -274,6 +479,7 @@ tti_pred <- tti_df %>%
     color_noceco
 tti_pred
 ```
+
 #For labels:
 ```{r}
 x <- as.Date(c(rep('2023-04-24', 5)))
