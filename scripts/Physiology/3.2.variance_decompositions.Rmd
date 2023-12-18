@@ -145,7 +145,7 @@ gymno_field <- field_data_all_2.1 %>%
 ```
 
 # Variance Decomp.
-```{r, fig.height=1, fig.width=.6}
+```{r, fig.height=1, fig.width=1.6}
 form <- ~ water_potential + (1|year_month) + (1|plant) + (1|spp)
 
 lfm_matrix <- angio_pv %>% 
@@ -222,7 +222,7 @@ ggsave(plot=flam_vardecomp_gymno, bg = "white" , here::here("figures", "extra-fi
 
 #------
 
-form <- ~ water_potential + age_new_num + (1|spp) + (1|year_month) + (1|plant)
+form <- ~ water_potential + (1|age_new) + (1|spp) + (1|year_month) + (1|plant)
 
 lfm_matrix <- angio_field %>% 
   ungroup() %>% 
@@ -240,8 +240,11 @@ field_vardecomp_angio
 ggsave(plot=field_vardecomp_angio, bg = "white" , here::here("figures", "extra-figures", "var_decomp", "field_vardecomp_angio"), device="jpg")
 
 #------
+```
 
-form <- ~ water_potential + age_new_num + (1|spp) + (1|year_month) + (1|plant)
+
+```{r, fig.height=1, fig.width=1.6}
+form <- ~ water_potential + (1|age_new) + (1|spp) + (1|year_month) + (1|plant)
 
 lfm_matrix <- gymno_field %>% 
   ungroup() %>% 
