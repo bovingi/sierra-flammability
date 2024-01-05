@@ -331,7 +331,8 @@ return(plot)
 field_data_all$spp <- factor(field_data_all$spp, levels = c('ABCO', 'PIJE', 'CADE', 'ARPA', 'CECO', 'QUKE'))
 
 field_plot_angio <- lfm.vs.mpa.scatterplot(f.group.lab = "Angiosperm", f.group = "Angiosperm", y.lab = "Field Data", y.axis = T, y.max = 300, df = field_data_all_2.1, present.title = T) +
-  annotate(geom = "text", x = 0.5, y = 280, label = 'a', fontface = 'bold', size = 12)
+  annotate(geom = "text", x = 0, y = 290, label = 'a', fontface = 'bold', size = 12) +
+  geom_smooth(method = "lm", se = F)
 field_plot_angio
 
 field_vd_sp_angio <- field_plot_angio + annotation_custom(ggplotGrob(field_vardecomp_angio),
@@ -340,7 +341,8 @@ field_vd_sp_angio <- field_plot_angio + annotation_custom(ggplotGrob(field_varde
 field_vd_sp_angio
 
 field_plot_gymno <- lfm.vs.mpa.scatterplot(f.group.lab = "Gymnosperm", f.group = "Gymnosperm", y.max = 300, df = field_data_all_2.1, present.title = T) +
-  annotate(geom = "text", x = 0.5, y = 280, label = 'b', fontface = 'bold', size = 12)
+  annotate(geom = "text", x = 0, y = 290, label = 'b', fontface = 'bold', size = 12) +
+  geom_smooth(method = "lm", se = F)
 field_plot_gymno
 
 field_vd_sp_gymno <- field_plot_gymno + annotation_custom(ggplotGrob(field_vardecomp_gymno),
@@ -348,6 +350,88 @@ field_vd_sp_gymno <- field_plot_gymno + annotation_custom(ggplotGrob(field_varde
                                      ymin = 95, ymax = 295)
 field_vd_sp_gymno
 ```
+####- Slopes df: 
+
+```{r}
+angio_field_df <- field_data_all_2.1 %>% 
+  filter(F.Group == "Angiosperm", 
+        month >= 8, 
+        age == "new"
+         ) %>% 
+  select(Species, lfm, water_potential, month) %>% 
+  mutate(water_potential = -1*water_potential)
+
+angio_field_slopes_df <- lmer(lfm ~ water_potential + (water_potential|Species), data = angio_field_df)
+
+#get estimates for each week: 
+
+ran_list2 <- coef(angio_field_slopes_df )
+hyd_mod_df <- broom::tidy(angio_field_slopes_df )
+
+ran_df_hyd  <- as.data.frame(ran_list2[['Species']])%>% 
+  mutate(estimate = `(Intercept)`, 
+         slope = `water_potential`, 
+         -water_potential) %>%
+  select(-`(Intercept)`)
+
+#random error of each week: 
+
+ran_err <- arm::se.ranef(angio_field_slopes_df)
+
+ran_err_df_hyd  <- as.data.frame(ran_err[['Species']]) %>% 
+  mutate(std.error = `(Intercept)`, 
+         std.error.slope = `water_potential`)%>% 
+  select(-`(Intercept)`, 
+         -water_potential) %>% 
+  tibble::rownames_to_column("Species")
+
+#combine error with estimates: 
+
+angio_field_slopes <- bind_cols(ran_df_hyd , ran_err_df_hyd ) %>% 
+  data_frame() %>% 
+  mutate(upr = slope + (std.error.slope),
+         lwr = slope - (std.error.slope))
+
+gymno_field_df <- field_data_all_2.1 %>% 
+  filter(F.Group == "Gymnosperm", 
+         month >= 8, 
+        age == "new"
+         ) %>% 
+  select(Species, lfm, water_potential)%>% 
+  mutate(water_potential = -1*water_potential)
+
+gymno_field_slopes_df <- lmer(lfm ~ water_potential + (water_potential|Species), data = gymno_field_df)
+
+#get estimates for each week: 
+
+ran_list2 <- coef(gymno_field_slopes_df )
+hyd_mod_df <- broom::tidy(gymno_field_slopes_df )
+
+ran_df_hyd  <- as.data.frame(ran_list2[['Species']])%>% 
+  mutate(estimate = `(Intercept)`, 
+         slope = `water_potential`, 
+         -water_potential) %>%
+  select(-`(Intercept)`)
+
+#random error of each week: 
+
+ran_err <- arm::se.ranef(gymno_field_slopes_df)
+
+ran_err_df_hyd  <- as.data.frame(ran_err[['Species']]) %>% 
+  mutate(std.error = `(Intercept)`, 
+         std.error.slope = `water_potential`)%>% 
+  select(-`(Intercept)`, 
+         -water_potential) %>% 
+  tibble::rownames_to_column("Species")
+
+#combine error with estimates: 
+
+gymno_field_slopes <- bind_cols(ran_df_hyd , ran_err_df_hyd ) %>% 
+  data_frame() %>% 
+  mutate(upr = slope + (std.error.slope),
+         lwr = slope - (std.error.slope))
+```
+
 
 ### - PV plot (b)
 
@@ -358,7 +442,8 @@ pv_plot_df <- pv_all_df %>%
 pv_plot_df$spp <- factor(pv_plot_df$spp, levels = c('ABCO', 'PIJE', 'CADE', 'ARPA', 'CECO', 'QUKE'))
 
 pv_plot_angio <- lfm.vs.mpa.scatterplot(f.group = "Angiosperm", y.lab = "PV Curves", y.axis = T, y.max = 250, df = pv_plot_df) +
-  annotate(geom = "text", x = 0.5, y = 230, label = 'c', fontface = 'bold', size = 12)
+  annotate(geom = "text", x = 0, y = 250, label = 'c', fontface = 'bold', size = 12) +
+  geom_smooth(method = "lm", se = F)
 pv_plot_angio
 
 pv_vd_sp_angio <- pv_plot_angio + annotation_custom(ggplotGrob(pv_vardecomp_angio),
@@ -367,7 +452,8 @@ pv_vd_sp_angio <- pv_plot_angio + annotation_custom(ggplotGrob(pv_vardecomp_angi
 pv_vd_sp_angio
 
 pv_plot_gymno <- lfm.vs.mpa.scatterplot(f.group = "Gymnosperm", y.max = 250, df = pv_plot_df) +
-  annotate(geom = "text", x = 0.5, y = 230, label = 'd', fontface = 'bold', size = 12)
+  annotate(geom = "text", x = 0, y = 240, label = 'd', fontface = 'bold', size = 12) +
+  geom_smooth(method = "lm", se = F)
 pv_plot_gymno
 
 pv_vd_sp_gymno <- pv_plot_gymno + annotation_custom(ggplotGrob(pv_vardecomp_gymno),
@@ -376,13 +462,91 @@ pv_vd_sp_gymno <- pv_plot_gymno + annotation_custom(ggplotGrob(pv_vardecomp_gymn
 pv_vd_sp_gymno
 ```
 
+####- Slopes df: 
+
+```{r}
+angio_pv_df <- pv_all_df %>% 
+  filter(F.Group == "Angiosperm") %>% 
+  select(Species, lfm, water_potential)%>% 
+  mutate(water_potential = -1*water_potential)
+
+angio_pv_slopes_df <- lmer(lfm ~ water_potential + (water_potential|Species), data = angio_pv_df)
+
+#get estimates for each week: 
+
+ran_list2 <- coef(angio_pv_slopes_df )
+hyd_mod_df <- broom::tidy(angio_pv_slopes_df )
+
+ran_df_hyd  <- as.data.frame(ran_list2[['Species']])%>% 
+  mutate(estimate = `(Intercept)`, 
+         slope = `water_potential`, 
+         -water_potential) %>%
+  select(-`(Intercept)`)
+
+#random error of each week: 
+
+ran_err <- arm::se.ranef(angio_pv_slopes_df)
+
+ran_err_df_hyd  <- as.data.frame(ran_err[['Species']]) %>% 
+  mutate(std.error = `(Intercept)`, 
+         std.error.slope = `water_potential`)%>% 
+  select(-`(Intercept)`, 
+         -water_potential) %>% 
+  tibble::rownames_to_column("Species")
+
+#combine error with estimates: 
+
+angio_pv_slopes <- bind_cols(ran_df_hyd , ran_err_df_hyd ) %>% 
+  data_frame() %>% 
+  mutate(upr = slope + (std.error.slope),
+         lwr = slope - (std.error.slope))
+
+gymno_pv_df <- pv_all_df %>% 
+  filter(F.Group == "Gymnosperm") %>% 
+  select(Species, lfm, water_potential) %>% 
+  mutate(water_potential = -1*water_potential)
+
+gymno_pv_slopes_df <- lmer(lfm ~ water_potential + (water_potential|Species), data = gymno_pv_df)
+
+#get estimates for each week: 
+
+ran_list2 <- coef(gymno_pv_slopes_df )
+hyd_mod_df <- broom::tidy(gymno_pv_slopes_df )
+
+ran_df_hyd  <- as.data.frame(ran_list2[['Species']])%>% 
+  mutate(estimate = `(Intercept)`, 
+         slope = `water_potential`, 
+         -water_potential) %>%
+  select(-`(Intercept)`)
+
+#random error of each week: 
+
+ran_err <- arm::se.ranef(gymno_pv_slopes_df)
+
+ran_err_df_hyd  <- as.data.frame(ran_err[['Species']]) %>% 
+  mutate(std.error = `(Intercept)`, 
+         std.error.slope = `water_potential`)%>% 
+  select(-`(Intercept)`, 
+         -water_potential) %>% 
+  tibble::rownames_to_column("Species")
+
+#combine error with estimates: 
+
+gymno_pv_slopes <- bind_cols(ran_df_hyd , ran_err_df_hyd ) %>% 
+  data_frame() %>% 
+  mutate(upr = slope + (std.error.slope),
+         lwr = slope - (std.error.slope))
+```
+
 ### - Flam plot (c)
+
 ```{r}
 flam_all_df <- flam_curve_phys_all_raw %>% 
   filter(!spp %in% c("ADFA", "CEME"))
 
 flam_plot_angio <- lfm.vs.mpa.scatterplot(f.group = "Angiosperm", y.lab = "Flam. Data", y.axis = T, y.max = 250, x.axis = T, df = flam_all_df) +
-  annotate(geom = "text", x = 0.5, y = 230, label = 'e', fontface = 'bold', size = 12)
+  annotate(geom = "text", x = 0, y = 245, label = 'e', fontface = 'bold', size = 12) +
+  geom_smooth(method = "lm", se = F)
 flam_plot_angio
 
 flam_vd_sp_angio <- flam_plot_angio + annotation_custom(ggplotGrob(flam_vardecomp_angio),
@@ -391,13 +555,204 @@ flam_vd_sp_angio <- flam_plot_angio + annotation_custom(ggplotGrob(flam_vardecom
 flam_vd_sp_angio
 
 flam_plot_gymno <- lfm.vs.mpa.scatterplot(f.group = "Gymnosperm", y.max = 250, x.axis = T, df = flam_all_df) +
-  annotate(geom = "text", x = 0.5, y = 230, label = 'f', fontface = 'bold', size = 12)
+  annotate(geom = "text", x = 0, y = 240, label = 'f', fontface = 'bold', size = 12) +
+  geom_smooth(method = "lm", se = F)
 flam_plot_gymno
 
 flam_vd_sp_gymno <- flam_plot_gymno + annotation_custom(ggplotGrob(flam_vardecomp_gymno),
                                      xmin = 7.1, xmax = 10,
                                      ymin = 85, ymax = 246)
 flam_vd_sp_gymno
+```
+
+####- Slopes df: 
+
+```{r}
+angio_flam_df <- angio_flam %>% 
+  filter(F.Group == "Angiosperm") %>% 
+  mutate(Species = case_when(
+    spp == "ARPA" ~ "Ar. patula", 
+    spp == "ABCO" ~ "Ab. concolor",
+    spp == "CADE" ~ "Ca. decurrens",
+    spp == "CECO" ~ "Ce. cordulatus",
+    spp == "PIJE" ~ "Pi. jeffreyi",
+    spp == "QUKE" ~ "Qu. kelloggii"
+  )) %>% 
+  select(Species, lfm, water_potential) %>% 
+  mutate(water_potential = -1*water_potential)
+
+angio_flam_slopes_df <- lmer(lfm ~ water_potential + (water_potential|Species), data = angio_flam_df)
+
+#get estimates for each week: 
+
+ran_list2 <- coef(angio_flam_slopes_df )
+hyd_mod_df <- broom::tidy(angio_flam_slopes_df )
+
+ran_df_hyd  <- as.data.frame(ran_list2[['Species']])%>% 
+  mutate(estimate = `(Intercept)`, 
+         slope = `water_potential`, 
+         -water_potential) %>%
+  select(-`(Intercept)`)
+
+#random error of each week: 
+
+ran_err <- arm::se.ranef(angio_flam_slopes_df)
+
+ran_err_df_hyd  <- as.data.frame(ran_err[['Species']]) %>% 
+  mutate(std.error = `(Intercept)`, 
+         std.error.slope = `water_potential`)%>% 
+  select(-`(Intercept)`, 
+         -water_potential) %>% 
+  tibble::rownames_to_column("Species")
+
+#combine error with estimates: 
+
+angio_flam_slopes <- bind_cols(ran_df_hyd , ran_err_df_hyd ) %>% 
+  data_frame() %>% 
+  mutate(upr = slope + (std.error.slope),
+         lwr = slope - (std.error.slope))
+
+gymno_flam_df <- flam_all_df %>% 
+  filter(F.Group == "Gymnosperm") %>% 
+  mutate(Species = case_when(
+    spp == "ARPA" ~ "Ar. patula", 
+    spp == "ABCO" ~ "Ab. concolor",
+    spp == "CADE" ~ "Ca. decurrens",
+    spp == "CECO" ~ "Ce. cordulatus",
+    spp == "PIJE" ~ "Pi. jeffreyi",
+    spp == "QUKE" ~ "Qu. kelloggii"
+  ))  %>% 
+  select(Species, lfm, water_potential) %>% 
+  mutate(water_potential = -1*water_potential)
+
+gymno_flam_slopes_df <- lmer(lfm ~ water_potential + (water_potential|Species), data = gymno_flam_df)
+
+#get estimates for each week: 
+
+ran_list2 <- coef(gymno_flam_slopes_df )
+hyd_mod_df <- broom::tidy(gymno_flam_slopes_df )
+
+ran_df_hyd  <- as.data.frame(ran_list2[['Species']])%>% 
+  mutate(estimate = `(Intercept)`, 
+         slope = `water_potential`, 
+         -water_potential) %>%
+  select(-`(Intercept)`)
+
+#random error of each week: 
+
+ran_err <- arm::se.ranef(gymno_flam_slopes_df)
+
+ran_err_df_hyd  <- as.data.frame(ran_err[['Species']]) %>% 
+  mutate(std.error = `(Intercept)`, 
+         std.error.slope = `water_potential`)%>% 
+  select(-`(Intercept)`, 
+         -water_potential) %>% 
+  tibble::rownames_to_column("Species")
+
+#combine error with estimates: 
+
+gymno_flam_slopes <- bind_cols(ran_df_hyd , ran_err_df_hyd ) %>% 
+  data_frame() %>% 
+  mutate(upr = slope + (std.error.slope),
+         lwr = slope - (std.error.slope))
+```
+
+## Combine slopes: 
+
+```{r}
+slopes_all <- bind_rows(gymno_flam_slopes %>% mutate(F.Group = "Gymnosperm", 
+                                                     method = "flam"), 
+                        angio_flam_slopes %>% mutate(F.Group = "Angiosperm", 
+                                                     method = "flam"), 
+                        gymno_pv_slopes %>% mutate(F.Group = "Gymnosperm", 
+                                                   method = "pv"), 
+                        angio_pv_slopes %>% mutate(F.Group = "Angiosperm", 
+                                                   method = "pv"), 
+                        gymno_field_slopes %>% mutate(F.Group = "Gymnosperm", 
+                                                      method = "field"), 
+                        angio_field_slopes %>% mutate(F.Group = "Angiosperm", 
+                                                      method = "field")) %>% 
+    filter(!(Species %in% c("Ce. megacarpus"))) %>% 
+  mutate(Species = case_when(
+    Species %in% c("P. jeffreyi") ~ "Pi. jeffreyi",
+    Species %in% c("A. concolor") ~ "Ab. concolor",
+    Species %in% c("C. decurrens") ~ "Ca. decurrens",
+    Species %in% c("A. patula") ~ "Ar. patula",
+    Species %in% c("Q. kelloggii") ~ "Qu. kelloggii",
+    Species %in% c("C. cordulatus") ~ "Ce. cordulatus",
+    TRUE ~ as.factor(Species)
+  ))
+
+
+slopes_all %>%
+  mutate(method = as.factor(method)) %>% 
+  ggplot(aes(color= Species)) + 
+  geom_point(aes(y = slope, x = Species), size =3) +
+  geom_point(aes(y = upr, x = Species), size = 1) +
+  geom_point(aes(y = lwr, x = Species), size = 1) +
+  #geom_line(aes(group = week, y = week, x = upr)) +
+  geom_segment(aes(y= lwr, 
+                   yend = upr, 
+                   x = Species, 
+                   xend = Species, 
+                   color = Species))+
+  labs(color = "Species", 
+       y = "Slope") +
+theme(
+  strip.background = element_blank(),
+  strip.text.y = element_blank(), 
+  strip.text.x = element_text(size = 16), 
+  axis.text.x = element_text(angle = 45, hjust = 1),
+ # axis.text.y = element_blank(), 
+  #axis.ticks.y = element_blank(), 
+ axis.title.x = element_blank(),
+  axis.title.y = element_text(size = 20), 
+  legend.title = element_text(size = 18), 
+ legend.position = "none"
+  ) +
+  geom_hline(yintercept = 0, linetype="dotted") + 
+  theme(legend.position = "none") +
+  facet_wrap(~F.Group*method, nrow = 1,
+             scales = "free_x"
+            # scales = "free"
+             ) +
+  color_many2
+```
+
+```{r}
+slopes_all %>%
+  mutate(method = as.factor(method)) %>% 
+  ggplot(aes(color= Species)) + 
+  geom_point(aes(y = estimate, x = Species), size =3) +
+  #geom_point(aes(y = upr, x = Species), size = 1) +
+ # geom_point(aes(y = lwr, x = Species), size = 1) +
+  #geom_line(aes(group = week, y = week, x = upr)) +
+  # geom_segment(aes(y= lwr, 
+  #                  yend = upr, 
+  #                  x = Species, 
+  #                  xend = Species, 
+  #                  color = Species))+
+  labs(color = "Species", 
+       y = "intercept") +
+theme(
+  strip.background = element_blank(),
+  strip.text.y = element_blank(), 
+  strip.text.x = element_text(size = 16), 
+  axis.text.x = element_text(angle = 45, hjust = 1),
+ # axis.text.y = element_blank(), 
+  #axis.ticks.y = element_blank(), 
+ axis.title.x = element_blank(),
+  axis.title.y = element_text(size = 20), 
+  legend.title = element_text(size = 18), 
+ legend.position = "none"
+  ) +
+  geom_hline(yintercept = 0, linetype="dotted") + 
+  theme(legend.position = "none") +
+  facet_wrap(~F.Group*method, nrow = 1,
+             scales = "free_x"
+            # scales = "free"
+             ) +
+  color_many2
 ```
 
 ## Arranging
@@ -509,7 +864,7 @@ ggsave(plot=plots_legend, bg = "white" , here("figures", "main-figures", "Fig5.L
 Angio, above: 
 both angiosperms (breakpoint = -2.6 +/- .152 MPa, TLP = -2.6 +/- .27 MPa), and for gymnosperms (breakpoint = -2.05 +/- .102 MPa, p = 0.278, TLP = -2.3 +/- .142 MPa). 
 
-```{r, fig.height=1, fig.width=.6}
+```{r, fig.height=1, fig.width=1.5}
 angio_above <- angio_field %>% 
   filter(water_potential > -2.6)
 
@@ -677,7 +1032,7 @@ field_data_all_new <- field_data_all %>%
 field_data_all_new$spp <- factor(field_data_all_new$spp, levels = c('ABCO', 'PIJE', 'CADE', 'ARPA', 'CECO', 'QUKE'))
 
 field_plot_angio_new  <- lfm.vs.mpa.scatterplot(f.group.lab = "Angiosperm", f.group = "Angiosperm", y.lab = "Field Data", y.axis = T, y.max = 300, df = field_data_all_new) +
-  annotate(geom = "text", x = 0.5, y = 280, label = 'a', fontface = 'bold', size = 20)
+  annotate(geom = "text", x = 0, y = 290, label = 'a', fontface = 'bold', size = 20)
 field_plot_angio_new 
 
 field_vd_sp_angio_new  <- field_plot_angio_new  + annotation_custom(ggplotGrob(field_vardecomp_angio_new),
@@ -686,7 +1041,7 @@ field_vd_sp_angio_new  <- field_plot_angio_new  + annotation_custom(ggplotGrob(f
 field_vd_sp_angio_new 
 
 field_plot_gymno_new  <- lfm.vs.mpa.scatterplot(f.group.lab = "Gymnosperm", f.group = "Gymnosperm", y.max = 300, df = field_data_all_new) +
-  annotate(geom = "text", x = 0.5, y = 280, label = 'b', fontface = 'bold', size = 20)
+  annotate(geom = "text", x = 0, y = 290, label = 'b', fontface = 'bold', size = 20)
 field_plot_gymno_new 
 
 field_vd_sp_gymno_new <- field_plot_gymno_new  + annotation_custom(ggplotGrob(field_vardecomp_gymno_new),
