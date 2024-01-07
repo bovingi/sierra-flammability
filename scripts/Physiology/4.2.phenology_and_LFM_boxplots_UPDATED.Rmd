@@ -742,7 +742,7 @@ p.ceco.main <- pheno.boxplot.vis(species = "CECO", phenophases = ceco.phenophase
 ### Arrange
 ```{r}
 # I ended up doing some odd cowplot stuff here to get the final product we wanted
-y.grob <- textGrob("Live Fuel Moisture (%)", 
+y.grob1 <- textGrob("Live Fuel Moisture (%)", 
                    rot = 90,
                    gp=gpar(fontface="bold", 
                            col="black", 
@@ -751,7 +751,7 @@ y.grob <- textGrob("Live Fuel Moisture (%)",
 p.spp.main <- cowplot::plot_grid(p.abco.main, p.pije.main, p.cade.main, p.ceco.main, p.arpa.main, p.quke.main, ncol = 3) #labels = c('a', 'b', 'c', 'd', 'e', 'f'), label_size = 30
 p.spp.main
 
-p.spp.w.grob <- gridExtra::grid.arrange(arrangeGrob(p.spp.main, left = y.grob))
+p.spp.w.grob <- gridExtra::grid.arrange(arrangeGrob(p.spp.main, left = y.grob1))
 
 ggsave(here("figures", "main-figures", "Fig3.LFM.Boxplot.and.Phenophases.jpg"),
        height = 10, width = 15,
@@ -846,12 +846,12 @@ df3 <- pheno_df %>%
   filter(phenophase_name %in% phenophases)
 
 p1 <- ggplot(data = old_lfm_df) +
-  geom_point(aes(y = value, x = month), data = old_lfm_df, color = '#262E43', size = 5) +
-  geom_linerange(aes(x = month, ymin = value - 2*sd, ymax = value + 2*sd), data = old_lfm_df, color = '#262E43') +
-  geom_point(aes(y = value, x = month), data = new_lfm_df, color = '#262E43', position = position_nudge(x = -0.2), shape = 1, size = 5) +
-  geom_linerange(aes(x = month, ymin = value - 2*sd, ymax = value + 2*sd), data = new_lfm_df, color = '#262E43', position = position_nudge(x = -0.2)) +
-  geom_point(aes(y = value*coef, x = month), data = mpa_df, color = '#5792CC', position = position_nudge(x = 0.2), size = 5) +
-  geom_linerange(aes(x = month, ymin = value*coef - 2*sd*coef, ymax = value*coef + 2*sd*coef), data = mpa_df, color = '#5792CC', position = position_nudge(x = 0.2)) +
+  geom_point(aes(y = value, x = month), data = old_lfm_df, color = '#262E43', size = 3.5) +
+  geom_linerange(aes(x = month, ymin = value - sd, ymax = value + sd), data = old_lfm_df, color = '#262E43') +
+  geom_point(aes(y = value, x = month), data = new_lfm_df, color = '#262E43', position = position_nudge(x = -0.2), shape = 1, size = 3.5) +
+  geom_linerange(aes(x = month, ymin = value - sd, ymax = value + sd), data = new_lfm_df, color = '#262E43', position = position_nudge(x = -0.2)) +
+  geom_point(aes(y = value*coef, x = month), data = mpa_df, color = '#5792CC', position = position_nudge(x = 0.2), size = 3.5) +
+  geom_linerange(aes(x = month, ymin = value*coef - sd*coef, ymax = value*coef + sd*coef), data = mpa_df, color = '#5792CC', position = position_nudge(x = 0.2)) +
   geom_hline(aes(yintercept  = mean_lfm),
              linetype = "dashed", color = '#262E43') +
   geom_hline(aes(yintercept  = mean_mpa_plot),
@@ -921,12 +921,12 @@ df3 <- pheno_fig_main %>%
   filter(phenophase_name %in% c("Breaking buds", "Increasing leaf size", "Ripe fruits"))
 
 p1 <- ggplot(data = quke_old_lfm_df) +
-  geom_point(aes(y = value, x = month), data = quke_old_lfm_df, color = '#262E43', size = 5) +
-  geom_linerange(aes(x = month, ymin = value - 2*sd, ymax = value + 2*sd), data = quke_old_lfm_df, color = '#262E43') +
-  geom_point(aes(y = value, x = month), data = quke_new_lfm_df, color = '#262E43', position = position_nudge(x = -0.2), shape = 1, size = 5) +
-  geom_linerange(aes(x = month, ymin = value - 2*sd, ymax = value + 2*sd), data = quke_new_lfm_df, color = '#262E43', position = position_nudge(x = -0.2)) +
-  geom_point(aes(y = value*coef, x = month), data = quke_mpa_df, color = '#5792CC', position = position_nudge(x = 0.2), size = 5) +
-  geom_linerange(aes(x = month, ymin = value*coef - 2*sd*coef, ymax = value*coef + 2*sd*coef), data = quke_mpa_df, color = '#5792CC', position = position_nudge(x = 0.2)) +
+  geom_point(aes(y = value, x = month), data = quke_old_lfm_df, color = '#262E43', size = 3.5) +
+  geom_linerange(aes(x = month, ymin = value - sd, ymax = value + sd), data = quke_old_lfm_df, color = '#262E43') +
+  geom_point(aes(y = value, x = month), data = quke_new_lfm_df, color = '#262E43', position = position_nudge(x = -0.2), shape = 1, size = 3.5) +
+  geom_linerange(aes(x = month, ymin = value - sd, ymax = value + sd), data = quke_new_lfm_df, color = '#262E43', position = position_nudge(x = -0.2)) +
+  geom_point(aes(y = value*coef, x = month), data = quke_mpa_df, color = '#5792CC', position = position_nudge(x = 0.2), size = 3.5) +
+  geom_linerange(aes(x = month, ymin = value*coef - sd*coef, ymax = value*coef + sd*coef), data = quke_mpa_df, color = '#5792CC', position = position_nudge(x = 0.2)) +
   geom_hline(aes(yintercept  = mean_lfm),
              linetype = "dashed", color = '#262E43') +
   geom_hline(aes(yintercept  = mean_mpa_plot),
@@ -1000,12 +1000,12 @@ df3 <- pheno_fig_main %>%
   filter(phenophase_name %in% c("Increasing leaf size", "Young leaves"))
 
 p1 <- ggplot(data = pije_old_lfm_df) +
-  geom_point(aes(y = value, x = month), data = pije_old_lfm_df, color = '#262E43', size = 5) +
-  geom_linerange(aes(x = month, ymin = value - 2*sd, ymax = value + 2*sd), data = pije_old_lfm_df, color = '#262E43') +
-  geom_point(aes(y = value, x = month), data = pije_new_lfm_df, color = '#262E43', position = position_nudge(x = -0.2), shape = 1, size = 5) +
-  geom_linerange(aes(x = month, ymin = value - 2*sd, ymax = value + 2*sd), data = pije_new_lfm_df, color = '#262E43', position = position_nudge(x = -0.2)) +
-  geom_point(aes(y = value*coef, x = month), data = pije_mpa_df, color = '#5792CC', position = position_nudge(x = 0.2), size = 5) +
-  geom_linerange(aes(x = month, ymin = value*coef - 2*sd*coef, ymax = value*coef + 2*sd*coef), data = pije_mpa_df, color = '#5792CC', position = position_nudge(x = 0.2)) +
+  geom_point(aes(y = value, x = month), data = pije_old_lfm_df, color = '#262E43', size = 3.5) +
+  geom_linerange(aes(x = month, ymin = value - sd, ymax = value + sd), data = pije_old_lfm_df, color = '#262E43') +
+  geom_point(aes(y = value, x = month), data = pije_new_lfm_df, color = '#262E43', position = position_nudge(x = -0.2), shape = 1, size = 3.5) +
+  geom_linerange(aes(x = month, ymin = value - sd, ymax = value + sd), data = pije_new_lfm_df, color = '#262E43', position = position_nudge(x = -0.2)) +
+  geom_point(aes(y = value*coef, x = month), data = pije_mpa_df, color = '#5792CC', position = position_nudge(x = 0.2), size = 3.5) +
+  geom_linerange(aes(x = month, ymin = value*coef - sd*coef, ymax = value*coef + sd*coef), data = pije_mpa_df, color = '#5792CC', position = position_nudge(x = 0.2)) +
   geom_hline(aes(yintercept  = mean_lfm),
              linetype = "dashed", color = '#262E43') +
   geom_hline(aes(yintercept  = mean_mpa_plot),
@@ -1109,7 +1109,7 @@ y.grob2 <- textGrob("Water Potential (MPa)",
 p.spp <- cowplot::plot_grid(p.abco, p.pije, p.cade, p.ceco, p.arpa, p.quke, ncol = 3)
 p.spp
 
-dots.spp.w.grob <- gridExtra::grid.arrange(arrangeGrob(p.spp, left = y.grob, right = y.grob2))
+dots.spp.w.grob <- gridExtra::grid.arrange(arrangeGrob(p.spp, left = y.grob1, right = y.grob2))
 
 ggsave(here("figures", "main-figures", "Fig3.Updated.LFM.Dots.and.Phenophases.jpg"),
        height = 10, width = 15,
@@ -1123,6 +1123,20 @@ dots.legends
 ggsave(here("figures", "main-figures", "Fig3.Updated.Dots.Legend.jpg"),
        height = 2, width = 7,
        plot = dots.legends)
+```
+
+## Checking out Water Potential Variability
+```{r}
+df1$month <- factor(df1$month, levels = c("April", "May", "June",
+                                          "E. July", "L. July", "Aug.", "Sept.", "Oct."))
+
+ggplot(df1, aes(x = month, y = water_potential)) +
+  geom_boxplot() +
+  facet_wrap(~Species, scales = 'free', ncol = 1) +
+  theme_bw()
+
+ggsave(here("figures", "extra-figures", "WaterPotential_FieldData2021.jpg"),
+       height = 10, width = 5)
 ```
 
 

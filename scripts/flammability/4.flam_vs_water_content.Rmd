@@ -12,7 +12,7 @@ knitr::opts_chunk$set(echo = TRUE)
 # install.packages("tidyverse", "here", "lme4", 
 #                  "cowplot", "lmerTest", "sjPlot", "janitor")
 # install.packages("cowplot", "nanair")
-# library(tidyverse, here, lme4, 
+#library(tidyverse, here, lme4, 
 #                  cowplot, lmerTest, sjPlot, janitor)
 # library(cowplot)
 ```
@@ -658,6 +658,51 @@ fh_plot_lfm_r_spp <- mem_data_all_r %>%
 fh_plot_lfm_r_spp
 ```
 
+No Remef:
+```{r}
+fh_plot_spp <- mem_data_all %>% 
+  ggplot(aes(y = fh, 
+             x = mpa_scaled, 
+             group = spp)) +
+  geom_point(alpha= .4, aes(color = Species))+
+  geom_smooth(method = "lm", se = F, aes(color = Species#, lty = fh.sig
+                                         ), alpha = .75) + 
+  scale_y_continuous(limits = c(8, 70), breaks = c(10, 20, 30, 40, 50, 60)) +
+  color_noceco+ # For color by species w/o CECO
+  scale_linetype_manual(values = c(3, 1)) +
+  theme(legend.position = "none",
+        axis.ticks = element_blank(),
+        axis.text = element_blank(),#element_text(size = 13),
+        axis.title = element_blank()) + #element_text(size = 16, face = 'bold'))+
+  labs(x = "", 
+       y = "Flame Height (cm)") +
+  annotate(geom = "text", x = -2.9, y = 64, label = 'd', fontface = 'bold', size = 10)
+fh_plot_spp
+
+# For MAIN figure:
+fh_plot_lfm_spp <- mem_data_all %>%
+  ggplot(aes(y = fh, 
+             x = lfm_scaled, 
+             group = spp)) +
+  geom_point(alpha= .4, aes(color = Species))+
+  geom_smooth(method = "lm", se = F, aes(color = Species#, lty = fh.sig
+                                         ), alpha = .75) + 
+  scale_y_continuous(limits = c(8, 70), breaks = c(10, 20, 30, 40, 50, 60)) +
+  color_noceco + # For color by spp w/o CECO
+  scale_linetype_manual(values = c(3, 1)) +
+  theme(legend.position = "none",
+                       axis.text.y = element_text(size = 13),
+                       axis.title.y = element_text(size = 16, face = 'bold'),
+                       axis.title.x = element_blank(),
+                       axis.text.x = element_blank(), axis.ticks.x = element_blank(),
+                       plot.margin = unit(c(0.17, 0.17, 0.17, 0.44), 'cm')) +
+  labs(x = "", 
+       y = "Flame Height (cm)") +
+  annotate(geom = "text", x = -2.4, y = 64, label = 'a', fontface = 'bold', size = 10)
+fh_plot_lfm_spp
+```
+
+
 ### Max. Temp.
 Model:
 ```{r}
@@ -714,6 +759,47 @@ lower_temp_max_plot_lfm_r_spp <- mem_data_all_r %>%
 lower_temp_max_plot_lfm_r_spp
 ```
 
+No Remef:
+```{r}
+lower_temp_max_plot_spp <- mem_data_all %>% 
+  ggplot(aes(y = lower_temp_max, 
+             x = mpa_scaled, 
+             group = spp)) +
+  geom_point(alpha= .4, aes(color = Species))+
+  geom_smooth(method = "lm", se = F, aes(color = Species#, lty = temp.max.sig
+                                         ), alpha = .75) + 
+  color_noceco+ # For color by species w/o CECO
+  scale_linetype_manual(values = c(3, 1)) +
+  theme(legend.position = "none",                                   
+        axis.text = element_blank(), #element_text(size = 13),
+        axis.title = element_blank(), # element_text(size = 16, face = 'bold'))+
+        axis.ticks = element_blank()) +
+  labs(x = "", 
+       y = "Maximum Temperature (C)") +
+  annotate(geom = "text", x = -2.9, y = 495, label = 'e', fontface = 'bold', size = 10)
+lower_temp_max_plot_spp
+
+# For MAIN figure:
+lower_temp_max_plot_lfm_spp <- mem_data_all %>%
+  ggplot(aes(y = lower_temp_max, 
+             x = lfm_scaled, 
+             group = spp)) +
+  geom_point(alpha= .4, aes(color = Species))+
+  geom_smooth(method = "lm", se = F, aes(color = Species#, lty = temp.max.sig
+                                         ), alpha = .75) +
+  color_noceco + # For color by spp w/o CECO
+  scale_linetype_manual(values = c(3, 1)) +
+  theme(legend.position = "none",
+                       axis.text.y = element_text(size = 13),
+                       axis.title.y = element_text(size = 16, face = 'bold'),
+                       axis.title.x = element_blank(),
+                       axis.text.x = element_blank(), axis.ticks.x = element_blank()) +
+  labs(x = "", 
+       y = "Maximum Temperature (C)") +
+  annotate(geom = "text", x = -2.4, y = 495, label = 'b', fontface = 'bold', size = 10)
+lower_temp_max_plot_lfm_spp
+```
+
 ### GD
 Model:
 ```{r}
@@ -767,6 +853,46 @@ gd_plot_lfm_r_spp <- mem_data_all_r %>%
        y = "Glow Duration (s)") +
   annotate(geom = "text", x = -2.4, y = 400, label = 'e', fontface = 'bold', size = 10)
 gd_plot_lfm_r_spp
+```
+
+No Remef:
+```{r}
+gd_plot_spp <- mem_data_all %>% 
+  ggplot(aes(y = gd, 
+             x = mpa_scaled, 
+             group = spp)) +
+  geom_point(alpha= .4, aes(color = Species))+
+  geom_smooth(method = "lm", se = F, aes(color = Species#, lty = gd.mpa.sig
+                                         ), alpha = .75) + 
+  color_noceco+ # For color by species w/o CECO
+  scale_linetype_manual(values = c(3, 1)) +
+  theme(legend.position = "none",                                   
+        axis.text.x = element_text(size = 13), 
+        axis.title.x = element_text(size = 16, face = 'bold'),
+        axis.text.y = element_blank(),
+        axis.title.y = element_blank(),
+        axis.ticks.y = element_blank())+
+  labs(x = "Water Potential (scaled)", 
+       y = "Glow Duration (s)") +
+  annotate(geom = "text", x = -2.9, y = 575, label = 'f', fontface = 'bold', size = 10)
+gd_plot_spp
+
+gd_plot_lfm_spp <- mem_data_all %>%
+  ggplot(aes(y = gd, 
+             x = lfm_scaled, 
+             group = spp)) +
+  geom_point(alpha= .4, aes(color = Species))+
+  geom_smooth(method = "lm", se = F, aes(color = Species#, lty = gd.lfm.sig
+                                         ), alpha = .75) + 
+  color_noceco + # For color by spp w/o CECO
+  scale_linetype_manual(values = c(3, 1)) +
+  theme(legend.position = "none",
+                       axis.text = element_text(size = 13),
+                       axis.title = element_text(size = 16, face = 'bold')) +
+  labs(x = "Live Fuel Moisture (scaled)", 
+       y = "Glow Duration (s)") +
+  annotate(geom = "text", x = -2.4, y = 575, label = 'c', fontface = 'bold', size = 10)
+gd_plot_lfm_spp
 ```
 
 ### Temp. Change
@@ -875,6 +1001,16 @@ both_spp_plots_w_legend <- cowplot::plot_grid(both_spp_plots, spp_legend, ncol =
 both_spp_plots_w_legend
 
 ggsave(here('figures', 'supp-figures', 'FigS2.spp_flam_metrics.jpeg'), plot = both_spp_plots_w_legend, height = 15, width = 15)
+```
+
+No Remef:
+```{r}
+both_spp_plots_no_remef <- cowplot::plot_grid(fh_plot_lfm_spp, fh_plot_spp, lower_temp_max_plot_lfm_spp, lower_temp_max_plot_spp, gd_plot_lfm_spp, gd_plot_spp, ncol = 2, rel_widths = c(12,11))
+
+both_spp_plots_no_remef_w_legend <- cowplot::plot_grid(both_spp_plots_no_remef, spp_legend, ncol = 2, rel_widths = c(6, 1))
+both_spp_plots_no_remef_w_legend
+
+ggsave(here('figures', 'supp-figures', 'UpdatedFigS2.spp_flam_metrics.jpeg'), plot = both_spp_plots_no_remef_w_legend, height = 10, width = 15)
 ```
 
 
