@@ -1019,6 +1019,15 @@ both_spp_plots_no_remef_w_legend
 ggsave(here('figures', 'supp-figures', 'UpdatedFigS2.spp_flam_metrics.jpeg'), plot = both_spp_plots_no_remef_w_legend, height = 10, width = 15)
 ```
 
+No Remef, no tt
+```{r}
+both_spp_plots_no_remef <- cowplot::plot_grid(fh_plot_lfm_spp, fh_plot_spp, lower_temp_max_plot_lfm_spp, lower_temp_max_plot_spp, gd_plot_lfm_spp, gd_plot_spp, ncol = 2, rel_widths = c(12,11))
+
+both_spp_plots_no_remef_w_legend <- cowplot::plot_grid(both_spp_plots_no_remef, spp_legend, ncol = 2, rel_widths = c(6, 1))
+both_spp_plots_no_remef_w_legend
+
+ggsave(here('figures', 'supp-figures', 'UpdatedFigS2.spp_flam_metrics.jpeg'), plot = both_spp_plots_no_remef_w_legend, height = 10, width = 15)
+```
 
 # 3. Significance Tests
 

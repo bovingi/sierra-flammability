@@ -103,6 +103,15 @@ mem_data_all_clean <- mem_data_all_raw %>%
   filter(ignition != 2) %>% # Removing manual ignitions
   drop_na(mpa_scaled, lfm_scaled, sample_wt_scaled) 
 
+mem_data_all <- mem_data_all_clean %>% 
+  filter(spp != "ceco") %>% 
+  mutate(mpa_scaled = as.numeric(mpa_scaled)) %>% 
+  mutate(sample_wt_scaled = as.numeric(sample_wt_scaled)) %>% 
+  mutate(lfm_scaled = as.numeric(lfm_scaled))
+
+mem_data_all$Species <- factor(mem_data_all$Species, levels = c('Ab. concolor', 'Pi. jeffreyi', 'Ca. decurrens', 'Ar. patula', 'Qu. kelloggii'))
+
+
 mem_data_all_6 <- mem_data_all_clean %>% 
   filter(spp != "ceco") %>% 
   mutate(mpa_scaled = as.numeric(mpa_scaled)) %>% 
@@ -205,6 +214,17 @@ ggplot(aes(y = tti, x = lfm_scaled, color = Species)) +
   theme(legend.text = element_text(size = 17),  # , face = 'italic'
         legend.title = element_text(size = 20, face = 'bold'),
         legend.key = element_rect(fill = 'white')))
+
+mem_data_all %>% 
+ggplot(aes(y = tti, x = lfm_scaled, color = Species)) +
+  geom_point(alpha = .5)+
+  geom_smooth(method = "lm", se = F) +
+  color_noceco +
+  labs(y = "Live Fuel Moisture (scaled)", 
+       x = "Time to Ignition (sec.)") +
+  theme(legend.text = element_text(size = 17),  # , face = 'italic'
+        legend.title = element_text(size = 20, face = 'bold'),
+        legend.key = element_rect(fill = 'white'))
 ```
 
 #------------
@@ -398,7 +418,7 @@ tti_pred <- tti_df %>%
     labs(#y = "Ignitability (-1*sec)", 
       # x = "", 
        title = "Predicted Flammability")  +
-  annotate(geom = "text", x = as.Date('2023-04-24'), y = 110, label = 'c',
+  annotate(geom = "text", x = as.Date('2024-04-24'), y = 110, label = 'c',
            fontface = 'bold', size = 10) +
     # geom_text(data = subset(labelData, subset = plot == 'tti'),
     #           aes(x, y, label = labs, group = NULL, color = NULL),
@@ -409,7 +429,7 @@ tti_pred
 
 #For labels:
 ```{r}
-x <- as.Date(c(rep('2023-04-24', 5)))
+x <- as.Date(c(rep('2024-04-24', 5)))
 y <- c(-25, 49.5, 49.5, 365, 105)
 labs <- c('a', 'b', 'c', ' ', 'd')
 plot <- c('tti', 'fh', 'fd', 'mt', 'tc')
@@ -419,7 +439,7 @@ labelData <- data.frame(x, y, labs, plot)
 ####Temp change
 
 ```{r}
-temp_change_df <- mem_data_all_6 %>% 
+temp_change_df <- mem_data_all %>% 
   drop_na(mpa, lfm, temp_change)
 
 temp_change_mod <- lm(temp_change ~ spp*lfm_scaled +
@@ -458,7 +478,7 @@ temp_change_pred <- temp_change_df %>%
        # axis.title = element_text(size = 14, face = 'bold'),
         plot.margin = unit(c(.05, 0.05, 0.05, 0.05), 'cm'))+
     labs(y = "Temp. Change (C)") +
-  annotate(geom = "text", x = as.Date('2023-04-24'), y = 107, label = 'f',
+  annotate(geom = "text", x = as.Date('2024-04-24'), y = 107, label = 'f',
            fontface = 'bold', size = 10) +
     # geom_text(data = subset(labelData, subset = plot == 'tc'),
     #           aes(x, y, label = labs, group = NULL, color = NULL),
