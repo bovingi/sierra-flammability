@@ -547,6 +547,12 @@ Model:
 tti_mod_spp <- lmer(tti ~ spp*mpa_scaled + spp*lfm_scaled + year_month + sample_wt_scaled + (1|individual), data = mem_data_all_r)
 ```
 
+Only species: 
+
+```{r}
+tti_mod_spp_only <- lmer(tti ~ spp + spp + year_month + sample_wt_scaled + (1|individual), data = mem_data_all_r)
+```
+
 Remef:
 ```{r}
 r_tti_mpa_spp <- remef(tti_mod_spp, fix = c("sample_wt_scaled", "lfm_scaled"), ran = list(individual = c("(Intercept)"))) # Using Remef for plots with MPa

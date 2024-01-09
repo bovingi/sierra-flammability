@@ -643,3 +643,31 @@ tab_model(m2, sw_m1, sw_mod_fig, sw_lfm_mod_fig, sw_mpa_mod_fig,
 
 
 # -*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*
+
+####Models to include: 
+
+```{r}
+spp_only <- lmer(gd ~ spp + site + year_month + (1 | individual), data = mem_data_all)
+
+sppXlfm <- lmer(gd ~ lfm_scaled*spp + site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all)
+
+sppXmpa <- lmer(gd ~ mpa_scaled*spp + site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all)
+
+spp_lfm <- lmer(gd ~ lfm_scaled + spp + site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all)
+
+spp_mpa <- lmer(gd ~ mpa_scaled + spp + site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all)
+
+spp_sw <- lmer(gd ~ spp + site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all)
+
+performance::multicollinearity(spp_sw) ##High correlation! Don't use
+
+tab_model(spp_sw, spp_only, spp_lfm, spp_mpa, sppXlfm, sppXmpa,
+          show.reflvl = TRUE, 
+          digits = 3, 
+          show.aic = TRUE, 
+          show.ci = FALSE,
+          show.icc = FALSE,
+  string.p = "P-Value", 
+  p.style = "stars",
+  file = here('figures', 'MEM_figures','final_mods_gd.html')) 
+```

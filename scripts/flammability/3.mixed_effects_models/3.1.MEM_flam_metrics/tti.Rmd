@@ -80,7 +80,9 @@ mem_data_all <- read_csv(here("processed-data", "sierra_flam_data_all.csv")) %>%
          ww_flam_sample_scaled = scale(ww_flam_sample),
          lfm_scaled = scale(lfm), 
          excess_water_scaled = scale(excess_water)) %>% 
-  filter(!year_month %in% c("2021_august"))
+  filter(!year_month %in% c("2021_august")) %>% 
+  filter(ignition != 2) %>% # Removing manual ignitions
+  drop_na(mpa_scaled, lfm_scaled, sample_wt_scaled) 
 ```
 
 ```{r}
@@ -253,6 +255,7 @@ sw_m13 <- lmer(tti ~ excess_water_scaled + lfm_scaled+ spp + site + year_month +
 performance::multicollinearity(sw_m13) ##High correlation! Don't use
 ```
 
+
 ```{r}
 sw_m14 <- lmer(tti ~ excess_water_scaled + spp + site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all)
 
@@ -312,6 +315,34 @@ tab_model(sw_mpa_mod_fig.mpa,
   p.style = "stars",
   file = here('figures', 'MEM_figures','site_yearmonth_samplewt_tti.html')) # saving _html into figures folder
 ```
+####Models to include: 
+
+```{r}
+spp_only <- lmer(tti ~ spp + site + year_month + (1 | individual), data = mem_data_all)
+
+sppXlfm <- lmer(tti ~ lfm_scaled*spp + site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all)
+
+sppXmpa <- lmer(tti ~ mpa_scaled*spp + site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all)
+
+spp_lfm <- lmer(tti ~ lfm_scaled + spp + site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all)
+
+spp_mpa <- lmer(tti ~ mpa_scaled + spp + site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all)
+
+spp_sw <- lmer(tti ~ spp + site + year_month + sample_wt_scaled + (1 | individual), data = mem_data_all)
+
+#performance::multicollinearity(spp_only) ##High correlation! Don't use
+
+tab_model(spp_sw, spp_only, spp_lfm, spp_mpa, sppXlfm, sppXmpa,
+          show.reflvl = TRUE, 
+          digits = 3, 
+          show.aic = TRUE, 
+          show.ci = FALSE,
+          show.icc = FALSE,
+  string.p = "P-Value", 
+  p.style = "stars",
+  file = here('figures', 'MEM_figures','final_mods_tti.html')) 
+```
+
 #####TTI top models
 ```{r}
 tab_model(sw_m11, sw_m12.5, sw_m13, sw_m7,
@@ -473,6 +504,12 @@ performance::multicollinearity(m15)
 ```
 
 ```{r}
+m16 <- lmer(tti ~ spp + site + year_month + (1 | individual), data = mem_data_all)
+
+performance::multicollinearity(m16)
+```
+
+```{r}
 tab_model(mpa_mod_fig.mpa, m11, m7, m10, m3, m6, m6.5, m12, m15, m10, m13, m14,max_model_noww,
           show.reflvl = TRUE, 
           digits = 3, 
@@ -516,7 +553,7 @@ tab_model(mpa_mod_fig.mpa, m11, m7, m10, m3, m6, m6.5, m12, m15, m10, m13, m14,m
 
 The following models are the best models: 
 ```{r}
-tab_model(m7, m11, m12.5, m13,
+tab_model(m7, m11, m12.5, m13, m16,
           show.reflvl = TRUE, 
           digits = 3, 
           show.aic = TRUE, 
@@ -548,7 +585,7 @@ tab_model(m7, m11, m12.5, m13,
 
 #TTI best model in table: 
 ```{r}
-tab_model(m11, sw_m12.5, mspp_wt,
+tab_model(m11, sw_m12.5, mspp_wt, m16,
           show.reflvl = TRUE, 
           digits = 3, 
           show.aic = TRUE, 
