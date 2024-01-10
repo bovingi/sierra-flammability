@@ -837,7 +837,7 @@ df2 <- field_data_all_3 %>%
 mean_lfm <- mean(df2$lfm_tlp)
 mean_mpa <- mean(df2$tlp)
 coef <- mean_lfm/mean_mpa
-trans_coef <- 1/coef
+trans_coef <- -1/coef
 
 mean_mpa_plot <- mean_mpa*coef
 
@@ -858,7 +858,8 @@ p1 <- ggplot(data = old_lfm_df) +
              linetype = "dashed", color = '#5792CC') +
   facet_wrap(~spp, labeller = labeller(spp = spp.labs)) +
   annotate('text', x = 0.875, y = max.y - 0.04*max.y, label = letter, size = 12, fontface = 'bold') +
-  scale_y_continuous(limits = c(0, max.y), sec.axis = sec_axis(trans = ~.*trans_coef, name = 'Water Potential (-MPa)')) +
+  scale_y_continuous(limits = c(0, max.y),
+                     sec.axis = sec_axis(trans = ~.*trans_coef, name = 'Water Potential (-MPa)')) +
   theme(axis.ticks.x = element_blank(),
     axis.text.x = element_text(
       angle = 30,
@@ -1118,10 +1119,10 @@ ggsave(here("figures", "main-figures", "Fig3.Updated.LFM.Dots.and.Phenophases.jp
 
 # Legend
 dots.legends <- cowplot::plot_grid(blank_plot, legend.dots, legend, ncol = 1,
-                              rel_heights = c(4, 1, 1))
+                              rel_heights = c(5, .6, 1))
 dots.legends
 ggsave(here("figures", "main-figures", "Fig3.Updated.Dots.Legend.jpg"),
-       height = 2, width = 7,
+       height = 5, width = 7,
        plot = dots.legends)
 ```
 
