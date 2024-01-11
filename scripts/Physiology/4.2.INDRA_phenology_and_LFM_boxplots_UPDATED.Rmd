@@ -786,7 +786,8 @@ df1 <- field_data_2021 %>%
     date == '2021-10-17' ~ "Oct."
   )) %>% 
   filter(age != "both",
-         lfm < 350)
+         lfm < 350) %>% 
+  mutate(water_potential = 0-water_potential)
 
 lfm_df <- df1 %>% 
   group_by(month, spp, age) %>% 
@@ -806,7 +807,6 @@ new_lfm_df <- lfm_df %>%
   mutate(name = 'new_lfm')
 
 mpa_df <- df1 %>% 
-  mutate(water_potential= -1*water_potential) %>% 
   group_by(month, spp) %>%
   summarise(sd = sd(water_potential), value = mean(water_potential)) %>% 
   drop_na(value) %>% 
@@ -834,7 +834,10 @@ mpa_df <- mpa_df %>%
 mpa_df$month <- factor(mpa_df$month, levels = c("April", "May", "June", "E. July",
                                           "L. July", "Aug.", "Sept.", "Oct."))
 df2 <- field_data_all_3 %>% 
-  filter(spp == species)
+  filter(spp == species) %>% 
+  mutate(tlp = 0 - tlp)
+
+
 mean_lfm <- mean(df2$lfm_tlp)
 mean_mpa <- mean(df2$tlp)
 coef <- mean_lfm/mean_mpa
@@ -910,15 +913,14 @@ quke_mpa_df <- mpa_df %>%
 quke_mpa_df$month <- factor(quke_mpa_df$month, levels = c("May", "June", "E. July",
                                           "L. July", "Aug.", "Sept.", "Oct."))
 df2 <- field_data_all_3 %>% 
-  filter(spp == 'QUKE') %>% 
-  mutate(tlp = -1*tlp ) 
+  filter(spp == 'QUKE') 
 
 mean_lfm <- mean(df2$lfm_tlp)
 mean_mpa <- mean(df2$tlp)
 coef <- mean_lfm/mean_mpa
-trans_coef <- 1/coef
+trans_coef <- 1/coef 
 
-mean_mpa_plot <- mean_mpa*coef
+mean_mpa_plot <- -1*mean_mpa*coef
 
 df3 <- pheno_fig_main %>%
   filter(spp == 'QUKE') %>% 
@@ -937,7 +939,9 @@ p1 <- ggplot(data = quke_old_lfm_df) +
              linetype = "dashed", color = '#5792CC') +
   facet_wrap(~spp, labeller = labeller(spp = spp.labs)) +
   annotate('text', x = 0.875, y = max.y - 0.04*max.y, label = 'f', size = 12, fontface = 'bold') +
-  scale_y_continuous(limits = c(0, max.y), sec.axis = sec_axis(trans = ~.*trans_coef, name = 'Water Potential (-MPa)')) +
+  scale_y_continuous(#limits = c(-10, max.y),
+                     #sec.axis = sec_axis(trans = ~trans_coef-., name = 'Water Potential (-MPa)')) +
+                     sec.axis = sec_axis(trans = ~.*trans_coef, name = 'Water Potential (-MPa)')) +
   theme(axis.ticks.x = element_blank(),
     axis.text.x = element_text(
       angle = 30,

@@ -885,8 +885,8 @@ theme(
 
 ## Arranging
 
-Legend 1 - Scatterplot:
-```{r}
+###Legend 1 - Scatterplot:
+```{r, warning = F}
 field_data_all$Species <- factor(field_data_all$Species, levels = c("Ab. concolor", "Pi. jeffreyi", "Ca. decurrens", "Ar. patula", "Ce. cordulatus", "Qu. kelloggii"))
 
 field_data_all_leg <- field_data_all %>% 
@@ -904,13 +904,35 @@ field_plot_leg <- ggplot(aes(y = lfm,
   geom_point(size = 3,
              alpha = .7, 
              data = field_data_all_leg) +
+ geom_vline(aes(xintercept = -1*mean_tlp_group), data = fgroup_pv_summaries) +
   geom_smooth(aes(y = lfm, x = water_potential, 
-                   
               lty = line_var),
               color = "black",
               data = field_data_all_leg) +
   labs(color = "Species", 
-       lty = "Drydown Type") +
+       lty = "Drydown Type"
+       ) +
+   theme(plot.margin = unit(c(.2, .5, .3, .25), "cm"),
+        axis.title = element_text(face = 'bold', size = 26),
+        axis.text = element_text(size = 16),
+        legend.title = element_text(face = 'bold', size = 24),
+        legend.text = element_text(face = 'italic', size = 20),
+        legend.key = element_rect(fill = 'white')) +
+  color_many2 
+
+
+
+field_plot_leg <- ggplot(aes(y = lfm, 
+             x = -1*water_potential), 
+         data = field_data_all_leg) +
+  geom_point(size = 3,
+             alpha = .7, 
+             data = field_data_all_leg) +
+ geom_vline(aes(xintercept = -1*mean_tlp_group, 
+                color = F.Group), 
+            data = fgroup_pv_summaries, 
+            lty = "solid") +
+  labs(color = "TLP") +
    theme(plot.margin = unit(c(.2, .5, .3, .25), "cm"),
         axis.title = element_text(face = 'bold', size = 26),
         axis.text = element_text(size = 16),
