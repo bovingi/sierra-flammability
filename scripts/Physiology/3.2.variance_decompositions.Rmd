@@ -264,12 +264,12 @@ ggsave(plot=field_vardecomp_gymno, bg = "white" , here::here("figures", "extra-f
 
 # Scatterplots
 
-## Function
+## Field Function
 ```{r}
-lfm.vs.mpa.scatterplot <- function(f.group.lab = " ", f.group, y.lab = " ", df, y.axis = F, x.axis = F, y.max, present.title = F) {
+lfm.vs.mpa.scatterplot <- function(f.group.lab = " ", f.group, y.lab = " ", df, df2, df3, y.axis = F, x.axis = F, y.max, present.title = F) {
   
 # For color palette
-if(f.group == "Angiosperm") {color_pal <- c('#5792CC', '#4D5B75', '#6E406E')}
+if(f.group == "Angiosperm") {color_pal <- c('#5792CC', '#4D5B75', '#6E406E','#5792CC', '#4D5B75', '#6E406E')}
 if(f.group == "Gymnosperm") {color_pal <- c('#42401D', '#5DA493', '#D8AB43')}
   
 # For TLP linetype
@@ -292,17 +292,32 @@ if(present.title == F) {plot.title.format <- element_blank()}
 
 fgroup_pv_summaries <- fgroup_pv_summaries %>% 
   filter(F.Group == f.group)
-  
-plot <- df %>% 
+
+df1 <- df %>% 
   filter(lfm < 300, 
          lfm > 50) %>% 
-  filter(F.Group == f.group) %>% 
-  ggplot(aes(y = lfm, 
+  filter(F.Group == f.group) 
+  
+plot <- ggplot()  +
+  geom_smooth(data = df2, aes(y = lfm, 
              x = -1*water_potential, 
-             color = spp)) +
-  geom_vline(aes(xintercept = -1*mean_tlp_group), lty = fgr_lty, data = fgroup_pv_summaries) +
-  geom_jitter(alpha = .5, 
+             color = spp), method = "lm", 
+             se = F, alpha = .5, 
+             linetype = "dotted") +
+  geom_smooth(data = df3, aes(y = lfm, 
+             x = -1*water_potential, 
+             color = spp), method = "lm", 
+             se = F, 
+             alpha = .5, 
+             linetype = "dotdash") +
+  geom_jitter(data = df1, aes(y = lfm, 
+             x = -1*water_potential, 
+             color = spp), alpha = .3, 
               size = 2) +
+  geom_smooth(data = df1, aes(y = lfm, 
+             x = -1*water_potential, 
+             color = spp), method = "lm", se = F) +
+  geom_vline(aes(xintercept = -1*mean_tlp_group), data = fgroup_pv_summaries) +
   scale_color_manual(values = color_pal) +
   scale_y_continuous(limits = c(50, y.max), breaks = c(y.max/5, 2*y.max/5, 3*y.max/5, 4*y.max/5)) +
   labs(title = f.group.lab,
@@ -320,6 +335,33 @@ plot <- df %>%
          plot.margin = unit(c(0.05, 0, 0, 0.1), 'cm')) + # previous: 0.05, 0, 0, 0.1
   xlim(0, 10)
 
+# plot <- df %>% 
+#   filter(lfm < 300, 
+#          lfm > 50) %>% 
+#   filter(F.Group == f.group) %>% 
+#   ggplot(aes(y = lfm, 
+#              x = -1*water_potential, 
+#              color = spp)) +
+#   geom_vline(aes(xintercept = -1*mean_tlp_group), lty = fgr_lty, data = fgroup_pv_summaries) +
+#   geom_jitter(alpha = .5, 
+#               size = 2) +
+#   scale_color_manual(values = color_pal) +
+#   scale_y_continuous(limits = c(50, y.max), breaks = c(y.max/5, 2*y.max/5, 3*y.max/5, 4*y.max/5)) +
+#   labs(title = f.group.lab,
+#        x = " ", 
+#        y = y.lab) +
+#    theme(legend.position = "none",
+#          plot.title = plot.title.format,
+#          axis.title = element_text(face = 'bold', size = 26),
+#          axis.text.y = y.text,
+#          axis.text.x = x.text,
+#          axis.ticks.y = y.tick,
+#          axis.ticks.x = x.tick,
+#          strip.background = element_blank(),
+#          strip.text = element_text(size  = 26, face = "bold"),
+#          plot.margin = unit(c(0.05, 0, 0, 0.1), 'cm')) + # previous: 0.05, 0, 0, 0.1
+#   xlim(0, 10)
+
 return(plot)
 }
 ```
@@ -330,9 +372,23 @@ return(plot)
 ```{r}
 field_data_all$spp <- factor(field_data_all$spp, levels = c('ABCO', 'PIJE', 'CADE', 'ARPA', 'CECO', 'QUKE'))
 
-field_plot_angio <- lfm.vs.mpa.scatterplot(f.group.lab = "Angiosperm", f.group = "Angiosperm", y.lab = "Field Data", y.axis = T, y.max = 300, df = field_data_all_2.1, present.title = T) +
-  annotate(geom = "text", x = 0, y = 290, label = 'a', fontface = 'bold', size = 12) +
-  geom_smooth(method = "lm", se = F)
+flam_all_df_angio <- flam_all_df %>% 
+  filter(F.Group == "Angiosperm")
+
+pv_plot_df_angio <- pv_plot_df %>% 
+  filter(F.Group == "Angiosperm")
+
+unique(flam_all_df_angio$spp)
+
+field_plot_angio <- lfm.vs.mpa.scatterplot(f.group.lab = "Angiosperm", 
+                                            f.group = "Angiosperm", 
+                                            y.lab = "Field Data", 
+                                            y.axis = T, y.max = 300, 
+                                            df = field_data_all_2.1,
+                                            df2 = flam_all_df_gymno, 
+                                            df3 = pv_plot_df_gymno,
+                                            present.title = T) +
+  annotate(geom = "text", x = 0, y = 290, label = 'a', fontface = 'bold', size = 12) 
 field_plot_angio
 
 field_vd_sp_angio <- field_plot_angio + annotation_custom(ggplotGrob(field_vardecomp_angio),
@@ -340,9 +396,22 @@ field_vd_sp_angio <- field_plot_angio + annotation_custom(ggplotGrob(field_varde
                                      ymin = 95, ymax = 295)
 field_vd_sp_angio
 
-field_plot_gymno <- lfm.vs.mpa.scatterplot(f.group.lab = "Gymnosperm", f.group = "Gymnosperm", y.max = 300, df = field_data_all_2.1, present.title = T) +
-  annotate(geom = "text", x = 0, y = 290, label = 'b', fontface = 'bold', size = 12) +
-  geom_smooth(method = "lm", se = F)
+flam_all_df_gymno <- flam_all_df %>% 
+  filter(F.Group == "Gymnosperm")
+
+pv_plot_df_gymno <- pv_plot_df %>% 
+  filter(F.Group == "Gymnosperm")
+
+unique(flam_all_df_gymno$spp)
+
+field_plot_gymno <- lfm.vs.mpa.scatterplot(f.group.lab = "Gymnosperm", 
+                                            f.group = "Gymnosperm", 
+                                            y.max = 300, 
+                                            df = field_data_all_2.1,
+                                            df2 = flam_all_df_gymno, 
+                                            df3 = pv_plot_df_gymno,
+                                            present.title = T) +
+  annotate(geom = "text", x = 0, y = 290, label = 'a', fontface = 'bold', size = 12) 
 field_plot_gymno
 
 field_vd_sp_gymno <- field_plot_gymno + annotation_custom(ggplotGrob(field_vardecomp_gymno),
@@ -432,6 +501,65 @@ gymno_field_slopes <- bind_cols(ran_df_hyd , ran_err_df_hyd ) %>%
          lwr = slope - (std.error.slope))
 ```
 
+## PV and Flam Function
+```{r}
+lfm.vs.mpa.scatterplot_pvflam <- function(f.group.lab = " ", f.group, y.lab = " ", df, df2, df3, y.axis = F, x.axis = F, y.max, present.title = F) {
+  
+# For color palette
+if(f.group == "Angiosperm") {color_pal <- c('#5792CC', '#4D5B75', '#6E406E')}
+if(f.group == "Gymnosperm") {color_pal <- c('#42401D', '#5DA493', '#D8AB43')}
+  
+# For TLP linetype
+if(f.group == "Angiosperm") {fgr_lty <- 1}
+if(f.group == "Gymnosperm") {fgr_lty <- 2}
+  
+# For axis text and ticks
+if(y.axis == T) {y.text <- element_text(size = 16)}
+if(y.axis == T) {y.tick <- NULL}
+if(y.axis == F) {y.text <- element_blank()}
+if(y.axis == F) {y.tick <- element_blank()}
+if(x.axis == T) {x.text <- element_text(size = 16)}
+if(x.axis == T) {x.tick <- NULL}
+if(x.axis == F) {x.text <- element_blank()}
+if(x.axis == F) {x.tick <- element_blank()}
+  
+# For plot title
+if(present.title == T) {plot.title.format <- element_text(size = 30, face = 'bold', hjust = 0.5)}
+if(present.title == F) {plot.title.format <- element_blank()}
+
+fgroup_pv_summaries <- fgroup_pv_summaries %>% 
+  filter(F.Group == f.group)
+
+plot <- df %>%
+  filter(lfm < 300,
+         lfm > 50) %>%
+  filter(F.Group == f.group) %>%
+  ggplot(aes(y = lfm,
+             x = -1*water_potential,
+             color = spp)) +
+  geom_vline(aes(xintercept = -1*mean_tlp_group), data = fgroup_pv_summaries) +
+  geom_jitter(alpha = .3,
+              size = 2) +
+  scale_color_manual(values = color_pal) +
+  scale_y_continuous(limits = c(50, y.max), breaks = c(y.max/5, 2*y.max/5, 3*y.max/5, 4*y.max/5)) +
+  labs(title = f.group.lab,
+       x = " ",
+       y = y.lab) +
+   theme(legend.position = "none",
+         plot.title = plot.title.format,
+         axis.title = element_text(face = 'bold', size = 26),
+         axis.text.y = y.text,
+         axis.text.x = x.text,
+         axis.ticks.y = y.tick,
+         axis.ticks.x = x.tick,
+         strip.background = element_blank(),
+         strip.text = element_text(size  = 26, face = "bold"),
+         plot.margin = unit(c(0.05, 0, 0, 0.1), 'cm')) + # previous: 0.05, 0, 0, 0.1
+  xlim(0, 10)
+
+return(plot)
+}
+```
 
 ### - PV plot (b)
 
@@ -441,7 +569,7 @@ pv_plot_df <- pv_all_df %>%
 
 pv_plot_df$spp <- factor(pv_plot_df$spp, levels = c('ABCO', 'PIJE', 'CADE', 'ARPA', 'CECO', 'QUKE'))
 
-pv_plot_angio <- lfm.vs.mpa.scatterplot(f.group = "Angiosperm", y.lab = "PV Curves", y.axis = T, y.max = 250, df = pv_plot_df) +
+pv_plot_angio <- lfm.vs.mpa.scatterplot_pvflam(f.group = "Angiosperm", y.lab = "PV Curves", y.axis = T, y.max = 250, df = pv_plot_df) +
   annotate(geom = "text", x = 0, y = 250, label = 'c', fontface = 'bold', size = 12) +
   geom_smooth(method = "lm", se = F)
 pv_plot_angio
@@ -451,7 +579,7 @@ pv_vd_sp_angio <- pv_plot_angio + annotation_custom(ggplotGrob(pv_vardecomp_angi
                                      ymin = 85, ymax = 246)
 pv_vd_sp_angio
 
-pv_plot_gymno <- lfm.vs.mpa.scatterplot(f.group = "Gymnosperm", y.max = 250, df = pv_plot_df) +
+pv_plot_gymno <- lfm.vs.mpa.scatterplot_pvflam(f.group = "Gymnosperm", y.max = 250, df = pv_plot_df) +
   annotate(geom = "text", x = 0, y = 240, label = 'd', fontface = 'bold', size = 12) +
   geom_smooth(method = "lm", se = F)
 pv_plot_gymno
@@ -544,7 +672,7 @@ gymno_pv_slopes <- bind_cols(ran_df_hyd , ran_err_df_hyd ) %>%
 flam_all_df <- flam_curve_phys_all_raw %>% 
   filter(!spp %in% c("ADFA", "CEME"))
 
-flam_plot_angio <- lfm.vs.mpa.scatterplot(f.group = "Angiosperm", y.lab = "Flam. Data", y.axis = T, y.max = 250, x.axis = T, df = flam_all_df) +
+flam_plot_angio <- lfm.vs.mpa.scatterplot_pvflam(f.group = "Angiosperm", y.lab = "Flam. Data", y.axis = T, y.max = 250, x.axis = T, df = flam_all_df) +
   annotate(geom = "text", x = 0, y = 245, label = 'e', fontface = 'bold', size = 12) +
   geom_smooth(method = "lm", se = F)
 flam_plot_angio
@@ -554,7 +682,7 @@ flam_vd_sp_angio <- flam_plot_angio + annotation_custom(ggplotGrob(flam_vardecom
                                      ymin = 85, ymax = 246)
 flam_vd_sp_angio
 
-flam_plot_gymno <- lfm.vs.mpa.scatterplot(f.group = "Gymnosperm", y.max = 250, x.axis = T, df = flam_all_df) +
+flam_plot_gymno <- lfm.vs.mpa.scatterplot_pvflam(f.group = "Gymnosperm", y.max = 250, x.axis = T, df = flam_all_df) +
   annotate(geom = "text", x = 0, y = 240, label = 'f', fontface = 'bold', size = 12) +
   geom_smooth(method = "lm", se = F)
 flam_plot_gymno
@@ -761,18 +889,28 @@ Legend 1 - Scatterplot:
 ```{r}
 field_data_all$Species <- factor(field_data_all$Species, levels = c("Ab. concolor", "Pi. jeffreyi", "Ca. decurrens", "Ar. patula", "Ce. cordulatus", "Qu. kelloggii"))
 
+field_data_all_leg <- field_data_all %>% 
+  mutate(line_var = case_when(
+    lfm <= 70 ~ "PV", 
+    lfm >= 100 ~ "Field", 
+    TRUE ~ as.character("Flam.")
+  ))
+
+
 field_plot_leg <- ggplot(aes(y = lfm, 
              x = -1*water_potential, 
              color = Species), 
-         data = field_data_all) +
-  geom_vline(aes(xintercept = -1*mean_tlp_group, 
-                 lty = F.Group), 
-             data = fgroup_pv_summaries) +
+         data = field_data_all_leg) +
   geom_point(size = 3,
              alpha = .7, 
-             data = field_data_all) +
+             data = field_data_all_leg) +
+  geom_smooth(aes(y = lfm, x = water_potential, 
+                   
+              lty = line_var),
+              color = "black",
+              data = field_data_all_leg) +
   labs(color = "Species", 
-       lty = "TLP") +
+       lty = "Drydown Type") +
    theme(plot.margin = unit(c(.2, .5, .3, .25), "cm"),
         axis.title = element_text(face = 'bold', size = 26),
         axis.text = element_text(size = 16),
