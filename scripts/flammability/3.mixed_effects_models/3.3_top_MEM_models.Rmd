@@ -861,3 +861,111 @@ tab_model(tti_mod,
   file = here('figures', 'MEM_figures', 'top_models_pretty.html'))
   
 ```
+
+
+# ------------------------------------
+# 2. LFM and MPa Models
+## Data wrangling
+```{r}
+mem_data_selection2 <- mem_data_all %>% 
+  drop_na(tti, lfm, fh, mpa, fd, temp_change, gd)
+```
+
+
+## LFM
+### Models
+```{r}
+tti.lfm.mod <- lmer(tti ~ spp*lfm + sample_wt_scaled + site + (1 | individual), data = mem_data_selection2, REML = T)
+
+fh.lfm.mod <- lmer(fh ~ spp*lfm + sample_wt_scaled + site + (1 | individual), data = mem_data_selection2, REML = T)
+
+tc.lfm.mod <- lmer(temp_change ~ spp*lfm + sample_wt_scaled + site + (1 | individual), data = mem_data_selection2, REML = T)
+
+fd.lfm.mod <- lmer(fd ~ spp*lfm + sample_wt_scaled + site + (1 | individual), data = mem_data_selection2, REML = T)
+
+gd.lfm.mod <- lmer(gd ~ spp*lfm + sample_wt_scaled + site + (1 | individual), data = mem_data_selection2, REML = T)
+```
+
+### Table
+```{r}
+tab_model(tti.lfm.mod, 
+          fh.lfm.mod, 
+          tc.lfm.mod, 
+          fd.lfm.mod, 
+          gd.lfm.mod,
+          digits = 3, 
+          show.aic = FALSE, 
+          show.ci = FALSE,
+          show.icc = FALSE, 
+          show.re.var = FALSE,
+          show.ngroups = FALSE,
+         string.pred = "Coeffcient", 
+  string.p = "P-Value", 
+  p.style = "stars",
+  show.reflvl = FALSE,
+  dv.labels = c('Time to Ignition', 'Flame Height', 'Temp. Change', 'Flame Duration', 'Glow Duration'),
+  pred.labels = c('Intercept', 
+                 'A. patula', 
+                 'C. decurrens', 
+                 'C. cordulatus',
+                 'P. jeffreyii',
+                 'Q. kelloggii',
+                 'Live Fuel Moisture (LFM)',
+                 'Sample Weight',
+                 'Location',
+                 'LFM x A. patula',
+                 'LFM x C. decurrens', 
+                 'LFM x C. cordulatus', 
+                 'LFM x P. jeffryii', 
+                 'LFM x Q. kelloggii'), 
+  file = here('figures', 'MEM_figures', 'LFM_model_selection.html'))
+```
+
+## Water Potential
+### Models
+```{r}
+tti.mpa.mod <- lmer(tti ~ spp*mpa + sample_wt_scaled + site + (1 | individual), data = mem_data_selection2, REML = T)
+
+fh.mpa.mod <- lmer(fh ~ spp*mpa + sample_wt_scaled + site + (1 | individual), data = mem_data_selection2, REML = T)
+
+tc.mpa.mod <- lmer(temp_change ~ spp*mpa + sample_wt_scaled + site + (1 | individual), data = mem_data_selection2, REML = T)
+
+fd.mpa.mod <- lmer(fd ~ spp*mpa + sample_wt_scaled + site + (1 | individual), data = mem_data_selection2, REML = T)
+
+gd.mpa.mod <- lmer(gd ~ spp*mpa + sample_wt_scaled + site + (1 | individual), data = mem_data_selection2, REML = T)
+```
+
+### Table
+```{r}
+tab_model(tti.mpa.mod, 
+          fh.mpa.mod, 
+          tc.mpa.mod, 
+          fd.mpa.mod, 
+          gd.mpa.mod,
+          digits = 3, 
+          show.aic = FALSE, 
+          show.ci = FALSE,
+          show.icc = FALSE, 
+          show.re.var = FALSE,
+          show.ngroups = FALSE,
+         string.pred = "Coeffcient", 
+  string.p = "P-Value", 
+  p.style = "stars",
+  show.reflvl = FALSE,
+  dv.labels = c('Time to Ignition', 'Flame Height', 'Temp. Change', 'Flame Duration', 'Glow Duration'),
+  pred.labels = c('Intercept', 
+                 'A. patula', 
+                 'C. decurrens', 
+                 'C. cordulatus',
+                 'P. jeffreyii',
+                 'Q. kelloggii',
+                 'Water Potential (MPa)',
+                 'Sample Weight',
+                 'Location',
+                 'MPa x A. patula',
+                 'MPa x C. decurrens', 
+                 'MPa x C. cordulatus', 
+                 'MPa x P. jeffryii', 
+                 'MPa x Q. kelloggii'), 
+  file = here('figures', 'MEM_figures', 'mpa_model_selection.html'))
+```
