@@ -81,7 +81,7 @@ mem_data_all <- read_csv(here("processed-data", "sierra_flam_data_all.csv")) %>%
          lfm_scaled = scale(lfm), 
          excess_water_scaled = scale(excess_water)) %>% 
   filter(!year_month %in% c("2021_august")) %>% 
-  filter(ignition != 2) %>% # Removing manual ignitions
+  #filter(ignition != 2) %>% # Removing manual ignitions
   drop_na(mpa_scaled, lfm_scaled, sample_wt_scaled) 
 ```
 
