@@ -57,13 +57,13 @@ source(here::here("scripts", "scripts_functions", "plotPercentBars_IB.R"))
 
 Scatterplots:
 ```{r,warning=FALSE, message=TRUE}
-pv_all_df <- read_csv(here("processed-data", "var-decomp", "all_pv_curves_clean_vardecomp.csv"))
+pv_all_df <- read_csv(here("processed-data", "var-decomp", "all_pv_curves_clean_vardecomp.csv"),show_col_types = FALSE)
 
-fgroup_pv_summaries <- read_csv(here("processed-data", "var-decomp", "fgroup_pv_summaries.csv"))
+fgroup_pv_summaries <- read_csv(here("processed-data", "var-decomp", "fgroup_pv_summaries.csv"),show_col_types = FALSE)
 
-flam_curve_phys_all_raw <- read_csv(here("processed-data", "var-decomp", "flam_curve_vardecomp.csv"))
+flam_curve_phys_all_raw <- read_csv(here("processed-data", "var-decomp", "flam_curve_vardecomp.csv"),show_col_types = FALSE)
 
-field_data_all <- read_csv(here("processed-data", "var-decomp", "field_data_vardecomp.csv")) %>% 
+field_data_all <- read_csv(here("processed-data", "var-decomp", "field_data_vardecomp.csv"),show_col_types = FALSE) %>% 
     filter(lfm < 300, 
          lfm > 50, 
         # age == "new"
@@ -75,7 +75,8 @@ field_data_all <- read_csv(here("processed-data", "var-decomp", "field_data_vard
     spp == "CECO" ~ "Ce. cordulatus",
     spp == "PIJE" ~ "Pi. jeffreyi",
     spp == "QUKE" ~ "Qu. kelloggii"
-  )) 
+  )) %>% 
+  mutate(ilfm = 1/lfm)
 ```
 
 Removing outliers from PV Curve Data (for Angiosperms, Fig. 4c)
@@ -84,7 +85,6 @@ pv_all_df <- pv_all_df %>%
   filter(individual != 'QUKE_2_2020-10-21',
          individual !='QUKE_4_2020-10-21')
 ```
-
 
 Vardecomps:
 ```{r, fig.height=3, fig.width=1}
@@ -1141,7 +1141,7 @@ ggsave(plot=plots_stacked_legend, bg = "white" , here::here("figures",  "supp-fi
 
 ###- Field plot - new growth only
 
-```{r}
+```{r, eval = F}
 
 form <- ~ water_potential + (1|spp) + (1|year_month) + (1|plant) 
 

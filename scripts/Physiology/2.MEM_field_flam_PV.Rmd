@@ -4,24 +4,27 @@ author: "Indra Boving"
 date: "11/8/2022"
 output: html_document
 ---
+
+Thid code is to visualize and investigate the relationships between water potential and lfm in PV curves, Flammability benchtop drydowns, and in field-collected data.
+
 # Setup
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 
-library(datapasta)
+#library(datapasta)
 library(ggplot2)
 library(purrr) #for visualizing all variables in one big plot
 library(naniar) #for dealing with NAs nicely 
 library(tidyverse)
 library(ggpubr)
 library(cowplot)
-library(GGally) #for corr plots
-require(kimisc) # has the nlist function to create a named list
+#library(GGally) #for corr plots
+#require(kimisc) # has the nlist function to create a named list
 #library(strengejacke)
 library(sjPlot) # table functions
 library(here)
-library(effects) #for plofhng model effects
-library(sjstats) #use for r2 functions
+#library(effects) #for plofhng model effects
+#library(sjstats) #use for r2 functions
 library("broom.mixed")
 library(MuMIn)
 library(modelsummary)
@@ -102,7 +105,17 @@ pv_all_df <- read_csv(here("processed-data", "all_pv_curves_clean.csv"), show_co
     spp == "PIJE" ~ "Gymnosperm",
     spp == "QUKE" ~ "Angiosperm"
   )) %>% 
-  filter(timing == "fall")
+  filter(timing == "fall")%>% 
+  mutate(ilfm = 1/lfm) %>% 
+  filter(individual != 'QUKE_2_2020-10-21',
+         individual !='QUKE_4_2020-10-21')
+
+# model criticism plots
+qqnorm(pv_all_df$lfm) #normally distributed
+qqline(pv_all_df$lfm)
+
+qqnorm(pv_all_df$ilfm)
+qqline(pv_all_df$ilfm) #NOT normally distributed
 
 write_csv(pv_all_df, (here("processed-data", "var-decomp", "all_pv_curves_clean_vardecomp.csv")))
 ```
@@ -162,11 +175,6 @@ fgroup_pv_summaries <- pv_summaries_2 %>%
   group_by(F.Group) %>% 
   mutate(mean_tlp_group = mean(tlp))
 ```
-
-```{r}
-unique(pv_all_df$year)
-```
-
 ## Plot
 
 ```{r}
@@ -188,7 +196,7 @@ pv_plot <- pv_all_df %>%
   geom_point(alpha = .5, 
               aes(shape = as.factor(year))
              ) +
-  color_many +
+  color_many2 +
   theme(legend.position = "none",
         axis.title.x = element_text("")) +
   labs(title = "PV Curves",
@@ -251,7 +259,7 @@ pv_plot_neg <- pv_all_df %>%
   geom_vline(aes(xintercept = -1/mean_tlp_group, 
                  lty = F.Group), data = fgroup_pv_summaries) +
   geom_point(alpha = .5) +
-  color_many +
+  color_many2 +
   theme(legend.position = "none",
         axis.title.x = element_text("")) +
   labs(title = "PV Curves",
@@ -364,9 +372,15 @@ flam_curve_df <- flam_curve_phys_all_raw %>%
     spp == "PIJE" ~ "Gymnosperm",
     spp == "QUKE" ~ "Angiosperm"
   )) %>% 
-  select(lfm, water_potential, mpa, year, month, year_month, plant, F.Group, spp)
-#%>% 
- # select(spp, swc, lfm, mpa, month, tlp, water_potential, po, individual, plant)
+  select(lfm, water_potential, mpa, year, month, year_month, plant, F.Group, spp) %>% 
+  mutate(ilfm = 1/lfm)
+
+# model criticism plots
+qqnorm(flam_curve_df$lfm) #normally distributed
+qqline(flam_curve_df$lfm)
+
+qqnorm(flam_curve_df$ilfm)
+qqline(flam_curve_df$ilfm) #NOT normally distributed
 
 write_csv(flam_curve_df, here("processed-data", "var-decomp", "flam_curve_vardecomp.csv"))
 ```
@@ -392,7 +406,7 @@ flam_plot <- flam_curve_df %>%
              aes( shape = as.factor(year))
              ) +
  # geom_smooth(method = "lm", se = F) +
-  color_many +
+  color_many2 +
   theme(legend.position = "none")+
   labs(title = "Flam", 
        x = "Water Potential", 
@@ -461,8 +475,7 @@ anova(m11, m11.75)
 
 qqnorm(resid(m11.75))
 r <- resid(m11.75)
-plot(fitted(m11.75
-            ), r)
+plot(fitted(m11.75), r)
 
 anova(m11.75)
 car::Anova(m11.75)
@@ -477,6 +490,10 @@ specr::icc_specs(m11) %>%
 # 3. Field Data
 ```{r}
 field_data_all <- read_csv(here("processed-data", "field_data_2020_2021.csv"), show_col_types = FALSE) %>% 
+    filter(lfm < 300, 
+         lfm > 50, 
+        # age == "new"
+         ) %>% 
  # select(-mpa, -water_potential) %>% 
   mutate(water_potential = midday, 
          unique_id2 = str_c(spp, "_",pod, '_', site),
@@ -523,34 +540,21 @@ field_data_all <- read_csv(here("processed-data", "field_data_2020_2021.csv"), s
     spp == "CECO" ~ "Angiosperm",
     spp == "PIJE" ~ "Gymnosperm",
     spp == "QUKE" ~ "Angiosperm"
-  ))
+  )) %>% 
+  mutate(ilfm = 1/lfm) 
 
 field_data_all_2 <- field_data_all %>% 
   drop_na(lfm, water_potential, plant, F.Group, year)
 
 write_csv(field_data_all, (here("processed-data", "var-decomp", "field_data_vardecomp.csv")))
+
+# model criticism plots
+qqnorm(field_data_all$lfm)
+qqline(field_data_all$lfm) #NOT Normal
+
+qqnorm(field_data_all$ilfm)
+qqline(field_data_all$ilfm) #Normal
 ```
-
-#For pepperwood project: 
-```{r}
-pepperwood_df <- field_data_all_2 %>% 
-  select(spp, Species, unique_id, age_new, date, year, location, lfm, water_potential, location) %>% 
-   filter(lfm < 300, 
-         lfm > 50) %>% 
-  rename(tissue_age = age_new)
-
-pepperwood_df %>% 
-  ggplot(aes(y = lfm, 
-             x = water_potential, 
-             color = as.factor(year), 
-             shape = tissue_age)) +
-  geom_point() +
-  facet_wrap(~Species)
-
-write.csv(pepperwood_df, here('processed-data', 'sierra_lfm_mpa.csv'))
-```
-
-
 ## Plot
 ```{r}
 dat_text <- data.frame(
@@ -571,7 +575,7 @@ field_plot <- field_data_all %>%
              )+
   facet_wrap(~F.Group) +
  # geom_smooth(method = "lm", se = F) +
-  color_many +
+  color_many2 +
   theme(legend.position = "none") +
   labs(title = "Field", 
        x = "", 
@@ -590,7 +594,40 @@ field_plot <- field_data_all %>%
   #annotate(geom = "text", x = 9, y = 300, label = 'a', fontface = 'bold', size = 10) 
 field_plot
 ```
-
+## Plot inverse LFM (1/lfm)
+```{r}
+field_plot_ilfm<- field_data_all %>% 
+  filter(lfm < 300, 
+         lfm > 50) %>% 
+  ggplot(aes(y = 1/lfm, 
+             x = -1*water_potential, 
+             color = spp)) +
+  geom_vline(aes(xintercept = -1*mean_tlp_group, 
+                 lty = F.Group), data = fgroup_pv_summaries) +
+  geom_point(alpha = .5, 
+             aes(shape = as.factor(year))
+             )+
+  facet_wrap(~F.Group) +
+ # geom_smooth(method = "lm", se = F) +
+  color_many +
+  theme(legend.position = "none") +
+  labs(title = "Field", 
+       x = "", 
+       y = "iLFM") +
+  theme(plot.margin = unit(c(.2, .5, -.5, .25), "cm")) +
+  xlim(0, 10) #+
+ #  geom_text(
+ #  data    = dat_text,
+ #  color = "black",
+ #  fontface = 'bold', size = 10,
+ #  mapping = aes(x = 9, 
+ #               # y = 300, 
+ #                y = 2,
+ #                label = label)
+ # )
+  #annotate(geom = "text", x = 9, y = 300, label = 'a', fontface = 'bold', size = 10) 
+field_plot_ilfm
+```
 ## Plot (log-LFM)
 ```{r}
 field_plot_logged<- field_data_all %>% 
@@ -660,45 +697,83 @@ field_plot_neg <- field_data_all %>%
 field_plot_neg
 ```
 
+
+We should visualize in LFM~MPa space for the sake of comparing to benchtop curves, but transforming to 1/LFM is actually normally distributed (could show this in SI?).
+
+
 ## MEM
 ```{r}
-m12 <- lmer(sqrt(lfm)~ water_potential*F.Group*as.factor(year) + (1|plant), data = field_data_all)
-summary(m12) #doenst make sense to have year and F group interaction, don't use!
-
-m12.5 <- lmer(log(lfm)~ water_potential*F.Group + as.factor(year) + (1|plant), data = field_data_all)
+m12.5 <- lm(ilfm~ water_potential*F.Group + as.factor(year), data = field_data_all)
 summary(m12.5)
+plot(m12.5, which = 1) 
+plot(m12.5, which = 2)
+plot(m12.5, which = 5)
 
-m12.55 <- lmer(log(lfm)~ water_potential*F.Group + age + as.factor(year) + (1|plant), data = field_data_all)
-summary(m12.55)
-
-anova(m12, m12.5) #m12 is better
-
-#remove interaction between F.Group and year: 
-m12.45<- lmer(log(lfm)~ water_potential*as.factor(year) + F.Group + (1|plant), data = field_data_all)
-summary(m12.45)
-
-anova(m12.55, m12.45)
+lmer12 <- lmer(lfm~ water_potential*F.Group + as.factor(year)+ (1|plant), data = field_data_all)
+summary(lmer12)
+plot(lmer12, which = 1) 
+qqnorm(residuals(lmer12)) 
+qqline(residuals(lmer12))
 
 
-m12.4<- lmer(log(lfm)~ water_potential*as.factor(year) + water_potential*F.Group + (1|plant), data = field_data_all)
-
-summary(m12.4)
-
-anova(m12.5, m12.4, m12.45, m12.55) #with all interactions is better\
-
-qqnorm(resid(m12.4))
-r <- resid(m12.4)
-plot(fitted(m12.4
-            ), r) #right skewed
-
-car::Anova(m12.4)
-
-performance::multicollinearity(m12.4)
-
-specr::icc_specs(m12) %>%
-  mutate_if(is.numeric, round, 2)
+lmer12.5 <- lmer(ilfm~ water_potential*F.Group + as.factor(year)+ (1|plant), data = field_data_all)
+summary(lmer12.5)
+plot(lmer12.5, which = 1) 
+qqnorm(residuals(lmer12.5)) 
+qqline(residuals(lmer12.5))
 ```
 
+####Just Angiosperms: 
+
+```{r}
+angios_field_data <- field_data_all %>% 
+  filter(F.Group == "Angiosperm")
+
+m12.5a <- lm(ilfm~ water_potential, data = angios_field_data )
+summary(m12.5a)
+plot(m12.5a, which = 1) 
+plot(m12.5a, which = 2)
+plot(m12.5a, which = 5)
+
+lmer12a <- lmer(lfm~ water_potential + as.factor(year)+ (1|plant), data = angios_field_data )
+summary(lmer12a)
+plot(lmer12a, which = 1) 
+qqnorm(residuals(lmer12a)) 
+qqline(residuals(lmer12a))
+
+
+lmer12.5a <- lmer(ilfm~ water_potential + as.factor(year)+ (1|plant), data = angios_field_data )
+summary(lmer12.5a)
+plot(lmer12.5a, which = 1) 
+qqnorm(residuals(lmer12.5a)) 
+qqline(residuals(lmer12.5a))
+```
+
+####Just Gymnosperms: 
+
+```{r}
+gymnos_field_data <- field_data_all %>% 
+  filter(F.Group == "Gymnosperm")
+
+m12.5g <- lm(ilfm~ water_potential, data = gymnos_field_data )
+summary(m12.5g)
+plot(m12.5g, which = 1) 
+plot(m12.5g, which = 2)
+plot(m12.5g, which = 5)
+
+lmer12g <- lmer(lfm~ water_potential + as.factor(year)+ (1|plant), data = angios_field_data )
+summary(lmer12g)
+plot(lmer12g, which = 1) 
+qqnorm(residuals(lmer12g)) 
+qqline(residuals(lmer12g))
+
+
+lmer12.5g <- lmer(ilfm~ water_potential + as.factor(year)+ (1|plant), data = angios_field_data )
+summary(lmer12.5g)
+plot(lmer12.5g, which = 1) 
+qqnorm(residuals(lmer12.5g)) 
+qqline(residuals(lmer12.5g))
+```
 # 4. Arranging/Combining
 
 ## Scatterplots
@@ -758,4 +833,91 @@ tab_model <- sjPlot::tab_model(m10.75, m11.75, m12.4,
   string.p = "P-Value", 
   p.style = "stars")
 tab_model
+```
+
+#5. For Pepperwood/to share
+
+```{r}
+pepperwood_df <- field_data_all_2 %>%
+  select(spp, Species, unique_id, age_new, date, year, location, lfm, water_potential, location) %>%
+   filter(lfm < 300,
+         lfm > 50) %>%
+  rename(tissue_age = age_new) %>%
+  mutate(ilfm = 1/(lfm-100)) %>%
+  filter(ilfm < 3,
+         ilfm > 0)
+
+pepperwood_df %>%
+  ggplot(aes(y = lfm,
+             x = water_potential,
+             color = as.factor(year),
+             shape = tissue_age)) +
+  geom_point() +
+  facet_wrap(~Species)
+
+pepperwood_df %>%
+  mutate(month = month(date)) %>%
+  filter(!(spp %in% c("PIJE", "ABCO", "ARPA") & tissue_age == "new")) %>%
+  ggplot(aes(y = ilfm,
+             x = water_potential,
+             color = as.factor(Species)
+            # shape = as.factor(month))
+         )) +
+  geom_point() +
+  geom_smooth(method = "lm", se = F) +
+  facet_wrap(~Species, scales = "free")
+
+pepperwood_df %>%
+  mutate(month = month(date)) %>%
+ # filter(tissue_age == "new") %>%
+  ggplot(aes(y = ilfm,
+             x = water_potential,
+             color = as.factor(month),
+            # shape = tissue_age
+            # shape = as.factor(month))
+         )) +
+  geom_point(aes(shape = tissue_age)) +
+  geom_smooth(method = "lm", se = F)
+
+pepperwood_df %>%
+  mutate(month = month(date)) %>%
+ # filter(tissue_age == "new") %>%
+  ggplot(aes(y = lfm,
+             x = water_potential,
+             color = as.factor(month),
+            # shape = tissue_age
+            # shape = as.factor(month))
+         )) +
+  geom_point(aes(shape = tissue_age)) +
+  geom_smooth(method = "lm", se = F)
+
+
+
+pepperwood_df %>%
+  mutate(month = month(date)) %>%
+  filter(tissue_age == "old",
+         year == 2021) %>%
+  ggplot(aes(y = ilfm,
+             x = water_potential,
+             color = as.factor(month),
+            # shape = tissue_age
+            # shape = as.factor(month))
+         )) +
+  geom_point(aes(shape = tissue_age)) +
+  geom_smooth(method = "lm", se = F)
+
+pepperwood_df %>%
+  mutate(month = month(date)) %>%
+  filter(tissue_age == "old",
+         year == 2021) %>%
+  ggplot(aes(y = lfm,
+             x = water_potential,
+             color = as.factor(month),
+            # shape = tissue_age
+            # shape = as.factor(month))
+         )) +
+  geom_point(aes(shape = tissue_age)) +
+  geom_smooth(method = "lm", se = F)
+
+write.csv(pepperwood_df, here('processed-data', 'sierra_lfm_mpa.csv'))
 ```
