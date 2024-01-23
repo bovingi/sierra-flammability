@@ -553,7 +553,7 @@ qqnorm(field_data_all$lfm)
 qqline(field_data_all$lfm) #NOT Normal
 
 qqnorm(field_data_all$ilfm)
-qqline(field_data_all$ilfm) #Normal
+qqline(field_data_all$ilfm) #Normal-ish
 ```
 ## Plot
 ```{r}
@@ -574,7 +574,8 @@ field_plot <- field_data_all %>%
              aes(shape = as.factor(year))
              )+
   facet_wrap(~F.Group) +
- # geom_smooth(method = "lm", se = F) +
+ # geom_smooth(method = 'nls', formula = 'y~x*exp(1)') + 
+  geom_smooth(method = "loess", se = F) +
   color_many2 +
   theme(legend.position = "none") +
   labs(title = "Field", 
@@ -608,7 +609,7 @@ field_plot_ilfm<- field_data_all %>%
              aes(shape = as.factor(year))
              )+
   facet_wrap(~F.Group) +
- # geom_smooth(method = "lm", se = F) +
+  geom_smooth(method = "lm", se = F) +
   color_many +
   theme(legend.position = "none") +
   labs(title = "Field", 
@@ -729,6 +730,9 @@ qqline(residuals(lmer12.5))
 angios_field_data <- field_data_all %>% 
   filter(F.Group == "Angiosperm")
 
+hist(angios_field_data$lfm)
+hist(angios_field_data$ilfm)
+
 m12.5a <- lm(ilfm~ water_potential, data = angios_field_data )
 summary(m12.5a)
 plot(m12.5a, which = 1) 
@@ -754,6 +758,9 @@ qqline(residuals(lmer12.5a))
 ```{r}
 gymnos_field_data <- field_data_all %>% 
   filter(F.Group == "Gymnosperm")
+
+hist(gymnos_field_data$lfm)
+hist(gymnos_field_data$ilfm)
 
 m12.5g <- lm(ilfm~ water_potential, data = gymnos_field_data )
 summary(m12.5g)
