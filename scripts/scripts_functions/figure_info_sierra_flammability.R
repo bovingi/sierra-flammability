@@ -17,7 +17,7 @@ ggplot <- function(...) { ggplot2::ggplot(...) +
 # In this order: ABCO, PIJE, CADE, ARPA, CECO (if present), QUKE
 color_noceco <-  scale_color_manual(values = c('#42401D', '#5DA493', '#D8AB43', '#5792CC', '#6E406E')) 
 fill_noceco <-  scale_fill_manual(values = c('#42401D', '#5DA493', '#D8AB43', '#5792CC', '#6E406E')) 
-color_many2 <- scale_color_manual(values = c('#42401D', '#5DA493', '#D8AB43', '#5792CC', '#4D5B75', '#6E406E'))
+color_many2 <- scale_color_manual(values = c('#42401D', '#5DA493', '#D8AB43', '#5792CC', '#C75146', '#6E406E'))
 
 #Calecopal Colors
 sierra1 = c("#BD973D", "#5F5C29", "#3B7D6E", "#5792CC", "#4D5B75", "#262E43")

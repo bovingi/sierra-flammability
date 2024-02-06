@@ -36,6 +36,7 @@ library(kableExtra)
 library(janitor)
 library(lubridate)
 library(specr)
+library(cars)
 #install.packages("specr")
 
 filter = dplyr::filter
@@ -716,12 +717,24 @@ plot(lmer12, which = 1)
 qqnorm(residuals(lmer12)) 
 qqline(residuals(lmer12))
 
+#checking model random effects: 
+modrandomeffects <- ranef(lmer12)
+qqnorm(modrandomeffects$plant$`(Intercept)`)
+qqline(modrandomeffects$plant$`(Intercept)`)
+library(car)
+qqp(modrandomeffects$plant$`(Intercept)`)
+modrandomeffects$plant
 
 lmer12.5 <- lmer(ilfm~ water_potential*F.Group + as.factor(year)+ (1|plant), data = field_data_all)
 summary(lmer12.5)
 plot(lmer12.5, which = 1) 
 qqnorm(residuals(lmer12.5)) 
 qqline(residuals(lmer12.5))
+
+
+#Transformed model: 
+#y = a/(b+x)
+nonlin12.4 <- nls(lfm~)
 ```
 
 ####Just Angiosperms: 
@@ -769,6 +782,12 @@ plot(m12.5g, which = 2)
 plot(m12.5g, which = 5)
 
 lmer12g <- lmer(lfm~ water_potential + as.factor(year)+ (1|plant), data = angios_field_data )
+summary(lmer12g)
+plot(lmer12g, which = 1) 
+qqnorm(residuals(lmer12g)) 
+qqline(residuals(lmer12g))
+
+lmer12g <- lmer(log(lfm)~ log(water_potential*-1) + as.factor(year)+ (1|plant), data = angios_field_data )
 summary(lmer12g)
 plot(lmer12g, which = 1) 
 qqnorm(residuals(lmer12g)) 
