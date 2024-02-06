@@ -4,7 +4,7 @@
 
 ## Pyro-ecophysiology of Sierra Nevada tree and shrub species: flammability, fuel moisture, and water relations mirror drought-tolerance strategies (title pending)
 
-### Indra Boving, Joe Celebrezze, and Max Moritz
+### Indra Boving, Joe Celebrezze, Leander Anderegg, and Max Moritz
 
 --------------------------------
 
