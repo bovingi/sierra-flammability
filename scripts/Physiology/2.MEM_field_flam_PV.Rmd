@@ -36,7 +36,7 @@ library(kableExtra)
 library(janitor)
 library(lubridate)
 library(specr)
-library(cars)
+#library(cars)
 #install.packages("specr")
 
 filter = dplyr::filter
@@ -607,7 +607,7 @@ field_plot_ilfm<- field_data_all %>%
   geom_vline(aes(xintercept = -1*mean_tlp_group, 
                  lty = F.Group), data = fgroup_pv_summaries) +
   geom_point(alpha = .5, 
-             aes(shape = as.factor(year))
+             #aes(shape = as.factor(year) )
              )+
   facet_wrap(~F.Group) +
   geom_smooth(method = "lm", se = F) +
@@ -711,6 +711,21 @@ plot(m12.5, which = 1)
 plot(m12.5, which = 2)
 plot(m12.5, which = 5)
 
+
+m12.5a <- lm(ilfm~ water_potential*F.Group*age + as.factor(year), data = field_data_all)
+summary(m12.5a)
+plot(m12.5a, which = 1) 
+plot(m12.5a, which = 2)
+plot(m12.5a, which = 5)
+
+m12.5ab <- lm(ilfm~ water_potential*F.Group + age + as.factor(year), data = field_data_all)
+summary(m12.5ab)  
+
+AIC(m12.5, m12.5a,m12.5ab) #
+```
+
+
+```{r}
 lmer12 <- lmer(lfm~ water_potential*F.Group + as.factor(year)+ (1|plant), data = field_data_all)
 summary(lmer12)
 plot(lmer12, which = 1) 
@@ -732,9 +747,11 @@ qqnorm(residuals(lmer12.5))
 qqline(residuals(lmer12.5))
 
 
+summary(m12.5)
+
 #Transformed model: 
 #y = a/(b+x)
-nonlin12.4 <- nls(lfm~)
+#nonlin12.4 <- nls(lfm~)
 ```
 
 ####Just Angiosperms: 
