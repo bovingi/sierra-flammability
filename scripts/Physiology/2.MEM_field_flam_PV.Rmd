@@ -596,38 +596,25 @@ field_plot <- field_data_all %>%
   #annotate(geom = "text", x = 9, y = 300, label = 'a', fontface = 'bold', size = 10) 
 field_plot
 ```
-## Plot inverse LFM (1/lfm)
+## ****Plot inverse LFM (1/lfm) (IN SI)
 ```{r}
 field_plot_ilfm<- field_data_all %>% 
   filter(lfm < 300, 
          lfm > 50) %>% 
   ggplot(aes(y = 1/lfm, 
-             x = -1*water_potential, 
+             x = water_potential, 
              color = spp)) +
-  geom_vline(aes(xintercept = -1*mean_tlp_group, 
-                 lty = F.Group), data = fgroup_pv_summaries) +
-  geom_point(alpha = .5, 
+  geom_point(alpha = .3, 
              #aes(shape = as.factor(year) )
              )+
-  facet_wrap(~F.Group) +
+  facet_wrap(~F.Group, scales = "free") +
   geom_smooth(method = "lm", se = F) +
   color_many +
   theme(legend.position = "none") +
   labs(title = "Field", 
-       x = "", 
-       y = "iLFM") +
-  theme(plot.margin = unit(c(.2, .5, -.5, .25), "cm")) +
-  xlim(0, 10) #+
- #  geom_text(
- #  data    = dat_text,
- #  color = "black",
- #  fontface = 'bold', size = 10,
- #  mapping = aes(x = 9, 
- #               # y = 300, 
- #                y = 2,
- #                label = label)
- # )
-  #annotate(geom = "text", x = 9, y = 300, label = 'a', fontface = 'bold', size = 10) 
+       x = "Water Potential", 
+       y = "1/LFM") +
+  theme(plot.margin = unit(c(.2, .5, .5, .25), "cm")) 
 field_plot_ilfm
 ```
 ## Plot (log-LFM)
