@@ -853,7 +853,7 @@ df1 <- field_data_2021 %>%
 
 lfm_df <- df1 %>% 
   group_by(month, spp, age) %>% 
-  summarise(sd = sd(lfm), lfm = mean(lfm)) %>% 
+  summarise(sd = sd(lfm, na.rm = T), lfm = mean(lfm, na.rm = T)) %>% 
   pivot_wider(values_from = 'lfm', names_from = 'age')
 
 old_lfm_df <- lfm_df %>% 
@@ -871,7 +871,7 @@ new_lfm_df <- lfm_df %>%
 mpa_df <- df1 %>% 
   mutate(water_potential= -1*water_potential) %>% 
   group_by(month, spp) %>%
-  summarise(sd = sd(water_potential), value = mean(water_potential)) %>% 
+  summarise(sd = sd(water_potential, na.rm = T), value = mean(water_potential, na.rm = T)) %>% 
   drop_na(value) %>% 
   mutate(name = 'mpa')
 
@@ -1034,7 +1034,9 @@ p.quke
 ```
 
 ### PIJE
+NOTE: The reason we don't have dry weights for L July old is due to "melted bottle" (notes in raw dataset)
 ```{r}
+
 max.y <- 370
 
 pije_old_lfm_df1 <- old_lfm_df %>%
@@ -1141,6 +1143,8 @@ arpa.colors <- c("#4ECDC4", "#F03D79", "#070093", "#52E764")
 p.arpa <-pheno.dotplot.vis(species = "ARPA", phenophases = arpa.phenophases,
                            colors = arpa.colors, no.phenophases = four, letter = 'e',
                            max.y = 230)
+
+p.arpa
 ```
 
 ### Dots Legend
@@ -1187,6 +1191,445 @@ ggsave(here("figures", "main-figures", "Fig3.Updated.LFM.Dots.and.Phenophases.jp
 dots.legends <- cowplot::plot_grid(blank_plot, legend.dots, legend, ncol = 1,
                               rel_heights = c(5, .6, 1))
 dots.legends
+ggsave(here("figures", "main-figures", "Fig3.Updated.Dots.Legend.jpg"),
+       height = 5, width = 7,
+       plot = dots.legends)
+```
+
+## Checking out Water Potential Variability
+```{r}
+df1$month <- factor(df1$month, levels = c("April", "May", "June",
+                                          "E. July", "L. July", "Aug.", "Sept.", "Oct."))
+
+ggplot(df1, aes(x = month, y = water_potential)) +
+  geom_boxplot() +
+  facet_wrap(~Species, scales = 'free', ncol = 1) +
+  theme_bw()
+
+ggsave(here("figures", "extra-figures", "WaterPotential_FieldData2021.jpg"),
+       height = 10, width = 5)
+```
+
+
+# ---
+# Version 4: Adding Water Potential, Adding lines between points, replacing Boxplots w/ Points
+
+- Adjusting position nudge to bring points closer togther
+- adding geom_line so that the points for each group are connected to each other
+
+NOTE: PIE 
+
+## Dotplot
+
+### Wrangling
+```{r}
+df1 <- field_data_2021 %>% 
+  mutate(month = case_when(
+    date == '2021-04-24' ~ "April",
+    date == '2021-05-14' ~ "May",
+    date == '2021-05-15' ~ "May",
+    date == '2021-06-15' ~ "June",
+    date == '2021-06-16' ~ "June",
+    date == '2021-07-08' ~ "E. July",
+    date == '2021-07-09' ~ "E. July",
+    date == '2021-07-30' ~ "L. July",
+    date == '2021-07-31' ~ "L. July",
+    date == '2021-08-19' ~ "Aug.",
+    date == '2021-08-20' ~ "Aug.",
+    date == '2021-09-16' ~ "Sept.",
+    date == '2021-09-17' ~ "Sept.",
+    date == '2021-10-16' ~ "Oct.",
+    date == '2021-10-17' ~ "Oct."
+  )) %>% 
+  filter(age != "both",
+         lfm < 350) %>% 
+  mutate(age = case_when(
+    spp %in% c("ABCO") & month %in% c("April", "May", "June") ~ "old", 
+    TRUE ~ as.character(age)
+  ))
+
+pije_lfm <- df1 %>% 
+  filter(spp %in% c("PIJE"))
+
+lfm_df <- df1 %>% 
+  filter(lfm > 60) %>% 
+  group_by(month, spp, age) %>% 
+  summarise(sd = sd(lfm, na.rm = T), lfm = mean(lfm, na.rm = T)) %>% 
+  pivot_wider(values_from = 'lfm', names_from = 'age')
+
+old_lfm_df <- lfm_df %>% 
+  select(month, spp, sd, old) %>% 
+  drop_na(old) %>% 
+  rename(value = old) %>% 
+  mutate(name = 'old_lfm')
+
+new_lfm_df <- lfm_df %>% 
+  select(month, spp, sd, new) %>% 
+  drop_na(new) %>% 
+  rename(value = new) %>% 
+  mutate(name = 'new_lfm')
+
+mpa_df <- df1 %>% 
+  mutate(water_potential= -1*water_potential) %>% 
+  group_by(month, spp) %>%
+  summarise(sd = sd(water_potential, na.rm = T), value = mean(water_potential, na.rm = T)) %>% 
+  drop_na(value) %>% 
+  mutate(name = 'mpa')
+
+dots_df <- rbind(old_lfm_df, new_lfm_df, mpa_df)
+dots_df$month <- factor(dots_df$month, levels = c("April", "May", "June", "E. July",
+                                          "L. July", "Aug.", "Sept.", "Oct."))
+```
+
+### Function
+```{r}
+pheno.dotplot.vis <- function(species, phenophases, max.y = 500, colors, no.phenophases = two, pheno_df = pheno_fig_main, letter){
+  
+old_lfm_df <- old_lfm_df %>%
+  filter(spp == species)
+old_lfm_df$month <- factor(old_lfm_df$month, levels = c("April", "May", "June", "E. July",
+                                          "L. July", "Aug.", "Sept.", "Oct."))
+new_lfm_df <- new_lfm_df %>%
+  filter(spp == species)
+new_lfm_df$month <- factor(new_lfm_df$month, levels = c("April", "May", "June", "E. July",
+                                          "L. July", "Aug.", "Sept.", "Oct."))
+mpa_df <- mpa_df %>%
+  filter(spp == species)
+mpa_df$month <- factor(mpa_df$month, levels = c("April", "May", "June", "E. July",
+                                          "L. July", "Aug.", "Sept.", "Oct."))
+df2 <- field_data_all_3 %>% 
+  filter(spp == species)
+mean_lfm <- mean(df2$lfm_tlp)
+mean_mpa <- mean(df2$tlp)
+coef <- -1*(mean_lfm/mean_mpa)
+trans_coef <- -1/coef
+
+mean_mpa_plot <- mean_mpa*coef
+
+df3 <- pheno_df %>%
+  filter(spp == species) %>% 
+  filter(phenophase_name %in% phenophases)
+
+p1 <- ggplot(data = old_lfm_df) +
+  geom_point(aes(y = value, x = month), data = old_lfm_df, color = '#262E43', size = 3.5) +
+  geom_linerange(aes(x = month, ymin = value - sd, ymax = value + sd), data = old_lfm_df, color = '#262E43', alpha = .5) +
+  geom_line(aes(y = value, x = month, group = 1), data = old_lfm_df, color = '#262E43') +#add lines connecting dots
+  geom_point(aes(y = value, x = month), data = new_lfm_df, color = '#262E43', position = position_nudge(x = -0.1), shape = 1, size = 3.5) +
+  geom_linerange(aes(x = month, ymin = value - sd, ymax = value + sd), data = new_lfm_df, color = '#262E43', position = position_nudge(x = -0.1), alpha = .5) +
+   geom_line(aes(y = value, x = month, group = 1), data = new_lfm_df, color = '#262E43', position = position_nudge(x = -0.1)) +#add
+  geom_point(aes(y = value*coef, x = month), data = mpa_df, color = '#5792CC', position = position_nudge(x = 0.1), size = 3.5) +
+  geom_linerange(aes(x = month, ymin = value*coef - sd*coef, ymax = value*coef + sd*coef), data = mpa_df, color = '#5792CC', position = position_nudge(x = 0.1), alpha = .5) +
+  geom_line(aes(y = value*coef, x = month, group = 1), data = mpa_df, color = '#5792CC', position = position_nudge(x = 0.1)) +#add
+  geom_hline(aes(yintercept  = mean_lfm),
+             linetype = "dashed", color = '#262E43') +
+  geom_hline(aes(yintercept  = mean_mpa_plot),
+             linetype = "dashed", color = '#5792CC') +
+  facet_wrap(~spp, labeller = labeller(spp = spp.labs)) +
+  annotate('text', x = 0.875, y = max.y - 0.04*max.y, label = letter, size = 12, fontface = 'bold') +
+  scale_y_continuous(limits = c(0, max.y),
+                     sec.axis = sec_axis(trans = ~.*trans_coef, name = 'Water Potential (-MPa)')) +
+  theme(axis.ticks.x = element_blank(),
+    axis.text.x = element_text(
+      angle = 30,
+      hjust = 1,
+      size = 16),
+    #axis.title.y = element_text(face = "bold", size = 16),
+    axis.title = element_blank(),
+    axis.text.y = element_text(size = 12),
+    legend.title = element_text(face = "bold"),
+    strip.text = element_text(face = "italic", size = 14),
+    legend.position = 'none') +
+  labs(y = "Live Fuel Moisture (%)",
+       fill = "Tissue Status")
+
+p2 <- ggplot2::ggplot(data = df3, aes(x = date, y = lfm, color = phenophase_name)) +
+  geom_line(alpha = 0.6, size = no.phenophases[2]) +
+  scale_color_manual(values = colors) +
+  theme(aspect.ratio = no.phenophases[1],
+        legend.position = 'none',
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.title = element_blank(),
+        axis.text = element_blank(),
+        axis.ticks = element_blank(),
+        panel.background = element_rect(fill = 'white'))
+
+p3 <- p1 + annotation_custom(ggplotGrob(p2), xmin = "April", xmax = "Oct.",
+                       ymin = -10, ymax = 30)
+return(p3)
+  }
+```
+
+### QUKE
+```{r}
+max.y <- 300
+
+quke_old_lfm_df <- old_lfm_df %>%
+  filter(spp == 'QUKE')
+quke_old_lfm_df$month <- factor(quke_old_lfm_df$month, levels = c("May", "June", "E. July",
+                                          "L. July", "Aug.", "Sept.", "Oct."))
+quke_new_lfm_df <- new_lfm_df %>%
+  filter(spp == 'QUKE')
+quke_new_lfm_df$month <- factor(quke_new_lfm_df$month, levels = c("May", "June", "E. July",
+                                          "L. July", "Aug.", "Sept.", "Oct."))
+quke_mpa_df <- mpa_df %>%
+  filter(spp == 'QUKE')
+quke_mpa_df$month <- factor(quke_mpa_df$month, levels = c("May", "June", "E. July",
+                                          "L. July", "Aug.", "Sept.", "Oct."))
+df2 <- field_data_all_3 %>% 
+  filter(spp == 'QUKE') %>% 
+  mutate(tlp = -1*tlp ) 
+
+mean_lfm <- mean(df2$lfm_tlp)
+mean_mpa <- mean(df2$tlp)
+coef <- mean_lfm/mean_mpa
+trans_coef <- 1/coef
+
+mean_mpa_plot <- mean_mpa*coef
+
+df3 <- pheno_fig_main %>%
+  filter(spp == 'QUKE') %>% 
+  filter(phenophase_name %in% c("Breaking buds", "Increasing leaf size", "Ripe fruits"))
+
+p1 <- ggplot(data = quke_old_lfm_df) +
+  geom_point(aes(y = value, x = month), data = quke_old_lfm_df, color = '#262E43', size = 3.5) +
+  geom_linerange(aes(x = month, ymin = value - sd, ymax = value + sd), data = quke_old_lfm_df, color = '#262E43', alpha = .5) +
+  geom_line(aes(x = month, y = value, group = 1), data = quke_old_lfm_df, color = '#262E43') +
+  geom_point(aes(y = value, x = month), data = quke_new_lfm_df, color = '#262E43', position = position_nudge(x = 0), shape = 1, size = 3.5) +
+  geom_line(aes(x = month, y = value, group = 1), data = quke_new_lfm_df, color = '#262E43', position = position_nudge(x = 0)) +
+  geom_linerange(aes(x = month, ymin = value - sd, ymax = value + sd), data = quke_new_lfm_df, color = '#262E43', position = position_nudge(x = 0), alpha = .5) +
+  geom_point(aes(y = value*coef, x = month), data = quke_mpa_df, color = '#5792CC', position = position_nudge(x = 0.1), size = 3.5) +
+  geom_linerange(aes(x = month, ymin = value*coef - sd*coef, ymax = value*coef + sd*coef), data = quke_mpa_df, color = '#5792CC', position = position_nudge(x = 0.1), alpha = .5) +
+  geom_line(aes(x = month, y =  value*coef, group = 1), data = quke_mpa_df, color = '#5792CC', position = position_nudge(x = 0.1)) +
+  geom_hline(aes(yintercept  = mean_lfm),
+             linetype = "dashed", color = '#262E43') +
+  geom_hline(aes(yintercept  = mean_mpa_plot),
+             linetype = "dashed", color = '#5792CC') +
+  facet_wrap(~spp, labeller = labeller(spp = spp.labs)) +
+  annotate('text', x = 0.875, y = max.y - 0.04*max.y, label = 'f', size = 12, fontface = 'bold') +
+  scale_y_continuous(limits = c(0, max.y), sec.axis = sec_axis(trans = ~.*trans_coef, name = 'Water Potential (-MPa)')) +
+  theme(axis.ticks.x = element_blank(),
+    axis.text.x = element_text(
+      angle = 30,
+      hjust = 1,
+      size = 16),
+    #axis.title.y = element_text(face = "bold", size = 16),
+    axis.title = element_blank(),
+    axis.text.y = element_text(size = 12),
+    legend.title = element_text(face = "bold"),
+    strip.text = element_text(face = "italic", size = 14),
+    legend.position = 'none') +
+  labs(y = "Live Fuel Moisture (%)",
+       fill = "Tissue Status")
+
+p2 <- ggplot2::ggplot(data = df3, aes(x = date, y = lfm, color = phenophase_name)) +
+  geom_line(alpha = 0.6, size = 3) +
+  scale_color_manual(values = c("#4ECDC4", "#2B3E37", "#070093")) +
+  theme(aspect.ratio = 1/13,
+        legend.position = 'none',
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.title = element_blank(),
+        axis.text = element_blank(),
+        axis.ticks = element_blank(),
+        panel.background = element_rect(fill = 'white'))
+
+p.quke <- p1 + annotation_custom(ggplotGrob(p2), xmin = "May", xmax = "Oct.",
+                       ymin = -10, ymax = 30)
+p.quke
+```
+
+### PIJE
+```{r}
+max.y <- 370
+
+pije_old_lfm_df1 <- old_lfm_df %>%
+  filter(spp == 'PIJE')
+add_pije_old_lfm_df <- data.frame(month = c('L. July'), sd = c(NA), value = c(NA), spp = c('PIJE'), name = c('mpa'))
+pije_old_lfm_df <- rbind(pije_old_lfm_df1, add_pije_old_lfm_df) %>% 
+  mutate(month = as.factor(month))
+
+
+pije_old_lfm_df$month <- factor(pije_old_lfm_df$month, levels = c("April", "May", "June","E. July", "L. July", "Aug.", "Sept.", "Oct."))
+unique(pije_old_lfm_df$month)
+
+# pije_old_lfm_df <- pije_old_lfm_df %>%
+#   filter(!is.na(value))
+
+pije_new_lfm_df <- new_lfm_df %>%
+  filter(spp == 'PIJE') %>% 
+  mutate(value = case_when(
+         month  %in% c("April", "May") ~ NA, 
+         TRUE ~ as.numeric(value)))
+
+pije_new_lfm_df$month <- factor(pije_new_lfm_df$month, levels = c("April", "May", "June","E. July", "L. July", "Aug.", "Sept.", "Oct."))
+
+unique(pije_new_lfm_df$month)
+
+
+pije_mpa_df1 <- mpa_df %>%
+  filter(spp == 'PIJE')
+add_pije_mpa_df <- data.frame(month = c('May', 'E. July'), sd = c(NA, NA), value = c(NA, NA), spp = c('PIJE', 'PIJE'), name = c('mpa', 'mpa'))
+
+unique(pije_mpa_df$month)
+
+
+pije_mpa_df <- rbind(pije_mpa_df1, add_pije_mpa_df)
+pije_mpa_df$month <- factor(pije_mpa_df$month, levels = c("April", "May", "June", "E. July", "L. July", "Aug.", "Sept.", "Oct."))
+
+pije_mpa_df <- pije_mpa_df %>% 
+  filter(!is.na(value)) 
+
+df2 <- field_data_all_3 %>% 
+  filter(spp == 'PIJE')
+mean_lfm <- mean(df2$lfm_tlp)
+mean_mpa <- mean(df2$tlp)
+coef <- -1*(mean_lfm/mean_mpa)
+trans_coef <- 1/coef
+mean_mpa_plot <- mean_mpa*coef
+
+df3 <- pheno_fig_main %>%
+  filter(spp == 'PIJE') %>% 
+  filter(phenophase_name %in% c("Increasing leaf size", "Young leaves"))
+
+pije_old_lfm_df_filtered <- pije_old_lfm_df[complete.cases(pije_old_lfm_df), ]
+
+p1 <- ggplot(data = pije_old_lfm_df) +
+  geom_point(aes(y = value, x = month), data = pije_new_lfm_df, color = '#262E43', position = position_nudge(x = -0.1), shape = 1, size = 3.5) +
+  geom_line(aes(y = value, x = month, group = 1
+                ), data = pije_new_lfm_df, color = '#262E43', position = position_nudge(x = -0.1)
+            ) +#add lines connecting dots
+  geom_linerange(aes(x = month, ymin = value - sd, ymax = value + sd), data = pije_new_lfm_df, color = '#262E43', position = position_nudge(x = -0.1), alpha = .5) +
+  geom_point(aes(y = value, x = month), data = pije_old_lfm_df, color = '#262E43', size = 3.5) +
+  geom_linerange(aes(x = month, ymin = value - sd, ymax = value + sd), data = pije_old_lfm_df, color = '#262E43', alpha = .5) +
+  geom_line(aes(y = value, x = month, group = 1), data =pije_old_lfm_df_filtered, color = '#262E43', na.rm = TRUE) +#add lines connecting dots
+  geom_line(aes(y = value*coef, x = month), data = pije_mpa_df, color = '#5792CC', 
+            position = position_nudge(x = 0.1)) +
+  geom_point(aes(y = value*coef, x = month), data = pije_mpa_df, color = '#5792CC', position = position_nudge(x = 0.1), size = 3.5) +
+  geom_linerange(aes(x = month, ymin = value*coef - sd*coef, ymax = value*coef + sd*coef), data = pije_mpa_df, color = '#5792CC', position = position_nudge(x = 0.1), alpha = .5) +
+  geom_line(aes(y = value*coef, x = month, group = 2), data = pije_mpa_df, color = '#5792CC', position = position_nudge(x = 0.1)) + #add lines connecting dots
+  geom_hline(aes(yintercept  = mean_lfm),
+             linetype = "dashed", color = '#262E43') +
+  geom_hline(aes(yintercept  = mean_mpa_plot),
+             linetype = "dashed", color = '#5792CC') +
+  facet_wrap(~spp, labeller = labeller(spp = spp.labs)) +
+  annotate('text', x = 0.875, y = max.y - 0.04*max.y, label = 'f', size = 12, fontface = 'bold') +
+  scale_y_continuous(limits = c(0, max.y), sec.axis = sec_axis(trans = ~.*trans_coef, name = 'Water Potential (-MPa)')) +
+  theme(axis.ticks.x = element_blank(),
+    axis.text.x = element_text(
+      angle = 30,
+      hjust = 1,
+      size = 16),
+    #axis.title.y = element_text(face = "bold", size = 16),
+    axis.title = element_blank(),
+    axis.text.y = element_text(size = 12),
+    legend.title = element_text(face = "bold"),
+    strip.text = element_text(face = "italic", size = 14),
+    legend.position = 'none') +
+  labs(y = "Live Fuel Moisture (%)",
+       fill = "Tissue Status")
+p1
+
+p2 <- ggplot2::ggplot(data = df3, aes(x = date, y = lfm, color = phenophase_name)) +
+  geom_line(alpha = 0.6, size = 4) +
+  scale_color_manual(values = c("#4ECDC4", "#2B3E37", "#070093")) +
+  theme(aspect.ratio = 0.05,
+        legend.position = 'none',
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.title = element_blank(),
+        axis.text = element_blank(),
+        axis.ticks = element_blank(),
+        panel.background = element_rect(fill = 'white'))
+
+p.pije <- p1 + annotation_custom(ggplotGrob(p2), xmin = "April", xmax = "Oct.",
+                       ymin = -10, ymax = 30)
+p.pije
+```
+
+
+### Other Species
+Function did not work for QUKE or PIJE...
+```{r}
+abco.phenophases <- c("Breaking buds", "Young leaves")
+abco.colors <- c("#4ECDC4", "#52E764") # Based on above vector
+p.abco <- pheno.dotplot.vis(species = "ABCO", phenophases = abco.phenophases,
+                            colors = abco.colors, letter = 'a', max.y = 470)
+p.abco
+
+#pije.phenophases <- c("Increasing leaf size", "Young leaves")
+#pije.colors <- c("#2B3E37", "#52E764")
+#p.pije <- pheno.dotplot.vis(species = "PIJE", phenophases = pije.phenophases,
+#                            colors = pije.colors, letter = 'b', max.y = 370)
+
+cade.phenophases <- c("Pollen cones", "Pollen release")
+cade.colors <- c("#6B91BD", "#E69512")
+p.cade <- pheno.dotplot.vis(species = "CADE", phenophases = cade.phenophases,
+                            colors = cade.colors, letter = 'c', max.y = 170)
+p.cade
+
+ceco.phenophases <- c("Flowers or flower buds", "Ripe fruits", "Young leaves")
+ceco.colors <- c("#F03D79", "#070093", "#52E764")
+p.ceco <- pheno.dotplot.vis(species = "CECO", phenophases = ceco.phenophases,
+                            colors = ceco.colors, no.phenophases = three, letter = 'd',
+                            max.y = 350)
+p.ceco
+
+arpa.phenophases <- c("Breaking buds", "Flowers or flower buds", "Ripe fruits", "Young leaves")
+arpa.colors <- c("#4ECDC4", "#F03D79", "#070093", "#52E764")
+p.arpa <-pheno.dotplot.vis(species = "ARPA", phenophases = arpa.phenophases,
+                           colors = arpa.colors, no.phenophases = four, letter = 'e',
+                           max.y = 230)
+p.arpa
+```
+
+### Dots Legend
+```{r}
+legend.dots.plot <- dots_df %>% 
+  mutate(name = case_when(name == 'mpa' ~ 'Water Potential',
+                          name == 'old_lfm' ~ 'Live Fuel Moisture \n(Old/Developed Tissue)',
+                          name == 'new_lfm' ~ 'Live Fuel Moisture \n(New Tissue)')) %>% 
+  ggplot(aes(x = month, y = value, color = name, shape = name)) +
+    geom_point(size = 5) +
+    geom_linerange(aes(ymin = value - 2*sd, ymax = value + 2*sd)) +
+    scale_color_manual(values = c('#262E43', '#262E43', '#5792CC')) +
+    scale_shape_manual(values = c(1, 16, 16)) +
+    labs(color = "Variable", shape = "Variable") +
+    theme(legend.position = 'top',
+        legend.title = element_text(face = 'bold'),
+        legend.key = element_rect(fill = 'white'))
+legend.dots.plot
+
+legend.dots <- cowplot::get_legend(legend.dots.plot)
+```
+
+
+### Arrange
+```{r}
+# Plots
+y.grob2 <- textGrob("Water Potential (MPa)", 
+                   rot = 270,
+                   gp=gpar(fontface="bold", 
+                           col="black", 
+                           fontsize=24))
+
+p.spp <- cowplot::plot_grid(p.abco, p.pije, p.cade, p.ceco, p.arpa, p.quke, ncol = 3)
+p.spp
+
+dots.spp.w.grob <- gridExtra::grid.arrange(arrangeGrob(p.spp, left = y.grob1, right = y.grob2))
+
+ggsave(here("figures", "main-figures", "Fig3.Updated.LFM.Dots.and.Phenophases.jpg"),
+       height = 10, width = 15,
+       plot = dots.spp.w.grob)
+
+
+# Legend
+dots.legends <- cowplot::plot_grid(blank_plot, legend.dots, legend, ncol = 1,
+                              rel_heights = c(5, .6, 1))
+dots.legends
+
+showtext::showtext_auto()
+showtext::showtext_opts(dpi = 300)
 ggsave(here("figures", "main-figures", "Fig3.Updated.Dots.Legend.jpg"),
        height = 5, width = 7,
        plot = dots.legends)
