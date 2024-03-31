@@ -2,14 +2,14 @@
 
 ## A GitHub Repository for: 
 
-## Pyro-ecophysiology of Sierra Nevada tree and shrub species: flammability, fuel moisture, and water relations mirror drought-tolerance strategies (title pending)
+## Towards predicting flammability: drought stress and fuel moisture are strongly linked in angiosperms but decoupled in gymnosperms
 
 ### Indra Boving, Joe Celebrezze, Leander Anderegg, and Max Moritz
 
 --------------------------------
 
 ## Introductory Statement
-This repository is meant for the storage and sharing of data, scripts, figures, and linear mixed effects model results tables related to the above paper. This paper looks at ...
+This repository is meant for the storage and sharing of data, scripts, figures, and linear mixed effects model results tables related to the above paper. 
 
 --------------------------------
 
@@ -51,7 +51,7 @@ The **raw-data** folder includes 13 datasets in .csv format. Below are brief des
   *seki.flam.curve.physiological.data.csv*:
 
 ### Processed Data:
-This folder includes ...
+
 
 ### Scripts:
 This folder includes four folders, each with scripts that we used to wrangle data, complete analyses, and design tables and figures for the main text, the supplementary index, and for exploratory analyses. The folders (**bold**) and the scripts inside each folder (*italicized*) are described briefly below, and we attempted to annotate the scripts and organize them by headings to make them easier for others to navigate.
