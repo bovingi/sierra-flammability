@@ -11,11 +11,6 @@
 ## Introductory Statement
 This repository is meant for the storage and sharing of data, scripts, figures, and linear mixed effects model results tables related to the above paper. 
 
---------------------------------
-
-## Table of Contents
-
-see methods or local papers for how to setup
 
 --------------------------------
 
@@ -24,31 +19,24 @@ see methods or local papers for how to setup
 ### Raw Data:
 The **raw-data** folder includes 13 datasets in .csv format. Below are brief descriptions of each of these datasets and their use(s); however, for a more comprehensive breakdown of the data, see the metadata.
 
-  *allcurves.csv*:
-  
-  *CZO_alldata_compiled.csv*: 
-  
-  *CZO_October_StemsLeaves.csv*: 
+  *allcurves.csv*: PV Curve data for all species
 
-  *czo.flam.curve.physiological.data.csv*:
+  *czo.flam.curve.physiological.data.csv*: Contains mpa, lfm, and saturated WC from CZO flam trials. 
+
+  *seki.flam.curve.physiological.data.csv*: Contains mpa, lfm, and saturated WC from SEKI flam trials. 
   
-  *field.summer.2020.csv*:
+  *field.summer.2020.csv*: Field LFM and MPa data from Summer 2020
   
-  *LFM_Sierra_AllDates.csv*:
+  *LFM_Sierra_AllDates.csv*: Just LFM from summer 2020
   
-  *phenology_czo_2021.csv*:
+  *phenology_czo_2021.csv*: Phenological data collected in 2021 from Providence Creek Watershed CZO
   
-  *PV_sierra_summaries_fixed.csv*:
+  *r.flam.data.czo.2020.csv*: Flammability data collected in 2020 from Providence Creek Watershed CZO
   
-  *PV_sierra_summaris.csv*:
+  *r.flam.data.czo.2021.csv*: Flammability data collected in 2021 from Providence Creek Watershed CZO
   
-  *r.flam.data.czo.2020.csv*:
-  
-  *r.flam.data.czo.2021.csv*:
-  
-  *SEKI_flammability.csv*:
-  
-  *seki.flam.curve.physiological.data.csv*:
+  *SEKI_flammability.csv*: Flammability data collected in 2020 from SEKI satellite sites
+
 
 ### Processed Data:
 
@@ -70,37 +58,32 @@ This folder includes scripts relating to tissue flammability of the Sierran spec
     
   *1.2_data_wrangling_all_sites.Rmd*:
     
-*2.PCA.Rmd*:
+*2.PCA.Rmd*: Principle component analysis
   
-**3.mixed_effects_models**: This folder includes scripts for running linear mixed effects models
+**3.mixed_effects_models**: This folder includes scripts for running linear mixed effects models (MEMs)
     
-  **3.1.MEM_flam_metrics**: this includes
+  **3.1.MEM_flam_metrics**: Includes separate scripts to run each flammability metric analysis using LFM and MPa as predictors
     
-  **3.2.RWC**:
+  **3.2.RWC**: Includes separate scripts to run each flammability metric analysis using relative water content (RWC) as a predictor
     
-  *3.3_top_MEM_models.Rmd*:
+  *3.3_top_MEM_models.Rmd*: Combined flammability metric top LFM/MPa models, combines into tables for easier analysis 
 
-*4.flam_vs_water_content.Rmd*: 
+*4.flam_vs_water_content.Rmd*: Previous iterations of figures, (unused in main text)
 
-*5.flammability_in_context.Rmd*:
+*4.1_water_flam_figs.Rmd*: Predicted flammability and script for creating Fig. 5
 
 #### Physiology
 
 This folder relates to the side of the story regarding the relationship between LFM and water potential and how different drought strategies are involved in the six Sierran species.
 
-*1.data_wrangling_and_PV_curves.Rmd*:
+*1.data_wrangling_and_PV_curves.Rmd*
   
-*2.predicting_mpa.Rmd*:
+*2.MEM_field_flam_PV.Rmd*: Mixed effects model comparing MPa~LFM from different methods. 
   
-*3.1.MEM_field_flam_PV.Rmd*:
+*3.FIGURES_variance_decompositions.Rmd*: Variance decompositions and code for making Fig. 3
   
-*3.2.variance_decompositions.Rmd*:
-  
-*4.1.npn_data_access.Rmd*:
-  
-*4.2.phenology_and_LFM_boxplots.Rmd*:
-  
-*5.segmented_regressions.Rmd*:
+*4.2.phenology_and_LFM_boxplots_UPDATED.Rmd*: Code for making Fig. 1
+ 
   
 #### Extra Analyses
 
