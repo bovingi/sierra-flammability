@@ -114,6 +114,10 @@ After a bunch of model selection, it seems like these are the best ones:
 ###Final models to chose from: 
 
 ```{r}
+sw_lfm_fh <- lmer(fh ~ lfm_scaled*spp + mpa_scaled*spp + site  + sample_wt_scaled + (1 | individual), data = mem_data_all, REML = F)
+AIC(sw_lfm_fh)
+performance::multicollinearity(sw_lfm_fh)
+
 sw_lfm_fh <- lmer(fh ~ lfm_scaled*spp + site  + sample_wt_scaled + (1 | individual), data = mem_data_all, REML = F)
 AIC(sw_lfm_fh)
 performance::multicollinearity(sw_lfm_fh)
@@ -324,6 +328,10 @@ tti_mod_noints <- lmer(tti ~ mpa_scaled + lfm_scaled + spp + site  + sample_wt_s
 ###Final models to chose from: 
 
 ```{r}
+sw_lfm_gd <- lmer(gd ~ lfm_scaled*spp + mpa_scaled*spp + site  + sample_wt_scaled + (1 | individual), data = mem_data_all, REML = F)
+AIC(sw_lfm_gd)
+performance::multicollinearity(sw_lfm_gd)
+
 sw_lfm_gd <- lmer(gd ~ lfm_scaled*spp + site  + sample_wt_scaled + (1 | individual), data = mem_data_all, REML = F)
 AIC(sw_lfm_gd)
 performance::multicollinearity(sw_lfm_gd)
@@ -363,6 +371,10 @@ tab_model(spp_only, sw_spp, sw_lfm_gd, sw_lfm_noint_gd, sw_mpa_gd, sw_mpa_noint_
 ##Flame duration: 
 
 ```{r}
+sw_lfm_fd <- lmer(fd ~ lfm_scaled*spp + mpa_scaled*spp +site  + sample_wt_scaled + (1 | individual), data = mem_data_all, REML = F)
+AIC(sw_lfm_fd)
+performance::multicollinearity(sw_lfm_fd)
+
 sw_lfm_fd <- lmer(fd ~ lfm_scaled*spp + site  + sample_wt_scaled + (1 | individual), data = mem_data_all, REML = F)
 AIC(sw_lfm_fd)
 performance::multicollinearity(sw_lfm_fd)
@@ -401,6 +413,11 @@ tab_model(spp_only, sw_spp, sw_lfm_fd, sw_lfm_noint_fd, sw_mpa_fd, sw_mpa_noint_
 ##Temp change: 
 
 ```{r}
+
+sw_lfm_temp_change <- lmer(temp_change ~ lfm_scaled*spp + mpa_scaled*spp + site  + sample_wt_scaled + (1 | individual), data = mem_data_all, REML = F)
+AIC(sw_lfm_temp_change)
+performance::multicollinearity(sw_lfm_temp_change)
+
 sw_lfm_temp_change <- lmer(temp_change ~ lfm_scaled*spp + site  + sample_wt_scaled + (1 | individual), data = mem_data_all, REML = F)
 AIC(sw_lfm_temp_change)
 performance::multicollinearity(sw_lfm_temp_change)

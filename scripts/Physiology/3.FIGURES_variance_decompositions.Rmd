@@ -45,7 +45,7 @@ here = here::here
 # if (!require("BiocManager", quietly = TRUE))
 #     install.packages("BiocManager")
 # 
-# BiocManager::install("variancePartition")
+ BiocManager::install("variancePartition")
 library('variancePartition')
 cite(variancePartition)
 
@@ -184,6 +184,8 @@ pv_vardecomp_gymno
 ggsave(plot=pv_vardecomp_gymno, bg = "white" , here::here("figures", "extra-figures", "var_decomp", "pv_vardecomp_gymno"), device="jpg")
 
 #------
+
+?vardecomp
 ```
 
 
@@ -839,7 +841,8 @@ plot <- df %>%
   geom_jitter(alpha = .1,
               size = 1) +
   scale_color_manual(values = color_pal) +
-  scale_y_continuous(limits = c(50, y.max), breaks = c(y.max/5, 2*y.max/5, 3*y.max/5, 4*y.max/5)) +
+  scale_y_continuous(limits = c(50, y.max), 
+                     breaks = c(y.max/5, 2*y.max/5, 3*y.max/5, 4*y.max/5)) +
   labs(title = f.group.lab,
        x = " ",
        y = y.lab) +
