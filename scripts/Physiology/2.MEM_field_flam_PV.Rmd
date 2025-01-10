@@ -31,7 +31,7 @@ library(modelsummary)
 library(nlme)
 library(lme4)
 library(MetBrewer)
-library(remef)
+#library(remef)
 library(kableExtra)
 library(janitor)
 library(lubridate)
@@ -312,7 +312,10 @@ qqnorm(resid(m10.75))
 r <- resid(m10.75)
 plot(fitted(m10.75), r)
 
-anova(m10.75)
+
+qqnorm(m10.75, ~ranef(., level=1))
+
+anova(mm10.75anova(m10.75)
 car::Anova(m10.75)
 
 specr::icc_specs(m10.75) %>%

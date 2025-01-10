@@ -1,6 +1,7 @@
-library(calecopal)
+
 #To install above package: 
-  #devtools::install_github("an-bui/calecopal")
+devtools::install_github("an-bui/calecopal")
+library(calecopal)
 library(MetBrewer)
 library(tidyverse)
 #make ggplot prettier
