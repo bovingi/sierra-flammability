@@ -134,15 +134,17 @@ field_data_all_3 <- field_data_all_3 %>%
   mutate(Age = case_when(
     age == 'new' ~ 'New',
     age == 'old' ~ 'Old'
-  ))
+  )) %>% 
+  mutate(midday = -1*midday)
 
 lfm_vs_mpa_tissue_status_plot <- field_data_all_3 %>%
   #filter(month < 10) %>% #removing post-rain values (October sample collection)
   mutate(spp = fct_relevel(spp, "ABCO", "PIJE", "CADE", "ARPA", "QUKE", "CECO"))  %>%
   mutate(month = month(date, label = TRUE, abbr = TRUE)) %>%
+  mutate(midday = -1*midday) %>% 
   mutate(Age = case_when(
-    Age == "New" ~ "Current Year",
-    Age == "Old" ~ "Previous Year"
+    Age == "New" ~ "New Growth",
+    Age == "Old" ~ "Old Growth"
   )) %>% 
   ggplot(aes(
     x = midday,
@@ -159,7 +161,7 @@ lfm_vs_mpa_tissue_status_plot <- field_data_all_3 %>%
     show_guide = F
   ) +
   geom_vline(
-    aes(xintercept = tlp, #lty = Species
+    aes(xintercept = -1*tlp, #lty = Species
         ),
     size = 0.7,
     color = 'black',
@@ -167,7 +169,7 @@ lfm_vs_mpa_tissue_status_plot <- field_data_all_3 %>%
     show_guide = F,
     lty = "dashed"
   ) +
-  xlim(-5, 0) +
+  xlim(0, 6) +
   labs(
     y = "Live Fuel Moisture",
     x = "Midday Water Potential (MPa)",

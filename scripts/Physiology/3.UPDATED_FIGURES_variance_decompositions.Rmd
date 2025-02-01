@@ -1,0 +1,1610 @@
+---
+title: "Variance Decomposition - LFM vs. MPa"
+author: "Indra Boving"
+date: "11/8/2022"
+output: html_document
+---
+# Setup
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(ggplot2)
+library(tidyverse)
+library(ggpubr)
+library(cowplot)
+library(nlme)
+library(lme4)
+library(janitor)
+library(lubridate)
+library(gridExtra)
+library(grid)
+library(patchwork)
+
+filter = dplyr::filter
+mutate = dplyr::mutate
+select = dplyr::select
+here = here::here
+
+#Need R version 4.3 and BiocManager version 3.16
+if (!require("BiocManager", quietly = TRUE))
+  install.packages("BiocManager")
+BiocManager::install(version = "3.20")
+
+BiocManager::install("variancePartition") 
+
+library('variancePartition')
+#cite(variancePartition)
+
+source(here::here("scripts", "scripts_functions", "figure_info_sierra_flammability.R")) #color and theme info is here
+
+source(here::here("scripts", "scripts_functions", "plotPercentBars_IB.R"))
+```
+
+# Data
+
+Scatterplots:
+```{r,warning=FALSE, message=TRUE}
+pv_all_df <- read_csv(here("processed-data", "var-decomp", "all_pv_curves_clean_vardecomp.csv"),show_col_types = FALSE)
+
+fgroup_pv_summaries <- read_csv(here("processed-data", "var-decomp", "fgroup_pv_summaries.csv"),show_col_types = FALSE)
+
+flam_curve_phys_all_raw <- read_csv(here("processed-data", "var-decomp", "flam_curve_vardecomp.csv"),show_col_types = FALSE)
+
+field_data_all <- read_csv(here("processed-data", "var-decomp", "field_data_vardecomp.csv"),show_col_types = FALSE) %>% 
+    filter(lfm < 300, 
+         lfm > 50, 
+        # age == "new"
+         ) %>% 
+  mutate(Species = case_when(
+    spp == "ARPA" ~ "Ar. patula", 
+    spp == "ABCO" ~ "Ab. concolor",
+    spp == "CADE" ~ "Ca. decurrens",
+    spp == "CECO" ~ "Ce. cordulatus",
+    spp == "PIJE" ~ "Pi. jeffreyi",
+    spp == "QUKE" ~ "Qu. kelloggii"
+  )) %>% 
+  mutate(ilfm = 1/lfm)
+
+#Removing outliers from PV Curve Data (for Angiosperms, Fig. 4c)
+
+pv_all_df <- pv_all_df %>% 
+  filter(individual != 'QUKE_2_2020-10-21',
+         individual !='QUKE_4_2020-10-21')
+
+flam_curve_df_2.1 <- read_csv(here("processed-data", "var-decomp", "flam_curve_vardecomp.csv"), show_col_types = FALSE) %>% 
+  drop_na(lfm, water_potential, spp, plant, year_month, F.Group) %>% 
+  mutate(plant = as.factor(plant), 
+         F.Group = as.factor(F.Group), 
+         year = as_factor(year))
+
+flam_all_df <- flam_curve_df_2.1 
+
+angio_flam <- flam_curve_df_2.1 %>% 
+  filter(F.Group == "Angiosperm")
+
+gymno_flam <- flam_curve_df_2.1 %>% 
+  filter(F.Group == "Gymnosperm")
+
+pv_all_df_2.1 <-  read_csv(here("processed-data", "var-decomp", "all_pv_curves_clean_vardecomp.csv"), show_col_types = FALSE) %>% 
+  filter(individual != c('QUKE_2_2020-10-21', 'QUKE_4_2020-10-21')) %>% 
+  mutate(plant = as.factor(plant), 
+         year = as.factor(year), 
+         spp = as.factor(spp)) %>% 
+  select(lfm, water_potential, F.Group, plant, year, year_month, spp) %>% 
+  na.omit()
+
+angio_pv <- pv_all_df_2.1%>% 
+  filter(F.Group == "Angiosperm")
+
+gymno_pv <- pv_all_df_2.1 %>% 
+  filter(F.Group == "Gymnosperm") 
+
+field_data_all_2.1 <- read_csv(here("processed-data", "var-decomp", "field_data_vardecomp.csv"), show_col_types = FALSE)  %>% 
+  drop_na(lfm, water_potential, spp, plant, year_month, age_new) %>% 
+  mutate(plant = as.factor(plant), 
+         log_lfm = as.numeric(log(lfm))) %>% 
+  mutate(plant = case_when(
+    str_detect(unique_id2, "1.1_1") | str_detect(unique_id2, "_1_1") ~ 1,
+    str_detect(unique_id2, "1.2_1") | str_detect(unique_id2, "_2_1") ~ 2,
+    str_detect(unique_id2, "1.3_1") | str_detect(unique_id2, "_3_1") ~ 3,
+    str_detect(unique_id2, "1.4_1") | str_detect(unique_id2, "_4_1") ~ 4,
+    str_detect(unique_id2, "1.5_1") | str_detect(unique_id2, "_5_1") ~ 5,
+    str_detect(unique_id2, "1.6_1") | str_detect(unique_id2, "_6_1") ~ 6,
+    str_detect(unique_id2, "2.1_2") | str_detect(unique_id2, "_1_2") ~ 7,
+    str_detect(unique_id2, "2.2_2") | str_detect(unique_id2, "_2_2") ~ 8,
+    str_detect(unique_id2, "2.3_2") | str_detect(unique_id2, "_3_2") ~ 9,
+    str_detect(unique_id2, "2.4_2") | str_detect(unique_id2, "_4_2") ~ 10,
+    str_detect(unique_id2, "2.5_2") | str_detect(unique_id2, "_5_2") ~ 11
+  )) %>% 
+  mutate(age_new_num = case_when(age_new == 'new' ~ 1,
+                                 age_new == 'old' ~ 0,
+                                 age_new == 'both' ~ 0.5)) %>% 
+  mutate(plant = as.factor(plant)) %>% 
+  drop_na(log_lfm) 
+
+angio_field <- field_data_all_2.1 %>% 
+  filter(F.Group == "Angiosperm")
+
+gymno_field <- field_data_all_2.1 %>% 
+  filter(F.Group == "Gymnosperm")
+```
+
+#-------
+
+# Variance Decomp.
+
+####Field Angio(a)
+
+```{r, fig.height=1, fig.width=1.6}
+# Fit a linear mixed-effects model with random effects for year_month, plant, and species (spp)
+mod <- lmer(lfm ~ water_potential + (1|year_month) + (1|plant) + (1|spp) + (1|age_new), data = angio_field)
+
+# Extract variance partitioning statistics for the model
+df <- calcVarPart(mod) 
+
+# Convert df (a list) into a dataframe with two columns: Term and Variance
+df_final <- data.frame(
+  Term = names(df),  # Extract term names (random effects and residuals)
+  Variance = sapply(df, function(x) as.numeric(x))  # Extract numeric variance estimates
+)
+
+# Reorder Term factor to control the order in the stacked bar chart
+df_final$Term <- factor(df_final$Term, levels = c("Residuals", "water_potential", "year_month", "spp", "plant", "age_new"))
+
+# Create a stacked bar plot
+field_vardecomp_angio <- ggplot(df_final, aes(x = "Variance Partitioning", y = Variance, fill = Term)) +
+  geom_bar(stat = "identity") +  # Use raw values to create the stacked bars
+  scale_y_continuous(limits = c(0, 1)) +  # Ensure the total variance adds up to 1
+  labs(x = NULL, y = "Proportion of Variance", fill = "Term") +  # Axis labels and legend title
+  theme_minimal() +  # Apply a minimal theme for a clean look
+  theme(
+    legend.position = "none",
+    axis.text.x = element_blank(), # Remove x-axis text
+    axis.ticks.x = element_blank(), # Remove x-axis ticks
+    text = element_text(size = 13), # Adjust global text size
+  #  axis.text.x = element_text(angle = 90, hjust = 1, vjust = 1), # Rotate x-axis labels
+    axis.line = element_line(colour = "transparent"), # Hide axis lines
+    # axis.line.x = element_line(colour = "black"), # Uncomment if x-axis line is needed
+    panel.grid.major = element_blank(), # Remove major grid lines
+    panel.grid.minor = element_blank(), # Remove minor grid lines
+    panel.border = element_blank(), # Remove panel border
+    panel.background = element_blank(), # Remove panel background
+    axis.ticks.y = element_blank(), # Remove y-axis ticks
+    legend.key = element_blank(), # Remove legend key background
+    plot.margin = unit(c(0, .5, 0, 0), "cm") # Adjust plot margins
+  ) +
+  guides(fill = guide_legend(title = NULL)) + # Remove title from legend
+  scale_fill_manual(values = vcol) + # Manually assign colors from the vcol vector
+  scale_x_discrete(
+    breaks = seq(0, 100, by = 20), # Define x-axis breaks
+    label = seq(100, 0, by = -20), # Label x-axis from 100 down to 0
+    expand = c(0, .3) # Add spacing around x-axis categories
+  ) +
+  labs(y = "", x = "") + # Remove x and y axis labels
+  theme(text = element_text(colour = "black"), # Set all text color to black
+    axis.text = element_text(colour = "black"), # Ensure axis text is black
+    legend.text = element_text(colour = "black") # Ensure legend text is black
+  )
+field_vardecomp_angio
+
+ggsave(plot=field_vardecomp_angio, bg = "white" , here::here("figures", "extra-figures", "var_decomp", "field_vardecomp_angio"), device="jpg")
+```
+#####ilfm
+```{r, fig.height=1, fig.width=1.6}
+# Fit a linear mixed-effects model with random effects for year_month, plant, and species (spp)
+mod <- lmer(ilfm ~ water_potential + (1|year_month) + (1|plant) + (1|spp) + (1|age_new), data = angio_field)
+
+# Extract variance partitioning statistics for the model
+df <- calcVarPart(mod) 
+
+# Convert df (a list) into a dataframe with two columns: Term and Variance
+df_final <- data.frame(
+  Term = names(df),  # Extract term names (random effects and residuals)
+  Variance = sapply(df, function(x) as.numeric(x))  # Extract numeric variance estimates
+)
+
+# Reorder Term factor to control the order in the stacked bar chart
+df_final$Term <- factor(df_final$Term, levels = c("Residuals", "water_potential", "year_month", "spp", "plant", "age_new"))
+
+# Create a stacked bar plot
+field_vardecomp_angio_ilfm <- ggplot(df_final, aes(x = "Variance Partitioning", y = Variance, fill = Term)) +
+  geom_bar(stat = "identity") +  # Use raw values to create the stacked bars
+  scale_y_continuous(limits = c(0, 1)) +  # Ensure the total variance adds up to 1
+  labs(x = NULL, y = "Proportion of Variance", fill = "Term") +  # Axis labels and legend title
+  theme_minimal() +  # Apply a minimal theme for a clean look
+  theme(
+    legend.position = "none",
+    axis.text.x = element_blank(), # Remove x-axis text
+    axis.ticks.x = element_blank(), # Remove x-axis ticks
+    text = element_text(size = 13), # Adjust global text size
+  #  axis.text.x = element_text(angle = 90, hjust = 1, vjust = 1), # Rotate x-axis labels
+    axis.line = element_line(colour = "transparent"), # Hide axis lines
+    # axis.line.x = element_line(colour = "black"), # Uncomment if x-axis line is needed
+    panel.grid.major = element_blank(), # Remove major grid lines
+    panel.grid.minor = element_blank(), # Remove minor grid lines
+    panel.border = element_blank(), # Remove panel border
+    panel.background = element_blank(), # Remove panel background
+    axis.ticks.y = element_blank(), # Remove y-axis ticks
+    legend.key = element_blank(), # Remove legend key background
+    plot.margin = unit(c(0, .5, 0, 0), "cm") # Adjust plot margins
+  ) +
+  guides(fill = guide_legend(title = NULL)) + # Remove title from legend
+  scale_fill_manual(values = vcol) + # Manually assign colors from the vcol vector
+  scale_x_discrete(
+    breaks = seq(0, 100, by = 20), # Define x-axis breaks
+    label = seq(100, 0, by = -20), # Label x-axis from 100 down to 0
+    expand = c(0, .3) # Add spacing around x-axis categories
+  ) +
+  labs(y = "", x = "") + # Remove x and y axis labels
+  theme(text = element_text(colour = "black"), # Set all text color to black
+    axis.text = element_text(colour = "black"), # Ensure axis text is black
+    legend.text = element_text(colour = "black") # Ensure legend text is black
+  )
+field_vardecomp_angio_ilfm
+
+ggsave(plot=field_vardecomp_angio_ilfm, bg = "white" , here::here("figures", "extra-figures", "var_decomp", "field_vardecomp_angio_ilfm"), device="jpg")
+```
+
+#####log
+```{r, fig.height=1, fig.width=1.6}
+# Fit a linear mixed-effects model with random effects for year_month, plant, and species (spp)
+mod <- lmer(log(lfm) ~ water_potential + (1|year_month) + (1|plant) + (1|spp) + (1|age_new), data = angio_field)
+
+# Extract variance partitioning statistics for the model
+df <- calcVarPart(mod) 
+
+# Convert df (a list) into a dataframe with two columns: Term and Variance
+df_final <- data.frame(
+  Term = names(df),  # Extract term names (random effects and residuals)
+  Variance = sapply(df, function(x) as.numeric(x))  # Extract numeric variance estimates
+)
+
+# Reorder Term factor to control the order in the stacked bar chart
+df_final$Term <- factor(df_final$Term, levels = c("Residuals", "water_potential", "year_month", "spp", "plant", "age_new"))
+
+# Create a stacked bar plot
+field_vardecomp_angio_log <- ggplot(df_final, aes(x = "Variance Partitioning", y = Variance, fill = Term)) +
+  geom_bar(stat = "identity") +  # Use raw values to create the stacked bars
+  scale_y_continuous(limits = c(0, 1)) +  # Ensure the total variance adds up to 1
+  labs(x = NULL, y = "Proportion of Variance", fill = "Term") +  # Axis labels and legend title
+  theme_minimal() +  # Apply a minimal theme for a clean look
+  theme(
+    legend.position = "none",
+    axis.text.x = element_blank(), # Remove x-axis text
+    axis.ticks.x = element_blank(), # Remove x-axis ticks
+    text = element_text(size = 13), # Adjust global text size
+  #  axis.text.x = element_text(angle = 90, hjust = 1, vjust = 1), # Rotate x-axis labels
+    axis.line = element_line(colour = "transparent"), # Hide axis lines
+    # axis.line.x = element_line(colour = "black"), # Uncomment if x-axis line is needed
+    panel.grid.major = element_blank(), # Remove major grid lines
+    panel.grid.minor = element_blank(), # Remove minor grid lines
+    panel.border = element_blank(), # Remove panel border
+    panel.background = element_blank(), # Remove panel background
+    axis.ticks.y = element_blank(), # Remove y-axis ticks
+    legend.key = element_blank(), # Remove legend key background
+    plot.margin = unit(c(0, .5, 0, 0), "cm") # Adjust plot margins
+  ) +
+  guides(fill = guide_legend(title = NULL)) + # Remove title from legend
+  scale_fill_manual(values = vcol) + # Manually assign colors from the vcol vector
+  scale_x_discrete(
+    breaks = seq(0, 100, by = 20), # Define x-axis breaks
+    label = seq(100, 0, by = -20), # Label x-axis from 100 down to 0
+    expand = c(0, .3) # Add spacing around x-axis categories
+  ) +
+  labs(y = "", x = "") + # Remove x and y axis labels
+  theme(text = element_text(colour = "black"), # Set all text color to black
+    axis.text = element_text(colour = "black"), # Ensure axis text is black
+    legend.text = element_text(colour = "black") # Ensure legend text is black
+  )
+field_vardecomp_angio_log
+
+ggsave(plot=field_vardecomp_angio_log, bg = "white" , here::here("figures", "extra-figures", "var_decomp", "field_vardecomp_angio_log"), device="jpg")
+```
+
+
+####Field gymno (b)
+
+```{r, fig.height=1, fig.width=1.6}
+# Fit a linear mixed-effects model with random effects for year_month, plant, and species (spp)
+mod <- lmer(lfm ~ water_potential + (1|year_month) + (1|plant) + (1|spp) + (1|age_new), data = gymno_field)
+
+# Extract variance partitioning statistics for the model
+df <- calcVarPart(mod) 
+
+# Convert df (a list) into a dataframe with two columns: Term and Variance
+df_final <- data.frame(
+  Term = names(df),  # Extract term names (random effects and residuals)
+  Variance = sapply(df, function(x) as.numeric(x))  # Extract numeric variance estimates
+)
+
+# Reorder Term factor to control the order in the stacked bar chart
+df_final$Term <- factor(df_final$Term, levels = c("Residuals", "water_potential", "year_month", "spp", "plant", "age_new"))
+
+# Create a stacked bar plot
+field_vardecomp_gymno <- ggplot(df_final, aes(x = "Variance Partitioning", y = Variance, fill = Term)) +
+  geom_bar(stat = "identity") +  # Use raw values to create the stacked bars
+  scale_y_continuous(limits = c(0, 1)) +  # Ensure the total variance adds up to 1
+  labs(x = NULL, y = "Proportion of Variance", fill = "Term") +  # Axis labels and legend title
+  theme_minimal() +  # Apply a minimal theme for a clean look
+  theme(
+    legend.position = "none",
+    axis.text.x = element_blank(), # Remove x-axis text
+    axis.ticks.x = element_blank(), # Remove x-axis ticks
+    text = element_text(size = 13), # Adjust global text size
+  #  axis.text.x = element_text(angle = 90, hjust = 1, vjust = 1), # Rotate x-axis labels
+    axis.line = element_line(colour = "transparent"), # Hide axis lines
+    # axis.line.x = element_line(colour = "black"), # Uncomment if x-axis line is needed
+    panel.grid.major = element_blank(), # Remove major grid lines
+    panel.grid.minor = element_blank(), # Remove minor grid lines
+    panel.border = element_blank(), # Remove panel border
+    panel.background = element_blank(), # Remove panel background
+    axis.ticks.y = element_blank(), # Remove y-axis ticks
+    legend.key = element_blank(), # Remove legend key background
+    plot.margin = unit(c(0, .5, 0, 0), "cm") # Adjust plot margins
+  ) +
+  guides(fill = guide_legend(title = NULL)) + # Remove title from legend
+  scale_fill_manual(values = vcol) + # Manually assign colors from the vcol vector
+  scale_x_discrete(
+    breaks = seq(0, 100, by = 20), # Define x-axis breaks
+    label = seq(100, 0, by = -20), # Label x-axis from 100 down to 0
+    expand = c(0, .3) # Add spacing around x-axis categories
+  ) +
+  labs(y = "", x = "") + # Remove x and y axis labels
+  theme(text = element_text(colour = "black"), # Set all text color to black
+    axis.text = element_text(colour = "black"), # Ensure axis text is black
+    legend.text = element_text(colour = "black") # Ensure legend text is black
+  )
+flam_vardecomp_gymno
+
+ggsave(plot=field_vardecomp_gymno, bg = "white" , here::here("figures", "extra-figures", "var_decomp", "field_vardecomp_gymno"), device="jpg")
+```
+#####ilfm
+```{r, fig.height=1, fig.width=1.6}
+# Fit a linear mixed-effects model with random effects for year_month, plant, and species (spp)
+mod <- lmer(ilfm ~ water_potential + (1|year_month) + (1|plant) + (1|spp) + (1|age_new), data = gymno_field)
+
+# Extract variance partitioning statistics for the model
+df <- calcVarPart(mod) 
+
+# Convert df (a list) into a dataframe with two columns: Term and Variance
+df_final <- data.frame(
+  Term = names(df),  # Extract term names (random effects and residuals)
+  Variance = sapply(df, function(x) as.numeric(x))  # Extract numeric variance estimates
+)
+
+# Reorder Term factor to control the order in the stacked bar chart
+df_final$Term <- factor(df_final$Term, levels = c("Residuals", "water_potential", "year_month", "spp", "plant", "age_new"))
+
+# Create a stacked bar plot
+field_vardecomp_gymno_ilfm <- ggplot(df_final, aes(x = "Variance Partitioning", y = Variance, fill = Term)) +
+  geom_bar(stat = "identity") +  # Use raw values to create the stacked bars
+  scale_y_continuous(limits = c(0, 1)) +  # Ensure the total variance adds up to 1
+  labs(x = NULL, y = "Proportion of Variance", fill = "Term") +  # Axis labels and legend title
+  theme_minimal() +  # Apply a minimal theme for a clean look
+  theme(
+    legend.position = "none",
+    axis.text.x = element_blank(), # Remove x-axis text
+    axis.ticks.x = element_blank(), # Remove x-axis ticks
+    text = element_text(size = 13), # Adjust global text size
+  #  axis.text.x = element_text(angle = 90, hjust = 1, vjust = 1), # Rotate x-axis labels
+    axis.line = element_line(colour = "transparent"), # Hide axis lines
+    # axis.line.x = element_line(colour = "black"), # Uncomment if x-axis line is needed
+    panel.grid.major = element_blank(), # Remove major grid lines
+    panel.grid.minor = element_blank(), # Remove minor grid lines
+    panel.border = element_blank(), # Remove panel border
+    panel.background = element_blank(), # Remove panel background
+    axis.ticks.y = element_blank(), # Remove y-axis ticks
+    legend.key = element_blank(), # Remove legend key background
+    plot.margin = unit(c(0, .5, 0, 0), "cm") # Adjust plot margins
+  ) +
+  guides(fill = guide_legend(title = NULL)) + # Remove title from legend
+  scale_fill_manual(values = vcol) + # Manually assign colors from the vcol vector
+  scale_x_discrete(
+    breaks = seq(0, 100, by = 20), # Define x-axis breaks
+    label = seq(100, 0, by = -20), # Label x-axis from 100 down to 0
+    expand = c(0, .3) # Add spacing around x-axis categories
+  ) +
+  labs(y = "", x = "") + # Remove x and y axis labels
+  theme(text = element_text(colour = "black"), # Set all text color to black
+    axis.text = element_text(colour = "black"), # Ensure axis text is black
+    legend.text = element_text(colour = "black") # Ensure legend text is black
+  )
+field_vardecomp_gymno_ilfm
+
+ggsave(plot=field_vardecomp_gymno_ilfm, bg = "white" , here::here("figures", "extra-figures", "var_decomp", "field_vardecomp_gymno_ilfm"), device="jpg")
+```
+
+#####log
+```{r, fig.height=1, fig.width=1.6}
+# Fit a linear mixed-effects model with random effects for year_month, plant, and species (spp)
+mod <- lmer(log(lfm) ~ water_potential + (1|year_month) + (1|plant) + (1|spp) + (1|age_new), data = gymno_field)
+
+# Extract variance partitioning statistics for the model
+df <- calcVarPart(mod) 
+
+# Convert df (a list) into a dataframe with two columns: Term and Variance
+df_final <- data.frame(
+  Term = names(df),  # Extract term names (random effects and residuals)
+  Variance = sapply(df, function(x) as.numeric(x))  # Extract numeric variance estimates
+)
+
+# Reorder Term factor to control the order in the stacked bar chart
+df_final$Term <- factor(df_final$Term, levels = c("Residuals", "water_potential", "year_month", "spp", "plant", "age_new"))
+
+# Create a stacked bar plot
+field_vardecomp_gymno_log <- ggplot(df_final, aes(x = "Variance Partitioning", y = Variance, fill = Term)) +
+  geom_bar(stat = "identity") +  # Use raw values to create the stacked bars
+  scale_y_continuous(limits = c(0, 1)) +  # Ensure the total variance adds up to 1
+  labs(x = NULL, y = "Proportion of Variance", fill = "Term") +  # Axis labels and legend title
+  theme_minimal() +  # Apply a minimal theme for a clean look
+  theme(
+    legend.position = "none",
+    axis.text.x = element_blank(), # Remove x-axis text
+    axis.ticks.x = element_blank(), # Remove x-axis ticks
+    text = element_text(size = 13), # Adjust global text size
+  #  axis.text.x = element_text(angle = 90, hjust = 1, vjust = 1), # Rotate x-axis labels
+    axis.line = element_line(colour = "transparent"), # Hide axis lines
+    # axis.line.x = element_line(colour = "black"), # Uncomment if x-axis line is needed
+    panel.grid.major = element_blank(), # Remove major grid lines
+    panel.grid.minor = element_blank(), # Remove minor grid lines
+    panel.border = element_blank(), # Remove panel border
+    panel.background = element_blank(), # Remove panel background
+    axis.ticks.y = element_blank(), # Remove y-axis ticks
+    legend.key = element_blank(), # Remove legend key background
+    plot.margin = unit(c(0, .5, 0, 0), "cm") # Adjust plot margins
+  ) +
+  guides(fill = guide_legend(title = NULL)) + # Remove title from legend
+  scale_fill_manual(values = vcol) + # Manually assign colors from the vcol vector
+  scale_x_discrete(
+    breaks = seq(0, 100, by = 20), # Define x-axis breaks
+    label = seq(100, 0, by = -20), # Label x-axis from 100 down to 0
+    expand = c(0, .3) # Add spacing around x-axis categories
+  ) +
+  labs(y = "", x = "") + # Remove x and y axis labels
+  theme(text = element_text(colour = "black"), # Set all text color to black
+    axis.text = element_text(colour = "black"), # Ensure axis text is black
+    legend.text = element_text(colour = "black") # Ensure legend text is black
+  )
+field_vardecomp_gymno_log
+
+ggsave(plot=field_vardecomp_gymno_log, bg = "white" , here::here("figures", "extra-figures", "var_decomp", "field_vardecomp_gymno_log"), device="jpg")
+```
+####Angio PV (c)
+```{r, fig.height=1, fig.width=1.6}
+# Fit a linear mixed-effects model with random effects for year_month, plant, and species (spp)
+mod <- lmer(lfm ~ water_potential + (1|year_month) + (1|plant) + (1|spp), data = angio_pv)
+
+# Extract variance partitioning statistics for the model
+df <- calcVarPart(mod) 
+
+# Convert df (a list) into a dataframe with two columns: Term and Variance
+df_final <- data.frame(
+  Term = names(df),  # Extract term names (random effects and residuals)
+  Variance = sapply(df, function(x) as.numeric(x))  # Extract numeric variance estimates
+)
+
+# Reorder Term factor to control the order in the stacked bar chart
+df_final$Term <- factor(df_final$Term, levels = c("Residuals", "water_potential", "year_month", "spp", "plant"))
+
+# Create a stacked bar plot
+pv_vardecomp_angio <- ggplot(df_final, aes(x = "Variance Partitioning", y = Variance, fill = Term)) +
+  geom_bar(stat = "identity") +  # Use raw values to create the stacked bars
+  scale_y_continuous(limits = c(0, 1)) +  # Ensure the total variance adds up to 1
+  labs(x = NULL, y = "Proportion of Variance", fill = "Term") +  # Axis labels and legend title
+  theme_minimal() +  # Apply a minimal theme for a clean look
+  theme(
+    legend.position = "none",
+    axis.text.x = element_blank(), # Remove x-axis text
+    axis.ticks.x = element_blank(), # Remove x-axis ticks
+    text = element_text(size = 13), # Adjust global text size
+  #  axis.text.x = element_text(angle = 90, hjust = 1, vjust = 1), # Rotate x-axis labels
+    axis.line = element_line(colour = "transparent"), # Hide axis lines
+    # axis.line.x = element_line(colour = "black"), # Uncomment if x-axis line is needed
+    panel.grid.major = element_blank(), # Remove major grid lines
+    panel.grid.minor = element_blank(), # Remove minor grid lines
+    panel.border = element_blank(), # Remove panel border
+    panel.background = element_blank(), # Remove panel background
+    axis.ticks.y = element_blank(), # Remove y-axis ticks
+    legend.key = element_blank(), # Remove legend key background
+    plot.margin = unit(c(0, .5, 0, 0), "cm") # Adjust plot margins
+  ) +
+  guides(fill = guide_legend(title = NULL)) + # Remove title from legend
+  scale_fill_manual(values = vcol) + # Manually assign colors from the vcol vector
+  scale_x_discrete(
+    breaks = seq(0, 100, by = 20), # Define x-axis breaks
+    label = seq(100, 0, by = -20), # Label x-axis from 100 down to 0
+    expand = c(0, .3) # Add spacing around x-axis categories
+  ) +
+  labs(y = "", x = "") + # Remove x and y axis labels
+  theme(text = element_text(colour = "black"), # Set all text color to black
+    axis.text = element_text(colour = "black"), # Ensure axis text is black
+    legend.text = element_text(colour = "black") # Ensure legend text is black
+  )
+pv_vardecomp_angio
+
+ggsave(plot=pv_vardecomp_angio, bg = "white" , here::here("figures", "extra-figures", "var_decomp", "pv_vardecomp_angio"), device="jpg")
+```
+
+####Gymno PV (d)
+```{r, fig.height=1, fig.width=1.6}
+# Fit a linear mixed-effects model with random effects for year_month, plant, and species (spp)
+mod <- lmer(lfm ~ water_potential + (1|year_month) + (1|plant) + (1|spp), data = gymno_pv)
+
+# Extract variance partitioning statistics for the model
+df <- calcVarPart(mod) 
+
+# Convert df (a list) into a dataframe with two columns: Term and Variance
+df_final <- data.frame(
+  Term = names(df),  # Extract term names (random effects and residuals)
+  Variance = sapply(df, function(x) as.numeric(x))  # Extract numeric variance estimates
+)
+
+# Reorder Term factor to control the order in the stacked bar chart
+df_final$Term <- factor(df_final$Term, levels = c("Residuals", "water_potential", "year_month", "spp", "plant"))
+
+# Create a stacked bar plot
+pv_vardecomp_gymno <- ggplot(df_final, aes(x = "Variance Partitioning", y = Variance, fill = Term)) +
+  geom_bar(stat = "identity") +  # Use raw values to create the stacked bars
+  scale_y_continuous(limits = c(0, 1)) +  # Ensure the total variance adds up to 1
+  labs(x = NULL, y = "Proportion of Variance", fill = "Term") +  # Axis labels and legend title
+  theme_minimal() +  # Apply a minimal theme for a clean look
+  theme(
+    legend.position = "none",
+    axis.text.x = element_blank(), # Remove x-axis text
+    axis.ticks.x = element_blank(), # Remove x-axis ticks
+    text = element_text(size = 13), # Adjust global text size
+  #  axis.text.x = element_text(angle = 90, hjust = 1, vjust = 1), # Rotate x-axis labels
+    axis.line = element_line(colour = "transparent"), # Hide axis lines
+    # axis.line.x = element_line(colour = "black"), # Uncomment if x-axis line is needed
+    panel.grid.major = element_blank(), # Remove major grid lines
+    panel.grid.minor = element_blank(), # Remove minor grid lines
+    panel.border = element_blank(), # Remove panel border
+    panel.background = element_blank(), # Remove panel background
+    axis.ticks.y = element_blank(), # Remove y-axis ticks
+    legend.key = element_blank(), # Remove legend key background
+    plot.margin = unit(c(0, .5, 0, 0), "cm") # Adjust plot margins
+  ) +
+  guides(fill = guide_legend(title = NULL)) + # Remove title from legend
+  scale_fill_manual(values = vcol) + # Manually assign colors from the vcol vector
+  scale_x_discrete(
+    breaks = seq(0, 100, by = 20), # Define x-axis breaks
+    label = seq(100, 0, by = -20), # Label x-axis from 100 down to 0
+    expand = c(0, .3) # Add spacing around x-axis categories
+  ) +
+  labs(y = "", x = "") + # Remove x and y axis labels
+  theme(text = element_text(colour = "black"), # Set all text color to black
+    axis.text = element_text(colour = "black"), # Ensure axis text is black
+    legend.text = element_text(colour = "black") # Ensure legend text is black
+  )
+pv_vardecomp_gymno
+
+ggsave(plot=pv_vardecomp_gymno, bg = "white" , here::here("figures", "extra-figures", "var_decomp", "pv_vardecomp_gymno"), device="jpg")
+```
+
+####Flam Angio (e)
+
+```{r, fig.height=1, fig.width=1.6}
+# Fit a linear mixed-effects model with random effects for year_month, plant, and species (spp)
+mod <- lmer(lfm ~ water_potential + (1|year_month) + (1|plant) + (1|spp), data = angio_flam)
+
+# Extract variance partitioning statistics for the model
+df <- calcVarPart(mod) 
+
+# Convert df (a list) into a dataframe with two columns: Term and Variance
+df_final <- data.frame(
+  Term = names(df),  # Extract term names (random effects and residuals)
+  Variance = sapply(df, function(x) as.numeric(x))  # Extract numeric variance estimates
+)
+
+# Reorder Term factor to control the order in the stacked bar chart
+df_final$Term <- factor(df_final$Term, levels = c("Residuals", "water_potential", "year_month", "spp", "plant"))
+
+# Create a stacked bar plot
+flam_vardecomp_angio <- ggplot(df_final, aes(x = "Variance Partitioning", y = Variance, fill = Term)) +
+  geom_bar(stat = "identity") +  # Use raw values to create the stacked bars
+  scale_y_continuous(limits = c(0, 1)) +  # Ensure the total variance adds up to 1
+  labs(x = NULL, y = "Proportion of Variance", fill = "Term") +  # Axis labels and legend title
+  theme_minimal() +  # Apply a minimal theme for a clean look
+  theme(
+    legend.position = "none",
+    axis.text.x = element_blank(), # Remove x-axis text
+    axis.ticks.x = element_blank(), # Remove x-axis ticks
+    text = element_text(size = 13), # Adjust global text size
+  #  axis.text.x = element_text(angle = 90, hjust = 1, vjust = 1), # Rotate x-axis labels
+    axis.line = element_line(colour = "transparent"), # Hide axis lines
+    # axis.line.x = element_line(colour = "black"), # Uncomment if x-axis line is needed
+    panel.grid.major = element_blank(), # Remove major grid lines
+    panel.grid.minor = element_blank(), # Remove minor grid lines
+    panel.border = element_blank(), # Remove panel border
+    panel.background = element_blank(), # Remove panel background
+    axis.ticks.y = element_blank(), # Remove y-axis ticks
+    legend.key = element_blank(), # Remove legend key background
+    plot.margin = unit(c(0, .5, 0, 0), "cm") # Adjust plot margins
+  ) +
+  guides(fill = guide_legend(title = NULL)) + # Remove title from legend
+  scale_fill_manual(values = vcol) + # Manually assign colors from the vcol vector
+  scale_x_discrete(
+    breaks = seq(0, 100, by = 20), # Define x-axis breaks
+    label = seq(100, 0, by = -20), # Label x-axis from 100 down to 0
+    expand = c(0, .3) # Add spacing around x-axis categories
+  ) +
+  labs(y = "", x = "") + # Remove x and y axis labels
+  theme(text = element_text(colour = "black"), # Set all text color to black
+    axis.text = element_text(colour = "black"), # Ensure axis text is black
+    legend.text = element_text(colour = "black") # Ensure legend text is black
+  )
+flam_vardecomp_angio
+
+ggsave(plot=flam_vardecomp_angio, bg = "white" , here::here("figures", "extra-figures", "var_decomp", "flam_vardecomp_angio"), device="jpg")
+```
+
+
+
+
+
+
+
+
+
+
+
+####Flam Gymno (f)
+
+```{r, fig.height=1, fig.width=1.6}
+# Fit a linear mixed-effects model with random effects for year_month, plant, and species (spp)
+mod <- lmer(lfm ~ water_potential + (1|year_month) + (1|plant) + (1|spp), data = gymno_flam)
+
+# Extract variance partitioning statistics for the model
+df <- calcVarPart(mod) 
+
+# Convert df (a list) into a dataframe with two columns: Term and Variance
+df_final <- data.frame(
+  Term = names(df),  # Extract term names (random effects and residuals)
+  Variance = sapply(df, function(x) as.numeric(x))  # Extract numeric variance estimates
+)
+
+# Reorder Term factor to control the order in the stacked bar chart
+df_final$Term <- factor(df_final$Term, levels = c("Residuals", "water_potential", "year_month", "spp", "plant"))
+
+# Create a stacked bar plot
+flam_vardecomp_gymno <- ggplot(df_final, aes(x = "Variance Partitioning", y = Variance, fill = Term)) +
+  geom_bar(stat = "identity") +  # Use raw values to create the stacked bars
+  scale_y_continuous(limits = c(0, 1)) +  # Ensure the total variance adds up to 1
+  labs(x = NULL, y = "Proportion of Variance", fill = "Term") +  # Axis labels and legend title
+  theme_minimal() +  # Apply a minimal theme for a clean look
+  theme(
+    legend.position = "none",
+    axis.text.x = element_blank(), # Remove x-axis text
+    axis.ticks.x = element_blank(), # Remove x-axis ticks
+    text = element_text(size = 13), # Adjust global text size
+  #  axis.text.x = element_text(angle = 90, hjust = 1, vjust = 1), # Rotate x-axis labels
+    axis.line = element_line(colour = "transparent"), # Hide axis lines
+    # axis.line.x = element_line(colour = "black"), # Uncomment if x-axis line is needed
+    panel.grid.major = element_blank(), # Remove major grid lines
+    panel.grid.minor = element_blank(), # Remove minor grid lines
+    panel.border = element_blank(), # Remove panel border
+    panel.background = element_blank(), # Remove panel background
+    axis.ticks.y = element_blank(), # Remove y-axis ticks
+    legend.key = element_blank(), # Remove legend key background
+    plot.margin = unit(c(0, .5, 0, 0), "cm") # Adjust plot margins
+  ) +
+  guides(fill = guide_legend(title = NULL)) + # Remove title from legend
+  scale_fill_manual(values = vcol) + # Manually assign colors from the vcol vector
+  scale_x_discrete(
+    breaks = seq(0, 100, by = 20), # Define x-axis breaks
+    label = seq(100, 0, by = -20), # Label x-axis from 100 down to 0
+    expand = c(0, .3) # Add spacing around x-axis categories
+  ) +
+  labs(y = "", x = "") + # Remove x and y axis labels
+  theme(text = element_text(colour = "black"), # Set all text color to black
+    axis.text = element_text(colour = "black"), # Ensure axis text is black
+    legend.text = element_text(colour = "black") # Ensure legend text is black
+  )
+flam_vardecomp_gymno
+
+ggsave(plot=flam_vardecomp_gymno, bg = "white" , here::here("figures", "extra-figures", "var_decomp", "flam_vardecomp_gymno"), device="jpg")
+```
+
+
+##Legend
+```{r}
+library(ggplot2)
+
+# Ensure Term is a factor with correct levels for ordering and coloring
+df_final$Term <- factor(df_final$Term, 
+                        levels = c("Residuals", "water_potential", "year_month", "spp", "plant", "age_new"))
+
+# Define color mapping that matches Term levels
+color_mapping <- c("Residuals" = 'grey', 
+                   "water_potential" = '#280b53',  
+                   "year_month" = '#d44842', 
+                   "spp" = "#9f2a63", 
+                   "plant" = '#65156e', 
+                   "age_new" = '#fac228')
+
+# Create the stacked bar chart
+legend <- ggplot(df_final, aes(x = "Variance Partitioning", y = Variance, fill = Term)) +
+  geom_bar(stat = "identity") +  # Use raw values for stacking
+  scale_y_continuous(limits = c(0, 1)) +  # Ensure variance sums to 1
+  scale_fill_manual(
+    values = color_mapping,  # Assign custom colors
+    labels = c("Residuals" = "Residuals",
+               "water_potential" = "Water Potential",
+               "year_month" = "Timing", 
+               "spp" = "Species", 
+               "plant" = "Plant", 
+               "age_new" = "Old/New Growth")  # Custom labels
+  ) +
+  theme_minimal() +  
+  theme(
+    legend.title = element_text(face = 'bold', size = 14),
+    legend.text = element_text(size = 14)
+  ) +
+  labs(fill = "Predictor")
+
+# Print the legend plot
+legend
+
+cow_legend <- cowplot::get_legend(legend)
+cow_legend
+
+#Combine: 
+
+vardecomp_ilfm <- cowplot::plot_grid(field_vardecomp_angio_ilfm, field_vardecomp_gymno_ilfm, cow_legend, 
+                                     nrow = 1, rel_widths = c(1, .9, .75))
+vardecomp_ilfm
+
+ggsave(plot=vardecomp_ilfm, bg = "white" , here::here("figures", "extra-figures", "var_decomp", "field_vardecomp_fgroups_ilfm "), device="jpg")
+```
+#------
+# Scatterplots
+
+
+##Function
+```{r}
+lfm.vs.mpa.scatterplot_pvflam <- function(f.group.lab = " ", f.group, y.lab = " ", df, df2, df3, y.axis = F, x.axis = F, y.max, present.title = F) {
+  
+# For color palette
+if(f.group == "Angiosperm") {color_pal <- c('#5792CC', '#C75146', '#6E406E')}
+if(f.group == "Gymnosperm") {color_pal <- c('#42401D', '#5DA493', '#D8AB43')}
+  
+# For TLP linetype
+if(f.group == "Angiosperm") {fgr_lty <- 1}
+if(f.group == "Gymnosperm") {fgr_lty <- 2}
+  
+# For axis text and ticks
+if(y.axis == T) {y.text <- element_text(size = 16)}
+if(y.axis == T) {y.tick <- NULL}
+if(y.axis == F) {y.text <- element_blank()}
+if(y.axis == F) {y.tick <- element_blank()}
+if(x.axis == T) {x.text <- element_text(size = 16)}
+if(x.axis == T) {x.tick <- NULL}
+if(x.axis == F) {x.text <- element_blank()}
+if(x.axis == F) {x.tick <- element_blank()}
+  
+# For plot title
+if(present.title == T) {plot.title.format <- element_text(size = 30, face = 'bold', hjust = 0.5)}
+if(present.title == F) {plot.title.format <- element_blank()}
+
+fgroup_pv_summaries <- fgroup_pv_summaries %>% 
+  filter(F.Group == f.group)
+
+plot <- df %>%
+  filter(lfm < 300,
+         lfm > 50) %>%
+  filter(F.Group == f.group) %>%
+  ggplot(aes(y = lfm,
+             x = -1*water_potential,
+             color = spp)) +
+  geom_vline(aes(xintercept = -1*mean_tlp_group), data = fgroup_pv_summaries) +
+  geom_jitter(alpha = .1,
+              size = 1) +
+  scale_color_manual(values = color_pal) +
+  scale_y_continuous(limits = c(50, y.max), 
+                     breaks = c(y.max/5, 2*y.max/5, 3*y.max/5, 4*y.max/5)) +
+  labs(title = f.group.lab,
+       x = " ",
+       y = y.lab) +
+   theme(legend.position = "none",
+         plot.title = plot.title.format,
+         axis.title = element_text(face = 'bold', size = 26),
+         axis.text.y = y.text,
+         axis.text.x = x.text,
+         axis.ticks.y = y.tick,
+         axis.ticks.x = x.tick,
+         strip.background = element_blank(),
+         strip.text = element_text(size  = 26, face = "bold"),
+         plot.margin = unit(c(0.05, 0, 0, 0.1), 'cm')) + # previous: 0.05, 0, 0, 0.1
+  xlim(0, 10)
+
+return(plot)
+}
+```
+
+### - Field plot (a)
+```{r}
+field_plot_df <- field_data_all_2.1 %>% 
+  filter(!spp %in% c("ADFA", "CEME"))
+
+field_plot_df$spp <- factor(field_plot_df$spp, levels = c('ABCO', 'PIJE', 'CADE', 'ARPA', 'CECO', 'QUKE'))
+
+field_plot_angio <- lfm.vs.mpa.scatterplot_pvflam(f.group = "Angiosperm", y.lab = "PV Curves", y.axis = T, y.max = 250, df = field_plot_df) +
+  annotate(geom = "text", x = 0, y = 250, label = 'a', fontface = 'bold', size = 12) +
+  geom_smooth(method = "lm", se = F, #lty = "dotted", 
+              size = 1) + annotation_custom(ggplotGrob(field_vardecomp_angio),
+                                     xmin = 7.1, xmax = 10,
+                                     ymin = 85, ymax = 246)  
+field_plot_angio
+
+field_plot_gymno <- lfm.vs.mpa.scatterplot_pvflam(f.group = "Gymnosperm", y.max = 250, df = field_plot_df) +
+  annotate(geom = "text", x = 0, y = 240, label = 'b', fontface = 'bold', size = 12) +
+  geom_smooth(method = "lm", se = F,#lty = "dotted", 
+              size = 1) + annotation_custom(ggplotGrob(field_vardecomp_gymno),
+                                     xmin = 7.1, xmax = 10,
+                                     ymin = 85, ymax = 246)
+field_plot_gymno
+```
+####- Slopes df: 
+
+```{r}
+angio_field_df <- field_data_all_2.1 %>% 
+  filter(F.Group == "Angiosperm", 
+        month >= 8, 
+        age == "new"
+         ) %>% 
+  select(Species, lfm, water_potential, month) %>% 
+  mutate(water_potential = -1*water_potential)
+
+angio_field_slopes_df <- lmer(lfm ~ water_potential + (water_potential|Species), data = angio_field_df)
+
+#get estimates for each week: 
+
+ran_list2 <- coef(angio_field_slopes_df )
+hyd_mod_df <- broom::tidy(angio_field_slopes_df )
+
+ran_df_hyd  <- as.data.frame(ran_list2[['Species']])%>% 
+  mutate(estimate = `(Intercept)`, 
+         slope = `water_potential`, 
+         -water_potential) %>%
+  select(-`(Intercept)`)
+
+#random error of each week: 
+
+ran_err <- arm::se.ranef(angio_field_slopes_df)
+
+ran_err_df_hyd  <- as.data.frame(ran_err[['Species']]) %>% 
+  mutate(std.error = `(Intercept)`, 
+         std.error.slope = `water_potential`)%>% 
+  select(-`(Intercept)`, 
+         -water_potential) %>% 
+  tibble::rownames_to_column("Species")
+
+#combine error with estimates: 
+
+angio_field_slopes <- bind_cols(ran_df_hyd , ran_err_df_hyd ) %>% 
+  data_frame() %>% 
+  mutate(upr = slope + (std.error.slope),
+         lwr = slope - (std.error.slope))
+
+gymno_field_df <- field_data_all_2.1 %>% 
+  filter(F.Group == "Gymnosperm", 
+         month >= 8, 
+        age == "new"
+         ) %>% 
+  select(Species, lfm, water_potential)%>% 
+  mutate(water_potential = -1*water_potential)
+
+gymno_field_slopes_df <- lmer(lfm ~ water_potential + (water_potential|Species), data = gymno_field_df)
+
+#get estimates for each week: 
+
+ran_list2 <- coef(gymno_field_slopes_df )
+hyd_mod_df <- broom::tidy(gymno_field_slopes_df )
+
+ran_df_hyd  <- as.data.frame(ran_list2[['Species']])%>% 
+  mutate(estimate = `(Intercept)`, 
+         slope = `water_potential`, 
+         -water_potential) %>%
+  select(-`(Intercept)`)
+
+#random error of each week: 
+
+ran_err <- arm::se.ranef(gymno_field_slopes_df)
+
+ran_err_df_hyd  <- as.data.frame(ran_err[['Species']]) %>% 
+  mutate(std.error = `(Intercept)`, 
+         std.error.slope = `water_potential`)%>% 
+  select(-`(Intercept)`, 
+         -water_potential) %>% 
+  tibble::rownames_to_column("Species")
+
+#combine error with estimates: 
+
+gymno_field_slopes <- bind_cols(ran_df_hyd , ran_err_df_hyd ) %>% 
+  data_frame() %>% 
+  mutate(upr = slope + (std.error.slope),
+         lwr = slope - (std.error.slope))
+```
+### - PV plot (b)
+```{r}
+pv_plot_df <- pv_all_df %>% 
+  filter(!spp %in% c("ADFA", "CEME"))
+
+pv_plot_df$spp <- factor(pv_plot_df$spp, levels = c('ABCO', 'PIJE', 'CADE', 'ARPA', 'CECO', 'QUKE'))
+
+pv_vd_sp_angio <- lfm.vs.mpa.scatterplot_pvflam(f.group = "Angiosperm", y.lab = "PV Curves", y.axis = T, y.max = 250, df = pv_plot_df) +
+  annotate(geom = "text", x = 0, y = 250, label = 'c', fontface = 'bold', size = 12) +
+  geom_smooth(method = "lm", se = F, #lty = "dotted", 
+              size = 1) + annotation_custom(ggplotGrob(pv_vardecomp_angio),
+                                     xmin = 7.1, xmax = 10,
+                                     ymin = 85, ymax = 246)
+pv_vd_sp_angio
+
+pv_vd_sp_gymno <- lfm.vs.mpa.scatterplot_pvflam(f.group = "Gymnosperm", y.max = 250, df = pv_plot_df) +
+  annotate(geom = "text", x = 0, y = 240, label = 'd', fontface = 'bold', size = 12) +
+  geom_smooth(method = "lm", se = F,#lty = "dotted", 
+              size = 1) + annotation_custom(ggplotGrob(pv_vardecomp_gymno),
+                                     xmin = 7.1, xmax = 10,
+                                     ymin = 85, ymax = 246)
+pv_vd_sp_gymno
+```
+
+####- Slopes df: 
+
+```{r}
+angio_pv_df <- pv_all_df %>% 
+  filter(F.Group == "Angiosperm") %>% 
+  select(Species, lfm, water_potential)%>% 
+  mutate(water_potential = -1*water_potential)
+
+angio_pv_slopes_df <- lmer(lfm ~ water_potential + (water_potential|Species), data = angio_pv_df)
+
+#get estimates for each week: 
+
+ran_list2 <- coef(angio_pv_slopes_df )
+hyd_mod_df <- broom::tidy(angio_pv_slopes_df )
+
+ran_df_hyd  <- as.data.frame(ran_list2[['Species']])%>% 
+  mutate(estimate = `(Intercept)`, 
+         slope = `water_potential`, 
+         -water_potential) %>%
+  select(-`(Intercept)`)
+
+#random error of each week: 
+
+ran_err <- arm::se.ranef(angio_pv_slopes_df)
+
+ran_err_df_hyd  <- as.data.frame(ran_err[['Species']]) %>% 
+  mutate(std.error = `(Intercept)`, 
+         std.error.slope = `water_potential`)%>% 
+  select(-`(Intercept)`, 
+         -water_potential) %>% 
+  tibble::rownames_to_column("Species")
+
+#combine error with estimates: 
+
+angio_pv_slopes <- bind_cols(ran_df_hyd , ran_err_df_hyd ) %>% 
+  data_frame() %>% 
+  mutate(upr = slope + (std.error.slope),
+         lwr = slope - (std.error.slope))
+
+gymno_pv_df <- pv_all_df %>% 
+  filter(F.Group == "Gymnosperm") %>% 
+  select(Species, lfm, water_potential) %>% 
+  mutate(water_potential = -1*water_potential)
+
+gymno_pv_slopes_df <- lmer(lfm ~ water_potential + (water_potential|Species), data = gymno_pv_df)
+
+#get estimates for each week: 
+
+ran_list2 <- coef(gymno_pv_slopes_df )
+hyd_mod_df <- broom::tidy(gymno_pv_slopes_df )
+
+ran_df_hyd  <- as.data.frame(ran_list2[['Species']])%>% 
+  mutate(estimate = `(Intercept)`, 
+         slope = `water_potential`, 
+         -water_potential) %>%
+  select(-`(Intercept)`)
+
+#random error of each week: 
+
+ran_err <- arm::se.ranef(gymno_pv_slopes_df)
+
+ran_err_df_hyd  <- as.data.frame(ran_err[['Species']]) %>% 
+  mutate(std.error = `(Intercept)`, 
+         std.error.slope = `water_potential`)%>% 
+  select(-`(Intercept)`, 
+         -water_potential) %>% 
+  tibble::rownames_to_column("Species")
+
+#combine error with estimates: 
+
+gymno_pv_slopes <- bind_cols(ran_df_hyd , ran_err_df_hyd ) %>% 
+  data_frame() %>% 
+  mutate(upr = slope + (std.error.slope),
+         lwr = slope - (std.error.slope))
+```
+
+### - Flam plot (c)
+
+```{r}
+flam_all_df <- flam_curve_phys_all_raw %>% 
+  filter(!spp %in% c("ADFA", "CEME"))
+
+flam_plot_angio <- lfm.vs.mpa.scatterplot_pvflam(f.group = "Angiosperm", y.lab = "Flam. Data", y.axis = T, y.max = 250, x.axis = T, df = flam_all_df) +
+  annotate(geom = "text", x = 0, y = 245, label = 'e', fontface = 'bold', size = 12) +
+  geom_smooth(method = "lm", se = F, #lty = "dashed", 
+              size = 1)
+flam_plot_angio
+
+flam_vd_sp_angio <- flam_plot_angio + annotation_custom(ggplotGrob(flam_vardecomp_angio),
+                                     xmin = 7.1, xmax = 10,
+                                     ymin = 85, ymax = 246) 
+flam_vd_sp_angio
+
+flam_plot_gymno <- lfm.vs.mpa.scatterplot_pvflam(f.group = "Gymnosperm", y.max = 250, x.axis = T, df = flam_all_df) +
+  annotate(geom = "text", x = 0, y = 240, label = 'f', fontface = 'bold', size = 12) +
+  geom_smooth(method = "lm", se = F, #lty = "dashed"
+              )
+flam_plot_gymno
+
+flam_vd_sp_gymno <- flam_plot_gymno + annotation_custom(ggplotGrob(flam_vardecomp_gymno),
+                                     xmin = 7.1, xmax = 10,
+                                     ymin = 85, ymax = 246)
+flam_vd_sp_gymno
+```
+
+####- Slopes df: 
+
+```{r}
+angio_flam_df <- angio_flam %>% 
+  filter(F.Group == "Angiosperm") %>% 
+  mutate(Species = case_when(
+    spp == "ARPA" ~ "Ar. patula", 
+    spp == "ABCO" ~ "Ab. concolor",
+    spp == "CADE" ~ "Ca. decurrens",
+    spp == "CECO" ~ "Ce. cordulatus",
+    spp == "PIJE" ~ "Pi. jeffreyi",
+    spp == "QUKE" ~ "Qu. kelloggii"
+  )) %>% 
+  select(Species, lfm, water_potential) %>% 
+  mutate(water_potential = -1*water_potential)
+
+angio_flam_slopes_df <- lmer(lfm ~ water_potential + (water_potential|Species), data = angio_flam_df)
+
+#get estimates for each week: 
+
+ran_list2 <- coef(angio_flam_slopes_df )
+hyd_mod_df <- broom::tidy(angio_flam_slopes_df )
+
+ran_df_hyd  <- as.data.frame(ran_list2[['Species']])%>% 
+  mutate(estimate = `(Intercept)`, 
+         slope = `water_potential`, 
+         -water_potential) %>%
+  select(-`(Intercept)`)
+
+#random error of each week: 
+
+ran_err <- arm::se.ranef(angio_flam_slopes_df)
+
+ran_err_df_hyd  <- as.data.frame(ran_err[['Species']]) %>% 
+  mutate(std.error = `(Intercept)`, 
+         std.error.slope = `water_potential`)%>% 
+  select(-`(Intercept)`, 
+         -water_potential) %>% 
+  tibble::rownames_to_column("Species")
+
+#combine error with estimates: 
+
+angio_flam_slopes <- bind_cols(ran_df_hyd , ran_err_df_hyd ) %>% 
+  data_frame() %>% 
+  mutate(upr = slope + (std.error.slope),
+         lwr = slope - (std.error.slope))
+
+gymno_flam_df <- flam_all_df %>% 
+  filter(F.Group == "Gymnosperm") %>% 
+  mutate(Species = case_when(
+    spp == "ARPA" ~ "Ar. patula", 
+    spp == "ABCO" ~ "Ab. concolor",
+    spp == "CADE" ~ "Ca. decurrens",
+    spp == "CECO" ~ "Ce. cordulatus",
+    spp == "PIJE" ~ "Pi. jeffreyi",
+    spp == "QUKE" ~ "Qu. kelloggii"
+  ))  %>% 
+  select(Species, lfm, water_potential) %>% 
+  mutate(water_potential = -1*water_potential)
+
+gymno_flam_slopes_df <- lmer(lfm ~ water_potential + (water_potential|Species), data = gymno_flam_df)
+
+#get estimates for each week: 
+
+ran_list2 <- coef(gymno_flam_slopes_df )
+hyd_mod_df <- broom::tidy(gymno_flam_slopes_df )
+
+ran_df_hyd  <- as.data.frame(ran_list2[['Species']])%>% 
+  mutate(estimate = `(Intercept)`, 
+         slope = `water_potential`, 
+         -water_potential) %>%
+  select(-`(Intercept)`)
+
+#random error of each week: 
+
+ran_err <- arm::se.ranef(gymno_flam_slopes_df)
+
+ran_err_df_hyd  <- as.data.frame(ran_err[['Species']]) %>% 
+  mutate(std.error = `(Intercept)`, 
+         std.error.slope = `water_potential`)%>% 
+  select(-`(Intercept)`, 
+         -water_potential) %>% 
+  tibble::rownames_to_column("Species")
+
+#combine error with estimates: 
+
+gymno_flam_slopes <- bind_cols(ran_df_hyd , ran_err_df_hyd ) %>% 
+  data_frame() %>% 
+  mutate(upr = slope + (std.error.slope),
+         lwr = slope - (std.error.slope))
+```
+
+## Combine slopes: 
+
+```{r, eval = F}
+slopes_all <- bind_rows(gymno_flam_slopes %>% mutate(F.Group = "Gymnosperm", 
+                                                     method = "flam"), 
+                        angio_flam_slopes %>% mutate(F.Group = "Angiosperm", 
+                                                     method = "flam"), 
+                        gymno_pv_slopes %>% mutate(F.Group = "Gymnosperm", 
+                                                   method = "pv"), 
+                        angio_pv_slopes %>% mutate(F.Group = "Angiosperm", 
+                                                   method = "pv"), 
+                        gymno_field_slopes %>% mutate(F.Group = "Gymnosperm", 
+                                                      method = "field"), 
+                        angio_field_slopes %>% mutate(F.Group = "Angiosperm", 
+                                                      method = "field")) %>% 
+    filter(!(Species %in% c("Ce. megacarpus"))) %>% 
+  mutate(Species = case_when(
+    Species %in% c("P. jeffreyi") ~ "Pi. jeffreyi",
+    Species %in% c("A. concolor") ~ "Ab. concolor",
+    Species %in% c("C. decurrens") ~ "Ca. decurrens",
+    Species %in% c("A. patula") ~ "Ar. patula",
+    Species %in% c("Q. kelloggii") ~ "Qu. kelloggii",
+    Species %in% c("C. cordulatus") ~ "Ce. cordulatus",
+    TRUE ~ as.factor(Species)
+  ))
+
+
+slopes_all %>%
+  mutate(method = as.factor(method)) %>% 
+  ggplot(aes(color= Species)) + 
+  geom_point(aes(y = slope, x = Species), size =3) +
+  geom_point(aes(y = upr, x = Species), size = 1) +
+  geom_point(aes(y = lwr, x = Species), size = 1) +
+  #geom_line(aes(group = week, y = week, x = upr)) +
+  geom_segment(aes(y= lwr, 
+                   yend = upr, 
+                   x = Species, 
+                   xend = Species, 
+                   color = Species))+
+  labs(color = "Species", 
+       y = "Slope") +
+theme(
+  strip.background = element_blank(),
+  strip.text.y = element_blank(), 
+  strip.text.x = element_text(size = 16), 
+  axis.text.x = element_text(angle = 45, hjust = 1),
+ # axis.text.y = element_blank(), 
+  #axis.ticks.y = element_blank(), 
+ axis.title.x = element_blank(),
+  axis.title.y = element_text(size = 20), 
+  legend.title = element_text(size = 18), 
+ legend.position = "none"
+  ) +
+  geom_hline(yintercept = 0, linetype="dotted") + 
+  theme(legend.position = "none") +
+  facet_wrap(~F.Group*method, nrow = 1,
+             scales = "free_x"
+            # scales = "free"
+             ) +
+  color_many2
+```
+
+```{r}
+slopes_all %>%
+  mutate(method = as.factor(method)) %>% 
+  ggplot(aes(color= Species)) + 
+  geom_point(aes(y = estimate, x = Species), size =3) +
+  #geom_point(aes(y = upr, x = Species), size = 1) +
+ # geom_point(aes(y = lwr, x = Species), size = 1) +
+  #geom_line(aes(group = week, y = week, x = upr)) +
+  # geom_segment(aes(y= lwr, 
+  #                  yend = upr, 
+  #                  x = Species, 
+  #                  xend = Species, 
+  #                  color = Species))+
+  labs(color = "Species", 
+       y = "intercept") +
+theme(
+  strip.background = element_blank(),
+  strip.text.y = element_blank(), 
+  strip.text.x = element_text(size = 16), 
+  axis.text.x = element_text(angle = 45, hjust = 1),
+ # axis.text.y = element_blank(), 
+  #axis.ticks.y = element_blank(), 
+ axis.title.x = element_blank(),
+  axis.title.y = element_text(size = 20), 
+  legend.title = element_text(size = 18), 
+ legend.position = "none"
+  ) +
+  geom_hline(yintercept = 0, linetype="dotted") + 
+  theme(legend.position = "none") +
+  facet_wrap(~F.Group*method, nrow = 1,
+             scales = "free_x"
+            # scales = "free"
+             ) +
+  color_many2
+```
+
+## Arranging
+
+###Legend 1 - Scatterplot, spp
+```{r, warning = F}
+field_data_all$Species <- factor(field_data_all$Species, levels = c("Ab. concolor", "Pi. jeffreyi", "Ca. decurrens", "Ar. patula", "Ce. cordulatus", "Qu. kelloggii"))
+
+field_data_all_leg <- field_data_all %>% 
+  mutate(line_var = case_when(
+    lfm <= 70 ~ "PV", 
+    lfm >= 100 ~ "Field", 
+    TRUE ~ as.character("Flam.")
+  ))
+
+
+field_plot_leg <- ggplot(aes(y = lfm, 
+             x = -1*water_potential, 
+             color = Species), 
+         data = field_data_all_leg) +
+  geom_point(size = 3,
+             alpha = .7, 
+             data = field_data_all_leg) +
+ geom_vline(aes(xintercept = -1*mean_tlp_group), data = fgroup_pv_summaries) +
+  geom_smooth(aes(y = lfm, x = water_potential, 
+             # lty = line_var
+              ),
+              color = "black",
+             # lty = c("solid", "dashed", "dotdash"), 
+              size = 1,
+              data = field_data_all_leg) +
+  labs(lty = "Drydown Type", 
+       color = "Species" 
+       ) +
+   theme(plot.margin = unit(c(.2, .5, .3, .25), "cm"),
+        axis.title = element_text(face = 'bold', size = 26),
+        axis.text = element_text(size = 16),
+        legend.title = element_text(face = 'bold', size = 24),
+        legend.text = element_text(face = 'italic', size = 20),
+        legend.key = element_rect(colour = NA, fill = NA),
+       # legend.key = element_rect(fill = 'white')
+        ) +
+  scale_color_manual(values = c('#42401D', '#5DA493', '#D8AB43', '#5792CC', '#C75146', '#6E406E'))
+field_plot_leg
+```
+
+###Legend 2 - TLP:
+
+```{r, warning = F}
+legend_dots <- cowplot::get_legend(field_plot_leg)
+
+field_plot_leg2 <- ggplot(aes(y = lfm, 
+             x = -1*water_potential), 
+         data = field_data_all_leg) +
+  geom_point(size = 3,
+             alpha = .7, 
+             data = field_data_all_leg) +
+ geom_vline(aes(xintercept = -1*mean_tlp_group, 
+                #lty = F.Group
+                color = "F. Group mean"
+                ), 
+            data = fgroup_pv_summaries, 
+            #lty = "solid"
+            ) +
+  labs(color = "TLP") +
+   theme(plot.margin = unit(c(.2, .5, .3, .25), "cm"),
+        axis.title = element_text(face = 'bold', size = 26),
+        axis.text = element_text(size = 16),
+        legend.title = element_text(face = 'bold', size = 24),
+        legend.text = element_text(face = 'italic', size = 20),
+        legend.key = element_rect(fill = 'white')) +
+  color_many2 
+
+field_plot_leg2
+legend_tlp <- cowplot::get_legend(field_plot_leg2)
+legend_tlp
+```
+
+###Legend 3 - Var. Decomp.
+```{r}
+library(ggplot2)
+
+# Ensure Term is a factor with correct levels for ordering and coloring
+df_final$Term <- factor(df_final$Term, 
+                        levels = c("Residuals", "water_potential", "year_month", "spp", "plant", "age_new"))
+
+# Define color mapping that matches Term levels
+color_mapping <- c("Residuals" = 'grey', 
+                   "water_potential" = '#280b53',  
+                   "year_month" = '#d44842', 
+                   "spp" = "#9f2a63", 
+                   "plant" = '#65156e', 
+                   "age_new" = '#fac228')
+
+# Create the stacked bar chart
+legend <- ggplot(df_final, aes(x = "Variance Partitioning", y = Variance, fill = Term)) +
+  geom_bar(stat = "identity") +  # Use raw values for stacking
+  scale_y_continuous(limits = c(0, 1)) +  # Ensure variance sums to 1
+  scale_fill_manual(
+    values = color_mapping,  # Assign custom colors
+    labels = c("Residuals" = "Residuals",
+               "water_potential" = "Water Potential",
+               "year_month" = "Timing", 
+               "spp" = "Species", 
+               "plant" = "Plant", 
+               "age_new" = "Old/New Growth")  # Custom labels
+  ) +
+  theme_minimal() +  
+  theme(
+    legend.title = element_text(face = 'bold', size = 14),
+    legend.text = element_text(size = 14)
+  ) +
+  labs(fill = "Predictor") +
+     theme(plot.margin = unit(c(.2, .5, .3, .25), "cm"),
+        axis.title = element_text(face = 'bold', size = 26),
+        axis.text = element_text(size = 16),
+        legend.title = element_text(face = 'bold', size = 24),
+        legend.text = element_text(face = 'italic', size = 20),
+        legend.key = element_rect(colour = NA, fill = NA),
+       # legend.key = element_rect(fill = 'white')
+        ) +
+
+# Print the legend plot
+legend
+
+cow_legend <- cowplot::get_legend(legend)
+cow_legend
+# 
+blank_plot <- ggplot(data = field_data_all_2.1, aes(x = lfm, y = mpa)) +
+  geom_point(color = 'white') +
+  theme_void()
+```
+
+#Fig 3 FINAL
+
+```{r}
+legend <- cowplot::plot_grid(legend_dots, cow_legend,blank_plot, 
+                             ncol = 1, 
+                             rel_heights = c(.5, .6, 1))
+
+
+
+
+y.grob <- textGrob("Live Fuel Moisture (%)", 
+                   rot = 90,
+                   gp=gpar(fontface="bold", 
+                           col="black", 
+                           fontsize=30))
+x.grob <- textGrob("Water Potential (-MPa)",
+                   gp=gpar(fontface="bold", 
+                           col="black", 
+                           fontsize=30))
+
+
+plots <- cowplot::plot_grid(field_vd_sp_angio, field_plot_gymno, pv_vd_sp_angio, pv_vd_sp_gymno, flam_vd_sp_angio, flam_vd_sp_gymno, 
+                            ncol = 2, 
+                            nrow = 3, 
+                            rel_heights = c(1.15,1,1.08), 
+                            rel_widths = c(1.08, 1))
+#plots
+
+plots2 <- gridExtra::grid.arrange(arrangeGrob(plots, left = y.grob, bottom = x.grob))
+
+plots_legend <- cowplot::plot_grid(plots2, legend, rel_widths = c(5, 1.5), rel_heights = c(1,.25))
+plots_legend
+
+ggsave(plot=plots_legend, bg = "white" , here("figures", "main-figures", "Fig5.LFM.vs.MPa.Scatterplots.jpg"), height = 10.5, width = 14.5)
+```
+
+#-------------
+# Split by TLP
+
+Angio, above: 
+both angiosperms (breakpoint = -2.6 +/- .152 MPa, TLP = -2.6 +/- .27 MPa), and for gymnosperms (breakpoint = -2.05 +/- .102 MPa, p = 0.278, TLP = -2.3 +/- .142 MPa). 
+
+```{r, fig.height=1, fig.width=1.5}
+angio_above <- angio_field %>% 
+  filter(water_potential > -2.6)
+
+form <- ~ water_potential + (1|spp) + (1|year_month) + (1|plant) + (1|age_new)
+
+lfm_matrix <- angio_above %>% 
+  ungroup() %>% 
+  mutate(id = row_number()) %>% 
+  select(id, lfm) %>% 
+  pivot_wider(names_from = id, 
+              values_from = lfm) 
+
+varPart <- fitExtractVarPartModel(lfm_matrix, form, angio_above )
+varPart
+
+above_vardecomp_angio <- plotPercentBars.new(varPart, col = c(vcol)) + theme(legend.position = "none")+
+  labs(title = "Angiosperm, above")
+above_vardecomp_angio
+
+ggsave(plot=pv_vardecomp_angio, bg = "white" , here::here("figures", "extra-figures", "var_decomp", "above_vardecomp_angio"), device="jpg")
+
+angio_below <- angio_field %>% 
+  filter(water_potential < -2.6)
+
+#below
+
+lfm_matrix <- angio_below %>% 
+  ungroup() %>% 
+  mutate(id = row_number()) %>% 
+  select(id, lfm) %>% 
+  pivot_wider(names_from = id, 
+              values_from = lfm) 
+
+varPart <- fitExtractVarPartModel(lfm_matrix, form, angio_below )
+varPart
+
+below_vardecomp_angio <- plotPercentBars.new(varPart, col = c(vcol)) + theme(legend.position = "none")+
+  labs(title = "Angiosperm, below")
+below_vardecomp_angio
+
+ggsave(plot=pv_vardecomp_angio, bg = "white" , here::here("figures", "extra-figures", "var_decomp", "below_vardecomp_angio"), device="jpg")
+
+
+
+#gymno above
+
+gymno_above <- gymno_field %>% 
+  filter(water_potential > -2.3)
+
+
+lfm_matrix <- gymno_above %>% 
+  ungroup() %>% 
+  mutate(id = row_number()) %>% 
+  select(id, lfm) %>% 
+  pivot_wider(names_from = id, 
+              values_from = lfm) 
+
+varPart <- fitExtractVarPartModel(lfm_matrix, form, gymno_above )
+varPart
+
+above_vardecomp_gymno <- plotPercentBars.new(varPart, col = c(vcol)) + theme(legend.position = "none")+
+  labs(title = "Gymnosperm, above")
+above_vardecomp_gymno
+
+ggsave(plot=pv_vardecomp_gymno, bg = "white" , here::here("figures",  "extra-figures", "var_decomp", "above_vardecomp_gymno"), device="jpg")
+
+#gymno below
+
+gymno_below <- gymno_field %>% 
+  filter(water_potential < -2.3)
+
+
+lfm_matrix <- gymno_below %>% 
+  ungroup() %>% 
+  mutate(id = row_number()) %>% 
+  select(id, lfm) %>% 
+  pivot_wider(names_from = id, 
+              values_from = lfm) 
+
+varPart <- fitExtractVarPartModel(lfm_matrix, form, gymno_below )
+varPart
+
+below_vardecomp_gymno <- plotPercentBars.new(varPart, col = c(vcol)) + 
+  theme(legend.position = "none") +
+  labs(title = "Gymnosperm, below")
+
+
+below_vardecomp_gymno+
+  theme(strip.text = element_text("Gymnosperm, below"))
+
+ggsave(plot=pv_vardecomp_gymno, bg = "white" , here::here("figures",  "extra-figures", "var_decomp", "below_vardecomp_gymno"), device="jpg")
+```
+
+
+```{r, fig.height= 4, fig.width=4}
+plots_stacked <- cowplot::plot_grid(above_vardecomp_angio, 
+                                    above_vardecomp_gymno, 
+                                    below_vardecomp_angio, 
+                                    below_vardecomp_gymno, 
+                                    ncol = 2,
+                                    labels=c('a', 'b', 'c', 'd'),
+                                    label_size = 22,
+                                    label_fontface = "bold",
+                                    label_y = 1.03)
+plots_stacked
+
+plots_stacked_legend <- cowplot::plot_grid(plots_stacked, cow_legend, ncol = 2, rel_widths = c(4,1))
+plots_stacked_legend
+
+ggsave(plot=plots_stacked_legend, bg = "white" , here::here("figures",  "supp-figures", "FigS3.var_decomp_split_TLP.jpg"), height = 7, width = 9)
+```
+
+#New growth only:
+
+###- Field plot - new growth only
+
+```{r, eval = F}
+
+form <- ~ water_potential + (1|spp) + (1|year_month) + (1|plant) 
+
+angio_field_new <- angio_field %>% 
+  filter(age_new == 'new') 
+  
+lfm_matrix <- angio_field_new  %>% 
+  ungroup() %>% 
+  mutate(id = row_number()) %>% 
+  select(id, log_lfm) %>% 
+  pivot_wider(names_from = id, 
+              values_from = log_lfm) 
+
+varPart <- fitExtractVarPartModel(lfm_matrix, form, angio_field_new )
+varPart
+
+field_vardecomp_angio_new <- plotPercentBars(varPart, col = c(vcol))+ theme(legend.position = "none")  
+field_vardecomp_angio
+
+ggsave(plot=field_vardecomp_angio_new, bg = "white" , here::here("figures", "extra-figures", "var_decomp", "field_vardecomp_angio_new"), device="jpg")
+
+#------
+
+form <- ~ water_potential + (1|spp) + (1|year_month) + (1|plant) 
+
+gymno_field_new <- gymno_field %>% 
+  filter(age_new == 'new') 
+
+lfm_matrix <- gymno_field_new %>% 
+  ungroup() %>% 
+  mutate(id = row_number()) %>% 
+  select(id, log_lfm) %>% 
+  pivot_wider(names_from = id, 
+              values_from = log_lfm) 
+
+varPart <- fitExtractVarPartModel(lfm_matrix, form, gymno_field_new)
+varPart
+
+field_vardecomp_gymno_new <- plotPercentBars.new(varPart, col = c(vcol))+ theme(legend.position = "none")
+field_vardecomp_gymno_new
+
+ggsave(plot=field_vardecomp_gymno_new, bg = "white" , here::here("figures", "extra-figures", "var_decomp", "field_vardecomp_gymno_new"), device="jpg")
+
+#-----
+field_data_all_new <- field_data_all %>% 
+  filter(age_new == 'new')
+  
+field_data_all_new$spp <- factor(field_data_all_new$spp, levels = c('ABCO', 'PIJE', 'CADE', 'ARPA', 'CECO', 'QUKE'))
+
+field_plot_angio_new  <- lfm.vs.mpa.scatterplot(f.group.lab = "Angiosperm", f.group = "Angiosperm", y.lab = "Field Data", y.axis = T, y.max = 300, df = field_data_all_new) +
+  annotate(geom = "text", x = 0, y = 290, label = 'a', fontface = 'bold', size = 20)
+field_plot_angio_new 
+
+field_vd_sp_angio_new  <- field_plot_angio_new  + annotation_custom(ggplotGrob(field_vardecomp_angio_new),
+                                     xmin = 7.25, xmax = 10,
+                                     ymin = 100, ymax = 280)
+field_vd_sp_angio_new 
+
+field_plot_gymno_new  <- lfm.vs.mpa.scatterplot(f.group.lab = "Gymnosperm", f.group = "Gymnosperm", y.max = 300, df = field_data_all_new) +
+  annotate(geom = "text", x = 0, y = 290, label = 'b', fontface = 'bold', size = 20)
+field_plot_gymno_new 
+
+field_vd_sp_gymno_new <- field_plot_gymno_new  + annotation_custom(ggplotGrob(field_vardecomp_gymno_new),
+                                     xmin = 7.45, xmax = 10,
+                                     ymin = 100, ymax = 280)
+field_vd_sp_gymno_new
+
+field_plot_new_combined <- cowplot::plot_grid(field_vd_sp_angio_new, field_vd_sp_gymno_new, legend, ncol=3, rel_widths = c(5, 5, 1.5), rel_heights = c(1,1, .5))
+field_plot_new_combined
+
+ggsave(plot=field_plot_new_combined, bg = "white" , here("figures", "extra-figures", "New_LFM_MPa_Scatterplots.jpg"), height = 10, width = 14)
+```
+

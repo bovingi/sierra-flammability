@@ -51,6 +51,7 @@ axis_size <- theme(axis_text = element_text(size = 24))
 #variance decomp colors: 
   vcol <-  c(age_new_num = "#fac228", 
              age_new = "#fac228", 
+             age = "#fac228",
              spp = "#9f2a63", 
              year = "#d44842", 
              year_month = "#d44842",

@@ -313,7 +313,7 @@ r <- resid(m10.75)
 plot(fitted(m10.75), r)
 
 
-qqnorm(m10.75, ~ranef(., level=1))
+#qqnorm(m10.75, ~ranef(., level=1))
 
 anova(mm10.75anova(m10.75)
 car::Anova(m10.75)
@@ -474,10 +474,10 @@ anova(m11, m11.5) #Yes interaction between mpa and f group
 m11.75  <- lmer(lfm~ water_potential*F.Group + as.factor(year) + (1|plant), data = flam_curve_df)
 m11.75 #there shouldn't be an interaction between year and f group, so dont include
 summary(m11.75)
-
 anova(m11, m11.75) 
 
-qqnorm(resid(m11.75))
+qqnorm(resid(m11.75)) #tells you if your residuals (points around the fitted line) are distributed the way your error distribution should be (answers: are your errors normally distributed). It will tell you about your outliers (points far from line). Systematic trends would show you that you're using the wrong error function in your model. 
+
 r <- resid(m11.75)
 plot(fitted(m11.75), r)
 
@@ -488,6 +488,17 @@ performance::multicollinearity(m11.75)
 
 specr::icc_specs(m11) %>%
   mutate_if(is.numeric, round, 2)
+
+plot(m11.75)
+
+#big cooks distance would mean there are outliers that are important. This is like the final outlier check. ("Leverage plot" to see if points have pull on the data).
+
+#heterscedscity (homogeneous variance); want this to be relatively unbiased. In ecological data its common that its not fully evenly spread. Tell us if it's the right model type. Less important than fitting the right model parameter, because you'll still get the correct line, you'll just not get the correct error around your estimates.
+
+#Also do this: 
+#Check if random effects are normally distributed. QQplot for the random effects and residuals of the random effects category. (Asks: is there a site/tree/plot that acts really differently?)
+
+
 ```
 
 

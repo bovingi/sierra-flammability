@@ -11,8 +11,8 @@ knitr::opts_chunk$set(echo = TRUE)
 
 library(here)
 library(kableExtra)
-#remotes::install_github("vqv/ggbiplot")
-#install.packages("ggbiplot")
+remotes::install_github("vqv/ggbiplot")
+install.packages("ggbiplot")
 library(ggbiplot) 
 library(tidyverse)
 library(sjPlot)
@@ -285,10 +285,10 @@ sierra_flamdata_pca_noceco <- sierra_flamdata_pca_all %>%
     spp == "quke" ~ "Angiosperm"
   )) %>% 
   filter(spp != "ceco") %>% 
-   select("fh", "ttfg", "tti", "fd", "gd", "gti", "pfg","lower_temp_max", "hydration", "spp", "year_month", "sample", "F.Group", "mpa", "lfm_outliers_out", "site", "individual", "sample_wt") %>% 
-  na.omit(c("fh", "ttfg", "tti", "fd", "gd", "gti", "pfg","lower_temp_max", "hydration", "spp", "year_month", "sample"))
+   select("fh", "ttfg", "tti", "fd", "gd", "gti", "pfg","temp_change", "hydration", "spp", "year_month", "sample", "F.Group", "mpa", "lfm_outliers_out", "site", "individual", "sample_wt") %>% 
+  na.omit(c("fh", "ttfg", "tti", "fd", "gd", "gti", "pfg","temp_change", "hydration", "spp", "year_month", "sample"))
   
-figure_pca_quant_spp <- (sierra_flamdata_pca_noceco[, c("fh", "ttfg", "tti", "fd", "gd", "gti", "pfg","lower_temp_max")]) %>%  
+figure_pca_quant_spp <- (sierra_flamdata_pca_noceco[, c("fh", "ttfg", "tti", "fd", "gd", "gti", "pfg","temp_change")]) %>%  
   mutate(tti = tti*-1) %>% 
   transmute("Flame Duration" = fd,
            "Flame Height" = fh,
@@ -297,11 +297,13 @@ figure_pca_quant_spp <- (sierra_flamdata_pca_noceco[, c("fh", "ttfg", "tti", "fd
            "Glow Duration" = gd,
            "Glow to Ignition" = gti,
            "Time to First Glow" = ttfg, 
-           "Max Temp" = lower_temp_max
+           "Temp. Change" = temp_change
           ) %>% 
   na.omit()
 
-figure_pca_cat_spp <-  (sierra_flamdata_pca_noceco[, c("fh", "ttfg", "tti", "fd", "gd", "gti", "pfg","lower_temp_max", "hydration", "spp", "year_month", "sample", "F.Group")]) %>% 
+figure_pca_cat_spp <-  (sierra_flamdata_pca_noceco[, c("fh", "ttfg", "tti", "fd", "gd", "gti", "pfg",'temp_change',
+                                                      # "lower_temp_max", 
+                                                       "hydration", "spp", "year_month", "sample", "F.Group")]) %>% 
   na.omit() %>% 
   select(hydration, spp, year_month, sample, F.Group) %>% 
   transmute("Hydration" = hydration, 
@@ -314,7 +316,7 @@ figure_prcomp_spp <- prcomp(na.omit(figure_pca_quant_spp),
                           center = TRUE, 
                           scale = TRUE)
   
-figure_pca_spp <- (sierra_flamdata_pca_noceco[, c("fh", "ttfg", "tti", "fd", "gd", "gti", "pfg","lower_temp_max", "hydration", "spp", "year_month", "sample", "F.Group")]) %>% 
+figure_pca_spp <- (sierra_flamdata_pca_noceco[, c("fh", "ttfg", "tti", "fd", "gd", "gti", "pfg","temp_change", "hydration", "spp", "year_month", "sample", "F.Group")]) %>% 
   na.omit() 
 
 # Putting principal components into dataset
@@ -389,20 +391,23 @@ df.v <- df.v %>%
   mutate(Flam.Metric = case_when(
     Variables == "Flame Height" ~ " ", # Entered this one manually so took out the label here
     Variables == "Flame Duration" ~ "\nFlame Duration              ",
-    Variables == "Glow Duration" ~ "Glow Duration",
-    Variables == "Post-flame Glow" ~ "\nPost-flame Glow",
-    Variables == "Ignitability" ~ "          Ignitability",
-    Variables == "Glow to Ignition" ~ "Glow to Ignition",
-    Variables == "Max Temp" ~ "Max Temp",
-    Variables == "Time to First Glow" ~ "Time to First Glow\n",
+    Variables == "Glow Duration" ~ "   Glow Duration",
+    Variables == "Post-flame Glow" ~ "   Post-flame Glow",
+    Variables == "Ignitability" ~ "Ignitability   ",
+    Variables == "Glow to Ignition" ~ "\nGlow to Ignition",
+    Variables == "Temp. Change" ~ "Temp. Change",
+    Variables == "Time to First Glow" ~ " ",
   ))
 
 df.v1 <- df.v %>% 
-  filter(Variables %in% c("Ignitability", "Glow Duration", "Post-flame Glow",
+  filter(Variables %in% c("Ignitability", 
+                          "Glow Duration", 
+                          "Post-flame Glow",
                           "Time to First Glow"))
 df.v2 <- df.v %>% 
-  filter(Variables %in% c("Flame Duration", "Glow to Ignition", "Max Temp",
-                          "Flame Height"))
+  filter(Variables %in% c("Flame Duration", 
+                          "Glow to Ignition", 
+                          "Temp. Change"))
 
   #dataset with scores and categorical variables for plotting points: 
 PCAvalues <- cbind(df.u, figure_pca_cat_spp)
@@ -411,10 +416,7 @@ PCAvalues <- cbind(df.u, figure_pca_cat_spp)
 theta <- c(seq(-pi, pi, length = 50), seq(pi, -pi, length = 50))
 
 circle <- data.frame(PC1 = r * cos(theta), PC2 = r * sin(theta)) 
-```
 
-Visualization:
-```{r}
 pca_fig <- ggplot(spp_data_pca, aes(x = PC1, y = PC2, color = Species)) +
   geom_point(size = 1.7, alpha = .35) +
   stat_ellipse(aes(x = PC1, y = PC2, color = Species), alpha = 0.5, cex = 0.95) +
@@ -428,8 +430,8 @@ pca_fig <- ggplot(spp_data_pca, aes(x = PC1, y = PC2, color = Species)) +
  # scale_color_manual(values = c('steelblue3', 'darkgreen')) +
   color_noceco +
   annotate("text",
-          x = df.v1$PC1*1.3,
-          y = df.v1$PC2*1.15,
+          x = df.v1$PC1*1.9,
+          y = df.v1$PC2*1,
           label = df.v1$Flam.Metric, size = 4.25,
           fontface = 'bold') +
   annotate("text",
@@ -437,7 +439,9 @@ pca_fig <- ggplot(spp_data_pca, aes(x = PC1, y = PC2, color = Species)) +
           y = df.v2$PC2*1.7,
           label = df.v2$Flam.Metric, size = 4.25,
           fontface = 'bold') +
-  annotate("text", x = 0.28, y = 0.55, label = "Flame Height", 
+  annotate("text", x = -1, y = 0.05, label = "Flame Height",
+           size = 4.25, fontface = 'bold') +
+  annotate("text", x = -2, y = -.3, label = "Time to First Glow",
            size = 4.25, fontface = 'bold') +
   theme(panel.background = element_rect(fill='white', colour='black', linewidth = 1.1), # Make background white and border black
           panel.grid.major = element_blank(),  # Hide major gridlines
@@ -450,44 +454,7 @@ pca_fig <- ggplot(spp_data_pca, aes(x = PC1, y = PC2, color = Species)) +
           axis.text = element_text(size = 14),
           aspect.ratio = 1/1) +
   coord_equal() +
-  ylim(-6, 6)#+ 
-  # geom_segment(
-  #   aes(
-  #     x = -5.5,
-  #     xend = -5.5,
-  #     y = -5.5,
-  #     yend = -2
-  #   ),
-  #   arrow = arrow(length = unit(1 / 2, 'picas')),
-  #   size = 0.35,
-  #   alpha = 0.85
-  # ) +
-  # annotate(
-  #   'text',
-  #   x = -5.75,
-  #   y = -3.75,
-  #   label = "More consumable",
-  #   angle = 90,
-  #   size = 4
-  # ) +
-  # geom_segment(
-  #   aes(
-  #     x = -5.5,
-  #     xend = -2,
-  #     y = -5.5,
-  #     yend = -5.5
-  #   ),
-  #   arrow = arrow(length = unit(1 / 2, 'picas')),
-  #   size = 0.35,
-  #   alpha = 0.85
-  # ) +
-  # annotate(
-  #   'text',
-  #   x = -3.75,
-  #   y = -5.9,
-  #   label = "More ignitable, \n Less combustable",
-  #   size = 4
-  # ) 
+  ylim(-6, 6)
 
 pca_fig
 #ggsave(here("figures", "PCA.angio.vs.gymno.jpg"), height = 8, width = 10)
@@ -577,8 +544,12 @@ pca_dotplot <- pca_fig_nolegend +
  #                                     xmin = .25, xmax = 3.8,
  #                                     ymin = -6.25, ymax = -3.5) +
    annotation_custom(ggplotGrob(dotplot.prop.ig.b),
-                                     xmin = -6.5, xmax = -2,
-                                     ymin = -6.25, ymax = -3)
+                                     # xmin = -6.5, xmax = -2,
+                                     # ymin = -6.25, ymax = -3)
+                     xmin = 2, 
+                     xmax = 5.5,
+                     ymin = 3, 
+                     ymax = 6)
 pca_dotplot
 ```
 
@@ -692,6 +663,7 @@ ggdraw(p2)
 
 ## PCA Table
 ```{r}
+install.packages("psych")
 tab_pca(figure_prcomp_spp, 
         rotation = c("varimax"), 
         digits = 2,
@@ -700,7 +672,8 @@ tab_pca(figure_prcomp_spp,
   string.cpov = "Cumulative Proportion")
 ```
 
-```{r}
+```{r, eval = F}
+#Not relevant anymore, use above table
 eig1 <- c(-0.96, 0.85, 0.00, 0.04, -0.03, -0.07, -0.09, -0.06, 26.20, 26.20)
 eig2 <- c(0.08, 0.04, -0.97, -0.96, -0.16, -0.05, -0.04, 0.26, 24.74, 50.94)
 eig3 <- c(-0.17, -0.45, 0.16, -0.12, 0.93, -0.05, 0.18, 0.47 ,14.76, 65.70)

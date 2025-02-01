@@ -8,27 +8,15 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 
-library(datapasta)
 library(ggplot2)
-library(purrr) #for visualizing all variables in one big plot
-library(naniar) #for dealing with NAs nicely 
 library(tidyverse)
 library(ggpubr)
 library(cowplot)
 library(GGally) #for corr plots
-require(kimisc) # has the nlist function to create a named list
-#library(strengejacke)
-library(sjPlot) # table functions
-library(here)
-library(effects) #for plofhng model effects
-library(sjstats) #use for r2 functions
-library("broom.mixed")
-library(MuMIn)
-library(modelsummary)
 library(nlme)
 library(lme4)
 library(MetBrewer)
-library(remef)
+#library(remef)
 library(kableExtra)
 library(janitor)
 library(lubridate)
@@ -42,12 +30,14 @@ mutate = dplyr::mutate
 select = dplyr::select
 here = here::here
 
-# if (!require("BiocManager", quietly = TRUE))
-#     install.packages("BiocManager")
-# 
- BiocManager::install("variancePartition")
+#Need R version 4.3 and BiocManager version 3.16
+if (!require("BiocManager", quietly = TRUE))
+  install.packages("BiocManager")
+BiocManager::install(version = "3.16")
+
+BiocManager::install("variancePartition")
 library('variancePartition')
-cite(variancePartition)
+#cite(variancePartition)
 
 source(here::here("scripts", "scripts_functions", "figure_info_sierra_flammability.R")) #color and theme info is here
 
@@ -184,8 +174,6 @@ pv_vardecomp_gymno
 ggsave(plot=pv_vardecomp_gymno, bg = "white" , here::here("figures", "extra-figures", "var_decomp", "pv_vardecomp_gymno"), device="jpg")
 
 #------
-
-?vardecomp
 ```
 
 
@@ -262,12 +250,12 @@ ggsave(plot=field_vardecomp_angio_log, bg = "white" , here::here("figures", "ext
 form <- ~ water_potential + (1|age_new) + (1|spp) + (1|year_month) + (1|plant)
 
 lfm_matrix<- angio_field %>% 
-  mutate(ilfm = 1/lfm) %>% 
+  #mutate(ilfm = 1/lfm) %>% 
   ungroup() %>% 
   mutate(id = row_number()) %>% 
-  select(id, ilfm) %>% 
+  select(id, lfm) %>% 
   pivot_wider(names_from = id, 
-              values_from = ilfm) 
+              values_from = lfm) 
 
 varPart <- fitExtractVarPartModel(lfm_matrix, form, angio_field)
 varPart
@@ -275,7 +263,7 @@ varPart
 field_vardecomp_angio <- plotPercentBars.new(varPart, col = c(vcol))+ theme(legend.position = "none")  
 field_vardecomp_angio
 
-ggsave(plot=field_vardecomp_angio, bg = "white" , here::here("figures", "extra-figures", "var_decomp", "field_vardecomp_angio"), device="jpg")
+# ggsave(plot=field_vardecomp_angio, bg = "white" , here::here("figures", "extra-figures", "var_decomp", "field_vardecomp_angio"), device="jpg")
 
 #------
 ```
@@ -588,11 +576,11 @@ field_plot_gymno
 
 ## Field Function
 ```{r}
-lfm.vs.mpa.scatterplot <- function(f.group.lab = " ", f.group, y.lab = " ", df, df2, df3,  y.axis = F, x.axis = F, y.max, present.title = F) {
+lfm.vs.mpa.scatterplot <- function(f.group.lab = " ", f.group, y.lab = " ", df, df2, df3, y.axis = F, x.axis = F, y.max, present.title = F) {
   
 # For color palette
 if(f.group == "Angiosperm") {color_pal <- c('#5792CC', '#C75146', '#6E406E','#5792CC', '#C75146', '#6E406E')}
-if(f.group == "Gymnosperm") {color_pal <- c('#42401D', '#5DA493', '#D8AB43')}
+if(f.group == "Gymnosperm") {color_pal <- c('#42401D', '#5DA493', '#D8AB43','#42401D', '#5DA493', '#D8AB43')}
   
 # For TLP linetype
 if(f.group == "Angiosperm") {fgr_lty <- 1}
@@ -621,19 +609,19 @@ df1 <- df %>%
   filter(F.Group == f.group) 
   
 plot <- ggplot()  +
-  geom_smooth(data = df2, aes(y = lfm, 
-             x = -1*water_potential, 
-             color = spp), method = "lm", 
+  geom_smooth(data = df2, aes(y = lfm,
+             x = -1*water_potential,
+             color = spp), method = "lm",
              se = F,
-             alpha = .5, 
-             linetype = "dotted", 
+             alpha = .5,
+             linetype = "dotted",
              size = 1) +
-  geom_smooth(data = df3, aes(y = lfm, 
-             x = -1*water_potential, 
-             color = spp), method = "lm", 
-             se = F, 
-             alpha = .5, 
-             linetype = "dashed", 
+  geom_smooth(data = df3, aes(y = lfm,
+             x = -1*water_potential,
+             color = spp), method = "lm",
+             se = F,
+             alpha = .5,
+             linetype = "dashed",
              size = 1) +
   geom_jitter(data = df1, aes(y = lfm, 
              x = -1*water_potential, 
@@ -700,6 +688,7 @@ field_vd_sp_angio <- field_plot_angio + annotation_custom(ggplotGrob(field_varde
                                      ymin = 95, ymax = 295)
 field_vd_sp_angio
 
+#Gymno
 flam_all_df_gymno <- flam_all_df %>% 
   filter(F.Group == "Gymnosperm")
 
