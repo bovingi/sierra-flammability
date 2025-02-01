@@ -669,7 +669,7 @@ df_final$Term <- factor(df_final$Term, levels = c("Residuals", "water_potential"
 # Create a stacked bar plot
 flam_vardecomp_gymno <- ggplot(df_final, aes(x = "Variance Partitioning", y = Variance, fill = Term)) +
   geom_bar(stat = "identity") +  # Use raw values to create the stacked bars
-  scale_y_continuous(limits = c(0, 1)) +  # Ensure the total variance adds up to 1
+  #scale_y_continuous(limits = c(0, 1)) +  # Ensure the total variance adds up to 1
   labs(x = NULL, y = "Proportion of Variance", fill = "Term") +  # Axis labels and legend title
   theme_minimal() +  # Apply a minimal theme for a clean look
   theme(
@@ -689,7 +689,15 @@ flam_vardecomp_gymno <- ggplot(df_final, aes(x = "Variance Partitioning", y = Va
     plot.margin = unit(c(0, .5, 0, 0), "cm") # Adjust plot margins
   ) +
   guides(fill = guide_legend(title = NULL)) + # Remove title from legend
-  scale_fill_manual(values = vcol) + # Manually assign colors from the vcol vector
+  scale_fill_manual(values =  c(age_new_num = "#fac228", 
+             age_new = "#fac228", 
+             age = "#fac228",
+             spp = "#9f2a63", 
+             year = "#d44842", 
+             year_month = "#d44842",
+             water_potential = "#280b53", 
+             plant = "#65156e", 
+             Residuals = "grey")) + # Manually assign colors from the vcol vector
   scale_x_discrete(
     breaks = seq(0, 100, by = 20), # Define x-axis breaks
     label = seq(100, 0, by = -20), # Label x-axis from 100 down to 0

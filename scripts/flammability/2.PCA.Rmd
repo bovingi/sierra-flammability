@@ -17,7 +17,6 @@ library(ggbiplot)
 library(tidyverse)
 library(sjPlot)
 library(ggpubr)
-library(remef)
 library(lme4)
 
 here = here::here
@@ -570,6 +569,7 @@ legend <- get_legend(df.dotplot.prop.ig %>%
           legend.key = element_rect(fill = "white"),
           legend.title = element_text(face = 'bold', size = 18),
          # legend.text = element_text(size = 16),
+         legend.key = element_rect(colour = NA, fill = NA),
         legend.text = element_text(face = 'italic', size = 16)))
 ```
 
