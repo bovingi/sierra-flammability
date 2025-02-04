@@ -26,13 +26,13 @@ select = dplyr::select
 here = here::here
 
 #Need R version 4.3 and BiocManager version 3.16
-if (!require("BiocManager", quietly = TRUE))
-  install.packages("BiocManager")
-BiocManager::install(version = "3.20")
-
-BiocManager::install("variancePartition") 
-
-library('variancePartition')
+# if (!require("BiocManager", quietly = TRUE))
+#   install.packages("BiocManager")
+# BiocManager::install(version = "3.20")
+# 
+# BiocManager::install("variancePartition") 
+# 
+# library('variancePartition')
 #cite(variancePartition)
 
 source(here::here("scripts", "scripts_functions", "figure_info_sierra_flammability.R")) #color and theme info is here
@@ -836,7 +836,7 @@ field_plot_df <- field_data_all_2.1 %>%
 
 field_plot_df$spp <- factor(field_plot_df$spp, levels = c('ABCO', 'PIJE', 'CADE', 'ARPA', 'CECO', 'QUKE'))
 
-field_plot_angio <- lfm.vs.mpa.scatterplot_pvflam(f.group = "Angiosperm", y.lab = "PV Curves", y.axis = T, y.max = 250, df = field_plot_df) +
+field_plot_angio <- lfm.vs.mpa.scatterplot_pvflam(f.group = "Angiosperm", y.lab = "Field data", y.axis = T, y.max = 250, df = field_plot_df) +
   annotate(geom = "text", x = 0, y = 250, label = 'a', fontface = 'bold', size = 12) +
   geom_smooth(method = "lm", se = F, #lty = "dotted", 
               size = 1) + annotation_custom(ggplotGrob(field_vardecomp_angio),
@@ -1390,9 +1390,6 @@ legend <- cowplot::plot_grid(legend_dots, cow_legend,blank_plot,
                              ncol = 1, 
                              rel_heights = c(.5, .6, 1))
 
-
-
-
 y.grob <- textGrob("Live Fuel Moisture (%)", 
                    rot = 90,
                    gp=gpar(fontface="bold", 
@@ -1403,8 +1400,12 @@ x.grob <- textGrob("Water Potential (-MPa)",
                            col="black", 
                            fontsize=30))
 
-
-plots <- cowplot::plot_grid(field_vd_sp_angio, field_plot_gymno, pv_vd_sp_angio, pv_vd_sp_gymno, flam_vd_sp_angio, flam_vd_sp_gymno, 
+plots <- cowplot::plot_grid(field_plot_angio, 
+                            field_plot_gymno, 
+                            pv_vd_sp_angio, 
+                            pv_vd_sp_gymno, 
+                            flam_vd_sp_angio, 
+                            flam_vd_sp_gymno, 
                             ncol = 2, 
                             nrow = 3, 
                             rel_heights = c(1.15,1,1.08), 
