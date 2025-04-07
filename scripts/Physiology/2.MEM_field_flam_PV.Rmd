@@ -44,7 +44,7 @@ mutate = dplyr::mutate
 select = dplyr::select
 here = here::here
 
-source(here::here("scripts", "scripts_functions", "figure_info_sierra_flammability.R")) #color and theme info is here
+#source(here::here("scripts", "scripts_functions", "figure_info_sierra_flammability.R")) #color and theme info is here
 ```
 
 # 1. PV Curves
@@ -883,13 +883,16 @@ tab_model
 
 ```{r}
 pepperwood_df <- field_data_all_2 %>%
-  select(spp, Species, unique_id, age_new, date, year, location, lfm, water_potential, location) %>%
+  select(spp, Species, unique_id, age_new, date, year, location, lfm, predawn, midday, location) %>%
    filter(lfm < 300,
          lfm > 50) %>%
   rename(tissue_age = age_new) %>%
   mutate(ilfm = 1/(lfm-100)) %>%
   filter(ilfm < 3,
-         ilfm > 0)
+         ilfm > 0) %>% 
+  pivot_longer(cols = c(predawn, midday),
+               names_to = "time",
+               values_to = "water_potential")
 
 pepperwood_df %>%
   ggplot(aes(y = lfm,
