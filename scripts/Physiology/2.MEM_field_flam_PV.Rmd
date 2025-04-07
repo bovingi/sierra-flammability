@@ -44,7 +44,7 @@ mutate = dplyr::mutate
 select = dplyr::select
 here = here::here
 
-source(here::here("scripts", "scripts_functions", "figure_info_sierra_flammability.R")) #color and theme info is here
+#source(here::here("scripts", "scripts_functions", "figure_info_sierra_flammability.R")) #color and theme info is here
 ```
 
 # 1. PV Curves
@@ -883,13 +883,13 @@ tab_model
 
 ```{r}
 pepperwood_df <- field_data_all_2 %>%
-  select(spp, Species, unique_id, age_new, date, year, location, lfm, water_potential, location) %>%
+  select(spp, Species, unique_id, age_new, date, year, location, lfm, predawn, midday, location) %>%
    filter(lfm < 300,
          lfm > 50) %>%
-  rename(tissue_age = age_new) %>%
-  mutate(ilfm = 1/(lfm-100)) %>%
-  filter(ilfm < 3,
-         ilfm > 0)
+  rename(tissue_age = age_new) %>% 
+  pivot_longer(cols = c(predawn, midday),
+               names_to = "time",
+               values_to = "water_potential")
 
 pepperwood_df %>%
   ggplot(aes(y = lfm,
@@ -901,57 +901,6 @@ pepperwood_df %>%
 
 pepperwood_df %>%
   mutate(month = month(date)) %>%
-  filter(!(spp %in% c("PIJE", "ABCO", "ARPA") & tissue_age == "new")) %>%
-  ggplot(aes(y = ilfm,
-             x = water_potential,
-             color = as.factor(Species)
-            # shape = as.factor(month))
-         )) +
-  geom_point() +
-  geom_smooth(method = "lm", se = F) +
-  facet_wrap(~Species, scales = "free")
-
-pepperwood_df %>%
-  mutate(month = month(date)) %>%
- # filter(tissue_age == "new") %>%
-  ggplot(aes(y = ilfm,
-             x = water_potential,
-             color = as.factor(month),
-            # shape = tissue_age
-            # shape = as.factor(month))
-         )) +
-  geom_point(aes(shape = tissue_age)) +
-  geom_smooth(method = "lm", se = F)
-
-pepperwood_df %>%
-  mutate(month = month(date)) %>%
- # filter(tissue_age == "new") %>%
-  ggplot(aes(y = lfm,
-             x = water_potential,
-             color = as.factor(month),
-            # shape = tissue_age
-            # shape = as.factor(month))
-         )) +
-  geom_point(aes(shape = tissue_age)) +
-  geom_smooth(method = "lm", se = F)
-
-
-
-pepperwood_df %>%
-  mutate(month = month(date)) %>%
-  filter(tissue_age == "old",
-         year == 2021) %>%
-  ggplot(aes(y = ilfm,
-             x = water_potential,
-             color = as.factor(month),
-            # shape = tissue_age
-            # shape = as.factor(month))
-         )) +
-  geom_point(aes(shape = tissue_age)) +
-  geom_smooth(method = "lm", se = F)
-
-pepperwood_df %>%
-  mutate(month = month(date)) %>%
   filter(tissue_age == "old",
          year == 2021) %>%
   ggplot(aes(y = lfm,
@@ -963,5 +912,9 @@ pepperwood_df %>%
   geom_point(aes(shape = tissue_age)) +
   geom_smooth(method = "lm", se = F)
 
-write.csv(pepperwood_df, here('processed-data', 'sierra_lfm_mpa.csv'))
+write.csv(pepperwood_df, here('processed-data', 'sierra_lfm_mpa_withpredawns.csv'))
+
+write.csv(pepperwood_df %>% filter(time %in% c("midday")), here('processed-data', 'sierra_lfm_mpa.csv'))
+
+
 ```
