@@ -805,7 +805,7 @@ plot <- df %>%
              x = -1*water_potential,
              color = spp)) +
   geom_vline(aes(xintercept = -1*mean_tlp_group), data = fgroup_pv_summaries) +
-  geom_jitter(alpha = .1,
+  geom_jitter(alpha = .5,
               size = 1) +
   scale_color_manual(values = color_pal) +
   scale_y_continuous(limits = c(50, y.max), 
@@ -1363,7 +1363,7 @@ legend <- ggplot(df_final, aes(x = "Variance Partitioning", y = Variance, fill =
     legend.text = element_text(size = 14)
   ) +
   labs(fill = "Predictor") +
-     theme(plot.margin = unit(c(.2, .5, .3, .25), "cm"),
+  theme(plot.margin = unit(c(.2, .5, .3, .25), "cm"),
         axis.title = element_text(face = 'bold', size = 26),
         axis.text = element_text(size = 16),
         legend.title = element_text(face = 'bold', size = 24),
@@ -1371,6 +1371,14 @@ legend <- ggplot(df_final, aes(x = "Variance Partitioning", y = Variance, fill =
         legend.key = element_rect(colour = NA, fill = NA),
        # legend.key = element_rect(fill = 'white')
         ) +
+     # theme(plot.margin = unit(c(.2, .5, .3, .25), "cm"),
+     #    axis.title = element_text(face = 'bold', size = 26),
+     #    axis.text = element_text(size = 16),
+     #    legend.title = element_text(face = 'bold', size = 24),
+     #    legend.text = element_text(face = 'italic', size = 20),
+     #    legend.key = element_rect(colour = NA, fill = NA),
+     #   # legend.key = element_rect(fill = 'white')
+     #    ) +
 
 # Print the legend plot
 legend
