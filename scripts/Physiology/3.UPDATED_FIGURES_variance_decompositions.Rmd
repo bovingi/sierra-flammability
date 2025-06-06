@@ -26,14 +26,15 @@ select = dplyr::select
 here = here::here
 
 #Need R version 4.3 and BiocManager version 3.16
-# if (!require("BiocManager", quietly = TRUE))
-#   install.packages("BiocManager")
-# BiocManager::install(version = "3.20")
-# 
-# BiocManager::install("variancePartition") 
-# 
-# library('variancePartition')
-#cite(variancePartition)
+if (!require("BiocManager", quietly = TRUE))
+  install.packages("BiocManager")
+BiocManager::install(version = "3.20")
+
+BiocManager::install("variancePartition")
+
+library('variancePartition')
+
+cite(variancePartition)
 
 source(here::here("scripts", "scripts_functions", "figure_info_sierra_flammability.R")) #color and theme info is here
 
@@ -717,6 +718,16 @@ ggsave(plot=flam_vardecomp_gymno, bg = "white" , here::here("figures", "extra-fi
 ##Legend
 ```{r}
 library(ggplot2)
+mod <- lmer(lfm ~ water_potential + (1|year_month) + (1|plant) + (1|spp) + (1|age_new), data = angio_field)
+
+# Extract variance partitioning statistics for the model
+df <- calcVarPart(mod) 
+
+# Convert df (a list) into a dataframe with two columns: Term and Variance
+df_final <- data.frame(
+  Term = names(df),  # Extract term names (random effects and residuals)
+  Variance = sapply(df, function(x) as.numeric(x))  # Extract numeric variance estimates
+)
 
 # Ensure Term is a factor with correct levels for ordering and coloring
 df_final$Term <- factor(df_final$Term, 
@@ -1331,7 +1342,16 @@ legend_tlp
 ###Legend 3 - Var. Decomp.
 ```{r}
 library(ggplot2)
+mod <- lmer(lfm ~ water_potential + (1|year_month) + (1|plant) + (1|spp) + (1|age_new), data = angio_field)
 
+# Extract variance partitioning statistics for the model
+df <- calcVarPart(mod) 
+
+# Convert df (a list) into a dataframe with two columns: Term and Variance
+df_final <- data.frame(
+  Term = names(df),  # Extract term names (random effects and residuals)
+  Variance = sapply(df, function(x) as.numeric(x))  # Extract numeric variance estimates
+)
 # Ensure Term is a factor with correct levels for ordering and coloring
 df_final$Term <- factor(df_final$Term, 
                         levels = c("Residuals", "water_potential", "year_month", "spp", "plant", "age_new"))

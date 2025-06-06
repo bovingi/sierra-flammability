@@ -315,7 +315,7 @@ plot(fitted(m10.75), r)
 
 #qqnorm(m10.75, ~ranef(., level=1))
 
-anova(mm10.75anova(m10.75)
+anova(mm10.75anova(m10.75))
 car::Anova(m10.75)
 
 specr::icc_specs(m10.75) %>%

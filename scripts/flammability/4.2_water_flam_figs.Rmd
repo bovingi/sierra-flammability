@@ -206,25 +206,26 @@ field_data_all_means$spp <- factor(field_data_all_means$spp, levels = c("abco", 
 ```{r}
 legend <- cowplot::get_legend(mem_data_all %>% 
 ggplot(aes(y = tti, x = lfm_scaled, color = Species)) +
-  geom_point(alpha = .5)+
+  geom_point( size = 4)+
   geom_smooth(method = "lm", se = F) +
   color_noceco +
   labs(y = "Live Fuel Moisture (scaled)", 
        x = "Time to Ignition (sec.)") +
   theme(legend.text = element_text(size = 17),  # , face = 'italic'
         legend.title = element_text(size = 20, face = 'bold'),
-        legend.key = element_rect(fill = 'white')))
+        legend.key = element_rect(fill = 'white', color = "white")))
 
+#To see what it will look like:
 mem_data_all %>% 
 ggplot(aes(y = tti, x = lfm_scaled, color = Species)) +
-  geom_point(alpha = .5)+
+  geom_point(size = 4)+
   geom_smooth(method = "lm", se = F) +
   color_noceco +
   labs(y = "Live Fuel Moisture (scaled)", 
        x = "Time to Ignition (sec.)") +
   theme(legend.text = element_text(size = 17),  # , face = 'italic'
         legend.title = element_text(size = 20, face = 'bold'),
-        legend.key = element_rect(fill = 'white'))
+        legend.key = element_rect(fill = 'white', color = 'white'))
 ```
 
 #------------
@@ -239,7 +240,7 @@ ggplot(aes(y = tti, x = lfm, color = Species)) +
   geom_point(alpha = .5)+
   geom_smooth(method = "lm", se = F) +
   color_noceco +
-  labs(title = "Live Fuel Moisture (%)", 
+  labs(title = "Observed LFM", 
        y = "Time to Ignition (sec.)") +
   theme(axis.title.x = element_blank(), 
              # axis.text.x = element_blank(),
@@ -249,7 +250,7 @@ ggplot(aes(y = tti, x = lfm, color = Species)) +
               axis.text.x = element_blank(),
               axis.ticks.x = element_blank(),
               axis.title.y = element_text(face = 'bold', size = 18),
-              axis.text.y = element_text(size = 12),
+              axis.text.y = element_text(size = 14),
               legend.title = element_text(face = 'bold', size = 14),
               legend.text = element_text(face = 'italic',),
              # panel.grid = element_blank(), axis.ticks.x = element_blank(),
@@ -259,48 +260,31 @@ ggplot(aes(y = tti, x = lfm, color = Species)) +
   annotate(geom = "text", x = -2.5, y = 170, label = 'a',
            fontface = 'bold', size = 10) 
 tti_scatterplot.lfm
-  
+```
+
+
+```{r}
 tti_scatterplot.mpa <- mem_data_all %>% 
 ggplot(aes(y = tti, x = mpa, color = Species)) +
   geom_point(alpha = .5)+
   geom_smooth(method = "lm", se = F) +
   color_noceco +
-  labs(title = "Water Potential (MPa)", 
-       #y = "Time to Ignition (sec.)"
-       ) +
-  # theme(axis.title.x = element_blank(), 
-  #            # axis.text.x = element_blank(),
-  #             # axis.ticks.y.left = element_blank(), 
-  #             # axis.title.y.left = element_blank(),
-  #             # axis.text.y.left = element_blank(),
-  #            axis.ticks.x = element_blank(),
-  #            # axis.text.x = element_blank(),
-  #             axis.ticks.y = element_blank(),
-  #             axis.title.y = element_blank(),
-  #             axis.text.y = element_blank(),
-  #            # panel.grid = element_blank(), axis.ticks.x = element_blank(),
-  #             plot.title = element_text(hjust = 0.5, face = 'bold', size = 18),
-  #             plot.margin = unit(c(.05, 0.05, 0.05, 0.05), 'cm'),
-  #             legend.position = 'none') +
-   theme(axis.title.x = element_blank(),
-       axis.text.x = element_blank(),
-               axis.ticks.x = element_blank(),
-              # axis.text.x = element_blank(),
-               axis.ticks.y = element_blank(),
-               axis.title.y = element_blank(),
-               axis.text.y = element_blank(),
-               #axis.title.y = element_text(face = 'bold', size = 16),
-               #axis.text.y = element_text(size = 12),
+ labs(title = "Observed Water Potential") +
+  theme(axis.title.x = element_blank(), 
+              axis.text.x = element_blank(),
+        axis.text.y = element_blank(),
+              axis.ticks.x = element_blank(),
+              axis.title.y = element_blank(),
+              axis.ticks.y = element_blank(),
               legend.title = element_text(face = 'bold', size = 14),
-               legend.text = element_text(face = 'italic',),
-              # panel.grid = element_blank(), axis.ticks.x = element_blank(),
-               plot.title = element_text(hjust = 0.5, face = 'bold', size = 18),
-         plot.margin = unit(c(.05, 0.05, 0.05, 0.05), 'cm'),
-              # plot.margin = unit(c(.2, 0.05, 0.2, 0.1), 'cm'),
-               legend.position = 'none')  +
+              legend.text = element_text(face = 'italic',),
+             # panel.grid = element_blank(), axis.ticks.x = element_blank(),
+              plot.title = element_text(hjust = 0.5, face = 'bold', size = 18),
+              plot.margin = unit(c(.05, 0.05, 0.05, 0.05), 'cm'),
+              legend.position = 'none') +
   annotate(geom = "text", x = -10, y = 170, label = 'b',
            fontface = 'bold', size = 10) 
-#tti_scatterplot.mpa
+tti_scatterplot.mpa
 ```
 
 ###Temp
@@ -310,16 +294,12 @@ ggplot(aes(y = temp_change, x = lfm, color = Species)) +
   geom_point(alpha = .5)+
   geom_smooth(method = "lm", se = F) +
   color_noceco +
-  labs(#title = "Live Fuel Moisture (%)", 
+  labs(x= "Live Fuel Moisture (%)", 
        y = expression(bold('Temp Change ('~degree~'C)'))) +
-  theme(axis.title.x = element_blank(), 
-             # axis.text.x = element_blank(),
-              # axis.ticks.y.left = element_blank(), 
-              # axis.title.y.left = element_blank(),
-              # axis.text.y.left = element_blank(),
-              axis.title.y = element_text(face = 'bold', size = 18),
-         axis.text.x = element_text(size = 14),
-              axis.text.y = element_text(size = 12),
+  theme(axis.title.y = element_text(face = 'bold', size = 18),
+              axis.title.x = element_text(face = 'bold', size = 18),
+              axis.text.x = element_text(size = 14),
+              axis.text.y = element_text(size = 14),
               legend.title = element_text(face = 'bold', size = 14),
               legend.text = element_text(face = 'italic',),
              # panel.grid = element_blank(), axis.ticks.x = element_blank(),
@@ -338,19 +318,14 @@ ggplot(aes(y = temp_change, x = mpa, color = Species)) +
   geom_point(alpha = .5)+
   geom_smooth(method = "lm", se = F) +
   color_noceco +
-  labs(#title = "Water Potential (MPa)", 
-       #y = "Time to Ignition (sec.)"
-       ) +
-  theme(axis.title.x = element_blank(),
-             # axis.text.x = element_blank(),
-              axis.ticks.y = element_blank(),
+  labs(x = "Water Potential (MPa)") +
+  theme(axis.ticks.y = element_blank(),
               axis.title.y = element_blank(),
               axis.text.y = element_blank(),
-              #axis.title.y = element_text(face = 'bold', size = 16),
-              #axis.text.y = element_text(size = 12),
+              axis.title.x = element_text(face = 'bold', size = 16),
+              axis.text.x = element_text(size = 14),
               legend.title = element_text(face = 'bold', size = 14),
-              legend.text = element_text(face = 'italic',),
-        axis.text.x = element_text(size = 14),
+              legend.text = element_text(face = 'italic'),
              # panel.grid = element_blank(), axis.ticks.x = element_blank(),
               plot.title = element_text(hjust = 0.5, face = 'bold', size = 18),
               plot.margin = unit(c(.05, 0.05, 0.05, 0.05), 'cm'),
@@ -418,7 +393,7 @@ tti_pred <- tti_df %>%
     labs(#y = "Ignitability (-1*sec)", 
       # x = "", 
        title = "Predicted Flammability")  +
-  annotate(geom = "text", x = as.Date('2024-04-24'), y = 110, label = 'c',
+  annotate(geom = "text", x = as.Date('2025-04-24'), y = 110, label = 'c',
            fontface = 'bold', size = 10) +
     # geom_text(data = subset(labelData, subset = plot == 'tti'),
     #           aes(x, y, label = labs, group = NULL, color = NULL),
@@ -442,19 +417,23 @@ labelData <- data.frame(x, y, labs, plot)
 temp_change_df <- mem_data_all %>% 
   drop_na(mpa, lfm, temp_change)
 
-temp_change_mod <- lm(temp_change ~ spp*lfm_scaled +
-                           sample_wt_scaled, data = temp_change_df)
+temp_change_mod <- lm(temp_change ~ spp*lfm_scaled + sample_wt_scaled, data = temp_change_df)
 summary(temp_change_mod)
 
 temp_change_df <- field_data_all_means %>% 
-  modelr::add_predictions(temp_change_mod)
+  modelr::add_predictions(temp_change_mod) %>% 
+  drop_na(pred)
+
 #To get standard deviations
-temp_change_df_stdev <- field_data_all_6 %>% 
-  add_predictions(temp_change_mod)
+temp_change_df_stdev <- field_data_all_means %>% 
+  add_predictions(temp_change_mod) %>% 
+  drop_na(pred)
+
 temp_change_df_stdev <- temp_change_df_stdev %>% 
   drop_na(pred) %>% 
   group_by(spp, month) %>% 
   mutate(stdev.pred = sd(pred))
+
 temp_change_df <- temp_change_df %>% 
   mutate(stdev.pred = temp_change_df_stdev$stdev.pred)
 
@@ -467,18 +446,19 @@ temp_change_pred <- temp_change_df %>%
     scale_y_continuous(limits = c(0,110), breaks = c(0, 50, 100, 150)) +
  # scale_x_reverse() +
    geom_linerange(aes(ymin = pred - 0.5*stdev.pred, ymax = pred + 0.5*stdev.pred)) +
-    theme(legend.position = "none",
-          axis.title.x = element_blank(),
-        axis.text.y = element_text(size = 14),
-        axis.text.x = element_text(size = 14, #angle = 20, 
-                                   hjust = 0.5),
-       # axis.text.y = element_blank(),
-       axis.title.y = element_blank(),
-      # axis.ticks.y = element_blank(),
-       # axis.title = element_text(size = 14, face = 'bold'),
-        plot.margin = unit(c(.05, 0.05, 0.05, 0.05), 'cm'))+
-    labs(y = "Temp. Change (C)") +
-  annotate(geom = "text", x = as.Date('2024-04-24'), y = 107, label = 'f',
+   theme(axis.ticks.y = element_blank(),
+              axis.title.y = element_blank(),
+              axis.text.y = element_text(size = 14),
+              axis.title.x = element_text(face = 'bold', size = 16),
+              axis.text.x = element_text(size = 14),
+              legend.title = element_text(face = 'bold', size = 14),
+              legend.text = element_text(face = 'italic'),
+             # panel.grid = element_blank(), axis.ticks.x = element_blank(),
+              plot.title = element_text(hjust = 0.5, face = 'bold', size = 18),
+              plot.margin = unit(c(.05, 0.05, 0.05, 0.05), 'cm'),
+              legend.position = 'none') +
+    labs(x = "Date") +
+  annotate(geom = "text", x = as.Date('2025-04-24'), y = 107, label = 'f',
            fontface = 'bold', size = 10) +
     # geom_text(data = subset(labelData, subset = plot == 'tc'),
     #           aes(x, y, label = labs, group = NULL, color = NULL),
