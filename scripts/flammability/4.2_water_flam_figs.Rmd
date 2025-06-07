@@ -240,7 +240,7 @@ ggplot(aes(y = tti, x = lfm, color = Species)) +
   geom_point(alpha = .5)+
   geom_smooth(method = "lm", se = F) +
   color_noceco +
-  labs(title = "Observed LFM", 
+  labs(title = "Observed Flam~LFM", 
        y = "Time to Ignition (sec.)") +
   theme(axis.title.x = element_blank(), 
              # axis.text.x = element_blank(),
@@ -269,7 +269,7 @@ ggplot(aes(y = tti, x = mpa, color = Species)) +
   geom_point(alpha = .5)+
   geom_smooth(method = "lm", se = F) +
   color_noceco +
- labs(title = "Observed Water Potential") +
+ labs(title = "Observed Flam~Water Potential") +
   theme(axis.title.x = element_blank(), 
               axis.text.x = element_blank(),
         axis.text.y = element_blank(),
