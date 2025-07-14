@@ -1,5 +1,5 @@
 ---
-title: "Segmented Regressions - LFM vs. MPa"
+title: "Segmented Regressions"
 author: "Indra Boving"
 date: "2022-12-02"
 output: html_document
@@ -25,7 +25,157 @@ select = dplyr::select
 # Function to plot mixed effects model segmented regressions:
 source(here::here("scripts", "scripts_functions", "plot_segmented_MEM.R"))
 ```
+#------------------------ 
+
+#Mpa vs. Flammability Segmented Regressions
+
 # ------------------------
+
+# 0. Flammability Data: 
+
+```{r}
+mem_data_all_raw <- read_csv(here("processed-data", "sierra_flam_data_all.csv"), show_col_types = F) 
+
+mem_data_all_clean <- mem_data_all_raw %>% 
+  select(lfm, mpa, fh, fh, fd, gd,tti, prop_ignite, temp_change, lower_temp_max, ignition, sample_wt, dry_wt, fresh_wt, water_wt, location, site, year_month, spp, individual, bins10lfm, bins5lfm, bins20lfm, notes_flam) %>% 
+  mutate(mpa = -1*mpa) %>% 
+  mutate(dw_flam_sample = sample_wt * (dry_wt/fresh_wt),
+         ww_flam_sample = sample_wt * (water_wt/fresh_wt)) %>% 
+  mutate(excess_water = (ww_flam_sample - dw_flam_sample)) %>% 
+  #dplyr::group_by(spp) %>% 
+  mutate(mpa_scaled = scale(mpa),
+         dw_flam_sample_scaled = scale(dw_flam_sample), 
+         sample_wt_scaled = scale(sample_wt), 
+         ww_flam_sample_scaled = scale(ww_flam_sample),
+         lfm_scaled = scale(lfm), 
+         excess_water_scaled = scale(excess_water)) %>% 
+  mutate(Species = case_when(
+    spp == "arpa" ~ "Ar. patula", 
+    spp == "abco" ~ "Ab. concolor",
+    spp == "cade" ~ "Ca. decurrens",
+    spp == "ceco" ~ "Ce. cordulatus",
+    spp == "pije" ~ "Pi. jeffreyi",
+    spp == "quke" ~ "Qu. kelloggii"
+  )) %>% 
+  mutate(F.Group = case_when(
+    spp == "arpa" ~ "Angiosperm", 
+    spp == "abco" ~ "Gymnosperm",
+    spp == "cade" ~ "Gymnosperm",
+    spp == "ceco" ~ "Angiosperm",
+    spp == "pije" ~ "Gymnosperm",
+    spp == "quke" ~ "Angiosperm"
+  )) %>% 
+  mutate(spp = toupper(spp)) %>% 
+  filter(!year_month %in% c("2021_august")) %>% 
+  filter(ignition != 2) %>% # Removing manual ignitions
+  drop_na(mpa_scaled, lfm_scaled, sample_wt_scaled)   %>% 
+   mutate(strategy_binary = case_when( #based on slope of predawn~midday line
+    spp == "ABCO" ~ "1", 
+    spp == "ARPA" ~ "2", 
+    spp == "CADE" ~ "1", 
+    spp == "CECO" ~ "2", 
+    spp == "PIJE" ~ "1", 
+    spp == "QUKE" ~ "2"
+  )) 
+
+mem_data_all <- mem_data_all_clean %>% 
+  filter(spp != "CECO")
+```
+
+#0.1 Segments in Flam Data
+
+```{r}
+library(nlme)
+library(segmented)
+library(dplyr)
+library(tidyr)
+library(purrr)
+
+# Variables to loop over
+predictors <- c("tti", "fh", "fd", "gd", "temp_change", "prop_ignite", "lower_temp_max")
+groups <- c("Angiosperm", "Gymnosperm")
+
+# Function to fit models and extract results
+run_changepoint_analysis <- function(data, predictor, group_label) {
+  df <- data %>%
+    filter(F.Group == group_label) %>%
+    drop_na(mpa, .data[[predictor]]) %>%
+    mutate(id = individual)
+
+  ## Random effects model
+  rand_mod <- tryCatch(
+    lme(reformulate("mpa + spp", response = predictor), random = ~1 | id, data = df),
+    error = function(e) NULL
+  )
+
+  rand_seg <- tryCatch(
+    segmented.default(rand_mod, ~mpa, npsi = list(mpa = 1)),
+    error = function(e) NULL
+  )
+
+  rand_result <- if (!is.null(rand_seg) && inherits(rand_seg, "segmented")) {
+    tibble(
+      F.Group = group_label,
+      model_type = "random",
+      predictor = predictor,
+      changepoint = summary(rand_seg)$psi[2],
+      se = summary(rand_seg)$psi[3],
+      lwr = changepoint - se / 2,
+      upr = changepoint + se / 2,
+      p_value = NA_real_
+    )
+  } else {
+    NULL
+  }
+
+  ## No random effects model
+  lm_mod <- tryCatch(
+    lm(reformulate("mpa + spp", response = predictor), data = df),
+    error = function(e) NULL
+  )
+
+  seg_mod <- tryCatch(
+    segmented(lm_mod, ~mpa, npsi = 1),
+    error = function(e) NULL
+  )
+
+  davies_p <- tryCatch(
+    davies.test(seg_mod)$p.value,
+    error = function(e) NA_real_
+  )
+
+  lm_result <- if (!is.null(seg_mod) && inherits(seg_mod, "segmented")) {
+    tibble(
+      F.Group = group_label,
+      model_type = "no_random",
+      predictor = predictor,
+      changepoint = summary(seg_mod)$psi[2],
+      se = summary(seg_mod)$psi[3],
+      lwr = changepoint - se / 2,
+      upr = changepoint + se / 2,
+      p_value = davies_p
+    )
+  } else {
+    NULL
+  }
+
+  bind_rows(rand_result, lm_result)
+}
+
+# Run for all predictor × group combinations
+changepoint_results <- tidyr::expand_grid(predictor = predictors, group = groups) %>%
+  mutate(results = map2(predictor, group, ~run_changepoint_analysis(mem_data_all, .x, .y))) %>%
+  unnest(results, names_repair = "unique")  # prevents column name conflict
+
+# View the final dataframe
+changepoint_results
+```
+
+#------------------------ 
+
+#MPa vs. LFM Segmented Regressions
+
+#------------------------ 
 # 1. Field Data
 ```{r}
 field_data_all_4 <- read_csv(here("processed-data", "field_data_2020_2021.csv"), show_col_types = FALSE) %>% 
