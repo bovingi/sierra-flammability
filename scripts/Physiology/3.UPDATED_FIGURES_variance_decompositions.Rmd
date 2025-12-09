@@ -34,7 +34,7 @@ BiocManager::install("variancePartition")
 
 library('variancePartition')
 
-cite(variancePartition)
+#cite(variancePartition)
 
 source(here::here("scripts", "scripts_functions", "figure_info_sierra_flammability.R")) #color and theme info is here
 

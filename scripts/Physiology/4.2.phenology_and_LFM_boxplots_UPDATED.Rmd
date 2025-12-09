@@ -195,6 +195,74 @@ ggsave(here("figures", "main-figures", "FigS1.LFM_vs_Midday_spp.jpg"),
        plot = lfm_vs_mpa_tissue_status_plot)
 ```
 
+## FIG. 5: Species, Age 
+```{r}
+field_data_all_3 <- field_data_all_3 %>% 
+  mutate(Age = case_when(
+    age == 'new' ~ 'New',
+    age == 'old' ~ 'Old'
+  )) %>% 
+  mutate(midday = -1*midday)
+
+lfm_vs_mpa_tissue_status_plot <- field_data_all_3 %>%
+  #filter(month < 10) %>% #removing post-rain values (October sample collection)
+  mutate(spp = fct_relevel(spp, "ABCO", "PIJE", "CADE", "ARPA", "QUKE", "CECO"))  %>%
+  mutate(month = month(date, label = TRUE, abbr = TRUE)) %>%
+  mutate(midday = -1*midday) %>% 
+  mutate(Age = case_when(
+    Age == "New" ~ "New",
+    Age == "Old" ~ "Old"
+  )) %>% 
+  ggplot(aes(
+    x = midday,
+    y = lfm,
+    #shape = Age
+  )) +
+  geom_point(size = 1, alpha = .65, 
+             aes(color = Age)) +
+  geom_hline(
+    aes(yintercept = lfm_tlp),
+    size = 0.7,
+    #color = color_many2,
+    alpha = .6,
+    show_legend = F
+  ) +
+ geom_vline(
+    aes(xintercept = tlp),
+    linewidtch        = 0.7,
+    color       = "black",
+    alpha       = 0.6,
+    linetype    = "dashed",
+    show.legend = FALSE
+  ) +
+  xlim(-6, 0) +
+  labs(
+    y = "Live Fuel Moisture",
+    x = "Midday Water Potential (MPa)",
+    color = "Tissue Status"
+  ) +
+  ylim(50, 300) +
+  facet_wrap( ~ spp, 
+              labeller = labeller(spp = spp.labs)) +
+  scale_color_manual(values = c("#b3beb6", "#262E43")) +
+  theme(
+    strip.text      = element_text(size = 12, face = "italic"),
+    axis.title      = element_text(size = 16, face = "bold"),
+    legend.title    = element_text(face = "bold"),
+    legend.text     = element_text(size = 12),
+    title           = element_text(size = 16, face = "bold", hjust = 0.5),
+    strip.background = element_rect(fill = "gray90"),
+    legend.key      = element_blank()
+  )
+  
+#scale_color_gradientn(colors=met.brewer("Morgenstern"))
+lfm_vs_mpa_tissue_status_plot
+
+ggsave(here("figures", "main-figures", "FigS1.LFM_vs_Midday_spp_reversex.jpg"),
+       height = 5, width = 8,
+       plot = lfm_vs_mpa_tissue_status_plot)
+```
+
 #-----------------------------------------------
 # Boxplots and Phenology
 
